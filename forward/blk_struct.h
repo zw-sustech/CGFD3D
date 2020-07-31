@@ -6,7 +6,7 @@
 #include <string.h>
 #include <math.h>
 
-struct blk_struct{
+struct blk_t{
 
     // size
     size_t siz_line;

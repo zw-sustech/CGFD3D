@@ -48,6 +48,7 @@ int elastic_iso_curv_macdrp_rkint(
     float dt, int nt_total,
     // scheme
     int numPair, int numStage, float *rka, float *rkb,
+    size_t pair_fdx_len[][][],
     // boundary type
     int *restrict boundary_itype
     // if free surface

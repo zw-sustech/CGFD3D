@@ -47,6 +47,7 @@ int main(int argc, char** argv){
     struct wave_struct *blk_w;  // wavefiled on each block, use pointer to make main/function sytax same
     struct conn_struct *blk_connect;  // connection of each blocks
     struct par_struct *par;
+    struct scheme_t *fd;
 
     int myid,mpi_size;
 
@@ -82,6 +83,13 @@ int main(int argc, char** argv){
         exit(-1);
     }
 
+//
+// alloc
+//
+    fd    = (struct scheme_t *) malloc(sizeof(struct scheme_t));
+    blk_w = (struct blk_t *) malloc(sizeof(struct blk_t));
+    par   = (struct par_t *) malloc(sizeof(struct par_t));
+
 // 
 // read in pars on master node and exchange to others
 // 
@@ -107,11 +115,11 @@ int main(int argc, char** argv){
     if (myid==0) fprintf(stdout,"set scheme ...\n"); 
     if      (par->fd_scheme == PAR_FD_SCHEME_MACDRP)
     {
-        ierr = scheme_macdrp();
+        ierr = scheme_set_macdrp(&fd);
     }
     else if (par->fd_scheme == FD_SCHEME_CENT_6th)
     {
-        ierr = scheme_macdrp();
+        //ierr = scheme_macdrp();
     }
     else // read in from par file
     {
@@ -330,7 +338,11 @@ int main(int argc, char** argv){
     t_start = time(NULL);
 
     ierr = solver_eliso1st_curv_macdrp_rkint(blk_w->w3d, blk_w->g3d, blk_w->m3d,
-            blk_w->nx, blk_w->ny, blk_w->nz,scheme->);
+            blk_w->nx, blk_w->ny, blk_w->nz,
+            fd->pair_fdx_len, fd->pair_fdx_indx, fd->pair_fdx_coef,
+            fd->pair_fdy_len, fd->pair_fdy_indx, fd->pair_fdy_coef,
+            fd->pair_fdz_len, fd->pair_fdz_indx, fd->pair_fdz_coef,
+            );
 
     t_end = time(NULL);
 
