@@ -155,15 +155,15 @@ int main(int argc, char** argv){
                     myid3[0],myid3[1],myid3[2]);
 
     }
-    // if cartesian coord
-    else if (par->grid_by_cartesian==1)
-    {
-        ierr = gd_curv_generate_cartesian(blk_w->g3d, blk_w->nx, blk_w->ny, blk_w->nz,
-                    par->grid_x0 + myid3[0]*blk_w->ni - blk_w->num_of_ghost[0],
-                    par->grid_y0 + myid3[1]*blk_w->ni - blk_w->num_of_ghost[1],
-                    par->grid_z0 + myid3[2]*blk_w->ni - blk_w->num_of_ghost[2],
-                    par->grid_dx, par->grid_dy, par->grid_dz);
-    }
+    //// if cartesian coord
+    //else if (par->grid_by_cartesian==1)
+    //{
+    //    ierr = gd_curv_generate_cartesian(blk_w->g3d, blk_w->nx, blk_w->ny, blk_w->nz,
+    //                par->grid_x0 + myid3[0]*blk_w->ni - blk_w->num_of_ghost[0],
+    //                par->grid_y0 + myid3[1]*blk_w->ni - blk_w->num_of_ghost[1],
+    //                par->grid_z0 + myid3[2]*blk_w->ni - blk_w->num_of_ghost[2],
+    //                par->grid_dx, par->grid_dy, par->grid_dz);
+    //}
     // if vmap coord
     else if (par->grid_by_vmap==1)
     {

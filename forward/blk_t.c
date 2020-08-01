@@ -18,7 +18,7 @@
 //
 // set grid size
 //
-int blk_struct_set_grid_size(struct blk_struct *blk_w, size_t nx, size_t ny, size_t nz)
+int blk_t_set_grid_size(struct blk_struct *blk_w, size_t nx, size_t ny, size_t nz)
 {
   int ierr=0;
   

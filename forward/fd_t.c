@@ -75,18 +75,21 @@ int scheme_set_macdrp(struct scheme_t *fd)
       {
         for (int i=0; i < 5; i++)
         {
-          pair_fdx_len[ipar][istage][ih * t + i] = fd_dhs_len[idir][i][ih];
-          pair_fdy_len[ipar][istage][ih * t + i] = fd_dhs_len[jdir][i][ih];
-          pair_fdz_len[ipar][istage][ih * t + i] = fd_dhs_len[kdir][i][ih];
+          //pair_fdx_len[ipar][istage][ih * 5 + i] = fd_dhs_len[idir][i][ih];
+          //pair_fdy_len[ipar][istage][ih * 5 + i] = fd_dhs_len[jdir][i][ih];
+          //pair_fdz_len[ipar][istage][ih * 5 + i] = fd_dhs_len[kdir][i][ih];
+          *(*(*(pair_fdx_len+ipar)+istage)+ih * 5 + i) = fd_dhs_len[idir][i][ih];
+          *(*(*(pair_fdy_len+jpar)+istage)+ih * 5 + i) = fd_dhs_len[idir][j][ih];
+          *(*(*(pair_fdz_len+kpar)+istage)+ih * 5 + i) = fd_dhs_len[idir][k][ih];
         }
       }
 
       // indx and coef
       for (int i=0; i < fd->op_all_coef_size; i++)
       {
-        pair_fdx_len[ipar][istage][i] = fd_dhs_opindx[idir][i];
-        pair_fdy_len[ipar][istage][i] = fd_dhs_opindx[jdir][i];
-        pair_fdz_len[ipar][istage][i] = fd_dhs_opindx[kdir][i];
+        pair_fdx_indx[ipar][istage][i] = fd_dhs_opindx[idir][i];
+        pair_fdy_indx[ipar][istage][i] = fd_dhs_opindx[jdir][i];
+        pair_fdz_indx[ipar][istage][i] = fd_dhs_opindx[kdir][i];
 
         pair_fdx_coef[ipar][istage][i] = fd_dhs_opcoef[idir][i];
         pair_fdy_coef[ipar][istage][i] = fd_dhs_opcoef[jdir][i];

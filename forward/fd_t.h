@@ -70,21 +70,21 @@ struct scheme_t{
   // half, left, right number will be used to pack message
   const int op_max_half_stentil = 3;
   const int op_all_coef_size    = 10;
-  size_t fd_dhs_len[2][5][op_max_half_stentil] = // forw/back, indx/total/half/left/right, 1/2/3 len
+  size_t fd_dhs_len[2][5][op_max_half_stentil+1] = // forw/back, indx/total/half/left/right, 0/1/2/3 len
   {
     { // forw
-      { 0, 2, 5 }, // indx
-      { 2, 3, 5 }, // total
-      { 1, 2, 3 }, // half
-      { 0, 0, 1 }, // left
-      { 1, 2, 3 }  // right
+      { 0, 0, 2, 5 }, // indx
+      { 0, 2, 3, 5 }, // total
+      { 0, 1, 2, 3 }, // half
+      { 0, 0, 0, 1 }, // left
+      { 0, 1, 2, 3 }  // right
     },
     { // back
-      { 0, 2, 5 }, // indx
-      { 2, 3, 5 },
-      { 1, 2, 3 },
-      { 1, 2, 3 },
-      { 0, 0, 1 }
+      { 0, 0, 2, 5 }, // indx
+      { 0, 2, 3, 5 },
+      { 0, 1, 2, 3 },
+      { 0, 1, 2, 3 },
+      { 0, 0, 0, 1 }
     }
   };
 
