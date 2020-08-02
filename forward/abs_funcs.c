@@ -120,6 +120,11 @@ int abs_set_cfspml(size_t nx, size_t ny, size_t nz,
   for (int i = 0; i < ny; i++) Dy[i] /= By[i];
   for (int i = 0; i < nz; i++) Dz[i] /= Bz[i];
 
+  // covert ax = a_x + d_x/beta_x to reduce computational cost
+  for (int i = 0; i < nx; i++) Ax[i] += Dx[i];
+  for (int i = 0; i < ny; i++) Ay[i] += Dy[i];
+  for (int i = 0; i < nz; i++) Az[i] += Dz[i];
+
 #ifdef DEBUG
   FILE *fp;
   char fnm[1000];

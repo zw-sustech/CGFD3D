@@ -14,12 +14,11 @@ struct blk_t{
     size_t siz_volume; // number of points per var
     size_t siz_vars; // volume * num_of_vars
 
-
     //
     // grid index
     //
-    int ni1, ni2, nk1, nk2, ni, nk;
-    int nx1, nx2, nz1, nz2, nx, nz;
+    int ni1, ni2, nj1, nj2, nk1, nk2, ni, nj, nk;
+    int nx1, nx2, ny1, ny2, nz1, nz2, nx, ny, nz;
 
     //
     // grid metrics
@@ -57,10 +56,10 @@ struct blk_t{
     char  **aux_name;
 
     // boundary 
-    int *boundary_itype;
+    int *boundary_itype[2*3];
 
     // abs
-    int     abs_numbers[2*3];
+    int     abs_number_of_layers[2*3];
 
     size_t  abs_coefs_size;
     size_t  abs_coefs_dimpos[2*3];

@@ -321,10 +321,19 @@ int main(int argc, char** argv){
     }
 
     if (par->absorbing_boundary_adecfspml==1) {
-        ierr = abs_set_cfspml(blk_w->nx, blk_w->ny, blk_w->nz,
-            blk_w->ni1, blk_w->ni2, blk_w->nj1, blk_w->nj2, blk_w->nk1, blk_w->nk2,
+      // set pml parameters
+        ierr = abs_set_cfspml(blk_w->ni, blk_w->nj, blk_w->nk,
             blk_w->boundary_itype,
-            par->abs_numbers, par->abs_alpha, par->abs_beta, par->abs_velocity,
+            par->abs_number_of_layers,
+            par->abs_alpha, par->abs_beta, par->abs_velocity,
+            blk_w->abs_number_of_layers, blk_w->abs_coefs_dimpos, &blk_w->abs_coefs
+            );
+
+        // alloc pml vars
+        ierr = wf_el_1st_init_cfspml_vars(blk_w->ni, blk_w->nj, blk_w->nk,
+            blk_w->number_of_levels, blk_w->number_of_vars,
+            blk_w->boundary_itype, blk_w->abs_number_of_layers,
+            par->abs_alpha, par->abs_beta, par->abs_velocity,
             blk_w->abs_numbers, blk_w->abs_coefs_dimpos, &blk_w->abs_coefs
             );
     }
