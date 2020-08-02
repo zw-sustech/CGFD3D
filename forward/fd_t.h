@@ -6,7 +6,7 @@
 #include <string.h>
 #include <math.h>
 
-struct scheme_t{
+struct fd_t{
 
   //
   // MacCormack-type scheme
@@ -122,17 +122,17 @@ struct scheme_t{
 
 	int num_of_pairs;
 
-  int    ***pair_fdx_length; // total, half, left, right
-  size_t ***pair_fdx_indx;  // 
-  float  ***pair_fdx_coef ;
+  size_t ***pair_fdx_all_info;   // [pair][stage][halflen]: pos, total, half, left, right
+  size_t  **pair_fdx_all_indx;  // [pair][stage] : 1-10 ele, not include [hlen] due to different length
+  float   **pair_fdx_all_coef ;
 
-  int    ***pair_fdy_length; //
-  size_t ***pair_fdy_indx;  // 
-  float  ***pair_fdy_coef ;
+  size_t ***pair_fdy_all_info;   // [pair][stage][halflen]: pos, total, half, left, right
+  size_t  **pair_fdy_all_indx;  // [pair][stage] : 1-10 ele, not include [hlen] due to different length
+  float   **pair_fdy_all_coef ;
 
-  int    ***pair_fdz_length; //
-  size_t ***pair_fdz_indx;  // 
-  float  ***pair_fdz_coef ;
+  size_t ***pair_fdz_all_info;   // [pair][stage][halflen]: pos, total, half, left, right
+  size_t  **pair_fdz_all_indx;  // [pair][stage] : 1-10 ele, not include [hlen] due to different length
+  float   **pair_fdz_all_coef ;
 
   //int    *pair_bdryops_maxlen; // max boundary op length for each pair
   //int    *pair_bdryops_length; // length of each op
@@ -185,5 +185,15 @@ struct scheme_t{
   float rk_a[4] = { 0., 0.5, 0.5, 1.0 };
   float rk_b[4] = { 1.0/6.0, 1.0/3.0, 1.0/3.0, 1.0/6.0 };
 };
+
+#define FD_INFO_POS_OF_INDX  0
+#define FD_INFO_LENGTH_TOTAL 1
+#define FD_INFO_LENGTH_HALF  2
+#define FD_INFO_LENGTH_LEFT  3
+#define FD_INFO_LENGTH_RIGTH 4
+
+#define FD_BOUNDARY_TYPE_FREE   0
+#define FD_BOUNDARY_TYPE_CFSPML 1
+#define FD_BOUNDARY_TYPE_ABLEXP 1
 
 #endif

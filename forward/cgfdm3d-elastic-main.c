@@ -337,7 +337,7 @@ int main(int argc, char** argv){
 
     t_start = time(NULL);
 
-    ierr = solver_eliso1st_curv_macdrp_rkint(blk_w->w3d, blk_w->g3d, blk_w->m3d,
+    ierr = sv_eliso1st_curv_macdrp_allstep(blk_w->w3d, blk_w->g3d, blk_w->m3d,
             blk_w->nx, blk_w->ny, blk_w->nz,
             fd->pair_fdx_len, fd->pair_fdx_indx, fd->pair_fdx_coef,
             fd->pair_fdy_len, fd->pair_fdy_indx, fd->pair_fdy_coef,

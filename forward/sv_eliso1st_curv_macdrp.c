@@ -31,17 +31,28 @@
 #include "wf_el_1st.h"
 #include "solver_eliso1st_curv_macdrp.h"
 
-#define M_CAL_FD(deriv, var, iptr, fd_length, fd_shift, fd_coef, n) \
+#define M_FD_SHIFT(deriv, var, iptr, fd_length, fd_shift, fd_coef, n) \
    deriv = 0.0; \
    for (n=0; n<fd_length; n++) { \
        deriv += fd_coef[n] * var[iptr + fd_shift[n]]; \
    }
 
-int elastic_iso_curv_macdrp_rkint(
+#define M_FD_NOINDX(deriv, var, fd_length, fd_coef, n) \
+   deriv = 0.0; \
+   for (n=0; n<fd_length; n++) { \
+       deriv += fd_coef[n] * var[n]; \
+   }
+
+#define M_FD_INDX(deriv, var, iptr, fd_length, fd_indx, fd_coef, shift, n) \
+   deriv = 0.0; \
+   for (n=0; n<fd_length; n++) { \
+       deriv += fd_coef[n] * var[iptr + fd_shift[n] * shift]; \
+   }
+
+int sv_eliso1st_curv_macdrp_allstep(
     float *restrict w3d, // wavefield
     float *restrict g3d, // grid vars
     float *restrict m3d, // medium vars
-    float *restrict aux, // aux vars, eg. PML
     // grid size
     size_t nx, size_t ny, size_t nz,
     // time
@@ -49,9 +60,9 @@ int elastic_iso_curv_macdrp_rkint(
     // scheme
     int numPair, int numStage, float *rka, float *rkb,
     int fd_max_op_len,
-    size_t ***pair_fdx_len, size_t ***pair_fdx_indx, float ***pair_fdx_coef,
-    size_t ***pair_fdy_len, size_t ***pair_fdx_indx, float ***pair_fdy_coef,
-    size_t ***pair_fdz_len, size_t ***pair_fdz_indx, float ***pair_fdz_coef,
+    size_t ***pair_fdx_all_len, size_t **pair_fdx_all_indx, float **pair_fdx_all_coef,
+    size_t ***pair_fdy_all_len, size_t **pair_fdx_all_indx, float **pair_fdy_all_coef,
+    size_t ***pair_fdz_all_len, size_t **pair_fdz_all_indx, float **pair_fdz_all_coef,
     // boundary type
     int *restrict boundary_itype
     // if free surface
@@ -123,7 +134,7 @@ int elastic_iso_curv_macdrp_rkint(
       // pack message
       ierr = elastic_iso_curv_pack_message(W_cur,
               ni1,ni2,nj1,nj2,nk1,nk2,ni,nj,nk,nx,ny,nz,
-              *(*(pair_fdx_len+ipar)+istage)+fd_max_op_len,
+              pair_fdx_len[ipar][istage][fd_max_op_len],
               buff, buff_dim_pos, buff_dim_size);
 
       // exchange data along y
@@ -138,18 +149,13 @@ int elastic_iso_curv_macdrp_rkint(
       ierr = curv_macdrp_elastic_iso_unpack_message();
 
       // compute
-      ierr = elastic_iso_curv_macdrp_cal_rhs(
+      ierr = sv_eliso1st_curv_macdrp_one_stage(
               w3d+pos_pre,
               w3d+pos_rhs,
-              *(pair_fdx_len+ipar)+istage,
+              pair_fdx_len[ipar][istage],
               fd_opx_length,
               fd_opx_shift,
               fd_opx_coef,
-              fd_bdry_opx_nlay,
-
-              scheme_op_lenth
-              scheme_op_indx[iPair][iStage],
-              scheme_op_coef[iPair][iStage],
               );
 
       // RK int, write here for hiding communication
@@ -225,25 +231,15 @@ int elastic_iso_curv_macdrp_rkint(
   } // time loop
 }
 
-//int elastic_iso_curv_macdrp_cal_rhs(float *restrict w_cur, float *restrict rhs, 
-//        int *restrict fdx_length, size_t *restrict fdx_shift, float *restrict fdx_coef,
-//        int *restrict fdx_bdry_nlay, int *restrict fdx_bdary_nlay_length, int *restrict fdx_bdary_nlay_pos,
-//        int *restrict fdx_bdary_nlay_shift, float *restrict fdx_bdary_nlay_coef,
-//        int *restrict fdy_length, size_t *restrict fdy_shift, float *restrict fdy_coef,
-//        int *restrict fdy_bdry_nlay, int *restrict fdy_bdary_nlay_length, int *restrict fdy_bdary_nlay_pos,
-//        int *restrict fdy_bdary_nlay_shift, float *restrict fdy_bdary_nlay_coef,
-//        int *restrict fdz_length, size_t *restrict fdz_shift, float *restrict fdz_coef,
-//        int *restrict fdz_bdry_nlay, int *restrict fdz_bdary_nlay_length, int *restrict fdz_bdary_nlay_pos,
-//        int *restrict fdz_bdary_nlay_shift, float *restrict fdz_bdary_nlay_coef,
-//        int myid, int *restrict myid3
-//        )
 
-int eliso1st_curv_macdrp_cal_rhs(float *restrict w_cur, float *restrict rhs, 
+int sv_eliso1st_curv_macdrp_onestage(float *restrict w_cur, float *restrict rhs, 
         int *restrict fdx_length, // 0: total, 1: left, 2: right
         // include different order/stentil
-        size_t **restrict fdx_all_len, size_t *restrict fdx_all_indx,float *restrict fdx_all_coef,
-        size_t **restrict fdy_all_len, size_t *restrict fdy_all_indx,float *restrict fdy_all_coef,
-        size_t **restrict fdz_all_len, size_t *restrict fdz_all_indx,float *restrict fdz_all_coef,
+        int number_of_pairs, int number_of_stages,
+        int fdx_max_hlen, int fdy_max_hlen, int fdz_max_hlen,
+        size_t **restrict fdx_all_info, size_t *restrict fdx_all_indx,float *restrict fdx_all_coef,
+        size_t **restrict fdy_all_info, size_t *restrict fdy_all_indx,float *restrict fdy_all_coef,
+        size_t **restrict fdz_all_info, size_t *restrict fdz_all_indx,float *restrict fdz_all_coef,
         int myid, int *restrict myid3
         )
 {
@@ -254,8 +250,9 @@ int eliso1st_curv_macdrp_cal_rhs(float *restrict w_cur, float *restrict rhs,
   float *restrict Vx;
   float *restrict Vy;
   float *restrict Vz;
-  float  fd_opx_coef[FD_MAX_OP_LEN];
-  size_t fd_opx_possft[FD_MAX_OP_LEN];
+
+  float  fd_opx_coef[fdx_max_hlen];
+  size_t fd_opx_shift[fdx_max_hlen];
 
   iptr = fdx_dhs_indx[fd_op_half_len-1];
   for (i=0; i<fd_op_total_len; i++) {
@@ -266,7 +263,7 @@ int eliso1st_curv_macdrp_cal_rhs(float *restrict w_cur, float *restrict rhs,
   // inner points
   i_in_opindx = fdx_all_len[fdx_max_half_len][0];
   len_of_op   = fdx_all_len[fdx_max_half_len][1];
-  ierr = eliso1st_curv_macdrp_cal_rhs_inner(w_cur, rhs,
+  ierr = eliso1st_curv_macdrp_rhs_inner(w_cur, rhs,
           ni1,ni2,nj1,nj2,nk1,nk2,ni,nj,nk,nx,ny,nz,
           fdx_op_len, fdx_all_indx+len_of_op,
           fdy_op_len, fdy_all_indx+len_of_op,
@@ -275,17 +272,17 @@ int eliso1st_curv_macdrp_cal_rhs(float *restrict w_cur, float *restrict rhs,
 
   // boundary x1
   switch (boundary_itype[0]) {
-    case BOUNDARY_TYPE_FREE :
+    case FD_BOUNDARY_TYPE_FREE :
       //ierr = eliso1st_free_x1();
       fprintf(stderr, "not implemented yet!\n"); fflush(stderr);
       break;
 
-    case BOUNDARY_TYPE_CFSPML : 
-      ierr = eliso1st_cfspml_cal_rhs_x1();
+    case FD_BOUNDARY_TYPE_CFSPML : 
+      ierr = eliso1st_curv_macdrp_rhs_cfspml_x1();
       break;
 
-    case BOUNDARY_TYPE_ABSEXP : 
-      ierr = eliso1st_absexp_apply_x1();
+    case FD_BOUNDARY_TYPE_ABSEXP : 
+      ierr = eliso1st_curv_macdrp_rhs_ablexp_x1();
       break;
 
     default:
@@ -293,12 +290,12 @@ int eliso1st_curv_macdrp_cal_rhs(float *restrict w_cur, float *restrict rhs,
 
   // boundary x2
   switch (boundary_itype[1]) {
-    case BOUNDARY_TYPE_FREE :
+    case FD_BOUNDARY_TYPE_FREE :
       //ierr = eliso1st_free_x2();
       fprintf(stderr, "not implemented yet!\n"); fflush(stderr);
       break;
 
-    case BOUNDARY_TYPE_CFSPML : 
+    case FD_BOUNDARY_TYPE_CFSPML : 
       ierr = eliso1st_cfspml_cal_rhs_x2();
       break;
 
@@ -309,14 +306,14 @@ int eliso1st_curv_macdrp_cal_rhs(float *restrict w_cur, float *restrict rhs,
 
   // boundary z2
   switch (boundary_itype[5]) {
-    case BOUNDARY_TYPE_FREE :
+    case FD_BOUNDARY_TYPE_FREE :
       // tractiong
-      ierr = curv_macdrp_eliso1st_free_timg_z2();
+      ierr = sv_eliso1st_curv_macdrp_rhs_timg_z2();
       // velocity: vlow
-      ierr = curv_macdrp_eliso1st_free_vlow_z2();
+      ierr = sv_eliso1st_curv_macdrp_rhs_vlow_z2();
       break;
 
-    case BOUNDARY_TYPE_CFSPML : 
+    case FD_BOUNDARY_TYPE_CFSPML : 
       ierr = eliso1st_cfspml_cal_rhs_z2();
       break;
 
@@ -345,7 +342,7 @@ int eliso1st_curv_macdrp_cal_rhs(float *restrict w_cur, float *restrict rhs,
  * calculate inner points without considering the boundaries
  */
 
-int eliso1st_curv_macdrp_cal_rhs_inner(
+int eliso1st_curv_macdrp_rhs_inner(
     float *restrict w_cur, float *restrict rhs, 
     size_t ni1, size_t ni2, size_t nj1, size_t nj2, size_t nk1, size_t nk2,
     size_t ni, size_t nj, size_t nk, size_t nx, size_t ny, size_t nz,
@@ -438,19 +435,19 @@ int eliso1st_curv_macdrp_cal_rhs_inner(
               rrho = 1.0 / rho;
 
               // Vx derivatives
-              M_CAL_FD(DxVx, Vx, iptr, fd_length, fdx_shift, fdx_coef, n_fd);
-              M_CAL_FD(DyVx, Vx, iptr, fd_length, fdy_shift, fdy_coef, n_fd);
-              M_CAL_FD(DzVx, Vx, iptr, fd_length, fdz_shift, fdz_coef, n_fd);
+              M_FD_SHIFT(DxVx, Vx, iptr, fd_len, lfdx_shift, lfdx_coef, n_fd);
+              M_FD_SHIFT(DyVx, Vx, iptr, fd_len, lfdy_shift, lfdy_coef, n_fd);
+              M_FD_SHIFT(DzVx, Vx, iptr, fd_len, lfdz_shift, lfdz_coef, n_fd);
 
               // Vy derivatives
-              M_CAL_FD(DxVy, Vy, iptr, fd_length, fdx_shift, fdx_coef, n_fd);
-              M_CAL_FD(DyVy, Vy, iptr, fd_length, fdy_shift, fdy_coef, n_fd);
-              M_CAL_FD(DzVy, Vy, iptr, fd_length, fdz_shift, fdz_coef, n_fd);
+              M_FD_SHIFT(DxVy, Vy, iptr, fd_len, lfdx_shift, lfdx_coef, n_fd);
+              M_FD_SHIFT(DyVy, Vy, iptr, fd_len, lfdy_shift, lfdy_coef, n_fd);
+              M_FD_SHIFT(DzVy, Vy, iptr, fd_len, lfdz_shift, lfdz_coef, n_fd);
 
               // Vz derivatives
-              M_CAL_FD(DxVz, Vz, iptr, fd_length, fdx_shift, fdx_coef, n_fd);
-              M_CAL_FD(DyVz, Vz, iptr, fd_length, fdy_shift, fdy_coef, n_fd);
-              M_CAL_FD(DzVz, Vz, iptr, fd_length, fdz_shift, fdz_coef, n_fd);
+              M_FD_SHIFT(DxVz, Vz, iptr, fd_len, lfdx_shift, lfdx_coef, n_fd);
+              M_FD_SHIFT(DyVz, Vz, iptr, fd_len, lfdy_shift, lfdy_coef, n_fd);
+              M_FD_SHIFT(DzVz, Vz, iptr, fd_len, lfdz_shift, lfdz_coef, n_fd);
 
               // need to add Tij
 
@@ -466,6 +463,340 @@ int eliso1st_curv_macdrp_cal_rhs_inner(
                          + lam2mu*DzVx*ztx + lam*DzVy*zty + lam*DzVz*ztz;
           }
       }
+  }
+}
+
+/*
+ * implement traction image boundary
+ */
+
+int eliso1st_curv_macdrp_rhs_timg_z2(
+    float *restrict w_cur, float *restrict rhs, 
+    size_t ni1, size_t ni2, size_t nj1, size_t nj2, size_t nk1, size_t nk2,
+    size_t ni, size_t nj, size_t nk, size_t nx, size_t ny, size_t nz,
+    size_t siz_line, size_t siz_slice,
+    size_t fdx_len, size_t *restrict fdx_indx, float *restrict fdx_coef,
+    size_t fdy_len, size_t *restrict fdy_indx, float *restrict fdy_coef,
+    size_t fdz_len, size_t *restrict fdz_indx, float *restrict fdz_coef,
+    )
+{
+  // use local stack array for speedup
+  float  lfdx_coef [fdx_len];
+  size_t lfdx_shift[fdx_len];
+  float  lfdy_coef [fdy_len];
+  size_t lfdy_shift[fdy_len];
+  float  lfdz_coef [fdz_len];
+  size_t lfdz_shift[fdz_len];
+
+  // local pointer
+  float *restrict Vx;
+  float *restrict Vy;
+  float *restrict Vz;
+  float *restrict Txx;
+  float *restrict Tyy;
+  float *restrict Tzz;
+  float *restrict Txz;
+  float *restrict Tyz;
+  float *restrict Txy;
+
+  // local var
+  size_t i,j,k;
+  size_t n_fd; // loop var for fd
+  size_t fdz_len;
+
+  float DxVx, // etc
+
+  // to save traction and other two dir var
+  float vecxi[fdz_len];
+  float vecet[fdz_len];
+  float veczt[fdz_len];
+
+  // put fd op into local array
+  for (i=0; i < fdx_len; i++) {
+    lfdx_coef [i] = fdx_coef[i];
+    lfdx_shift[i] = fdx_indx[i];
+  }
+  for (j=0; j < fdy_len; j++) {
+    lfdy_coef [j] = fdy_coef[j];
+    lfdy_shift[j] = fdy_indx[j] * siz_line;
+  }
+  for (k=0; k < fdz_len; k++) {
+    lfdz_coef [k] = fdz_coef[k];
+    lfdz_shift[k] = fdz_indx[k] * siz_slice;
+  }
+
+  // get each vars
+  Vx  = w_cur + WF_EL_1ST_SEQ_VX;
+  Vy  = w_cur + WF_EL_1ST_SEQ_VY;
+  Vz  = w_cur + WF_EL_1ST_SEQ_VZ;
+  Txx = w_cur + WF_EL_1ST_SEQ_TXX;
+  Tyy = w_cur + WF_EL_1ST_SEQ_TYY;
+  Tzz = w_cur + WF_EL_1ST_SEQ_TZZ;
+  Txz = w_cur + WF_EL_1ST_SEQ_TXZ;
+  Tyz = w_cur + WF_EL_1ST_SEQ_TYZ;
+  Txy = w_cur + WF_EL_1ST_SEQ_TXY;
+
+  xi_x = g3d + GRID_CURV_SEQ_XIX;
+  xi_y = g3d + GRID_CURV_SEQ_XIY;
+  xi_z = g3d + GRID_CURV_SEQ_XIZ;
+
+  lambda3d = m3d + MD_ELISO_SEQ_LAMBDA;
+
+  int k_min = nk2 - fdz_indx[fd_len-1]; // last indx, free surface force Tx/Ty/Tz to 0 in cal
+  //int k_min = nk2 + fdz_indx[0]; // first indx is negative, so + 
+  //int k_max = nk2 + fdz_indx[fd_len-1]; // last indx
+
+  // conver to op index
+
+  // loop all points
+
+  //for (n=0; n < fdz_len; n++)
+  for (k=k_min; k <= nk2; k++)
+  {
+    // k corresponding to 0 index of the fd op
+
+    // index of free surface
+    size_t n_free = nk2 - k - fdz_indx[0]; // first indx is negative
+
+    // for 1d index
+    iptr_k = k * siz_slice;
+
+    for (j=nj1; j<=nj2; j++)
+    {
+      iptr_j = iptr_k + j * siz_line;
+
+      iptr = iptr_j + (ni1-1);
+
+      for (i=ni1; i<ni2; i++)
+      {
+          iptr += 1;
+
+          // metric
+          xix = xi_x[iptr];
+          xiy = xi_y[iptr];
+          xiz = xi_z[iptr];
+
+          // medium
+          lam = lambda3d[iptr];
+          mu  = mu3d[iptr];
+          rho = rho3d[iptr];
+
+          lam2mu = lam + 2.0 * mu;
+          rrho = 1.0 / rho;
+
+          //
+          // for hVx
+          //
+
+          // transform to conservative vars
+          for (n=0; n<fdx_len; n++) {
+            iptr4vec = iptr + fdx_indx[n];
+            vecxi[n] = jac3d[iptr4vec] * (  xi_x[iptr4vec] * Txx[iptr4vec]
+                                          + xi_y[iptr4vec] * Txy[iptr4vec]
+                                          + xi_z[iptr4vec] * Txz[iptr4vec] );
+          }
+          for (n=0; n<fdx_len; n++) {
+            iptr4vec = iptr + fdx_indx[n] * siz_line;
+            vecet[n] = jac3d[iptr4vec] * (  et_x[iptr4vec] * Txx[iptr4vec]
+                                          + et_y[iptr4vec] * Txy[iptr4vec]
+                                          + et_z[iptr4vec] * Txz[iptr4vec] );
+          }
+          //for (n=0; n<fdx_len; n++) {
+          //  iptr4vec = iptr + fdx_indx[n] * siz_slice;
+          //  veczt[n] = jac3d[iptr4vec] * (  zt_x[iptr4vec] * Txx[iptr4vec]
+          //                                + zt_y[iptr4vec] * Txy[iptr4vec]
+          //                                + zt_z[iptr4vec] * Txz[iptr4vec] );
+          //}
+          // blow surface, cal
+          for (n=0; n<n_free; n++) {
+            iptr4vec = iptr + fdx_indx[n] * siz_slice;
+            veczt[n] = jac3d[iptr4vec] * (  zt_x[iptr4vec] * Txx[iptr4vec]
+                                          + zt_y[iptr4vec] * Txy[iptr4vec]
+                                          + zt_z[iptr4vec] * Txz[iptr4vec] );
+          }
+          // at surface, set to 0
+          vecet[n_free] = 0.0;
+          // above surface, mirror
+          for (n=n_free+1; n<fdz_len; n++) {
+            veczt[n] = -veczt[n_free-(n-n_free)];
+          }
+
+          // hVx 
+          M_FD_NOINDX(DxTx, vecxi, fdx_len, lfdx_coef, n_fd);
+          M_FD_NOINDX(DyTy, vecet, fdy_len, lfdy_coef, n_fd);
+          M_FD_NOINDX(DzTz, veczt, fdz_len, lfdz_coef, n_fd);
+
+          hVx[iptr] = ( DxTx+DyTy+DzTz )*rrhojac;
+
+
+          //
+          // for hVy, hVz
+          //
+
+
+      }
+    }
+  }
+}
+
+/*
+ * implement vlow boundary
+ */
+
+int eliso1st_curv_macdrp_rhs_vlow_z2(
+    float *restrict w_cur, float *restrict rhs, 
+    size_t ni1, size_t ni2, size_t nj1, size_t nj2, size_t nk1, size_t nk2,
+    size_t ni, size_t nj, size_t nk, size_t nx, size_t ny, size_t nz,
+    size_t siz_line, size_t siz_slice,
+    size_t fdx_len, size_t *restrict fdx_indx, float *restrict fdx_coef,
+    size_t fdy_len, size_t *restrict fdy_indx, float *restrict fdy_coef,
+    size_t fdz_max_half_len, size_t fdz_all_indx_size,
+    size_t* fdz_all_info, size_t **restrict fdz_all_indx, float **restrict fdz_all_coef,
+    )
+{
+  // use local stack array for speedup
+  float  lfdx_coef [fdx_len];
+  size_t lfdx_shift[fdx_len];
+  float  lfdy_coef [fdy_len];
+  size_t lfdy_shift[fdy_len];
+
+  // local var and pointer for different hlen along k dim
+  size_t  lfdz_pos; // pos in _indx
+  size_t  lfdz_len;
+
+  // point to different hlen fz near surface
+  size_t *restrict lfdz_info;
+  size_t *restrict lfdz_indx;
+  size_t *restrict lfdz_shift;
+  float  *restrict lfdz_coef;
+
+  // local pointer
+  float *restrict Vx;
+  float *restrict Vy;
+  float *restrict Vz;
+  float *restrict Txx;
+  float *restrict Tyy;
+  float *restrict Tzz;
+  float *restrict Txz;
+  float *restrict Tyz;
+  float *restrict Txy;
+
+  // local var
+  size_t i,j,k;
+  size_t n_fd; // loop var for fd
+  size_t fdz_len;
+
+  float DxVx, // etc
+
+  // put fd op into local array
+  for (i=0; i < fdx_len; i++) {
+    lfdx_coef [i] = fdx_coef[i];
+    lfdx_shift[i] = fdx_indx[i];
+  }
+  for (j=0; j < fdy_len; j++) {
+    lfdy_coef [j] = fdy_coef[j];
+    lfdy_shift[j] = fdy_indx[j] * siz_line;
+  }
+
+  // get each vars
+  Vx  = w_cur + WF_EL_1ST_SEQ_VX;
+  Vy  = w_cur + WF_EL_1ST_SEQ_VY;
+  Vz  = w_cur + WF_EL_1ST_SEQ_VZ;
+  Txx = w_cur + WF_EL_1ST_SEQ_TXX;
+  Tyy = w_cur + WF_EL_1ST_SEQ_TYY;
+  Tzz = w_cur + WF_EL_1ST_SEQ_TZZ;
+  Txz = w_cur + WF_EL_1ST_SEQ_TXZ;
+  Tyz = w_cur + WF_EL_1ST_SEQ_TYZ;
+  Txy = w_cur + WF_EL_1ST_SEQ_TXY;
+
+  xi_x = g3d + GRID_CURV_SEQ_XIX;
+  xi_y = g3d + GRID_CURV_SEQ_XIY;
+  xi_z = g3d + GRID_CURV_SEQ_XIZ;
+
+  lambda3d = m3d + MD_ELISO_SEQ_LAMBDA;
+
+  // index to use lower-order scheme
+
+  lfdz_info  = fdz_all_info[fdz_max_half_len];
+  lfdz_left  = lfdz_info[FD_INFO_LENGTH_LEFT];
+  lfdz_right = lfdz_info[FD_INFO_LENGTH_RIGTH];
+
+  //int k_min = nk2 - lfdz_right + 1;
+  //int k_max = nk2 - 1;
+
+  // loop all points
+
+  //for (k=nk2 - fdz_max_half_len + 1; k <= nk2; k++)
+  for (n=1; n <= fdz_max_half_len - 1; n++)
+  {
+    // conver to k index, from surface to inner
+    k = nk2 - n;
+
+    // fdz of lower order
+    lfdz_info  = fdz_all_info[n];
+    lfdz_pos   = lfdz_info[FD_INFO_POS_OF_INDX];
+    lfdz_len   = lfdz_info[FD_INFO_LENGTH_TOTAL];
+    lfdz_indx  = fdz_all_indx[lfdz_npos];
+    lfdz_coef  = fdz_all_coef[lfdz_npos];
+    for (n_fd = 0; n_fd < lfdz_len ; n_fd++) {
+      lfdz_shift[n_fd] = lfdz_indx[n_fd] * siz_slice;
+    }
+
+    // for 1d index
+    iptr_k = k * siz_slice;
+
+    for (j=indx[2]; j<indx[3]; j++)
+    {
+      iptr_j = iptr_k + j * siz_line;
+
+      iptr = iptr_j + (ni1-1);
+
+      for (i=indx[0]; i<indx[1]; i++)
+      {
+          iptr += 1;
+
+          // metric
+          xix = xi_x[iptr];
+          xiy = xi_y[iptr];
+          xiz = xi_z[iptr];
+
+          // medium
+          lam = lambda3d[iptr];
+          mu  = mu3d[iptr];
+          rho = rho3d[iptr];
+
+          lam2mu = lam + 2.0 * mu;
+          rrho = 1.0 / rho;
+
+          // Vx derivatives
+          M_FD_SHIFT(DxVx, Vx, iptr, fd_length, lfdx_shift, lfdx_coef, n_fd);
+          M_FD_SHIFT(DyVx, Vx, iptr, fd_length, lfdy_shift, lfdy_coef, n_fd);
+          M_FD_SHIFT(DzVx, Vx, iptr, fd_length, lfdz_shift, lfdz_coef, n_fd);
+
+          // Vy derivatives
+          M_FD_SHIFT(DxVy, Vy, iptr, fd_length, lfdx_shift, lfdx_coef, n_fd);
+          M_FD_SHIFT(DyVy, Vy, iptr, fd_length, lfdy_shift, lfdy_coef, n_fd);
+          M_FD_SHIFT(DzVy, Vy, iptr, fd_length, lfdz_shift, lfdz_coef, n_fd);
+
+          // Vz derivatives
+          M_FD_SHIFT(DxVz, Vz, iptr, fd_length, lfdx_shift, lfdx_coef, n_fd);
+          M_FD_SHIFT(DyVz, Vz, iptr, fd_length, lfdy_shift, lfdy_coef, n_fd);
+          M_FD_SHIFT(DzVz, Vz, iptr, fd_length, lfdz_shift, lfdz_coef, n_fd);
+
+          // need to add Tij
+
+
+          // moment equation
+          hVx[iptr] = ( DxTxx*xix + DxTxy*xiy + DxTxz*xiz
+                      + DyTxx*etx + DyTxy*ety + DyTxz*etz
+                      + DzTxx*ztx + DzTxy*zty + DzTxz*ztz ) * rrho;
+
+          // Hooke's equatoin
+          hTxx[iptr] = lam2mu*DxVx*xix + lam*DxVy*xiy + lam*DxVz*xiz
+                     + lam2mu*DyVx*etx + lam*DyVy*ety + lam*DyVz*etz
+                     + lam2mu*DzVx*ztx + lam*DzVy*zty + lam*DzVz*ztz;
+      }
+    }
   }
 }
 
