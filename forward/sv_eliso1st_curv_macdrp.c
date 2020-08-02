@@ -1,17 +1,9 @@
 
-/*********************************************************************
- This is the main program  for multi-block forward modeling: 
-
- AUTHOR:
-     ZANG Nan
-    ZHANG Wei
-
-    elastic_iso_curv_col.c
-    elastic_iso_curv_leb.c
-    elastic_vti_curv_leb.c
-    elastic_tti_curv_leb.c
-
-***********************************************************************/
+/*******************************************************************************
+ * solver of isotropic elastic 1st-order eqn using curv grid and macdrp schem
+ *
+ *
+ ******************************************************************************/
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -22,35 +14,13 @@
 #include "netcdf.h"
 
 #include "fdlib_math.h"
-#include "fdlib_mem.h"
+#include "fd_t.h"
 #include "par_funcs.h"
-#include "blk_struct.h"
-#include "scheme_struct.h"
+#include "blk_t.h"
 #include "gd_curv.h"
 #include "md_el_iso.h"
 #include "wf_el_1st.h"
-#include "solver_eliso1st_curv_macdrp.h"
-
-// use siz_shift to find adjacent point of the stentil for 3d var
-#define M_FD_SHIFT(deriv, var, iptr, fd_length, fd_shift, fd_coef, n) \
-   deriv = 0.0; \
-   for (n=0; n<fd_length; n++) { \
-       deriv += fd_coef[n] * var[iptr + fd_shift[n]]; \
-   }
-
-// assume var has the same size as fd_coef, ordered one by one, thus no index needed
-#define M_FD_NOINDX(deriv, var, fd_length, fd_coef, n) \
-   deriv = 0.0; \
-   for (n=0; n<fd_length; n++) { \
-       deriv += fd_coef[n] * var[n]; \
-   }
-
-// use indx relative to cur point as (-1,0,1), need to multiply siz_shift for 3d array
-#define M_FD_INDX(deriv, var, iptr, fd_length, fd_indx, fd_coef, shift, n) \
-   deriv = 0.0; \
-   for (n=0; n<fd_length; n++) { \
-       deriv += fd_coef[n] * var[iptr + fd_shift[n] * shift]; \
-   }
+#include "sv_eliso1st_curv_macdrp.h"
 
 int sv_eliso1st_curv_macdrp_allstep(
     float *restrict w3d, // wavefield
