@@ -173,44 +173,43 @@ int sv_eliso1st_curv_macdrp_allstep(
               fd_opx_coef,
               );
 
-      // RK int, write here for hiding communication
-      if (iStage<numStage-1) {
+      // RK int for w
+
+      // cal w_cur first, then start send etc; or w_end at last stage
+      if (iStage<numStage-1)
+      {
           // wavefield
           for (iptr=0; iptr<num_of_vars*siz_volume; iptr++) {
               w_cur[iptr] = w_pre[iptr] + coef_a * w_rhs[iptr];
           }
-          // pack and isend
-          ierr = pack_message(w_cur,a_cur,sbuff);
-          MPI_Startall(sreqs);
-
-          // pml
-          for (i=0; i<6; i++) {
-            if (boundary_itype[i] == FD_BOUNDARY_TYPE_CFSPML) {
-              a_cur = abs_vars_dimpos[i];
-              for (iptr=0; iptr<siz_aux_allvars; iptr++) {
-                  a_cur[iptr] = a_pre[iptr] + coef_a * a_rhs[iptr];
-              }
+          // apply exp abl
+          for (int i=0; i < FD_NDIM_2; i++) {
+            if (boundary_itype[i] == FD_BOUNDARY_TYPE_ABLEXP) {
+              sv_eliso1st_curv_macdrp_apply_ablexp(w_cur);
             }
           }
-      } else {
+          // pack and isend
+          ierr = pack_message(w_cur,sbuff);
+          MPI_Startall(sreqs);
+      }
+      else // w_end for send at last stage
+      {
           // wavefield
           for (iptr=0; iptr<num_of_vars*siz_volume; iptr++) {
               w_end[iptr] += coef_b * w_rhs[iptr];
           }
-          // aux
-          for (iptr=0; iptr<siz_aux_allvars; iptr++) {
-              a_end[iptr] += coef_b * a_rhs[iptr];
+          // apply exp abl
+          for (int i=0; i < FD_NDIM_2; i++) {
+            if (boundary_itype[i] == FD_BOUNDARY_TYPE_ABLEXP) {
+              sv_eliso1st_curv_macdrp_apply_ablexp(w_end);
+            }
           }
-          // exp abs
-
           // pack and isend
-          ierr = pack_message(w_end,a_end,sbuff);
+          ierr = pack_message(w_end,sbuff);
           MPI_Startall(sreqs);
-
-          // pml
       }
 
-      // rk final value
+      // cal w_end at other stages, non-communicate vars
       if (iStage==0) {
           pos_var = 0;
           for (ivar=0; ivar<num_of_vars; ivar++) {
@@ -222,7 +221,6 @@ int sv_eliso1st_curv_macdrp_allstep(
                   w_end[pos_val] = w_pre[pos_val] + coef_b * w_rhs[pos_val];
               }
           }
-          // pml
       } else if (iStage<numStage-1) {
           pos_var = 0;
           for (ivar=0; ivar<num_of_vars; ivar++) {
@@ -234,8 +232,27 @@ int sv_eliso1st_curv_macdrp_allstep(
                   w_end[pos_val] += coef_b * w_rhs[pos_val];
               }
           }
-          // pml
       } 
+
+      // RK int for pml
+      for (i=0; i<6; i++) {
+        if (boundary_itype[i] == FD_BOUNDARY_TYPE_CFSPML) {
+          a_cur = abs_vars_dimpos[i];
+          // cur var
+          if (istage < num_of_stage -1) {
+            for (iptr=0; iptr<siz_aux_allvars; iptr++) {
+                a_cur[iptr] = a_pre[iptr] + coef_a * a_rhs[iptr];
+            }
+          }
+          // end var
+          if (istage==0) {
+            a_end[iptr] = a_pre[iptr] + coef_b * a_rhs[iptr];
+          } else {
+            a_end[iptr] += coef_b * a_rhs[iptr];
+          }
+        }
+      }
+
     } // RK stages
 
     // swap w_pre and w_end, avoid copying
@@ -296,39 +313,57 @@ int sv_eliso1st_curv_macdrp_onestage(float *restrict w_cur, float *restrict rhs,
           fdz_op_len, fdz_all_indx+len_of_op,
           )
 
+  // for boundary, free surface should be called last, which can correct other boundary affacted by free
+
   // boundary x1
-  switch (boundary_itype[0]) {
-    case FD_BOUNDARY_TYPE_FREE :
-      //ierr = eliso1st_free_x1();
-      fprintf(stderr, "not implemented yet!\n"); fflush(stderr);
-      break;
-
+  switch (boundary_itype[0])
+  {
     case FD_BOUNDARY_TYPE_CFSPML : 
-      ierr = eliso1st_curv_macdrp_rhs_cfspml_x1();
-      break;
-
-    case FD_BOUNDARY_TYPE_ABSEXP : 
-      ierr = eliso1st_curv_macdrp_rhs_ablexp_x1();
+      ierr = eliso1st_curv_macdrp_rhs_cfspml_x();
       break;
 
     default:
   }
 
   // boundary x2
-  switch (boundary_itype[1]) {
-    case FD_BOUNDARY_TYPE_FREE :
-      //ierr = eliso1st_free_x2();
-      fprintf(stderr, "not implemented yet!\n"); fflush(stderr);
-      break;
-
+  switch (boundary_itype[1])
+  {
     case FD_BOUNDARY_TYPE_CFSPML : 
-      ierr = eliso1st_cfspml_cal_rhs_x2();
+      ierr = eliso1st_curv_macdrp_rhs_cfspml_x();
       break;
 
     default:
   }
 
-  // y1, y2 ,z1, z2
+  // boundary y1
+  switch (boundary_itype[2])
+  {
+    case FD_BOUNDARY_TYPE_CFSPML : 
+      ierr = eliso1st_curv_macdrp_rhs_cfspml_y();
+      break;
+
+    default:
+  }
+
+  // boundary y2
+  switch (boundary_itype[3])
+  {
+    case FD_BOUNDARY_TYPE_CFSPML : 
+      ierr = eliso1st_curv_macdrp_rhs_cfspml_y();
+      break;
+
+    default:
+  }
+
+  // boundarz y1
+  switch (boundary_itype[4])
+  {
+    case FD_BOUNDARY_TYPE_CFSPML : 
+      ierr = eliso1st_curv_macdrp_rhs_cfspml_z();
+      break;
+
+    default:
+  }
 
   // boundary z2
   switch (boundary_itype[5]) {
@@ -340,7 +375,7 @@ int sv_eliso1st_curv_macdrp_onestage(float *restrict w_cur, float *restrict rhs,
       break;
 
     case FD_BOUNDARY_TYPE_CFSPML : 
-      ierr = eliso1st_cfspml_cal_rhs_z2();
+      ierr = eliso1st_cfspml_cal_rhs_z();
       break;
 
     default:
@@ -493,7 +528,9 @@ int eliso1st_curv_macdrp_rhs_inner(
 }
 
 /*
- * implement traction image boundary
+ * implement traction image boundary plus possible ade cfs-pml
+ *  any eqn affected by rhs near surface should be reprocessed in this func
+ *  other eqn should be called before free surface
  */
 
 int eliso1st_curv_macdrp_rhs_timg_z2(
@@ -504,6 +541,9 @@ int eliso1st_curv_macdrp_rhs_timg_z2(
     size_t fdx_len, size_t *restrict fdx_indx, float *restrict fdx_coef,
     size_t fdy_len, size_t *restrict fdy_indx, float *restrict fdy_coef,
     size_t fdz_len, size_t *restrict fdz_indx, float *restrict fdz_coef,
+    int *restrict boundary_itype, int *restrict abs_number_of_layers,
+    float *restrict *abs_coefs,
+    float *restrict *abs_vars
     )
 {
   // use local stack array for speedup
@@ -567,6 +607,8 @@ int eliso1st_curv_macdrp_rhs_timg_z2(
   xi_z = g3d + GRID_CURV_SEQ_XIZ;
 
   lambda3d = m3d + MD_ELISO_SEQ_LAMBDA;
+
+  // get pml coefs
 
   int k_min = nk2 - fdz_indx[fd_len-1]; // last indx, free surface force Tx/Ty/Tz to 0 in cal
   //int k_min = nk2 + fdz_indx[0]; // first indx is negative, so + 
@@ -654,11 +696,37 @@ int eliso1st_curv_macdrp_rhs_timg_z2(
 
           hVx[iptr] = ( DxTx+DyTy+DzTz )*rrhojac;
 
+          // cfspml
+          if (boundary_itype[0] == FD_BOUNDARY_TYPE_CFSPML && i<ni1+abs_number_of_layers[1])
+          {
+            // get aux vars
+            siz_aux_volume = number_of_layers * nj * nk;
+            a_Vx = aux_var + WF_EL_1ST_SEQ_PMLVX * siz_aux_volume;
+            a_Vy = aux_var + WF_EL_1ST_SEQ_PMLVY * siz_aux_volume;
+            a_Vz = aux_var + WF_EL_1ST_SEQ_PMLVZ * siz_aux_volume;
+
+            // index of each auxiliary var
+            iptr_a = (i-ni1) + j * abs_ni + k * nj * abs_ni;
+
+            d1=Dx[i]; b1=Bx[i]; a1=Ax[i];
+            rb1 = 1.0 / b1;
+
+            // 1: make corr to moment equation
+            hVx[iptr] += (rb1 - 1.0) * DxTx * rrho
+                          - rb1 * a_Txx[iptr_a];
+
+            // make corr to Hooke's equatoin
+            
+            // 2: aux var
+            //   a1 = alpha + d / beta, dealt in abs_set_cfspml
+            a_hTxx[iptr_a] = d1*(lam2mu*xix*DxVx + lam*xiy*DxVy + lam*xiz*DxVz ) -a1*a_Txx[iptr_a];
+          }
+          // other x2, y1, y2
+
 
           //
           // for hVy, hVz
           //
-
 
       }
     }
@@ -666,7 +734,7 @@ int eliso1st_curv_macdrp_rhs_timg_z2(
 }
 
 /*
- * implement vlow boundary
+ * implement vlow boundary plus possible ade cfs-pml
  */
 
 int eliso1st_curv_macdrp_rhs_vlow_z2(
@@ -821,21 +889,49 @@ int eliso1st_curv_macdrp_rhs_vlow_z2(
           hTxx[iptr] = lam2mu*DxVx*xix + lam*DxVy*xiy + lam*DxVz*xiz
                      + lam2mu*DyVx*etx + lam*DyVy*ety + lam*DyVz*etz
                      + lam2mu*DzVx*ztx + lam*DzVy*zty + lam*DzVz*ztz;
+
+          // cfspml
+          if (boundary_itype[0] == FD_BOUNDARY_TYPE_CFSPML && i<ni1+abs_number_of_layers[1])
+          {
+            // get aux vars
+            siz_aux_volume = number_of_layers * nj * nk;
+            a_Vx = aux_var + WF_EL_1ST_SEQ_PMLVX * siz_aux_volume;
+            a_Vy = aux_var + WF_EL_1ST_SEQ_PMLVY * siz_aux_volume;
+            a_Vz = aux_var + WF_EL_1ST_SEQ_PMLVZ * siz_aux_volume;
+
+            // index of each auxiliary var
+            iptr_a = (i-ni1) + j * abs_ni + k * nj * abs_ni;
+
+            d1=Dx[i]; b1=Bx[i]; a1=Ax[i];
+            rb1 = 1.0 / b1;
+
+            // 1: make corr to moment equation
+            hVx[iptr] += (rb1 - 1.0) * DxTx * rrho
+                          - rb1 * a_Txx[iptr_a];
+
+            // make corr to Hooke's equatoin
+            
+            // 2: aux var
+            //   a1 = alpha + d / beta, dealt in abs_set_cfspml
+            a_hTxx[iptr_a] = d1*(lam2mu*xix*DxVx + lam*xiy*DxVy + lam*xiz*DxVz ) -a1*a_Txx[iptr_a];
+          }
+          // other x2, y1, y2
+
       }
     }
   }
 }
 
 /*
- * cfspml at x1
+ * cfspml along x
  */
 
-int eliso1st_curv_macdrp_rhs_cfspml_x1(
+int eliso1st_curv_macdrp_rhs_cfspml_x(
     float *restrict w_var, float *restrict rhs,
     float *restrict aux_var, float *restrict aux_rhs,
     size_t ni1, size_t ni2, size_t nj1, size_t nj2, size_t nk1, size_t nk2,
     size_t ni, size_t nj, size_t nk, size_t nx, size_t ny, size_t nz,
-    size_t number_of_layers,
+    size_t abs_ni1, abs_ni2, abs_ni,
     size_t fdx_len, size_t *restrict fdx_indx, float *restrict fdx_coef,
     size_t fdy_len, size_t *restrict fdy_indx, float *restrict fdy_coef,
     size_t fdz_len, size_t *restrict fdz_indx, float *restrict fdz_coef,
@@ -931,12 +1027,12 @@ int eliso1st_curv_macdrp_rhs_cfspml_x1(
       //b2=By[j];
       //a2=Ay[j];
 
-      for (i=ni1; i<ni1 + number_of_layers; i++)
+      for (i=abs_ni1; i<=abs_ni2; i++)
       {
         iptr += 1;
 
         // index of each auxiliary var
-        iptr_a = (i-ni1) + j * number_of_layers + k * nj * number_of_layers;
+        iptr_a = (i-ni1) + j * abs_ni + k * nj * abs_ni;
 
         d1=Dx[i]; b1=Bx[i]; a1=Ax[i];
         rb1 = 1.0 / b1;
@@ -973,5 +1069,10 @@ int eliso1st_curv_macdrp_rhs_cfspml_x1(
       }
     }
   }
+}
+
+// apply on wavefield, not on derivatives
+int sv_eliso1st_curv_macdrp_apply_ablexp()
+{
 }
 
