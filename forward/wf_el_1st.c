@@ -18,7 +18,7 @@ int wf_el_1st_init_vars(size_t siz_volume, int number_of_levels, int *number_of_
 {
     int ivar;
 
-    *number_of_vars = 9;
+    *number_of_vars = WF_EL_1ST_NVAR; // 9
     /*
      * 0-3: Vx,Vy,Vz
      * 4-9: Txx,Tyy,Tzz,Txz,Tyz,Txy
@@ -57,60 +57,86 @@ int wf_el_1st_init_vars(size_t siz_volume, int number_of_levels, int *number_of_
 
 // set cfs pml vars
 // not finished
-int wf_el_1st_init_cfspml_vars(size_t ni, size_t nj, size_t nk, int number_of_levels, int number_of_vars,
+int wf_el_1st_init_cfspml_vars(int number_of_levels, int number_of_vars,
       int *restrict boundary_itype,
-      int *restrict abs_number_of_layers, size_t *restrict abs_vars_dimpos, float **p_abs_vars)
+      size_t **restrict abs_blk_indx,
+      size_t *abs_blk_vars_level_size,
+      size_t *restrict abs_blk_vars_siz_volume,
+      size_t *restrict abs_blk_vars_blkpos,
+      float *p_abs_blk_vars)
 {
-    int ivar;
-    size_t siz_aux_volume;
+    size_t i;
 
-    *number_of_vars = 9;
-    /*
-     * 0-3: Vx,Vy,Vz
-     * 4-9: Txx,Tyy,Tzz,Txz,Tyz,Txy
-     */
+    size_t siz_level;
 
-    size_pml_vars = 0;
+    siz_level = 0;
 
-    // x1 x2
-    for (i=0; i<2)
+    for (i=0; i < FD_NDIM_2; i++)
     {
-      abs_vars_dimpos[i] = size_pml_vars;
+      abs_blk_vars_blkpos[i] = siz_level;
 
-      if (boundary_itype[i] == FD_BOUNDARY_TYPE_CFSPML) {
-        // contain all vars at each side, include rk scheme 4 levels vars
-        size_pml_vars += abs_number_of_layers[i] * nj * nk * number_of_vars * number_of_levels;
+      // init to 0
+      abs_blk_vars_siz_volume[i] = 0;
+
+      // set if pml
+      if (boundary_itype[i] == FD_BOUNDARY_TYPE_CFSPML)
+      {
+        abs_blk_vars_siz_volume[i] =   (abs_blk_indx[i][1] - abs_blk_indx[i][0] + 1)
+                                     * (abs_blk_indx[i][3] - abs_blk_indx[i][2] + 1)
+                                     * (abs_blk_indx[i][5] - abs_blk_indx[i][4] + 1);
+
+        // add to total size
+        siz_level += abs_blk_vars_siz_volume[i] * number_of_vars;
       }
     }
 
-    // y1 y2
-    for (i=3; i<4)
-    {
-      abs_vars_dimpos[i] = size_pml_vars;
-
-      if (boundary_itype[i] == FD_BOUNDARY_TYPE_CFSPML) {
-        size_pml_vars += abs_number_of_layers[i] * ni * nk * number_of_vars * number_of_levels;
-      }
-    }
-
-    // z1 z2
-    for (i=3; i<4)
-    {
-      abs_vars_dimpos[i] = size_pml_vars;
-
-      if (boundary_itype[i] == FD_BOUNDARY_TYPE_CFSPML) {
-        size_pml_vars += abs_number_of_layers[i] * ni * nj * number_of_vars * number_of_levels;
-      }
-    }
+    *abs_blk_vars_level_size = siz_level;
 
     // vars
-    *p_abs_vars = (float *) fdlib_mem_calloc_1d_float( 
-                 siz_pml_vars, 0.0, "wf_el3d_1st_cfspml");
-
-    // set
-    *abs_vars_size = size_pml_vars;
-
-    // need to set other vars
+    // contain all vars at each side, include rk scheme 4 levels vars
+    *p_abs_blk_vars = (float *) fdlib_mem_calloc_1d_float( 
+                 siz_level * number_of_levels,
+                 0.0, "wf_el_1st_init_cfspml_vars");
 
     return 0;
 }
+
+/*
+int wf_el_1st_init_cfspml_vars(int number_of_levels, int number_of_vars,
+      int *restrict boundary_itype,
+      size_t **restrict abs_blk_indx,
+      size_t *abs_blk_vars_level_size,
+      size_t *restrict abs_blk_vars_siz_volume,
+      size_t *restrict abs_blk_vars_blkpos,
+      float *p_abs_blk_vars)
+{
+    size_t i;
+
+    size_t siz_volum;
+
+    ***p_abs_blk_vars = (float **) fdlib_mem_malloc_1d_float( 
+               FD_NDIM_2, "wf_el_1st_init_cfspml_vars");
+
+    for (i=0; i < FD_NDIM_2; i++)
+    {
+      // init to 0
+      abs_blk_vars_siz_volume[i] = 0;
+
+      // set if pml
+      if (boundary_itype[i] == FD_BOUNDARY_TYPE_CFSPML)
+      {
+        abs_blk_vars_siz_volume[i] =   (abs_blk_indx[i][1] - abs_blk_indx[i][0] + 1)
+                                     * (abs_blk_indx[i][3] - abs_blk_indx[i][2] + 1)
+                                     * (abs_blk_indx[i][5] - abs_blk_indx[i][4] + 1);
+
+        // vars
+        // contain all vars at each side, include rk scheme 4 levels vars
+        (***p_abs_blk_vars)[i] = (float *) fdlib_mem_calloc_1d_float( 
+                 abs_blk_vars_siz_volume[i] * number_of_vars * number_of_levels,
+                 0.0, "wf_el_1st_init_cfspml_vars");
+      }
+    }
+
+    return 0;
+}
+*/

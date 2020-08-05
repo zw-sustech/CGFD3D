@@ -29,6 +29,7 @@
 
 #define FD_NDIM   3
 #define FD_NDIM_2 6 // 2 * ndim
+#define FD_MAX_STRLEN 1000
 
 #define FD_INFO_POS_OF_INDX  0
 #define FD_INFO_LENGTH_TOTAL 1

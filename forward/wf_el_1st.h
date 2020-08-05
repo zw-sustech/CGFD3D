@@ -6,6 +6,8 @@
 #include <string.h>
 #include <math.h>
 
+#define WF_EL_1ST_NVAR    9
+
 #define WF_EL_1ST_SEQ_Vx  0
 #define WF_EL_1ST_SEQ_Vy  1
 #define WF_EL_1ST_SEQ_Vz  2

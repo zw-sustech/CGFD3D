@@ -17,13 +17,13 @@
 
 #include "fdlib_math.h"
 #include "fdlib_mem.h"
+#include "fd_t.h"
 #include "par_funcs.h"
-#include "blk_struct.h"
-#include "scheme_struct.h"
+#include "blk_t.h"
 #include "gd_curv.h"
 #include "md_el_iso.h"
 #include "wf_el_1st.h"
-#include "solver_eliso1st_curv_macdrp.h"
+#include "sv_eliso1st_curv_macdrp.h"
 
 /*******************************************************************************
  * usage function
@@ -41,13 +41,13 @@ int main(int argc, char** argv){
 {
 
     char *pname = "cgfd3d-elastic";
-    char par_file_name[FDSYS_MAX_STR_LEN];
+    char par_file_name[FD_MAX_STRLEN];
 
 //  Declare variable
-    struct wave_struct *blk_w;  // wavefiled on each block, use pointer to make main/function sytax same
-    struct conn_struct *blk_connect;  // connection of each blocks
-    struct par_struct *par;
-    struct scheme_t *fd;
+    struct fd_t  *fd;
+    struct blk_t *blk;  // wavefiled on each block, use pointer to make main/function sytax same
+    struct blk_conn_t *blk_conn;  // connection of each blocks
+    struct par_t *par;
 
     int myid,mpi_size;
 
@@ -86,9 +86,28 @@ int main(int argc, char** argv){
 //
 // alloc
 //
-    fd    = (struct scheme_t *) malloc(sizeof(struct scheme_t));
-    blk_w = (struct blk_t *) malloc(sizeof(struct blk_t));
-    par   = (struct par_t *) malloc(sizeof(struct par_t));
+    fd  = (struct fd_t  *) malloc(sizeof(struct fd_t ));
+    blk = (struct blk_t *) malloc(sizeof(struct blk_t));
+    par = (struct par_t *) malloc(sizeof(struct par_t));
+
+//
+// set up fd operator, which determins number of ghost points
+//
+//  do not support selection scheme by par file right now
+    if (myid==0) fprintf(stdout,"set scheme ...\n"); 
+    ierr = fd_set_macdrp(fd);
+    /*
+    if      (par->fd_scheme == PAR_FD_SCHEME_MACDRP)
+    {
+    }
+    else if (par->fd_scheme == FD_SCHEME_CENT_6th)
+    {
+        //ierr = scheme_macdrp();
+    }
+    else // read in from par file
+    {
+    }
+    */
 
 // 
 // read in pars on master node and exchange to others
@@ -110,29 +129,13 @@ int main(int argc, char** argv){
     ierr = fdmpi_topo_creat(&blk_connect, par->num_threads_per_dim);
 
 //
-// set up fd operator, which determins number of ghost points
-//
-    if (myid==0) fprintf(stdout,"set scheme ...\n"); 
-    if      (par->fd_scheme == PAR_FD_SCHEME_MACDRP)
-    {
-        ierr = scheme_set_macdrp(&fd);
-    }
-    else if (par->fd_scheme == FD_SCHEME_CENT_6th)
-    {
-        //ierr = scheme_macdrp();
-    }
-    else // read in from par file
-    {
-    }
-
-//
 // set parmeters of domain size
 //
     if (myid==0) fprintf(stdout,"set slocal/global grid parameters ...\n"); 
-    ierr = blk_struct_set_grid_size(&blk_w, par->nx, par->ny, par->nz);
+    ierr = blk_struct_set_grid_size(&blk, par->nx, par->ny, par->nz);
 
     // set how many levels per var due to time int scheme
-    ierr = blk_struct_set_wave_level(&blk_w, scheme->number_of_var_levels);
+    ierr = blk_struct_set_wave_level(&blk, scheme->number_of_var_levels);
 
 //-------------------------------------------------------------------------------
 //-- grid generation or import
@@ -140,34 +143,34 @@ int main(int argc, char** argv){
 
     // allocate grid array
     if (myid==0) fprintf(stdout,"allocate grid vars ...\n"); 
-    ierr = gd_curv_init_vars(blk_w->siz_volume, &(blk_w->number_of_grid_vars),
-                &(blk_w->g3d), &(blk_w->g3d_pos), &(blk_w->g3d_name));
+    ierr = gd_curv_init_vars(blk->siz_volume, &(blk->g3d_num_of_vars),
+                &(blk->g3d), &(blk->g3d_pos), &(blk->g3d_name));
 
     // if import coord and metric
     if (par->grid_by_import==1)
     {
         if (myid==0) fprintf(stdout,"import grid vars ...\n"); 
 
-        ierr = gd_curv_import(blk_w->g3d, blk_w->g3d_pos, blk_w->g3d_name,
-                blk_w->number_of_grid_vars, blk_w->siz_volume, par->in_metric_dir, myid3);
+        ierr = gd_curv_import(blk->g3d, blk->g3d_pos, blk->g3d_name,
+                blk->g3d_num_of_vars, blk->siz_volume, par->in_metric_dir, myid3);
 
-        ierr = gd_curv_topoall_import(blk_w->g3d, blk_w->nx, blk_w->ny, blk_w->nz, 
+        ierr = gd_curv_topoall_import(blk->g3d, blk->nx, blk->ny, blk->nz, 
                     myid3[0],myid3[1],myid3[2]);
 
     }
     //// if cartesian coord
     //else if (par->grid_by_cartesian==1)
     //{
-    //    ierr = gd_curv_generate_cartesian(blk_w->g3d, blk_w->nx, blk_w->ny, blk_w->nz,
-    //                par->grid_x0 + myid3[0]*blk_w->ni - blk_w->num_of_ghost[0],
-    //                par->grid_y0 + myid3[1]*blk_w->ni - blk_w->num_of_ghost[1],
-    //                par->grid_z0 + myid3[2]*blk_w->ni - blk_w->num_of_ghost[2],
+    //    ierr = gd_curv_generate_cartesian(blk->g3d, blk->nx, blk->ny, blk->nz,
+    //                par->grid_x0 + myid3[0]*blk->ni - blk->num_of_ghost[0],
+    //                par->grid_y0 + myid3[1]*blk->ni - blk->num_of_ghost[1],
+    //                par->grid_z0 + myid3[2]*blk->ni - blk->num_of_ghost[2],
     //                par->grid_dx, par->grid_dy, par->grid_dz);
     //}
     // if vmap coord
     else if (par->grid_by_vmap==1)
     {
-        ierr = gd_curv_generate_vmap(blk_w->g3d, blk_w->nx, blk_w->ny, blk_w->nz,
+        ierr = gd_curv_generate_vmap(blk->g3d, blk->nx, blk->ny, blk->nz,
                 );
     }
     // if refine coord
@@ -175,7 +178,7 @@ int main(int argc, char** argv){
     {
         grid_coarse = gd_curv_read_coarse(par->grid_in_file, par%grid_dz_taper_length);
 
-        ierr = gd_curv_interp_corse(grid_corse, blk_w->g3d,
+        ierr = gd_curv_interp_corse(grid_corse, blk->g3d,
                     );
 
         gd_curv_coarse_free(grid_coarse);
@@ -213,12 +216,12 @@ int main(int argc, char** argv){
 
     // allocate media vars
     if (myid==0) fprintf(stdout,"allocate media vars ...\n"); 
-    ierr = md_el_iso_init_vars(blk_w->siz_volume, &(blk_w->number_of_medium_vars),
-                &(blk_w->m3d_pos), &(blk_w->m3d_name));
+    ierr = md_el_iso_init_vars(blk->siz_volume, &(blk->m3d_num_of_vars),
+                &(blk->m3d_pos), &(blk->m3d_name));
 
     if (par->medium_by_import==1)
     {
-        ierr = md_el_iso_import(blk_w->m3d, blk_w->nx, blk_w->ny, blk_w->nz, 
+        ierr = md_el_iso_import(blk->m3d, blk->nx, blk->ny, blk->nz, 
                     myid3[0],myid3[1],myid3[2]);
     }
     else
@@ -238,8 +241,8 @@ int main(int argc, char** argv){
 
         //-- estimate time step
         if (myid==0) fprintf(stdout,"   estimate time step ...\n"); 
-        ierr = curv_macdrp_elastic_iso_stept_calculate(blk_w->g3d, blk_w->m3d,
-                blk_w->nx, blk_w->ny, blk_w->nz,
+        ierr = curv_macdrp_elastic_iso_stept_calculate(blk->g3d, blk->m3d,
+                blk->nx, blk->ny, blk->nz,
                 &dtmax, &dtmaxVp, &dtmaxL, &dtindx)
         
         //-- print for QC
@@ -307,8 +310,8 @@ int main(int argc, char** argv){
 //-------------------------------------------------------------------------------
 
     if (myid==0) fprintf(stdout,"allocate solver vars ...\n"); 
-    ierr = wf_el_1st_init_vars(blk_w->siz_volume, blk_w->number_of_levels,
-          &blk_w->number_of_wave_vars, &blk_w->w3d, &blk_w->w3d_pos, &blk_w->w3d_name);
+    ierr = wf_el_1st_init_vars(blk->siz_volume, blk->number_of_levels,
+          &blk->w3d_num_of_vars, &blk->w3d, &blk->w3d_pos, &blk->w3d_name);
 
 //-------------------------------------------------------------------------------
 //-- absorbing boundary etc auxiliary variables
@@ -322,19 +325,16 @@ int main(int argc, char** argv){
 
     if (par->absorbing_boundary_adecfspml==1) {
       // set pml parameters
-        ierr = abs_set_cfspml(blk_w->ni, blk_w->nj, blk_w->nk,
-            blk_w->boundary_itype,
-            par->abs_number_of_layers,
+        ierr = abs_set_cfspml(blk->ni, blk->nj, blk->nk,
+            blk->boundary_itype,
+            par->abs_num_of_layers,
             par->abs_alpha, par->abs_beta, par->abs_velocity,
-            blk_w->abs_number_of_layers, blk_w->abs_coefs_dimpos, &blk_w->abs_coefs
+            blk->abs_num_of_layers, blk->abs_coefs_dimpos, &blk->abs_coefs
             );
 
         // alloc pml vars
-        ierr = wf_el_1st_init_cfspml_vars(blk_w->ni, blk_w->nj, blk_w->nk,
-            blk_w->number_of_levels, blk_w->number_of_vars,
-            blk_w->boundary_itype, blk_w->abs_number_of_layers,
-            par->abs_alpha, par->abs_beta, par->abs_velocity,
-            blk_w->abs_numbers, blk_w->abs_coefs_dimpos, &blk_w->abs_coefs
+        ierr = wf_el_1st_init_cfspml_vars(blk->number_of_levels, blk->number_of_vars,
+            blk->boundary_itype, blk->abs_blk_indx, blk->abs_blk_vars_siz_volume, &blk->abs_blk_vars
             );
     }
 
@@ -346,11 +346,11 @@ int main(int argc, char** argv){
 
     t_start = time(NULL);
 
-    ierr = sv_eliso1st_curv_macdrp_allstep(blk_w->w3d, blk_w->g3d, blk_w->m3d,
-            blk_w->nx, blk_w->ny, blk_w->nz,
-            fd->pair_fdx_len, fd->pair_fdx_indx, fd->pair_fdx_coef,
-            fd->pair_fdy_len, fd->pair_fdy_indx, fd->pair_fdy_coef,
-            fd->pair_fdz_len, fd->pair_fdz_indx, fd->pair_fdz_coef,
+    ierr = sv_eliso1st_curv_macdrp_allstep(blk->w3d, blk->g3d, blk->m3d,
+            blk->nx, blk->ny, blk->nz,
+            fd->pair_fdx_all_info, fd->pair_fdx_all_indx, fd->pair_fdx_all_coef,
+            fd->pair_fdy_all_info, fd->pair_fdy_all_indx, fd->pair_fdy_all_coef,
+            fd->pair_fdz_all_info, fd->pair_fdz_all_indx, fd->pair_fdz_all_coef,
             );
 
     t_end = time(NULL);

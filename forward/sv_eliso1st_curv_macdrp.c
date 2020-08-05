@@ -23,25 +23,26 @@
 #include "sv_eliso1st_curv_macdrp.h"
 
 int sv_eliso1st_curv_macdrp_allstep(
-    float *restrict w3d, // wavefield
-    float *restrict g3d, // grid vars
-    float *restrict m3d, // medium vars
+    float *restrict w3d, int number_of_wave_vars  , size_t *restrict w3d_pos, // wavefield
+    float *restrict g3d, int number_of_grid_vars  , size_t *restrict g3d_pos, // grid vars
+    float *restrict m3d, int number_of_medium_vars, size_t *restrict m3d_pos, // medium vars
     // grid size
-    size_t nx, size_t ny, size_t nz,
+    size_t ni1, size_t ni2, size_t nj1, size_t nj2, size_t nk1, size_t nk2,
+    size_t ni, size_t nj, size_t nk, size_t nx, size_t ny, size_t nz,
     // time
-    float dt, int nt_total,
+    float dt, int nt1, int nt2, int nt_total,
     // scheme
-    int numPair, int numStage, float *rka, float *rkb,
-    int fd_max_op_len,
-    size_t ***pair_fdx_all_len, size_t **pair_fdx_all_indx, float **pair_fdx_all_coef,
-    size_t ***pair_fdy_all_len, size_t **pair_fdx_all_indx, float **pair_fdy_all_coef,
-    size_t ***pair_fdz_all_len, size_t **pair_fdz_all_indx, float **pair_fdz_all_coef,
+    int num_rk_stages, float *rk_a, float *rk_b,
+    int num_of_pairs, int fd_max_half_stentil,
+    size_t ****pair_fdx_all_info, size_t ***pair_fdx_all_indx, float ***pair_fdx_all_coef,
+    size_t ****pair_fdy_all_info, size_t ***pair_fdy_all_indx, float ***pair_fdy_all_coef,
+    size_t ****pair_fdz_all_info, size_t ***pair_fdz_all_indx, float ***pair_fdz_all_coef,
     // boundary type
-    int *restrict boundary_itype
+    int *restrict boundary_itype,
     // if free surface
     float *matVx2Vz, float *matVy2Vz,
     // if abs
-    int *restrict abs_numbers, float *restrict abs_coefs, float *restrict abs_vars,
+    int **restrict abs_blk_indx, float **restrict abs_blk_coefs, float **restrict abs_blk_vars,
     // source term
     int num_of_force, int *restrict force_loc_point, float *restrict force_term,
     int num_of_moment, int *restrict moment_loc_point, float *restrict moment_term,
@@ -55,6 +56,17 @@ int sv_eliso1st_curv_macdrp_allstep(
   int ierr = 0;
 
   int it; // loop var for time
+
+  // local pointer
+  float *restrict Vx;
+  float *restrict Vy;
+  float *restrict Vz;
+  float *restrict Txx;
+  float *restrict Tyy;
+  float *restrict Tzz;
+  float *restrict Txz;
+  float *restrict Tyz;
+  float *restrict Txy;
 
   size_t (*a_cur)[ FD_NDIM_2 ];
   size_t (*a_pre)[ FD_NDIM_2 ];
@@ -73,6 +85,9 @@ int sv_eliso1st_curv_macdrp_allstep(
     }
   }
 
+  //
+  // time loop
+  //
   while ( it < nt_total )
   {
     if (myid==0) fprintf(stdout,"-> it=%d, t=\%f\n", it, (it-0)*stept);
@@ -155,7 +170,8 @@ int sv_eliso1st_curv_macdrp_allstep(
           // apply exp abl
           for (int i=0; i < FD_NDIM_2; i++) {
             if (boundary_itype[i] == FD_BOUNDARY_TYPE_ABLEXP) {
-              sv_eliso1st_curv_macdrp_apply_ablexp(w_cur);
+              sv_eliso1st_curv_macdrp_apply_ablexp(w_cur, number_of_wave_vars,
+                  w3d_pos, nx, ny, nz, abs_blk_indx[i],abs_blk_coefs[i]);
             }
           }
           // pack and isend
@@ -171,7 +187,8 @@ int sv_eliso1st_curv_macdrp_allstep(
           // apply exp abl
           for (int i=0; i < FD_NDIM_2; i++) {
             if (boundary_itype[i] == FD_BOUNDARY_TYPE_ABLEXP) {
-              sv_eliso1st_curv_macdrp_apply_ablexp(w_end);
+              sv_eliso1st_curv_macdrp_apply_ablexp(w_end, number_of_wave_vars,
+                  w3d_pos, nx, ny, nz, abs_blk_indx[i],abs_blk_coefs[i]);
             }
           }
           // pack and isend
@@ -246,6 +263,7 @@ int sv_eliso1st_curv_macdrp_allstep(
 
 
 int sv_eliso1st_curv_macdrp_onestage(float *restrict w_cur, float *restrict rhs, 
+      float *restrict pml_cur, float *restrict pml_rhs,
         int *restrict fdx_length, // 0: total, 1: left, 2: right
         // include different order/stentil
         int number_of_pairs, int number_of_stages,
@@ -264,23 +282,68 @@ int sv_eliso1st_curv_macdrp_onestage(float *restrict w_cur, float *restrict rhs,
   float *restrict Vy;
   float *restrict Vz;
 
-  float  fd_opx_coef[fdx_max_hlen];
-  size_t fd_opx_shift[fdx_max_hlen];
+  size_t           fdx_inn_pos;
+  size_t *restrict fdx_inn_indx;
+  float *restrict  fdx_inn_coef;
+  size_t           fdy_inn_pos;
+  size_t *restrict fdy_inn_indx;
+  float *restrict  fdy_inn_coef;
+  size_t           fdz_inn_pos;
+  size_t *restrict fdz_inn_indx;
+  float *restrict  fdz_inn_coef;
 
-  iptr = fdx_dhs_indx[fd_op_half_len-1];
-  for (i=0; i<fd_op_total_len; i++) {
-    fd_opx_coef[i] = fdx_opcoef[iptr+i];
-    fd_opx_indx[i] = fdx_opindx[iptr+i];
-  }
+  // local pointer to pml vars
+  float *restrict a_Vx ;
+  float *restrict a_Txx;
+
+  float *restrict a_hVx ;
+  float *restrict a_hTxx;
+
+  fdx_inn_pos  = fdx_all_info[fdx_max_hlen][FD_INFO_POS_OF_INDX];
+  fdx_inn_len  = fdx_all_info[fdx_max_hlen][FD_INFO_LENGTH_TOTAL];
+  fdx_inn_indx = fdx_all_indx + fdx_inn_pos;
+  fdx_inn_coef = fdx_all_coef + fdx_inn_pos;
+
+  fdy_inn_pos  = fdy_all_info[fdy_max_hlen][FD_INFO_POS_OF_INDX];
+  fdy_inn_len  = fdy_all_info[fdy_max_hlen][FD_INFO_LENGTH_TOTAL];
+  fdy_inn_indx = fdy_all_indx + fdy_inn_pos;
+  fdy_inn_coef = fdy_all_coef + fdy_inn_pos;
+
+  fdz_inn_pos  = fdz_all_info[fdz_max_hlen][FD_INFO_POS_OF_INDX];
+  fdz_inn_len  = fdz_all_info[fdz_max_hlen][FD_INFO_LENGTH_TOTAL];
+  fdz_inn_indx = fdz_all_indx + fdz_inn_pos;
+  fdz_inn_coef = fdz_all_coef + fdz_inn_pos;
+
+  // get each vars
+  Vx  = w_cur + WF_EL_1ST_SEQ_VX * siz_volume;
+  Vy  = w_cur + WF_EL_1ST_SEQ_VY * siz_volume;
+  Vz  = w_cur + WF_EL_1ST_SEQ_VZ * siz_volume;
+  Txx = w_cur + WF_EL_1ST_SEQ_TXX * siz_volume;
+  Tyy = w_cur + WF_EL_1ST_SEQ_TYY * siz_volume;
+  Tzz = w_cur + WF_EL_1ST_SEQ_TZZ * siz_volume;
+  Txz = w_cur + WF_EL_1ST_SEQ_TXZ * siz_volume;
+  Tyz = w_cur + WF_EL_1ST_SEQ_TYZ * siz_volume;
+  Txy = w_cur + WF_EL_1ST_SEQ_TXY * siz_volume;
+
+  xi_x = g3d + GRID_CURV_SEQ_XIX * siz_volume;
+  xi_y = g3d + GRID_CURV_SEQ_XIY * siz_volume;
+  xi_z = g3d + GRID_CURV_SEQ_XIZ * siz_volume;
+
+  lambda3d = m3d + MD_ELISO_SEQ_LAMBDA * siz_volume;
+
+  // get aux vars
+  siz_aux_volume = number_of_layers * nj * nk;
+  a_Vx = aux_var + WF_EL_1ST_SEQ_PMLVX * siz_aux_volume;
+  a_Vy = aux_var + WF_EL_1ST_SEQ_PMLVY * siz_aux_volume;
+  a_Vz = aux_var + WF_EL_1ST_SEQ_PMLVZ * siz_aux_volume;
+
 
   // inner points
-  i_in_opindx = fdx_all_len[fdx_max_half_len][0];
-  len_of_op   = fdx_all_len[fdx_max_half_len][1];
   ierr = eliso1st_curv_macdrp_rhs_inner(w_cur, rhs,
           ni1,ni2,nj1,nj2,nk1,nk2,ni,nj,nk,nx,ny,nz,
-          fdx_op_len, fdx_all_indx+len_of_op,
-          fdy_op_len, fdy_all_indx+len_of_op,
-          fdz_op_len, fdz_all_indx+len_of_op,
+          fdx_inn_len, fdx_inn_indx, fdx_inn_coef,
+          fdy_inn_len, fdy_inn_indx, fdy_inn_coef,
+          fdz_inn_len, fdz_inn_indx, fdz_inn_coef,
           )
 
   // for boundary, free surface should be called last, which can correct other boundary affacted by free
@@ -289,7 +352,37 @@ int sv_eliso1st_curv_macdrp_onestage(float *restrict w_cur, float *restrict rhs,
   switch (boundary_itype[0])
   {
     case FD_BOUNDARY_TYPE_CFSPML : 
-      ierr = eliso1st_curv_macdrp_rhs_cfspml_x();
+
+      // get aux vars and coes
+      siz_aux_volume = abs_blk_vars_siz_volume[0];
+
+      ptr_pml = pml_cur + abs_blk_vars_blkpos[0];
+      a_Vx = ptr_pml + WF_EL_1ST_SEQ_PMLVX * siz_aux_volume;
+      a_Vy = ptr_pml + WF_EL_1ST_SEQ_PMLVY * siz_aux_volume;
+      // add a_Vz etc
+
+      ptr_pml = pml_rhs + abs_blk_vars_blkpos[0];
+      a_hVx = ptr_pml + WF_EL_1ST_SEQ_PMLVX * siz_aux_volume;
+      a_hVy = ptr_pml + WF_EL_1ST_SEQ_PMLVY * siz_aux_volume;
+      // add a_Vz etc
+
+      pml_A = abs_blk_coefs[0];
+      pml_B = pml_A + abs_num_of_layers[0];
+      pml_D = pml_B + abs_num_of_layers[0];
+
+      ierr = eliso1st_curv_macdrp_rhs_cfspml_x(
+          xi_x, xi_y, xi_z, et_x, et_y, et_z, zt_x, zt_y, zt_z, lam3d, mu3d, rho3d,
+          Vx,Vy,Vz,Txx,Tyy,Tzz,Txz,Tyz,Txy,
+          hVx,hVy,hVz,hTxx,hTyy,hTzz,hTxz,hTyz,hTxy,
+          a_Vx,a_Vy,a_Vz,a_Txx,a_Tyy,a_Tzz,a_Txz,a_Tyz,a_Txy,
+          a_hVx,a_hVy,a_hVz,a_hTxx,a_hTyy,a_hTzz,a_hTxz,a_hTyz,a_hTxy,
+          siz_line, siz_volume,
+          abs_blk_indx[0], pml_A, pml_B, pml_D,
+          fdx_inn_len, fdx_inn_indx, fdx_inn_coef,
+          fdy_inn_len, fdy_inn_indx, fdy_inn_coef,
+          fdz_inn_len, fdz_inn_indx, fdz_inn_coef,
+          );
+
       break;
 
     default:
@@ -336,16 +429,85 @@ int sv_eliso1st_curv_macdrp_onestage(float *restrict w_cur, float *restrict rhs,
   }
 
   // boundary z2
-  switch (boundary_itype[5]) {
-    case FD_BOUNDARY_TYPE_FREE :
-      // tractiong
-      ierr = sv_eliso1st_curv_macdrp_rhs_timg_z2();
-      // velocity: vlow
-      ierr = sv_eliso1st_curv_macdrp_rhs_vlow_z2();
+  switch (boundary_itype[5])
+  {
+    case FD_BOUNDARY_TYPE_CFSPML : 
+
+      // get aux vars and coes
+      siz_aux_volume = abs_blk_vars_siz_volume[5];
+
+      ptr_pml = pml_cur + abs_blk_vars_blkpos[5];
+      a_Vx = ptr_pml + WF_EL_1ST_SEQ_PMLVX * siz_aux_volume;
+      a_Vy = ptr_pml + WF_EL_1ST_SEQ_PMLVY * siz_aux_volume;
+      // add a_Vz etc
+
+      ptr_pml = pml_rhs + abs_blk_vars_blkpos[5];
+      a_hVx = ptr_pml + WF_EL_1ST_SEQ_PMLVX * siz_aux_volume;
+      a_hVy = ptr_pml + WF_EL_1ST_SEQ_PMLVY * siz_aux_volume;
+      // add a_Vz etc
+
+      pml_A = abs_blk_coefs[5];
+      pml_B = pml_A + abs_num_of_layers[5];
+      pml_D = pml_B + abs_num_of_layers[5];
+
+      ierr = eliso1st_curv_macdrp_rhs_cfspml_z(
+          xi_x, xi_y, xi_z, et_x, et_y, et_z, zt_x, zt_y, zt_z, lam3d, mu3d, rho3d,
+          Vx,Vy,Vz,Txx,Tyy,Tzz,Txz,Tyz,Txy,
+          hVx,hVy,hVz,hTxx,hTyy,hTzz,hTxz,hTyz,hTxy,
+          a_Vx,a_Vy,a_Vz,a_Txx,a_Tyy,a_Tzz,a_Txz,a_Tyz,a_Txy,
+          a_hVx,a_hVy,a_hVz,a_hTxx,a_hTyy,a_hTzz,a_hTxz,a_hTyz,a_hTxy,
+          siz_line, siz_volume,
+          abs_blk_indx[5], pml_A, pml_B, pml_D,
+          fdx_inn_len, fdx_inn_indx, fdx_inn_coef,
+          fdy_inn_len, fdy_inn_indx, fdy_inn_coef,
+          fdz_inn_len, fdz_inn_indx, fdz_inn_coef,
+          );
+
       break;
 
-    case FD_BOUNDARY_TYPE_CFSPML : 
-      ierr = eliso1st_cfspml_cal_rhs_z();
+    default:
+  }
+
+  //
+  // free surface
+  //
+
+  // boundary z2
+  switch (boundary_itype[5])
+  {
+    case FD_BOUNDARY_TYPE_FREE :
+
+      // get aux vars and coes
+      siz_aux_volume = abs_blk_vars_siz_volume[5];
+
+      ptr_pml = pml_cur + abs_blk_vars_blkpos[5];
+      a_Vx = ptr_pml + WF_EL_1ST_SEQ_PMLVX * siz_aux_volume;
+      a_Vy = ptr_pml + WF_EL_1ST_SEQ_PMLVY * siz_aux_volume;
+      // add a_Vz etc
+
+      ptr_pml = pml_rhs + abs_blk_vars_blkpos[5];
+      a_hVx = ptr_pml + WF_EL_1ST_SEQ_PMLVX * siz_aux_volume;
+      a_hVy = ptr_pml + WF_EL_1ST_SEQ_PMLVY * siz_aux_volume;
+      // add a_Vz etc
+
+      pml_A = abs_blk_coefs[5];
+      pml_B = pml_A + abs_num_of_layers[5];
+      pml_D = pml_B + abs_num_of_layers[5];
+
+      // tractiong
+      ierr = sv_eliso1st_curv_macdrp_rhs_timg_z2(
+          xi_x, xi_y, xi_z, et_x, et_y, et_z, zt_x, zt_y, zt_z, lam3d, mu3d, rho3d,
+          Txx,Tyy,Tzz,Txz,Tyz,Txy,hVx,hVy,hVz,
+          a_Txx,a_Tyy,a_Tzz,a_Txz,a_Tyz,a_Txy, a_hVx,a_hVy,a_hVz,
+          ni1,ni2,nj1,nj2,nk1,nk2,ni,nj,nk,nx,ny,nz,siz_line,siz_volume,
+          abs_blk_indx[0], pml_A, pml_B, pml_D,
+          fdx_inn_len, fdx_inn_indx, fdx_inn_coef,
+          fdy_inn_len, fdy_inn_indx, fdy_inn_coef,
+          fdz_inn_len, fdz_inn_indx, fdz_inn_coef,
+          );
+
+      // velocity: vlow
+      ierr = sv_eliso1st_curv_macdrp_rhs_vlow_z2();
       break;
 
     default:
@@ -373,7 +535,7 @@ int sv_eliso1st_curv_macdrp_onestage(float *restrict w_cur, float *restrict rhs,
  * calculate inner points without considering the boundaries
  */
 
-int eliso1st_curv_macdrp_rhs_inner(
+int sv_eliso1st_curv_macdrp_rhs_inner(
     float *restrict w_cur, float *restrict rhs, 
     size_t ni1, size_t ni2, size_t nj1, size_t nj2, size_t nk1, size_t nk2,
     size_t ni, size_t nj, size_t nk, size_t nx, size_t ny, size_t nz,
@@ -503,15 +665,14 @@ int eliso1st_curv_macdrp_rhs_inner(
  *  other eqn should be called before free surface
  */
 
-int eliso1st_curv_macdrp_rhs_timg_z2(
-    float *restrict w_cur, float *restrict rhs, 
+int sv_eliso1st_curv_macdrp_rhs_timg_z2(
     size_t ni1, size_t ni2, size_t nj1, size_t nj2, size_t nk1, size_t nk2,
     size_t ni, size_t nj, size_t nk, size_t nx, size_t ny, size_t nz,
     size_t siz_line, size_t siz_slice,
     size_t fdx_len, size_t *restrict fdx_indx, float *restrict fdx_coef,
     size_t fdy_len, size_t *restrict fdy_indx, float *restrict fdy_coef,
     size_t fdz_len, size_t *restrict fdz_indx, float *restrict fdz_coef,
-    int *restrict boundary_itype, int *restrict abs_number_of_layers,
+    int *restrict boundary_itype, int *restrict abs_num_of_layers,
     float *restrict *abs_coefs,
     float *restrict *abs_vars
     )
@@ -615,8 +776,8 @@ int eliso1st_curv_macdrp_rhs_timg_z2(
           xiz = xi_z[iptr];
 
           // medium
-          lam = lambda3d[iptr];
-          mu  = mu3d[iptr];
+          lam = lam3d[iptr];
+          mu  =  mu3d[iptr];
           rho = rho3d[iptr];
 
           lam2mu = lam + 2.0 * mu;
@@ -667,7 +828,7 @@ int eliso1st_curv_macdrp_rhs_timg_z2(
           hVx[iptr] = ( DxTx+DyTy+DzTz )*rrhojac;
 
           // cfspml
-          if (boundary_itype[0] == FD_BOUNDARY_TYPE_CFSPML && i<ni1+abs_number_of_layers[1])
+          if (boundary_itype[0] == FD_BOUNDARY_TYPE_CFSPML && i<ni1+abs_num_of_layers[1])
           {
             // get aux vars
             siz_aux_volume = number_of_layers * nj * nk;
@@ -707,7 +868,7 @@ int eliso1st_curv_macdrp_rhs_timg_z2(
  * implement vlow boundary plus possible ade cfs-pml
  */
 
-int eliso1st_curv_macdrp_rhs_vlow_z2(
+int sv_eliso1st_curv_macdrp_rhs_vlow_z2(
     float *restrict w_cur, float *restrict rhs, 
     size_t ni1, size_t ni2, size_t nj1, size_t nj2, size_t nk1, size_t nk2,
     size_t ni, size_t nj, size_t nk, size_t nx, size_t ny, size_t nz,
@@ -861,7 +1022,7 @@ int eliso1st_curv_macdrp_rhs_vlow_z2(
                      + lam2mu*DzVx*ztx + lam*DzVy*zty + lam*DzVz*ztz;
 
           // cfspml
-          if (boundary_itype[0] == FD_BOUNDARY_TYPE_CFSPML && i<ni1+abs_number_of_layers[1])
+          if (boundary_itype[0] == FD_BOUNDARY_TYPE_CFSPML && i<ni1+abs_num_of_layers[1])
           {
             // get aux vars
             siz_aux_volume = number_of_layers * nj * nk;
@@ -896,20 +1057,32 @@ int eliso1st_curv_macdrp_rhs_vlow_z2(
  * cfspml along x
  */
 
-int eliso1st_curv_macdrp_rhs_cfspml_x(
-    float *restrict w_var, float *restrict rhs,
-    float *restrict aux_var, float *restrict aux_rhs,
-    size_t ni1, size_t ni2, size_t nj1, size_t nj2, size_t nk1, size_t nk2,
-    size_t ni, size_t nj, size_t nk, size_t nx, size_t ny, size_t nz,
-    size_t abs_ni1, abs_ni2, abs_ni,
+int sv_eliso1st_curv_macdrp_rhs_cfspml_x(
+    float *restrict xi_x, float *restrict xi_y, float *restrict xi_z,
+    float *restrict et_x, float *restrict et_y, float *restrict et_z,
+    float *restrict zt_x, float *restrict zt_y, float *restrict zt_z,
+    float *restrict lam3d, float *restrict  mu3d, float *restrict rho3d,
+    float *restrict  Vx , float *restrict  Vy , float *restrict  Vz ,
+    float *restrict  Txx, float *restrict  Tyy, float *restrict  Tzz,
+    float *restrict  Txz, float *restrict  Tyz, float *restrict  Txy,
+    float *restrict hVx , float *restrict hVy , float *restrict hVz ,
+    float *restrict hTxx, float *restrict hTyy, float *restrict hTzz,
+    float *restrict hTxz, float *restrict hTyz, float *restrict hTxy,
+    float *restrict a_Vx  , float *restrict a_Vy  , float *restrict a_Vz  ,
+    float *restrict a_Txx , float *restrict a_Tyy , float *restrict a_Tzz ,
+    float *restrict a_Txz , float *restrict a_Tyz , float *restrict a_Txy ,
+    float *restrict a_hVx , float *restrict a_hVy , float *restrict a_hVz ,
+    float *restrict a_hTxx, float *restrict a_hTyy, float *restrict a_hTzz,
+    float *restrict a_hTxz, float *restrict a_hTyz, float *restrict a_hTxy,
+    size_t siz_line, siz_t siz_volue,
+    size_t *restrict abs_indx, // pml range
+    float  *restrict Ax, float  *restrict Bx, float  *restrict Dx,
     size_t fdx_len, size_t *restrict fdx_indx, float *restrict fdx_coef,
     size_t fdy_len, size_t *restrict fdy_indx, float *restrict fdy_coef,
-    size_t fdz_len, size_t *restrict fdz_indx, float *restrict fdz_coef,
-    float *restrict Ax, float *restrict Bx, float *restrict Dx,
-    float *restrict abs_vars
+    size_t fdz_len, size_t *restrict fdz_indx, float *restrict fdz_coef
     )
 {
-  // use local stack array for speedup
+  // use local stack array for better speed
   float  lfdx_coef [fdx_len];
   size_t lfdx_shift[fdx_len];
   float  lfdy_coef [fdy_len];
@@ -917,28 +1090,14 @@ int eliso1st_curv_macdrp_rhs_cfspml_x(
   float  lfdz_coef [fdz_len];
   size_t lfdz_shift[fdz_len];
 
-  // local pointer
-  float *restrict Vx;
-  float *restrict Vy;
-  float *restrict Vz;
-  float *restrict Txx;
-  float *restrict Tyy;
-  float *restrict Tzz;
-  float *restrict Txz;
-  float *restrict Tyz;
-  float *restrict Txy;
-
-  float *restrict aVx ;
-  float *restrict aTxx;
-
-  float *restrict ahVx ;
-  float *restrict ahTxx;
-
   // local var
-  size_t i,j,k;
   size_t n_fd; // loop var for fd
+  size_t i,j,k;
   size_t iptr, iptr_a;
-  size_t siz_aux_volume;
+
+  size_t abs_ni1, size_t abs_ni2, 
+  size_t abs_nj1, size_t abs_nj2, 
+  size_t abs_nk1, size_t abs_nk2, 
 
   float DxVx, // etc
 
@@ -956,55 +1115,33 @@ int eliso1st_curv_macdrp_rhs_cfspml_x(
     lfdz_shift[k] = fdz_indx[k] * siz_slice;
   }
 
-  // get each vars
-  Vx  = w_cur + WF_EL_1ST_SEQ_VX * siz_volume;
-  Vy  = w_cur + WF_EL_1ST_SEQ_VY * siz_volume;
-  Vz  = w_cur + WF_EL_1ST_SEQ_VZ * siz_volume;
-  Txx = w_cur + WF_EL_1ST_SEQ_TXX * siz_volume;
-  Tyy = w_cur + WF_EL_1ST_SEQ_TYY * siz_volume;
-  Tzz = w_cur + WF_EL_1ST_SEQ_TZZ * siz_volume;
-  Txz = w_cur + WF_EL_1ST_SEQ_TXZ * siz_volume;
-  Tyz = w_cur + WF_EL_1ST_SEQ_TYZ * siz_volume;
-  Txy = w_cur + WF_EL_1ST_SEQ_TXY * siz_volume;
-
-  xi_x = g3d + GRID_CURV_SEQ_XIX * siz_volume;
-  xi_y = g3d + GRID_CURV_SEQ_XIY * siz_volume;
-  xi_z = g3d + GRID_CURV_SEQ_XIZ * siz_volume;
-
-  lambda3d = m3d + MD_ELISO_SEQ_LAMBDA * siz_volume;
-
-  // get aux vars
-  siz_aux_volume = number_of_layers * nj * nk;
-  a_Vx = aux_var + WF_EL_1ST_SEQ_PMLVX * siz_aux_volume;
-  a_Vy = aux_var + WF_EL_1ST_SEQ_PMLVY * siz_aux_volume;
-  a_Vz = aux_var + WF_EL_1ST_SEQ_PMLVZ * siz_aux_volume;
+  // get index into local var
+  abs_ni1 = abs_indx[0];
+  abs_ni2 = abs_indx[1];
+  abs_nj1 = abs_indx[2];
+  abs_nj2 = abs_indx[3];
+  abs_nk1 = abs_indx[4];
+  abs_nk2 = abs_indx[5];
 
   // loop all points
-  for (k=nk1; k<nk2; k++)
+  iptr_a = 0;
+
+  for (k=abs_nk1; k<=abs_nk2; k++)
   {
     iptr_k = k * siz_slice;
-    //d3=Dz[k];
-    //b3=Bz[k];
-    //a3=Az[k];
      
-    for (j=nj1; j<=nj2; j++)
+    for (j=abs_nj1; j<=abs_nj2; j++)
     {
       iptr_j = iptr_k + j * siz_line;
 
-      iptr = iptr_j + (ni1-1);
-
-      //d2=Dy[j];
-      //b2=By[j];
-      //a2=Ay[j];
+      iptr = iptr_j + abs_ni1;
 
       for (i=abs_ni1; i<=abs_ni2; i++)
       {
-        iptr += 1;
-
-        // index of each auxiliary var
-        iptr_a = (i-ni1) + j * abs_ni + k * nj * abs_ni;
-
-        d1=Dx[i]; b1=Bx[i]; a1=Ax[i];
+        // pml coefs
+        d1=Dx[i-abs_ni1];
+        a1=Ax[i-abs_ni1];
+        b1=Bx[i-abs_ni1];
         rb1 = 1.0 / b1;
 
         // metric
@@ -1013,8 +1150,8 @@ int eliso1st_curv_macdrp_rhs_cfspml_x(
         xiz = xi_z[iptr];
 
         // medium
-        lam = lambda3d[iptr];
-        mu  = mu3d[iptr];
+        lam = lam3d[iptr];
+        mu  =  mu3d[iptr];
         rho = rho3d[iptr];
 
         lam2mu = lam + 2.0 * mu;
@@ -1025,24 +1162,153 @@ int eliso1st_curv_macdrp_rhs_cfspml_x(
         M_FD_SHIFT(DxVy, Vy, iptr, fd_len, lfdx_shift, lfdx_coef, n_fd);
         M_FD_SHIFT(DxVz, Vz, iptr, fd_len, lfdx_shift, lfdx_coef, n_fd);
 
+        // combine for corr and aux vars
+        hVx_rhs = ( xix*DxTxx + xiy*DxTxy + xiz*DxTxz ) * rrho;
+
         // need to add Tij
 
         // 1: make corr to moment equation
-        hVx[iptr] += (rb1 - 1.0) * ( DxTxx*xix + DxTxy*xiy + DxTxz*xiz) * rrho
-                      - rb1 * a_Txx[iptr_a];
+        hVx[iptr] += (rb1 - 1.0) * hVx_rhs - rb1 * a_Vx[iptr_a];
 
         // make corr to Hooke's equatoin
         
         // 2: aux var
         //   a1 = alpha + d / beta, dealt in abs_set_cfspml
-        a_hTxx[iptr_a] = d1*(lam2mu*xix*DxVx + lam*xiy*DxVy + lam*xiz*DxVz ) -a1*a_Txx[iptr_a];
+        a_hVx[iptr_a] = d1 * hVx_rhs - a1 * a_Vx[iptr_a];
+
+        // incr index
+        iptr   += 1;
+        iptr_a += 1;
       }
     }
   }
 }
 
 // apply on wavefield, not on derivatives
-int sv_eliso1st_curv_macdrp_apply_ablexp()
+int sv_eliso1st_curv_macdrp_apply_ablexp_pointcoef(float *restrict w_cur, 
+    int number_of_vars, size_t *restrict vars_pos,
+    // grid size
+    size_t ni1, size_t ni2, size_t nj1, size_t nj2, size_t nk1, size_t nk2,
+    size_t ni, size_t nj, size_t nk, size_t nx, size_t ny, size_t nz,
+    // ablexp info
+    size_t *restrict abs_indx, float *restrict abs_damp
+    )
 {
+  int ierr = 0;
+
+  size_t iptr,iptr_abs, iptr_var, iptr_k, iptr_j;
+  size_t siz_line, siz_slice;
+  size_t i,j,k,ivar;
+
+  siz_line  = nx;
+  siz_slice = nx * ny;
+
+  for (ivar=0; ivar<number_of_vars; ivar++)
+  {
+    iptr_var = vars_pos[ivar];
+    iptr_abs = 0;
+
+    for (k=abs_indx[4]; k<=abs_indx[5]; k++)
+    {
+      iptr_k = iptr_var + k * siz_slice;
+      for (j=abs_indx[2]; j<=abs_indx[3]; j++)
+      {
+        iptr_j = j * siz_line + iptr_k;
+        for (i=abs_indx[0]; i<=abs_indx[2]; i++)
+        {
+          iptr = i + iptr_j;
+
+          w_cur[iptr] *= abs_damp[iptr_abs];
+
+          // next
+          iptr_abs += 1;
+        }
+      }
+    }
+  }
+
+  return ierr;
 }
 
+int sv_eliso1st_curv_macdrp_apply_ablexp(float *restrict w_cur, 
+    int number_of_vars, size_t *restrict vars_pos,
+    // grid size
+    size_t nx, size_t ny, size_t nz,
+    // ablexp info
+    size_t *restrict abs_indx, float *restrict abs_damp
+    )
+{
+  int ierr = 0;
+
+  size_t iptr,iptr_abs, iptr_var, iptr_k, iptr_j;
+  size_t siz_line, siz_slice;
+  size_t i,j,k,ivar;
+  float *restrict Dx, Dy, Dz;
+  float dampx, dampy, dampz, dampmin;
+
+  siz_line  = nx;
+  siz_slice = nx * ny;
+
+  Dx = abs_damp;
+  Dy = Dx + nx;
+  Dz = Dy + ny; 
+
+  for (ivar=0; ivar<number_of_vars; ivar++)
+  {
+    iptr_var = vars_pos[ivar];
+
+    for (k=abs_indx[4]; k<=abs_indx[5]; k++)
+    {
+      iptr_k = iptr_var + k * siz_slice;
+      dampz = Dz[k];
+
+      for (j=abs_indx[2]; j<=abs_indx[3]; j++)
+      {
+        iptr_j = j * siz_line + iptr_k;
+        dampy = Dy[j];
+        dampmin = (dampy < dampz) ? dampy : dampz;
+
+        for (i=abs_indx[0]; i<=abs_indx[2]; i++)
+        {
+          iptr = i + iptr_j;
+          dampx = Dx[i];
+          dampmin = (dampx < dampy) ? dampx : dampy;
+
+          w_cur[iptr] *= dampmin;
+
+        }
+      }
+    }
+  }
+
+  return ierr;
+}
+
+/*
+int eliso1st_curv_macdrp_rhs_cfspml_x(
+    float *restrict xi_x, float *restrict xi_y, float *restrict xi_z,
+    float *restrict et_x, float *restrict et_y, float *restrict et_z,
+    float *restrict zt_x, float *restrict zt_y, float *restrict zt_z,
+    float *restrict lam3d, float *restrict  mu3d, float *restrict rho3d,
+    float *restrict  Vx , float *restrict  Vy , float *restrict  Vz ,
+    float *restrict  Txx, float *restrict  Tyy, float *restrict  Tzz,
+    float *restrict  Txz, float *restrict  Tyz, float *restrict  Txy,
+    float *restrict hVx , float *restrict hVy , float *restrict hVz ,
+    float *restrict hTxx, float *restrict hTyy, float *restrict hTzz,
+    float *restrict hTxz, float *restrict hTyz, float *restrict hTxy,
+    float *restrict a_Vx  , float *restrict a_Vy  , float *restrict a_Vz  ,
+    float *restrict a_Txx , float *restrict a_Tyy , float *restrict a_Tzz ,
+    float *restrict a_Txz , float *restrict a_Tyz , float *restrict a_Txy ,
+    float *restrict a_hVx , float *restrict a_hVy , float *restrict a_hVz ,
+    float *restrict a_hTxx, float *restrict a_hTyy, float *restrict a_hTzz,
+    float *restrict a_hTxz, float *restrict a_hTyz, float *restrict a_hTxy,
+    size_t ni1, size_t ni2, size_t nj1, size_t nj2, size_t nk1, size_t nk2,
+    size_t ni, size_t nj, size_t nk, size_t nx, size_t ny, size_t nz,
+    size_t siz_line, siz_t siz_volue,
+    size_t *restrict abs_indx, // pml range
+    float  *restrict Ax, float  *restrict Bx, float  *restrict Dx,
+    size_t fdx_len, size_t *restrict fdx_indx, float *restrict fdx_coef,
+    size_t fdy_len, size_t *restrict fdy_indx, float *restrict fdy_coef,
+    size_t fdz_len, size_t *restrict fdz_indx, float *restrict fdz_coef
+    )
+    */
