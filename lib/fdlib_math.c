@@ -1,8 +1,7 @@
 #include <math.h>
 #include "common.h"
 
-#ifdef ARCH_x86
-void invert3x3(float m[][3]){
+void fdlib_math_invert3x3(float m[][3]){
   float inv[3][3];
   float det;
   int i, j;
@@ -30,7 +29,7 @@ void invert3x3(float m[][3]){
   return ;
 }
 
-void matmul3x3(float A[][3], float B[][3], float C[][3]){
+void fdlib_math_matmul3x3(float A[][3], float B[][3], float C[][3]){
   
   int i, j, k;
   for (i = 0; i < 3; i++)
@@ -42,16 +41,15 @@ void matmul3x3(float A[][3], float B[][3], float C[][3]){
 
   return ;
 }
-#endif
 
-void cross_product(float *A, float *B, float *C){
+void fdlib_math_cross_product(float *A, float *B, float *C){
   C[0] = A[1] * B[2] - A[2] * B[1];
   C[1] = A[2] * B[0] - A[0] * B[2];
   C[2] = A[0] * B[1] - A[1] * B[0];
   return;
 }
 
-float dot_product(float *A, float *B){
+float fdlib_math_dot_product(float *A, float *B){
   int i;
   float result = 0.0;
   for (i = 0; i < 3; i++)
@@ -60,7 +58,7 @@ float dot_product(float *A, float *B){
   return result;
 }
 
-float dist_point2plane(float x0[3], float x1[3], float x2[3], float x3[3]){
+float fdlib_math_dist_point2plane(float x0[3], float x1[3], float x2[3], float x3[3]){
 
   float x12[3], x13[3], p[3];
   x12[0] = x2[0] - x1[0];
@@ -70,15 +68,15 @@ float dist_point2plane(float x0[3], float x1[3], float x2[3], float x3[3]){
   x13[1] = x3[1] - x1[1];
   x13[2] = x3[2] - x1[2];
 
-  cross_product(x12, x13, p);
-  float d = dot_product(p, x1);
+  fdlib_math_cross_product(x12, x13, p);
+  float d = fdlib_math_dot_product(p, x1);
   float L = (float)fabs( dot_product(p, x0) - d);
   L = L/sqrtf(dot_product(p, p));
 
   return L;
 }
 
-void bubble_sort(float a[], int index[], int n){
+void fdlib_math_bubble_sort(float a[], int index[], int n){
   int i, j;float tmp;
 
   for (i = 0; i < n; i++) index[i] = i;
@@ -97,7 +95,7 @@ void bubble_sort(float a[], int index[], int n){
     }
 }
 
-void bubble_sort_int(int a[], int index[], int n){
+void fdlib_math_bubble_sort_int(int a[], int index[], int n){
   int i, j, tmp;
 
   for (i = 0; i < n; i++) index[i] = i;

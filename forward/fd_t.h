@@ -35,9 +35,12 @@
 #define FD_INFO_LENGTH_RIGTH 4
 #define FD_INFO_SIZE         5
 
-#define FD_BOUNDARY_TYPE_FREE   0
-#define FD_BOUNDARY_TYPE_CFSPML 1
-#define FD_BOUNDARY_TYPE_ABLEXP 1
+#define FD_BOUNDARY_TYPE_NONE   0
+#define FD_BOUNDARY_TYPE_FREE   1
+#define FD_BOUNDARY_TYPE_CFSPML 2
+#define FD_BOUNDARY_TYPE_ABLEXP 3
+#define FD_BOUNDARY_TYPE_MPML   4
+#define FD_BOUNDARY_TYPE_DPML   5
 
 /*
  * for different fd schemes
@@ -102,21 +105,63 @@ struct fd_t{
   };
 
   // center scheme for macdrp
-  size_t mac_center_dhs_indx[3]   = { 0, 3, 8 };
-  int    mac_center_dhs_lentot[3] = { 3, 5, 7 }; // total len
-  int    mac_center_dhs_lenhal[3] = { 2, 3, 4 }; // left len
-  float  mac_center_dhs_opindx[10] =
+  int mac_center_all_coef_size = 15;
+  size_t mac_center_all_info[mac_max_half_stentil+1][FD_INFO_SIZE] =
+    {
+      // POS, TOTAL, HALF, LEFT, RIGHT
+      { 0, 0, 0, 0, 0 }, // 0 free, not used
+      { 0, 3, 1, 1, 1 }, // 1 to free
+      { 2, 5, 2, 2, 2 }, // 2
+      { 5, 7, 3, 3, 3 }  // 3, normal op for cur scheme
+    };
+  float mac_center_all_indx[mac_center_all_coef_size]
   {
     -1, 0, 1,
     -2,-1,0, 1, 2,
     -3,-2,-1, 0, 1, 2, 3
   };
-  float  mac_center_dhs_opcoef[10] =
+  float mac_center_all_coef[10] =
   {
     -0.5, 0.0, 0.5,
-    -7.0/6.0, 8.0/6.0, -1.0/6.0,  // not finish
-    -0.02084, 0.1667, -0.7709, 0.0, 0.7709, -0.1667, 0.02084 // need to check
+    // 2-4 scheme
+    //                   -7.0/6.0, 8.0/6.0, -1.0/6.0, 
+    // 1.0/6.0, -8.0/6.0, 7.0/6.0, 
+    0.08333333, -0.6666666, 0.0, 0.6666666, -0.08333333,
+    // drp scheme
+    //                   -0.30874,-0.6326 ,1.233 ,-0.3334,0.04168 
+    // -0.04168 , 0.3334, -1.233 , 0.6326 , 0.30874
+    // 
+    -0.02084, 0.1667, -0.7709, 0.0, 0.7709, -0.1667, 0.02084 
   };
+
+  //
+	// common para for different schemes
+  //
+
+  int fdx_max_len, fdx_num_surf_lay;
+  int fdx_may_len, fdy_num_surf_lay;
+  int fdx_maz_len, fdz_num_surf_lay; // number of layers that need to use biased op near boundary
+  int fdx_nghosts; // ghost point required for x-dim
+  int fdy_nghosts;
+  int fdz_nghosts;
+
+  //
+  // center schemes at different points to boundary
+  //  fd_ is 2d pointer, the first pointer means the grid layer to free surface (from 0 to fd_len-1),
+  //  the second pointer points to fd op for that layer, the size could be different, larger than
+  //  inner op
+  //
+  int    **fdx_all_info; // [k2free][pos, total, half, left, right]
+  size_t **fdx_all_indx;
+  float  **fdx_all_coef;
+
+  int    **fdy_all_info;
+  size_t **fdy_all_indx;
+  float  **fdy_all_coef;
+
+  int    **fdz_all_info;
+  size_t **fdz_all_indx;
+  float  **fdz_all_coef;
 
   //
 	// pairs for 3d space for MacCormack-type schemes
@@ -137,21 +182,6 @@ struct fd_t{
   float   ***pair_fdz_all_coef;
 
   //
-  // center schemes at different points to boundary
-  //
-  int    **fdx_all_info; // [k2free][pos, total, half, left, right]
-  size_t **fdx_all_indx;
-  float  **fdx_all_coef;
-
-  int    **fdy_all_info;
-  size_t **fdy_all_indx;
-  float  **fdy_all_coef;
-
-  int    **fdz_all_info;
-  size_t **fdz_all_indx;
-  float  **fdz_all_coef;
-
-  //
   // filter schemes at different points to boundary
   //
   int    **filtx_all_info; // [k2free][pos, total, half, left, right] 
@@ -170,7 +200,7 @@ struct fd_t{
   // Runge-Kutta time scheme
   //
   int num_rk_stages = 4;
-  float rk_a[4] = { 0., 0.5, 0.5, 1.0 };
+  float rk_a[3] = { 0.5, 0.5, 1.0 };
   float rk_b[4] = { 1.0/6.0, 1.0/3.0, 1.0/3.0, 1.0/6.0 };
 };
 
@@ -178,6 +208,13 @@ struct fd_t{
 // block structure
 //
 struct fd_blk_t{
+
+    //
+    // grid index
+    //
+    int nx, ny, nz;
+    int ni1, ni2, nj1, nj2, nk1, nk2, ni, nj, nk;
+    int gni1, gnj1, gnk1; // global index
 
     // size of a single var
     size_t siz_line;
@@ -187,22 +224,20 @@ struct fd_blk_t{
     //size_t siz_vars; // volume * num_of_vars, not easy for understand, may named with w3d and aux
 
     //
-    // grid index
-    //
-    int ni1, ni2, nj1, nj2, nk1, nk2, ni, nj, nk;
-    int nx1, nx2, ny1, ny2, nz1, nz2, nx, ny, nz;
+    // coordnate: x3d, y3d, z3d
+    float  *c3d; // grid 3d vars
+    int     c3d_num_of_vars;
+    size_t *c3d_pos; // postion 0 for each var
+    char  **c3d_name;
 
-    //
-    // grid metrics
-    //  x3d, y3d, z3d, jac, xi_x, etc
+    // grid metrics: jac, xi_x, etc
     float  *g3d; // grid 3d vars
     int     g3d_num_of_vars;
-    size_t *g3d_pos; // for each var
+    size_t *g3d_pos; // postion 0 for each var
     char  **g3d_name;
 
     //
-    // media
-    //  rho, lambda, mu etc
+    // media: rho, lambda, mu etc
     float  *m3d; // media 3d vars
     int     m3d_num_of_vars;
     size_t *m3d_pos;
@@ -214,28 +249,32 @@ struct fd_blk_t{
     //size_t pos_vx, pos_vz, pos_txx, pos_tyy
     int     w3d_num_of_vars;
     int     w3d_num_of_levels;;
-    size_t  w3d_size_per_level;
-    size_t *w3d_pos; // for vars in a single level
+    //size_t  w3d_size_per_level; // can be cal by num_of_vars * siz_volume on fly
+    size_t *w3d_pos; // pos of 0 elem for each vars in one level
     char  **w3d_name;
 
-    // auxiliary vars
+    // auxiliary vars, may be used in the future
     //
     float  *a3d; // auxiliary vars
     int     a3d_num_of_vars;
     int     a3d_num_of_levels;
-    size_t  a3d_size_per_level;
+    //size_t  a3d_size_per_level;
     size_t *a3d_pos;
     char  **a3d_name;
 
     // boundary 
-    int *boundary_itype[ FD_NDIM_2 ];
+    int boundary_itype[ FD_NDIM_2 ];
 
     // free surface
     float *matVx2Vz, *matVy2Vz;
 
     // source term
-    int num_of_force;
-    int num_of_moment;
+    int     num_of_force;
+    size_t *force_info; // num_of_force * 6 : si,sj,sk,start_pos_in_stf,start_it, end_it
+    float  *force_vec_stf;
+    int     num_of_moment;
+    size_t *moment_info; // num_of_force * 6 : si,sj,sk,start_pos_in_rate,start_it, end_it
+    float  *moment_ten_rate; // stage, it, Mij, num
 
     //
     // abs
@@ -243,28 +282,33 @@ struct fd_blk_t{
 
     // only support one type each run, may combine in the future
     //  which requires different vars in blk_t
-    int  abs_itype[3];
+    int  abs_itype;
 
-    int     abs_num_of_layers[ FD_NDIM_2 ];
+    // only for this block, may diff with global values from input par
+    int  abs_num_of_layers[ FD_NDIM_2 ];
 
-    //  _blk means all dims, eliminate _dimpos var
-    size_t  abs_blk_indx[FD_NDIM_2][FD_NDIM_2];
+    // grid index of each face
+    size_t abs_indx[FD_NDIM_2][FD_NDIM_2];
+
+    size_t   abs_coefs_facepos0[FD_NDIM_2];  // 
+    float   *abs_coefs; // all coefs all faces 
 
     // may add abs_numb_of_vars later for mpml
+    //   may not need it since 
 
-    //size_t  abs_blk_coefs_size[FD_NDIM_2]; // size of all coef for one block, seems no use
-    //size_t  abs_coefs_dimpos[2*3];
+    size_t  abs_vars_volsiz[FD_NDIM_2]; // size of single var in abs_blk_vars for each block
+    size_t  abs_vars_facepos0[FD_NDIM_2]; // start pos of each blk in first level; other level similar
+    size_t  abs_vars_size_per_level; // size of vars per level
+    float   *abs_vars; //  order: vars_one_block -> all block -> one level -> 4 levels
 
-    // abs_blk_coefs[idim] + abs_num_of_layers[idim] for next coef
-    float   **abs_blk_coefs; // [dim][A,B,D etc]
+    // io
+    int num_of_sta;
+    size_t *sta_loc_point;
+    float  *sta_seismo;
 
-    //size_t  abs_blk_vars_size_per_level[FD_NDIM_2]; // 
-
-    size_t  abs_blk_vars_level_size; // size of vars per level
-    size_t  abs_blk_vars_siz_volume[FD_NDIM_2]; // size of single var in abs_blk_vars for each block
-    size_t  abs_blk_vars_blkpos[FD_NDIM_2]; // start pos of each blk in first level; other level similar
-    float   *abs_blk_vars; //  order: vars_one_block -> all block -> one level -> 4 levels
-    //size_t  abs_vars_dimpos[2*3];
+    int num_of_snap;
+    int *snap_grid_indx;
+    int *snap_time_indx;
 
     //
     // connection to other blk or mpi thread
@@ -284,5 +328,12 @@ struct fd_blk_t{
     size_t number_of_float;
     size_t number_of_btye;
 };
+
+//
+// mpi info for each process
+//
+struct fd_mpi_t{
+
+}
 
 #endif

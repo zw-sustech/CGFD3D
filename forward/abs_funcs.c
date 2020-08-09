@@ -11,8 +11,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#include "netcdf.h"
 #include "fdlib_math.h"
+#include "fdlib_mem.h"
+#include "fd_t.h"
 
 //#define DEBUG
 #define CONSPD 2.0f // power for d
@@ -20,101 +21,125 @@
 #define CONSPA 1.0f // power for alpha
 //#define PI 3.1415926535898
 
-int abs_set_cfspml(size_t nx, size_t ny, size_t nz, 
-    size_t ni1, size_t ni2, size_t nj1, size_t nj2, size_t nk1, size_t nk2, 
-    int *boundary_itype, // input
-    int *in_abs_numbers, //
-    float *abs_alpha_max, //
-    float *abs_beta_max, //
-    float *abs_velocity, //
-    int *abs_num_of_layers, // output
-    size_t **abs_blk_indx,
-    //size_t **abs_blk_coefs_size,
-    size_t **abs_blk_vars_size,
-    float ***p_abs_blk_coefs,
-    float ***p_abs_blk_vars)
+/*
+ * set up abs_coefs for cfs-pml
+ */
+
+void
+abs_set_cfspml(
+    float *alpha_max, //
+    float *beta_max, //
+    float *velocity, //
+    float dh, // average grid size
+    size_t ni1,
+    size_t ni2,
+    size_t nj1,
+    size_t nj2,
+    size_t nk1,
+    size_t nk2,
+    int *boundary_itype,
+    int *abs_num_of_layers,
+    size_t abs_indx[][];
+    size_t *abs_coefs_facepos0,
+    float **p_abs_coefs,
+    int verbose)
 {
-  int ivar;
-  
-  float *Ax, *Bx, *Dx;
-  float *Ay, *By, *Dy;
-  float *Az, *Bz, *Dz;
-  
-  size_t i,j,k;
-  size_t size_of_coef;
-
   const int num_of_coefs = 3; // Alpha, Beta, D
-  
-  // copy input to struct
-  memcpy(abs_num_of_layers, in_abs_numbers, FD_NDIM_2 * sizeof(int));
 
-  // alloc first level coef size
-  **p_abs_blk_coefs = (float **) fdlib_mem_malloc_1d_float( 
-               FD_NDIM_2, "abs_set_cfspml");
-
-  // x1
-  i_dim = 0;
-  if (boundary_itype[i_dim] == FD_BOUNDARY_TYPE_CFSPML && abs_num_of_layers[i_dim]>0)
+  // coef size
+  size_t size_of_coef = 0;
+  for (int i=0; i<FD_NDIM_2; i++)
   {
-    // indx
-    abs_blk_indx[i_dim][0] = ni1;
-    abs_blk_indx[i_dim][1] = ni1 + abs_num_of_layers[i_dim] - 1;
-    abs_blk_indx[i_dim][2] = nj1;
-    abs_blk_indx[i_dim][3] = nj2;
-    abs_blk_indx[i_dim][4] = nk1;
-    abs_blk_indx[i_dim][5] = nk2;
+    // facepos starts from previous end
+    abs_coefs_facepos0[i] = size_of_coef;
 
-    // coef_size
-    //abs_blk_coefs_size[i_dim] = (abs_num_of_layers[i_dim] + nj + nk) * num_of_coefs; // for MPML
-    
-    //abs_blk_coefs_size[i_dim] = (abs_num_of_layers[i_dim]) * num_of_coefs;
-    //(**p_abs_blk_coefs)[i_dim] = (float *) fdlib_mem_malloc_1d_float( 
-    //           abs_blk_coefs_size[i_dim], "abs_set_cfspml");
-
-    size_of_coef = (abs_num_of_layers[i_dim]) * num_of_coefs;
-    (**p_abs_blk_coefs)[i_dim] = (float *) fdlib_mem_malloc_1d_float( 
-               size_of_coef, "abs_set_cfspml");
-
-    Ax = (**p_abs_blk_coefs)[i_dim];
-    Bx = Ax + abs_num_of_layers[i_dim];
-    Dx = Bx + abs_num_of_layers[i_dim];
-
-    // init
-    for (i = 0; i < abs_num_of_layers[i_dim]; i++) {
-      Ax[i] = 0.0f;
-      Bx[i] = 1.0f;
-      Dx[i] = 0.0f;
-    }
-
-    // cal
-    float L0   = abs_num_of_layers[i_dim];
-    float Rpp  = cal_pml_R(abs_num_of_layers[i_dim]);
-    float dmax = cal_pml_dmax(L0, abs_velocity[i_dim], Rpp);
-    //float amax = cal_pml_amax(PML_fc);
-    float amax = abs_alpha_max[i_dim];
-    float bmax = abs_beta_max[i_dim];
-    // from PML-interior to outer side
-    for (int ilay=0; ilay<abs_num_of_layers[i_dim]; ilay++)
-    {
-      float Lx = ilay + 1;
-      // convert to grid index from left to right
-      i = abs_num_of_layers[i_dim] - 1 - ilay;
-      Dx[i] = cal_pml_d( Lx, L0, dmax );
-      Ax[i] = cal_pml_a( Lx, L0, amax );
-      Bx[i] = cal_pml_b( Lx, L0, bmax );
-
-      // convert d_x to d_x/beta_x since only d_x/beta_x needed
-      Dx[i] /= Bx[i];
-
-      // covert ax = a_x + d_x/beta_x to reduce computational cost
-      Ax[i] += Dx[i];
+    if (boundary_itype[i] == FD_BOUNDARY_TYPE_CFSPML && abs_num_of_layers[i]>0) {
+      size_of_coef += abs_num_of_layers[i] * num_of_coefs;
     }
   }
 
-  // need to add x2, y1, y2, z1, z2
+  // alloc coef
+  size_of_coef *= num_of_coefs;
+  float *abs_coefs = (float *) fdlib_mem_malloc_1d_float( 
+             size_of_coef, "abs_set_cfspml");
 
+  // for each face
+  for (int i_dim=0; i_dim<FD_NDIM_2; i_dim++)
+  {
+    // set default indx to 0
+    for (int j; j<FD_NDIM_2; j++) {
+      abs_indx[i_dim][j] = 0;
 
-  return 0;
+      // end size
+      if (j%2==1) abs_indx[i_dim][j] = -1;
+    }
+
+    if (boundary_itype[i_dim] == FD_BOUNDARY_TYPE_CFSPML && abs_num_of_layers[i_dim]>0)
+    {
+      int num_lay = abs_num_of_layers[i_dim];
+
+      // coefs for this face
+      float *this_coefs = abs_coefs + abs_coefs_facepos0[i_dim];
+
+      // indx
+      abs_indx[i_dim][0] = ni1;
+      abs_indx[i_dim][1] = ni2;
+      abs_indx[i_dim][2] = nj1;
+      abs_indx[i_dim][3] = nj2;
+      abs_indx[i_dim][4] = nk1;
+      abs_indx[i_dim][5] = nk2;
+
+      if        (i_dim==0) {
+        abs_indx[i_dim][1] = ni1 + num_lay - 1;
+      } else if (i_dim==1) {
+        abs_indx[i_dim][0] = ni2 - num_lay + 1;
+      } else if (i_dim==2) {
+        abs_indx[i_dim][3] = nj1 + num_lay - 1;
+      } else if (i_dim==3) {
+        abs_indx[i_dim][2] = nj2 - num_lay + 1;
+      } else if (i_dim==4) {
+        abs_indx[i_dim][5] = nk1 + num_lay - 1;
+      } else { // 5
+        abs_indx[i_dim][4] = nk2 - num_lay + 1;
+      }
+
+      float *A = this_coefs + num_lay;
+      float *B =          A + num_lay;
+      float *D =          B + num_lay;
+
+      // calculate
+      float L0   = num_lay * dh;
+      float Rpp  = cal_pml_R(num_lay);
+      float dmax = cal_pml_dmax(L0, velocity[i_dim], Rpp);
+      float amax = alpha_max[i_dim];
+      float bmax = beta_max[i_dim];
+
+      // from PML-interior to outer side
+      for (int ilay=0; ilay<num_lay; ilay++)
+      {
+        float L = (ilay + 1) * dh;
+
+        // convert to grid index from left to right, default x1/y1/z2
+        int i = num_lay - 1 - ilay;
+        if (i_dim % 2 == 1) { // x2/y2/z2
+          i = ilay; 
+        }
+
+        D[i] = cal_pml_d( L, L0, dmax );
+        A[i] = cal_pml_a( L, L0, amax );
+        B[i] = cal_pml_b( L, L0, bmax );
+
+        // convert d_x to d_x/beta_x since only d_x/beta_x needed
+        D[i] /= B[i];
+        // covert ax = a_x + d_x/beta_x 
+        A[i] += D[i];
+        // covert bx = 1.0/bx 
+        B[i] = 1.0 / B[i];
+      }
+    }
+  }
+
+  *p_abs_coefs = abs_coefs;
 }
 
 inline float cal_pml_R(int N){
@@ -219,4 +244,47 @@ int abs_ablexp_cal_damp(i,Vs,ah,nb)
   d=exp(-d*(ie/nb)**2)
 
   return ierr;
+}
+
+// set cfs pml vars
+void
+abs_init_vars_cfspml(
+    int number_of_levels,
+    int number_of_vars,
+    int *restrict boundary_itype,
+    size_t **restrict abs_indx,
+    size_t *restrict abs_vars_volsiz,
+    size_t *restrict abs_vars_facepos0,
+    size_t *abs_vars_size_per_level,
+    float *restrict p_abs_blk_vars
+    const int myid, const int verbose)
+{
+    size_t siz_level = 0;
+
+    for (int i=0; i < FD_NDIM_2; i++)
+    {
+      abs_vars_facepos0[i] = siz_level;
+
+      // init to 0
+      abs_vars_volsiz[i] = 0;
+
+      // set if pml
+      if (boundary_itype[i] == FD_BOUNDARY_TYPE_CFSPML)
+      {
+        abs_vars_volsiz[i] =   (abs_blk_indx[i][1] - abs_blk_indx[i][0] + 1)
+                             * (abs_blk_indx[i][3] - abs_blk_indx[i][2] + 1)
+                             * (abs_blk_indx[i][5] - abs_blk_indx[i][4] + 1);
+
+        // add to total size
+        siz_level += abs_vars_volsiz[i] * number_of_vars;
+      }
+    }
+
+    *abs_vars_size_per_level = siz_level;
+
+    // vars
+    // contain all vars at each side, include rk scheme 4 levels vars
+    *p_abs_vars = (float *) fdlib_mem_calloc_1d_float( 
+                 siz_level * number_of_levels,
+                 0.0, "abs_init_vars_cfspml");
 }

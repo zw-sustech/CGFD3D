@@ -1,4 +1,4 @@
-#include "utility_vector.h"
+#include "fdlib_mem.h"
 
 /*
  * todo:
@@ -11,7 +11,8 @@
  * allocate float array with initial value
  *****************************************************************************/
 
-float *fdlib_mem_calloc_1d_float(size_t n, float v0, char *msg)
+float *
+fdlib_mem_calloc_1d_float(size_t n, float v0, char *msg)
 {
     int ierr;
     float *buff;
@@ -41,11 +42,44 @@ float *fdlib_mem_calloc_1d_float(size_t n, float v0, char *msg)
     return buff;
 }
 
+float **
+fdlib_mem_calloc_2d_float(size_t n1, size_t n2, float v0, char *msg)
+{
+    int ierr;
+    float **buff;
+
+    ierr = 0;
+
+    if (n1 <= 0 || n2<=0) {
+        fprintf(stderr, "Error: n1=%i n2=%s is negative!\n", n1, n2);
+        return NULL;
+    }
+
+    // allocate
+    *buff = (float**) malloc( n1 * sizeof(float));
+
+    if ( *buff == NULL ) {
+        fprintf(stderr, "Error: can't malloc enough mem (%s)!\n", msg);
+        ierr = -1;
+        exit(ierr);
+    }
+
+    // init value
+    for (size_t i = 0; i < n1; i++ ) {
+      buff[i] = (float *) malloc( n2 * sizeof(float));
+
+      for (size_t j=0; j < n2; j++) buff[i][j] = v0;
+    }
+
+    return buff;
+}
+
 /******************************************************************************
   allocate float array without initial value
  *****************************************************************************/
 
-float *fdlib_mem_malloc_1d_float(size_t n, char *msg)
+float *
+fdlib_mem_malloc_1d_float(size_t n, char *msg)
 {
     int ierr;
     float *buff;
@@ -73,23 +107,23 @@ float *fdlib_mem_malloc_1d_float(size_t n, char *msg)
  * free 1d array no matter data type
  *****************************************************************************/
 
-int fdlib_mem_free_1d(void *p)
+void 
+fdlib_mem_free_1d(void *p)
 {
-   if (p==NULL) {
-       fprintf(stderr, "Pointer is null!\n");
-       return -1;
-   }
+  if (p==NULL) {
+      fprintf(stderr, "Pointer is null!\n");
+      return;
+  }
 
-    free(p);
-    p = NULL;
-
-    return 0;
+  free(p);
+  p = NULL;
 }
 
 /******************************************************************************
  * allocate 2d char array
  *****************************************************************************/
 
+/*
 char **fdlib_mem_malloc_2d_char(size_t n, int str_len, char *msg)
 {
     int ierr;
@@ -121,4 +155,4 @@ char **fdlib_mem_malloc_2d_char(size_t n, int str_len, char *msg)
 
     return buff;
 }
-
+*/

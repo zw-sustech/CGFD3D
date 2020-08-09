@@ -1,23 +1,19 @@
-#ifndef GRID_CURV_H
-#define GRID_CURV_H
+#ifndef GD_CURV_H
+#define GD_CURV_H
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <math.h>
+#define GD_CURV_SEQ_X3D 0
+#define GD_CURV_SEQ_Y3D 1
+#define GD_CURV_SEQ_Z3D 2
 
-#define GRID_CURV_SEQ_X3D 0
-#define GRID_CURV_SEQ_Y3D 1
-#define GRID_CURV_SEQ_Z3D 2
-#define GRID_CURV_SEQ_JAC 3
-#define GRID_CURV_SEQ_XIX 4
-#define GRID_CURV_SEQ_XIY 5
-#define GRID_CURV_SEQ_XIZ 6
-#define GRID_CURV_SEQ_ETX 7
-#define GRID_CURV_SEQ_ETY 8
-#define GRID_CURV_SEQ_ETZ 9
-#define GRID_CURV_SEQ_ZTX 10
-#define GRID_CURV_SEQ_ZTY 11
-#define GRID_CURV_SEQ_ZTZ 12
+#define GD_CURV_SEQ_JAC 0
+#define GD_CURV_SEQ_XIX 1
+#define GD_CURV_SEQ_XIY 2
+#define GD_CURV_SEQ_XIZ 3
+#define GD_CURV_SEQ_ETX 4
+#define GD_CURV_SEQ_ETY 5
+#define GD_CURV_SEQ_ETZ 6
+#define GD_CURV_SEQ_ZTX 7
+#define GD_CURV_SEQ_ZTY 8
+#define GD_CURV_SEQ_ZTZ 9
 
 #endif

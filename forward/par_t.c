@@ -6,9 +6,186 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <mpi.h>
 
 #include "cJSON.h"
-#include "par_funcs.h"
+#include "par_t.h"
+
+void
+par_mpi_get(char *par_fname, int myid, MPI_Comm comm, struct par_t *par, int verbose)
+{
+  if (myid==0)
+  {
+    FILE fp=fopen(par_fname,"r");
+    if (!fp) {
+      fprintf(stderr,"Error: can't open par file: %s\n", par_fname);
+      MPI_Finalize();
+      exit(1);
+    }
+    fseek(fp, 0, SEEK_END);
+    long len = ftell(fp);
+
+    // bcast len to all nodes
+    MPI_Bcast(len, 1, MPI_LONG, 0, comm);
+
+    fseek(fp, 0, SEEK_SET);
+    char *str = (char*)malloc(len+1);
+    fread(str, 1, len, fp);
+    fclose(fp);
+
+    // bcast str
+    MPI_Bcast(str, len+1, MPI_CHAR, 0, comm);
+  }
+  else
+  {
+    long len;
+    // get len 
+    MPI_Bcast(len, 1, MPI_LONG, 0, comm);
+
+    char *str = (char*)malloc(len+1);
+    // get str
+    MPI_Bcast(str, len+1, MPI_CHAR, 0, comm);
+  }
+    
+  par_get_from_str(str, &par);
+
+  free(str);
+}
+
+int par_get_from_str(char *str, struct par_struct *par)
+{
+
+  // set non-input default values
+  par->number_of_points = ;
+
+  //
+  // read each parameter
+  //
+  //
+  cJSON *root, *item;
+  root = cJSON_Parse(str);
+  if (NULL == root) {
+    printf("Error at parsing json!\n");
+    exit(-1);
+  }
+
+if (item = cJSON_GetObjectItem(root, "OUT"))
+    memcpy(OUT, item->valuestring, strlen(item->valuestring));
+
+if (item = cJSON_GetObjectItem(root, "Fault_grid")){
+  //int array_size = cJSON_GetArraySize(item);
+    for (int i = 0; i < 4; i++){
+      hostParams.Fault_grid[i] = cJSON_GetArrayItem(item, i)->valueint;
+    }
+  }
+
+  if (item = cJSON_GetObjectItem(root, "x1_boundary"))
+
+  if (item = cJSON_GetObjectItem(root, "TMAX"))
+    hostParams.TMAX  = item->valuedouble;
+  if (item = cJSON_GetObjectItem(root, "DT"))
+    hostParams.DT = item->valuedouble;
+  if (item = cJSON_GetObjectItem(root, "DH"))
+    hostParams.DH = item->valuedouble;
+
+  if (item = cJSON_GetObjectItem(root, "NX"))
+    hostParams.NX = item->valueint;
+  if (item = cJSON_GetObjectItem(root, "NY"))
+    hostParams.NY = item->valueint;
+  if (item = cJSON_GetObjectItem(root, "NZ"))
+    hostParams.NZ = item->valueint;
+  if (item = cJSON_GetObjectItem(root, "PX"))
+    hostParams.PX = item->valueint;
+  if (item = cJSON_GetObjectItem(root, "PY"))
+    hostParams.PY = item->valueint;
+  if (item = cJSON_GetObjectItem(root, "PZ"))
+    hostParams.PZ = item->valueint;
+
+  item = cJSON_GetObjectItem(root, "IN_SOURCE");
+  memcpy(IN_SOURCE, item->valuestring, strlen(item->valuestring));
+
+  item = cJSON_GetObjectItem(root, "IN_TOPO");
+  memcpy(IN_TOPO, item->valuestring, strlen(item->valuestring));
+
+  item = cJSON_GetObjectItem(root, "IN_VELO");
+  memcpy(IN_VELO, item->valuestring, strlen(item->valuestring));
+
+  item = cJSON_GetObjectItem(root, "IN_INTER");
+  memcpy(IN_INTER, item->valuestring, strlen(item->valuestring));
+
+  item = cJSON_GetObjectItem(root, "IN_REC");
+  memcpy(IN_REC, item->valuestring, strlen(item->valuestring));
+
+  item = cJSON_GetObjectItem(root, "OUT_DIR");
+  memcpy(OUT_DIR, item->valuestring, strlen(item->valuestring));
+
+  //name_json = cJSON_GetObjectItem(root, "INGRD");
+  //if (NULL != name_json)
+  //{
+  //    INGRD = cJSON_Print(name_json);
+  //    printf("INGRD : %s\n", INGRD);
+  //    free(name_json);
+  //}
+
+  //name_json = cJSON_GetObjectItem(root, "INVEL");
+  //if (NULL != name_json)
+  //{
+  //    INVEL = cJSON_Print(name_json);
+  //    printf("INVEL : %s\n", INVEL);
+  //    free(name_json);
+  //}
+
+  //name_json = cJSON_GetObjectItem(root, "INSRC");
+  //if (NULL != name_json)
+  //{
+  //    INSRC = cJSON_Print(name_json);
+  //    printf("INSRC : %s\n", INSRC);
+  //    free(name_json);
+  //}
+
+  //name_json = cJSON_GetObjectItem(root, "INREC");
+  //if (NULL != name_json)
+  //{
+  //    INREC = cJSON_Print(name_json);
+  //    printf("INREC : %s\n", INREC);
+  //    free(name_json);
+  //}
+
+  if ( item = cJSON_GetObjectItem(root, "NUM_INTER") ) {
+      par->nx = item->valueint;
+  } else {
+      error_exit("no nx in par file");
+  }
+
+  NX    = cJSON_GetObjectItem(root, "NX")->valueint;
+  TMAX  = cJSON_GetObjectItem(root, "TMAX")->valuedouble;
+  DT    = cJSON_GetObjectItem(root, "DT")->valuedouble;
+  if(p = cJSON_GetObjectItem(root, "OUT" )) {
+    strcpy(OUT, p->valuestring);
+  }
+
+  cJSON_Delete(root);
+
+  mkpath(OUT, 0700);
+  mkpath(OUT_DIR, 0700);
+
+  //printf("---------------------------------------------\n");
+  //printf("TSKP  : %d\n", TSKP);
+  //printf("TMAX  : %f\n", TMAX);
+  //printf("DT  : %f\n", DT);
+  //printf("DH  : %f\n", DH);
+  //printf("NX  : %d\n", NX);
+  //printf("NY  : %d\n", NY);
+  //printf("NZ  : %d\n", NZ);
+  //printf("PX  : %d\n", PX);
+  //printf("PY  : %d\n", PY);
+  //printf("PZ  : %d\n", PZ);
+  //printf("---------------------------------------------\n");
+
+  // set values to default ones if no input
+
+  return;
+}
 
 int par_read_file(char *par_file_name, struct par_struct *par)
 {
@@ -159,7 +336,9 @@ if (item = cJSON_GetObjectItem(root, "Fault_grid")){
   return;
 }
 
-void print_params() {
+void
+par_print(struct par_t *par)
+{
   printf( "# Parameters setting:\n"
           "* Tmax           = %g (sec)\n"
           "* DT             = %g (sec)\n"
