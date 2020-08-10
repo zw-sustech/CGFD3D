@@ -9,8 +9,9 @@
 #include <stdlib.h>
 
 #include "netcdf.h"
-#include "gd_curv.h"
+#include "fdlib_mem.h"
 #include "fdlib_math.h"
+#include "gd_curv.h"
 
 void 
 gd_curv_init_c3d(
@@ -39,7 +40,7 @@ gd_curv_init_c3d(
                num_grid_vars, 0, "gd_curv_init_c3d");
   
   // name of each var
-  char **c3d_name = (char **) fdlib_mem_malloc_2d_char( 
+  char **c3d_name = (char **) fdlib_mem_malloc_2l_char( 
                num_grid_vars, FD_MAX_STRLEN, "gd_curv_init_c3d");
   
   // set value
@@ -92,7 +93,7 @@ gd_curv_init_g3d(
                num_grid_vars, 0, "grid_curv_init_g3d");
   
   // name of each var
-  char **g3d_name = (char **) fdlib_mem_malloc_2d_char( 
+  char **g3d_name = (char **) fdlib_mem_malloc_2l_char( 
                num_grid_vars, FD_MAX_STRLEN, "grid_curv_init_g3d");
   
   // set value
@@ -322,5 +323,3 @@ gd_curv_gen_cart(
     }
   }
 }
-
-

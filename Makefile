@@ -77,4 +77,3 @@ cleanall: cleanexe cleanobj
 	echo "clean all"
 distclean: cleanexe cleanobj
 	echo "clean all"
-

@@ -14,7 +14,6 @@
 #include <time.h>
 #include <mpi.h>
 
-#include "fdlib_mem.h"
 #include "fd_t.h"
 #include "par_t.h"
 #include "gd_curv.h"
@@ -400,9 +399,10 @@ int main(int argc, char** argv)
   if (blk->abs_itype == FD_BOUNDARY_TYPE_CFSPML) {
     // set pml parameters
     abs_set_cfspml(
-        par->cfs_pml_alpha_max,
-        par->cfs_pml_beta_max,
-        par->cfs_pml_velocity,
+        par->cfspml_alpha_max,
+        par->cfspml_beta_max,
+        par->cfspml_velocity,
+        par->cartesian_dx,
         blk->ni1,
         blk->ni2,
         blk->nj1,

@@ -1,8 +1,6 @@
 /*
-********************************************************************************
-* Curve grid metric calculation using MacCormack scheme                        *
-********************************************************************************
-*/
+ *
+ */
 
 #include <string.h>
 #include <stdio.h>
@@ -10,6 +8,7 @@
 #include <stdlib.h>
 
 #include "netcdf.h"
+
 #include "fdlib_mem.h"
 #include "md_el_iso.h"
 
@@ -42,19 +41,19 @@ md_el_iso_init_vars(
                num_medium_vars, 0, "medium_el_iso_init_vars");
 
   // name of each var
-  char **m3d_name = (char **) fdlib_mem_malloc_2d_char( 
+  char **m3d_name = (char **) fdlib_mem_malloc_2l_char( 
                num_medium_vars, FD_MAX_STRLEN, "medium_el_iso_init_vars");
 
   // init
-  ivar = MEDIUM_ELASTIC_ISO_SEQ_RHO;
+  ivar = MD_EL_ISO_SEQ_RHO;
   m3d_pos[ivar] = ivar * siz_volume;
   strcpy(m3d_name[ivar],"rho");
 
-  ivar = MEDIUM_ELASTIC_ISO_SEQ_LAMBDA;
+  ivar = MD_EL_ISO_SEQ_LAMBDA;
   m3d_pos[ivar] = ivar * siz_volume;
   strcpy(m3d_name[ivar],"lamda");
 
-  ivar = MEDIUM_ELASTIC_ISO_SEQ_MU;
+  ivar = MD_EL_ISO_SEQ_MU;
   m3d_pos[ivar] = ivar * siz_volume;
   strcpy(m3d_name[ivar],"mu");
 

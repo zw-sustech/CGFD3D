@@ -18,4 +18,13 @@
 #define WF_EL_1ST_SEQ_Tyz 7
 #define WF_EL_1ST_SEQ_Txy 8
 
+void 
+wf_el_1st_init_vars(
+    size_t siz_volume,
+    int number_of_levels,
+    int *number_of_vars,
+    float  **p_w3d,
+    size_t **p_w3d_pos,
+    char  ***p_w3d_name);
+
 #endif

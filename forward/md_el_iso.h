@@ -1,13 +1,33 @@
-#ifndef MEDIUM_ELASTIC_ISO_H
-#define MEDIUM_ELASTIC_ISO_H
+#ifndef MD_EL_ISO_H
+#define MD_EL_ISO_H
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <math.h>
+#define MD_EL_ISO_SEQ_RHO    0
+#define MD_EL_ISO_SEQ_LAMBDA 1
+#define MD_EL_ISO_SEQ_MU     2
 
-#define MEDIUM_ELASTIC_ISO_SEQ_RHO    0
-#define MEDIUM_ELASTIC_ISO_SEQ_LAMBDA 1
-#define MEDIUM_ELASTIC_ISO_SEQ_MU     2
+void
+md_el_iso_init_vars(
+    size_t siz_volume,
+    int *number_of_vars, 
+    float **p_m3d,
+    size_t **p_m3d_pos,
+    char ***p_m3d_name);
+
+void
+md_el_iso_import(float *restrict m3d, size_t *restrict m3d_pos, char **restrict m3d_name,
+        int number_of_vars, size_t siz_volume, char *in_dir, int *myid3);
+
+void
+md_el_iso_gen_test(
+    float *restrict m3d,
+    float *restrict x3d,
+    float *restrict y3d,
+    float *restrict z3d,
+    size_t nx,
+    size_t ny,
+    size_t nz,
+    size_t siz_line,
+    size_t siz_slice,
+    size_t siz_volume);
 
 #endif

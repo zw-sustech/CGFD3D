@@ -9,10 +9,8 @@
 #include <stdlib.h>
 
 #include "fdlib_math.h"
-
-// cal force_vec_stf/moment_ten_rate 1d index for icmp,it,istage
-#define M_SRC_IND(icmp,it,istage,nt,num_stage) \
-  ((icmp) * (nt) * (num_stage) + (it) * (num_stage) + (istage))
+#include "fdlib_mem.h"
+#include "src_funcs.h"
 
 /*
  * test
@@ -38,7 +36,7 @@ src_gen_test(
   int nforce = 0;
   
   int nmoment = 1;
-  size_t *moment_info = (size_t *)fdlib_mem_calloc_1d_sizet(nmoment*6, 1.0, "src_gen_test");
+  size_t *moment_info = (size_t *)fdlib_mem_calloc_1d_sizet(nmoment*6, 1, "src_gen_test");
 
   moment_info[0] = 50; //si
   moment_info[1] = 50; //sj

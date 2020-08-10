@@ -43,29 +43,29 @@ fd_set_macdrp(struct fd_t *fd)
   fd->fdz_num_surf_lay = 3;
 
   // alloc
-  fd->pair_fdx_all_info = (size_t ****) fdlib_mem_calloc_4d_size_t( 
+  fd->pair_fdx_all_info = (size_t ****) fdlib_mem_calloc_4l_sizet( 
                  fd->num_of_pairs, fd->num_rk_stages, fd->mac_max_half_stentil+1,FD_INFO_SIZE,
                  0, "fd_set_macdrp");
-  fd->pair_fdx_all_indx = (size_t ***) fdlib_mem_calloc_3d_size_t( 
+  fd->pair_fdx_all_indx = (size_t ***) fdlib_mem_calloc_3l_sizet( 
                  fd->num_of_pairs , fd->num_rk_stages , fd->mac_all_coef_size, 0, "fd_set_macdrp");
-  fd->pair_fdx_all_coef = (int ***) fdlib_mem_calloc_3d_float( 
-                 fd->num_of_pairs , fd->num_rk_stages , fd->mac_all_coef_size, 0, "fd_set_macdrp");
+  fd->pair_fdx_all_coef = (int ***) fdlib_mem_calloc_3l_float( 
+                 fd->num_of_pairs , fd->num_rk_stages , fd->mac_all_coef_size, 0.0, "fd_set_macdrp");
 
-  fd->pair_fdy_all_info = (size_t ****) fdlib_mem_calloc_4d_size_t( 
+  fd->pair_fdy_all_info = (size_t ****) fdlib_mem_calloc_4l_sizet( 
                  fd->num_of_pairs, fd->num_rk_stages, fd->mac_max_half_stentil+1,FD_INFO_SIZE,
                  0, "fd_set_macdrp");
-  fd->pair_fdy_all_indx = (size_t ***) fdlib_mem_calloc_3d_size_t( 
+  fd->pair_fdy_all_indx = (size_t ***) fdlib_mem_calloc_3l_sizet( 
                  fd->num_of_pairs , fd->num_rk_stages , fd->mac_all_coef_size, 0, "fd_set_macdrp");
-  fd->pair_fdy_all_coef = (int ***) fdlib_mem_calloc_3d_float( 
-                 fd->num_of_pairs , fd->num_rk_stages , fd->mac_all_coef_size, 0, "fd_set_macdrp");
+  fd->pair_fdy_all_coef = (int ***) fdlib_mem_calloc_3l_float( 
+                 fd->num_of_pairs , fd->num_rk_stages , fd->mac_all_coef_size, 0.0, "fd_set_macdrp");
 
-  fd->pair_fdz_all_info = (size_t ****) fdlib_mem_calloc_4d_size_t( 
+  fd->pair_fdz_all_info = (size_t ****) fdlib_mem_calloc_4l_sizet( 
                  fd->num_of_pairs, fd->num_rk_stages, fd->mac_max_half_stentil+1,FD_INFO_SIZE,
                  0, "fd_set_macdrp");
-  fd->pair_fdz_all_indx = (size_t ***) fdlib_mem_calloc_3d_size_t( 
+  fd->pair_fdz_all_indx = (size_t ***) fdlib_mem_calloc_3l_sizet( 
                  fd->num_of_pairs , fd->num_rk_stages , fd->mac_all_coef_size, 0, "fd_set_macdrp");
-  fd->pair_fdz_all_coef = (int ***) fdlib_mem_calloc_3d_float( 
-                 fd->num_of_pairs , fd->num_rk_stages , fd->mac_all_coef_size, 0, "fd_set_macdrp");
+  fd->pair_fdz_all_coef = (int ***) fdlib_mem_calloc_3l_float( 
+                 fd->num_of_pairs , fd->num_rk_stages , fd->mac_all_coef_size, 0.0, "fd_set_macdrp");
 
   // set
   for (int ipair=0; ipair < fd->num_of_pairs; ipair++)
@@ -107,17 +107,6 @@ fd_set_macdrp(struct fd_t *fd)
       }
     }
   }
-
-  // set center scheme
-
-  // alloc
-  fd->pair_fdx_all_info = (size_t ****) fdlib_mem_calloc_4d_size_t( 
-                 fd->num_of_pairs, fd->num_rk_stages, fd->mac_max_half_stentil+1,FD_INFO_SIZE,
-                 0, "fd_set_macdrp");
-  fd->pair_fdx_all_indx = (size_t ***) fdlib_mem_calloc_3d_size_t( 
-                 fd->num_of_pairs , fd->num_rk_stages , fd->mac_all_coef_size, 0, "fd_set_macdrp");
-  fd->pair_fdx_all_coef = (int ***) fdlib_mem_calloc_3d_float( 
-                 fd->num_of_pairs , fd->num_rk_stages , fd->mac_all_coef_size, 0, "fd_set_macdrp");
 }
 
 //

@@ -14,8 +14,9 @@
 #include "fdlib_math.h"
 #include "fdlib_mem.h"
 #include "fd_t.h"
+#include "abs_funcs.h"
 
-//#define DEBUG
+//- may move to par file
 #define CONSPD 2.0f // power for d
 #define CONSPB 2.0f // power for beta
 #define CONSPA 1.0f // power for alpha
@@ -25,20 +26,55 @@
  * set up abs_coefs for cfs-pml
  */
 
+float
+abs_cal_pml_R(int N)
+{
+  // use corrected Rpp
+  return (float) (pow(10, -( (log10((double)N)-1.0)/log10(2.0) + 4.0)));
+}
+
+float
+abs_cal_pml_dmax(float L, float Vp, float Rpp)
+{
+  return (float) (-Vp / (2.0 * L) * log(Rpp) * (CONSPD + 1.0));
+}
+
+float
+abs_cal_pml_amax(float fc)
+{return PI*fc;}
+
+float
+abs_cal_pml_d(float x, float L, float dmax)
+{
+  return (x<0) ? 0.0f : (float) (dmax * pow(x/L, CONSPD));
+}
+
+float
+abs_cal_pml_a(float x, float L, float amax)
+{
+  return (x<0) ? 0.0f : (float) (amax * (1.0 - pow(x/L, CONSPA)));
+}
+
+float
+abs_cal_pml_b(float x, float L, float bmax)
+{
+  return (x<0) ? 1.0f : (float) (1.0 + (bmax-1.0) * pow(x/L, CONSPB));
+}
+
 void
 abs_set_cfspml(
     float *alpha_max, //
     float *beta_max, //
     float *velocity, //
-    float dh, // average grid size
+    float dh, // average grid size, need to change use x3d etc to cal
     size_t ni1,
     size_t ni2,
     size_t nj1,
     size_t nj2,
     size_t nk1,
     size_t nk2,
-    int *boundary_itype,
-    int *abs_num_of_layers,
+    int *boundary_itype, // input
+    int *abs_num_of_layers, // output
     size_t abs_indx[][];
     size_t *abs_coefs_facepos0,
     float **p_abs_coefs,
@@ -109,8 +145,8 @@ abs_set_cfspml(
 
       // calculate
       float L0   = num_lay * dh;
-      float Rpp  = cal_pml_R(num_lay);
-      float dmax = cal_pml_dmax(L0, velocity[i_dim], Rpp);
+      float Rpp  = abs_cal_pml_R(num_lay);
+      float dmax = abs_cal_pml_dmax(L0, velocity[i_dim], Rpp);
       float amax = alpha_max[i_dim];
       float bmax = beta_max[i_dim];
 
@@ -125,9 +161,9 @@ abs_set_cfspml(
           i = ilay; 
         }
 
-        D[i] = cal_pml_d( L, L0, dmax );
-        A[i] = cal_pml_a( L, L0, amax );
-        B[i] = cal_pml_b( L, L0, bmax );
+        D[i] = abs_cal_pml_d( L, L0, dmax );
+        A[i] = abs_cal_pml_a( L, L0, amax );
+        B[i] = abs_cal_pml_b( L, L0, bmax );
 
         // convert d_x to d_x/beta_x since only d_x/beta_x needed
         D[i] /= B[i];
@@ -142,34 +178,53 @@ abs_set_cfspml(
   *p_abs_coefs = abs_coefs;
 }
 
-inline float cal_pml_R(int N){
-  // use corrected Rpp
-  return (float) (pow(10, -( (log10((double)N)-1.0)/log10(2.0) + 4.0)));
-}
+// set cfs pml vars
+void
+abs_init_vars_cfspml(
+    int number_of_levels,
+    int number_of_vars,
+    int *restrict boundary_itype,
+    size_t **restrict abs_indx,
+    size_t *restrict abs_vars_volsiz,
+    size_t *restrict abs_vars_facepos0,
+    size_t *abs_vars_size_per_level,
+    float *restrict p_abs_blk_vars
+    const int myid, const int verbose)
+{
+    size_t siz_level = 0;
 
-inline float cal_pml_dmax(float L, float Vp, float Rpp){
-  return (float) (-Vp / (2.0 * L) * log(Rpp) * (CONSPD + 1.0));
-}
+    for (int i=0; i < FD_NDIM_2; i++)
+    {
+      abs_vars_facepos0[i] = siz_level;
 
-inline float cal_pml_amax(float fc){return PI*fc;}
+      // init to 0
+      abs_vars_volsiz[i] = 0;
 
-//inline float cal_pml_bmax(){return 3.0;}
+      // set if pml
+      if (boundary_itype[i] == FD_BOUNDARY_TYPE_CFSPML)
+      {
+        abs_vars_volsiz[i] =   (abs_blk_indx[i][1] - abs_blk_indx[i][0] + 1)
+                             * (abs_blk_indx[i][3] - abs_blk_indx[i][2] + 1)
+                             * (abs_blk_indx[i][5] - abs_blk_indx[i][4] + 1);
 
-inline float cal_pml_d(float x, float L, float dmax){
-  return (x<0) ? 0.0f : (float) (dmax * pow(x/L, CONSPD));
-}
+        // add to total size
+        siz_level += abs_vars_volsiz[i] * number_of_vars;
+      }
+    }
 
-inline float cal_pml_a(float x, float L, float amax){
-  return (x<0) ? 0.0f : (float) (amax * (1.0 - pow(x/L, CONSPA)));
-}
+    *abs_vars_size_per_level = siz_level;
 
-inline float cal_pml_b(float x, float L, float bmax){
-  return (x<0) ? 1.0f : (float) (1.0 + (bmax-1.0) * pow(x/L, CONSPB));
+    // vars
+    // contain all vars at each side, include rk scheme 4 levels vars
+    *p_abs_vars = (float *) fdlib_mem_calloc_1d_float( 
+                 siz_level * number_of_levels,
+                 0.0, "abs_init_vars_cfspml");
 }
 
 //
 // abl exp type
 //
+/*
 int abs_set_ablexp(size_t nx, size_t ny, size_t nz, 
     size_t ni1, size_t ni2, size_t nj1, size_t nj2, size_t nk1, size_t nk2, 
     int *boundary_itype, // input
@@ -245,46 +300,4 @@ int abs_ablexp_cal_damp(i,Vs,ah,nb)
 
   return ierr;
 }
-
-// set cfs pml vars
-void
-abs_init_vars_cfspml(
-    int number_of_levels,
-    int number_of_vars,
-    int *restrict boundary_itype,
-    size_t **restrict abs_indx,
-    size_t *restrict abs_vars_volsiz,
-    size_t *restrict abs_vars_facepos0,
-    size_t *abs_vars_size_per_level,
-    float *restrict p_abs_blk_vars
-    const int myid, const int verbose)
-{
-    size_t siz_level = 0;
-
-    for (int i=0; i < FD_NDIM_2; i++)
-    {
-      abs_vars_facepos0[i] = siz_level;
-
-      // init to 0
-      abs_vars_volsiz[i] = 0;
-
-      // set if pml
-      if (boundary_itype[i] == FD_BOUNDARY_TYPE_CFSPML)
-      {
-        abs_vars_volsiz[i] =   (abs_blk_indx[i][1] - abs_blk_indx[i][0] + 1)
-                             * (abs_blk_indx[i][3] - abs_blk_indx[i][2] + 1)
-                             * (abs_blk_indx[i][5] - abs_blk_indx[i][4] + 1);
-
-        // add to total size
-        siz_level += abs_vars_volsiz[i] * number_of_vars;
-      }
-    }
-
-    *abs_vars_size_per_level = siz_level;
-
-    // vars
-    // contain all vars at each side, include rk scheme 4 levels vars
-    *p_abs_vars = (float *) fdlib_mem_calloc_1d_float( 
-                 siz_level * number_of_levels,
-                 0.0, "abs_init_vars_cfspml");
-}
+*/

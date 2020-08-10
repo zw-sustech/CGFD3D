@@ -10,6 +10,7 @@
 
 #include "netcdf.h"
 
+#include "fdlib_mem.h"
 #include "fdlib_math.h"
 #include "fd_t.h"
 #include "par_t.h"
@@ -24,7 +25,7 @@
  * one simulation over all time steps, could be used in imaging or inversion
  ******************************************************************************/
 
-int
+void
 sv_eliso1st_curv_macdrp_allstep(
     float *restrict w3d,  // wavefield
     float *restrict g3d,  // grid vars
@@ -72,8 +73,6 @@ sv_eliso1st_curv_macdrp_allstep(
     const int verbose, // used for fprint qc
     char *out_dir)
 {
-  int ierr = 0;
-
   // local allocated array
   float *force_values  = NULL;  // num_of_force * 3
   float *moment_ten_value = NULL;  // num_of_moment * 6
@@ -140,7 +139,7 @@ sv_eliso1st_curv_macdrp_allstep(
       }
 
       // stf value for cur stage
-      ierr = src_get_stage_stf(
+      src_get_stage_stf(
               num_of_force,force_info,force_vec_stf,
               num_of_moment,moment_info,moment_ten_stf,
               it, istage, num_rk_stages,
@@ -148,7 +147,7 @@ sv_eliso1st_curv_macdrp_allstep(
               myid, verbose);
 
       // pack message
-      ierr = wf_el_1st_pack_message(w_cur,
+      wf_el_1st_pack_message(w_cur,
               ni1,ni2,nj1,nj2,nk1,nk2,ni,nj,nk,nx,ny,nz,
               pair_fdx_len[ipair][istage][fd_max_op_len],
               buff, buff_dim_pos, buff_dim_size);
@@ -162,10 +161,10 @@ sv_eliso1st_curv_macdrp_allstep(
       MPI_Waitall(2, reqs+0, MPI_STATUS_IGNORE);
 
       // receive message and uppack
-      ierr = wf_el_1st_unpack_messag();
+      wf_el_1st_unpack_messag();
 
       // compute
-      ierr = sv_eliso1st_curv_macdrp_onestage(
+      sv_eliso1st_curv_macdrp_onestage(
               w_cur, w_rhs, g3d, m3d, 
               ni1,ni2,nj1,nj2,nk1,nk2,ni,nj,nk,nx,ny,nz,
               siz_line,siz_slice,siz_volume,
@@ -209,12 +208,12 @@ sv_eliso1st_curv_macdrp_allstep(
         // apply abs
         /*
         if (abs_has_ablexp) {
-          ierr = sv_eliso1st_curv_macdrp_ablexp(w_cur, w3d_num_of_vars,
+          sv_eliso1st_curv_macdrp_ablexp(w_cur, w3d_num_of_vars,
                     w3d_pos, nx, ny, nz, abs_coefs_facepos0, abs_coefs);
         }
         */
         // pack and isend
-        ierr = pack_message(w_cur,sbuff);
+        pack_message(w_cur,sbuff);
         MPI_Startall(sreqs);
 
         // apply pml
@@ -235,12 +234,12 @@ sv_eliso1st_curv_macdrp_allstep(
         }
         /*
         if (abs_has_ablexp) {
-          ierr = sv_eliso1st_curv_macdrp_ablexp(w_end, w3d_num_of_vars,
+          sv_eliso1st_curv_macdrp_ablexp(w_end, w3d_num_of_vars,
                     w3d_pos, nx, ny, nz, abs_coefs_facepos0, abs_coefs);
         }
         */
         // pack and isend
-        ierr = pack_message(w_end,sbuff);
+        pack_message(w_end,sbuff);
         MPI_Startall(sreqs);
 
         // apply pml
@@ -292,7 +291,7 @@ sv_eliso1st_curv_macdrp_allstep(
     // QC
     if (qc_check_nan_num_of_step >0  && it % qc_check_nan_num_of_step == 0) {
       if (myid==0 && verbose>0) fprintf(stdout,"-> check value nan\n");
-        ierr = wf_el_1st_check_value(w_end);
+        wf_el_1st_check_value(w_end);
     }
 
     // swap w_pre and w_end, avoid copying
@@ -300,23 +299,21 @@ sv_eliso1st_curv_macdrp_allstep(
     abs_vars_tmp = abs_vars_pre; abs_vars_pre = abs_vars_end; abs_vars_end = abs_vars_tmp;
 
     // save results
-    ierr = io_seismo_keep();
-    ierr = io_snapshot_save();
+    io_seismo_keep();
+    io_snapshot_save();
 
   } // time loop
 
   // postproc
   if (force_vec_value ) free(force_vec_value );
   if (moment_ten_value) free(moment_ten_value);
-
-  return ierr;
 }
 
 /*******************************************************************************
  * perform one stage calculation of rhs
  ******************************************************************************/
 
-int
+void
 sv_eliso1st_curv_macdrp_onestage(
     float *restrict w_cur, float *restrict rhs, 
     float *restrict g3d, float *restrict m3d,
@@ -350,8 +347,6 @@ sv_eliso1st_curv_macdrp_onestage(
     size_t **restrict fdz_all_info, size_t *restrict fdz_all_indx,float *restrict fdz_all_coef,
     const int myid, const int verbose)
 {
-  int ierr = 0;
-
   size_t i,j,k;
 
   // local pointer get each vars
@@ -416,7 +411,7 @@ sv_eliso1st_curv_macdrp_onestage(
   fdz_inn_coef = fdz_all_coef + fdz_inn_pos;
 
   // inner points
-  ierr = sv_eliso1st_curv_macdrp_rhs_inner(
+  sv_eliso1st_curv_macdrp_rhs_inner(
            Vx,Vy,Vz,Txx,Tyy,Tzz,Txz,Tyz,Txy,
            hVx,hVy,hVz,hTxx,hTyy,hTzz,hTxz,hTyz,hTxy,
            xi_x, xi_y, xi_z, et_x, et_y, et_z, zt_x, zt_y, zt_z,
@@ -433,7 +428,7 @@ sv_eliso1st_curv_macdrp_onestage(
   if (boundary_itype[5] == FD_BOUNDARY_TYPE_FREE)
   {
     // tractiong
-    ierr = sv_eliso1st_curv_macdrp_rhs_timg_z2(
+    sv_eliso1st_curv_macdrp_rhs_timg_z2(
             Txx,Tyy,Tzz,Txz,Tyz,Txy,hVx,hVy,hVz,
             xi_x, xi_y, xi_z, et_x, et_y, et_z, zt_x, zt_y, zt_z,
             jac3d, slw3d,
@@ -444,7 +439,7 @@ sv_eliso1st_curv_macdrp_onestage(
             myid, verbose);
 
     // velocity: vlow
-    ierr = sv_eliso1st_curv_macdrp_rhs_vlow_z2(
+    sv_eliso1st_curv_macdrp_rhs_vlow_z2(
             Vx,Vy,Vz,Txx,hTxx,hTyy,hTzz,hTxz,hTyz,hTxy,
             xi_x, xi_y, xi_z, et_x, et_y, et_z, zt_x, zt_y, zt_z,
             lam3d, mu3d, slw3d,matVx2Vz,matVy2Vz,
@@ -459,7 +454,7 @@ sv_eliso1st_curv_macdrp_onestage(
   // cfs-pml, loop face inside
   if (abs_itype == FD_BOUNDARY_TYPE_CFSPML)
   {
-    ierr = sv_eliso1st_curv_macdrp_rhs_cfspml(
+    sv_eliso1st_curv_macdrp_rhs_cfspml(
             Vx,Vy,Vz,Txx,Tyy,Tzz,Txz,Tyz,Txy,
             hVx,hVy,hVz,hTxx,hTyy,hTzz,hTxz,hTyz,hTxy,
             xi_x, xi_y, xi_z, et_x, et_y, et_z, zt_x, zt_y, zt_z,
@@ -477,7 +472,7 @@ sv_eliso1st_curv_macdrp_onestage(
     if (boundary_itype[5] == FD_BOUNDARY_TYPE_FREE)
     {
       // cfs-pml modified for timg
-      ierr = sv_eliso1st_curv_macdrp_rhs_cfspml_timg_z2(
+      sv_eliso1st_curv_macdrp_rhs_cfspml_timg_z2(
               Txx,Tyy,Tzz,Txz,Tyz,Txy,hVx,hVy,hVz,
               xi_x, xi_y, xi_z, et_x, et_y, et_z, zt_x, zt_y, zt_z,
               jac3d, slw3d, nk2, siz_line,siz_slice,
@@ -490,7 +485,7 @@ sv_eliso1st_curv_macdrp_onestage(
               myid, verbose);
       
       // cfs-pml modified for vfree; vlow at points below surface doesn't affect pml
-      ierr = sv_eliso1st_curv_macdrp_rhs_cfspml_vfree_z2(
+      sv_eliso1st_curv_macdrp_rhs_cfspml_vfree_z2(
               Vx,Vy,Vz,hTxx,hTyy,hTzz,hTxz,hTyz,hTxy,
               xi_x, xi_y, xi_z, et_x, et_y, et_z, zt_x, zt_y, zt_z,
               lam3d, mu3d, slw3d, matVx2Vz, matVy2Vz,
@@ -508,36 +503,34 @@ sv_eliso1st_curv_macdrp_onestage(
   /*
   switch (source_itype) {
     case SOURCE_TYPE_POINT :
-      ierr = curv_macdrp_eliso1st_src_point();
+      curv_macdrp_eliso1st_src_point();
       break;
 
     case SOURCE_TYPE_GAUSS :
-      ierr = curv_macdrp_eliso1st_src_gauss();
+      curv_macdrp_eliso1st_src_gauss();
       break;
 
     case SOURCE_TYPE_SINC :
-      ierr = curv_macdrp_eliso1st_src_sinc();
+      curv_macdrp_eliso1st_src_sinc();
       break;
   }
   */
   if (num_of_force>0 || num_of_moment>0)
   {
-    ierr = sv_eliso1st_curv_macdrp_rhs_src(
+    sv_eliso1st_curv_macdrp_rhs_src(
               hVx,hVy,hVz,hTxx,hTyy,hTzz,hTxz,hTyz,hTxy,
               jac3d, slw3d, siz_line,siz_slice,
               num_of_force, force_loc_point, force_vec_value,
               num_of_moment, moment_loc_point, moment_ten_value,
               myid, verbose);
   }
-
-  return ierr;
 }
 
 /*******************************************************************************
  * calculate all points without boundaries treatment
  ******************************************************************************/
 
-int
+void
 sv_eliso1st_curv_macdrp_rhs_inner(
     float *restrict  Vx , float *restrict  Vy , float *restrict  Vz ,
     float *restrict  Txx, float *restrict  Tyy, float *restrict  Tzz,
@@ -556,8 +549,6 @@ sv_eliso1st_curv_macdrp_rhs_inner(
     size_t fdz_len, size_t *restrict fdz_indx, float *restrict fdz_coef,
     const int myid, const int verbose)
 {
-  int ierr = 0;
-
   // use local stack array for speedup
   float  lfdx_coef [fdx_len];
   size_t lfdx_shift[fdx_len];
@@ -718,8 +709,6 @@ sv_eliso1st_curv_macdrp_rhs_inner(
       }
     }
   }
-
-  return ierr;
 }
 
 /*******************************************************************************
@@ -730,7 +719,7 @@ sv_eliso1st_curv_macdrp_rhs_inner(
  * implement traction image boundary 
  */
 
-int
+void
 sv_eliso1st_curv_macdrp_rhs_timg_z2(
     float *restrict  Txx, float *restrict  Tyy, float *restrict  Tzz,
     float *restrict  Txz, float *restrict  Tyz, float *restrict  Txy,
@@ -746,8 +735,6 @@ sv_eliso1st_curv_macdrp_rhs_timg_z2(
     size_t fdz_len, size_t *restrict fdz_indx, float *restrict fdz_coef,
     const int myid, const int verbose)
 {
-  int ierr = 0;
-
   // use local stack array for speedup
   float  lfdx_coef [fdx_len];
   size_t lfdx_shift[fdx_len];
@@ -948,15 +935,13 @@ sv_eliso1st_curv_macdrp_rhs_timg_z2(
       }
     }
   }
-
-  return ierr;
 }
 
 /*
  * implement vlow boundary
  */
 
-int
+void
 sv_eliso1st_curv_macdrp_rhs_vlow_z2(
     float *restrict  Vx , float *restrict  Vy , float *restrict  Vz ,
     float *restrict hTxx, float *restrict hTyy, float *restrict hTzz,
@@ -974,8 +959,6 @@ sv_eliso1st_curv_macdrp_rhs_vlow_z2(
     size_t *restrict fdz_all_indx, float *restrict fdz_all_coef,
     const int myid, const int verbose)
 {
-  int ierr = 0;
-
   // use local stack array for speedup
   float  lfdx_coef [fdx_len];
   size_t lfdx_shift[fdx_len];
@@ -1129,8 +1112,6 @@ sv_eliso1st_curv_macdrp_rhs_vlow_z2(
       }
     }
   }
-
-  return ierr;
 }
 
 /*******************************************************************************
@@ -1141,7 +1122,8 @@ sv_eliso1st_curv_macdrp_rhs_vlow_z2(
  * cfspml, reference to each pml var inside function
  */
 
-int sv_eliso1st_curv_macdrp_rhs_cfspml(
+void
+sv_eliso1st_curv_macdrp_rhs_cfspml(
     float *restrict  Vx , float *restrict  Vy , float *restrict  Vz ,
     float *restrict  Txx, float *restrict  Tyy, float *restrict  Tzz,
     float *restrict  Txz, float *restrict  Tyz, float *restrict  Txy,
@@ -1167,8 +1149,6 @@ int sv_eliso1st_curv_macdrp_rhs_cfspml(
     float  *restrict abs_vars_rhs,
     const int myid, const int verbose)
 {
-  int ierr = 0;
-
   // loop var for fd
   size_t n_fd; // loop var for fd
   // use local stack array for better speed
@@ -1504,12 +1484,10 @@ int sv_eliso1st_curv_macdrp_rhs_cfspml(
       } // k
     }
   }
-
-  return ierr;
 }
 
 // considering timg free surface in cfs-pml
-int
+void
 sv_eliso1st_curv_macdrp_rhs_cfspml_timg_z2(
     float *restrict  Txx, float *restrict  Tyy, float *restrict  Tzz,
     float *restrict  Txz, float *restrict  Tyz, float *restrict  Txy,
@@ -1533,8 +1511,6 @@ sv_eliso1st_curv_macdrp_rhs_cfspml_timg_z2(
     float  *restrict abs_vars_rhs,
     const int myid, const int verbose)
 {
-  int ierr = 0;
-
   // loop var for fd
   size_t n_fd; // loop var for fd
   // use local stack array for better speed
@@ -1788,12 +1764,10 @@ sv_eliso1st_curv_macdrp_rhs_cfspml_timg_z2(
       } // k
     } // if x or y dim
   } // face
-
-  return ierr;
 }
 
 // considering velocity free surface condition in cfs-pml
-int
+void
 sv_eliso1st_curv_macdrp_rhs_cfspml_vfree_z2(
     float *restrict  Vx , float *restrict  Vy , float *restrict  Vz ,
     float *restrict hTxx, float *restrict hTyy, float *restrict hTzz,
@@ -1817,8 +1791,6 @@ sv_eliso1st_curv_macdrp_rhs_cfspml_vfree_z2(
     float  *restrict abs_vars_rhs,
     const int myid, const int verbose)
 {
-  int ierr = 0;
-
   // loop var for fd
   size_t n_fd; // loop var for fd
   // use local stack array for better speed
@@ -2090,8 +2062,6 @@ sv_eliso1st_curv_macdrp_rhs_cfspml_vfree_z2(
       } // j
     } // if x or y dim
   } // face
-
-  return ierr;
 }
 
 // considering vlow free surface in cfs-pml, no need to deal with points below free

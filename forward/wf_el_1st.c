@@ -2,16 +2,8 @@
  * wavefield for 3d elastic 1st-order equations
  **********************************************************************/
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <math.h>
-#include <mpi.h>
+#include "wf_el_1st.h"
 
-#include "netcdf.h"
-#include "wf_el3d_1st.h"
-
-// not finished
 void 
 wf_el_1st_init_vars(
     size_t siz_volume,
@@ -37,7 +29,7 @@ wf_el_1st_init_vars(
                num_wave_vars, 0, "wf_el3d_1st");
 
   // name of each var
-  char **w3d_name = (char **) fdlib_mem_malloc_2d_char( 
+  char **w3d_name = (char **) fdlib_mem_malloc_2l_char( 
                num_wave_vars, FD_MAX_STRLEN, "wf_el3d_1st");
 
   // set values
