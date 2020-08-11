@@ -1,11 +1,6 @@
 #ifndef WF_EL_1ST_H
 #define WF_EL_1ST_H
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <math.h>
-
 #define WF_EL_1ST_NVAR    9
 
 #define WF_EL_1ST_SEQ_Vx  0
@@ -26,5 +21,8 @@ wf_el_1st_init_vars(
     float  **p_w3d,
     size_t **p_w3d_pos,
     char  ***p_w3d_name);
+
+void
+wf_el_1st_check_value(float *restrict w, size_t siz_volume);
 
 #endif

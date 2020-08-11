@@ -1,7 +1,30 @@
 #ifndef FD_T_H
 #define FD_T_H
 
-#include <stdlib.h>
+#include <mpi.h>
+
+// consts
+#define FD_NDIM   3
+#define FD_NDIM_2 6 // 2 * ndim
+#define FD_MAX_STRLEN 1000
+
+// for fd_info array
+#define FD_INFO_POS_OF_INDX  0
+#define FD_INFO_LENGTH_TOTAL 1
+#define FD_INFO_LENGTH_HALF  2
+#define FD_INFO_LENGTH_LEFT  3
+#define FD_INFO_LENGTH_RIGTH 4
+#define FD_INFO_SIZE         5
+
+// for boundary_ityp
+#define FD_BOUNDARY_TYPE_NONE   0
+#define FD_BOUNDARY_TYPE_FREE   1
+#define FD_BOUNDARY_TYPE_CFSPML 2
+#define FD_BOUNDARY_TYPE_ABLEXP 3
+#define FD_BOUNDARY_TYPE_MPML   4
+#define FD_BOUNDARY_TYPE_DPML   5
+
+// macro for fd opterators
 
 // use siz_shift to find adjacent point of the stentil for 3d var
 #define M_FD_SHIFT(deriv, var, iptr, fd_length, fd_shift, fd_coef, n) \
@@ -24,36 +47,69 @@
        deriv += fd_coef[n] * var[iptr + fd_shift[n] * shift]; \
    }
 
-#define FD_NDIM   3
-#define FD_NDIM_2 6 // 2 * ndim
-#define FD_MAX_STRLEN 1000
-
-#define FD_INFO_POS_OF_INDX  0
-#define FD_INFO_LENGTH_TOTAL 1
-#define FD_INFO_LENGTH_HALF  2
-#define FD_INFO_LENGTH_LEFT  3
-#define FD_INFO_LENGTH_RIGTH 4
-#define FD_INFO_SIZE         5
-
-#define FD_BOUNDARY_TYPE_NONE   0
-#define FD_BOUNDARY_TYPE_FREE   1
-#define FD_BOUNDARY_TYPE_CFSPML 2
-#define FD_BOUNDARY_TYPE_ABLEXP 3
-#define FD_BOUNDARY_TYPE_MPML   4
-#define FD_BOUNDARY_TYPE_DPML   5
-
-/*
- * for different fd schemes
- */
+/*******************************************************************************
+ * structure for different fd schemes
+ ******************************************************************************/
 
 struct fd_t{
 
-  //
+  //----------------------------------------------------------------------------
+  // Runge-Kutta time scheme
+  //----------------------------------------------------------------------------
+  int num_rk_stages = 4;
+  float rk_a[3] = { 0.5, 0.5, 1.0 };
+  float rk_b[4] = { 1.0/6.0, 1.0/3.0, 1.0/3.0, 1.0/6.0 };
+
+  //----------------------------------------------------------------------------
+	// common para for different schemes
+  //----------------------------------------------------------------------------
+
+  int fdx_max_len, fdx_max_half_len, fdx_num_surf_lay;
+  int fdy_max_len, fdy_max_half_len, fdy_num_surf_lay;
+  int fdz_max_len, fdz_max_half_len, fdz_num_surf_lay;
+                // number of layers that need to use biased op near boundary
+  int fdx_nghosts; // ghost point required for x-dim
+  int fdy_nghosts;
+  int fdz_nghosts;
+
+  //----------------------------------------------------------------------------
+  // center schemes at different points to boundary
+  //  fd_ is 2d pointer, the first pointer means the grid layer to free surface (from 0 to fd_len-1),
+  //  the second pointer points to fd op for that layer, the size could be different, larger than
+  //  inner op
+  //----------------------------------------------------------------------------
+  int    **fdx_all_info; // [k2free][pos, total, half, left, right]
+  size_t **fdx_all_indx;
+  float  **fdx_all_coef;
+
+  int    **fdy_all_info;
+  size_t **fdy_all_indx;
+  float  **fdy_all_coef;
+
+  int    **fdz_all_info;
+  size_t **fdz_all_indx;
+  float  **fdz_all_coef;
+
+  //----------------------------------------------------------------------------
+  // filter schemes at different points to boundary
+  //----------------------------------------------------------------------------
+  int    **filtx_all_info; // [k2free][pos, total, half, left, right] 
+  size_t **filtx_all_indx;
+  float  **filtx_all_coef;
+
+  int    **filty_all_info;
+  size_t **filty_all_indx;
+  float  **filty_all_coef;
+
+  int    **filtz_all_info;
+  size_t **filtz_all_indx;
+  float  **filtz_all_coef;
+
+  //----------------------------------------------------------------------------
   // MacCormack-type scheme
-  //
+  //----------------------------------------------------------------------------
 
   // 1d scheme for different points to surface, or different half length
-  
   const int mac_max_half_stentil = 3;
   const int mac_all_coef_size    = 10;
 
@@ -104,7 +160,7 @@ struct fd_t{
     } 
   };
 
-  // center scheme for macdrp
+  // center scheme for macdrp, which is used in metric calculation
   int mac_center_all_coef_size = 15;
   size_t mac_center_all_info[mac_max_half_stentil+1][FD_INFO_SIZE] =
     {
@@ -135,35 +191,6 @@ struct fd_t{
   };
 
   //
-	// common para for different schemes
-  //
-
-  int fdx_max_len, fdx_num_surf_lay;
-  int fdx_may_len, fdy_num_surf_lay;
-  int fdx_maz_len, fdz_num_surf_lay; // number of layers that need to use biased op near boundary
-  int fdx_nghosts; // ghost point required for x-dim
-  int fdy_nghosts;
-  int fdz_nghosts;
-
-  //
-  // center schemes at different points to boundary
-  //  fd_ is 2d pointer, the first pointer means the grid layer to free surface (from 0 to fd_len-1),
-  //  the second pointer points to fd op for that layer, the size could be different, larger than
-  //  inner op
-  //
-  int    **fdx_all_info; // [k2free][pos, total, half, left, right]
-  size_t **fdx_all_indx;
-  float  **fdx_all_coef;
-
-  int    **fdy_all_info;
-  size_t **fdy_all_indx;
-  float  **fdy_all_coef;
-
-  int    **fdz_all_info;
-  size_t **fdz_all_indx;
-  float  **fdz_all_coef;
-
-  //
 	// pairs for 3d space for MacCormack-type schemes
   //
 
@@ -180,35 +207,14 @@ struct fd_t{
   size_t ****pair_fdz_all_info;
   size_t  ***pair_fdz_all_indx;
   float   ***pair_fdz_all_coef;
-
-  //
-  // filter schemes at different points to boundary
-  //
-  int    **filtx_all_info; // [k2free][pos, total, half, left, right] 
-  size_t **filtx_all_indx;
-  float  **filtx_all_coef;
-
-  int    **filty_all_info;
-  size_t **filty_all_indx;
-  float  **filty_all_coef;
-
-  int    **filtz_all_info;
-  size_t **filtz_all_indx;
-  float  **filtz_all_coef;
-
-  //
-  // Runge-Kutta time scheme
-  //
-  int num_rk_stages = 4;
-  float rk_a[3] = { 0.5, 0.5, 1.0 };
-  float rk_b[4] = { 1.0/6.0, 1.0/3.0, 1.0/3.0, 1.0/6.0 };
 };
 
-//
-// block structure
-//
-struct fd_blk_t{
+/*******************************************************************************
+ * block structure
+ ******************************************************************************/
 
+struct fd_blk_t
+{
     //
     // grid index
     //
@@ -288,7 +294,7 @@ struct fd_blk_t{
     int  abs_num_of_layers[ FD_NDIM_2 ];
 
     // grid index of each face
-    size_t abs_indx[FD_NDIM_2][FD_NDIM_2];
+    size_t abs_indx[FD_NDIM_2 * FD_NDIM_2];
 
     size_t   abs_coefs_facepos0[FD_NDIM_2];  // 
     float   *abs_coefs; // all coefs all faces 
@@ -310,6 +316,9 @@ struct fd_blk_t{
     int *snap_grid_indx;
     int *snap_time_indx;
 
+    // dir
+    char out_dir[FD_MAX_STRLEN];
+
     //
     // connection to other blk or mpi thread
     //
@@ -329,11 +338,44 @@ struct fd_blk_t{
     size_t number_of_btye;
 };
 
-//
-// mpi info for each process
-//
-struct fd_mpi_t{
 
-}
+/*******************************************************************************
+ * mpi info for each process
+ ******************************************************************************/
+
+struct fd_mpi_t
+{
+  int myid2[2];
+  int neighid[FD_NDIM_2];
+  MPI_Comm topocomm;
+};
+
+/*******************************************************************************
+ * function prototype
+ ******************************************************************************/
+
+void 
+fd_set_macdrp(struct fd_t *fd);
+
+void
+fd_blk_init(struct fd_blk_t *blk,
+      struct fd_blk_t *blk,
+      int number_of_total_grid_points_x,
+      int number_of_total_grid_points_y,
+      int number_of_total_grid_points_z,
+      int number_of_mpiprocs_x,
+      int number_of_mpiprocs_y,
+      char **boundary_type_name,
+      int *abs_number_of_layers,
+      int fdx_nghosts,
+      int fdy_nghosts,
+      int fdz_nghosts,
+      int number_of_levels, // depends on time scheme, for rk4 = 4
+      int *myid2,
+      int *neighid,
+      const int myid, const int verbose);
+
+void
+fd_mpi_create_topo(struct fd_mpi_t *fdmpi, int myid, MPI_Comm comm, int nprocx, int nprocy);
 
 #endif

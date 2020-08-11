@@ -60,8 +60,10 @@ sv_eliso1st_curv_macdrp_allstep(
     int num_of_sta, int *restrict sta_loc_point, float *restrict sta_seismo,
     int num_of_snap, int *restrict snap_grid_indx, int *restrict snap_time_indx,
     // scheme
-    int num_rk_stages, float *rk_a, float *rk_b, int num_of_pairs, 
-    size_t fdx_max_len, size_t fdy_max_len, size_t fdz_max_len, size_t fdz_num_surf_lay,
+    int num_rk_stages, float *rk_a, float *rk_b,
+    int num_of_pairs, 
+    size_t fdx_max_half_len, size_t fdy_max_half_len,
+    size_t fdz_max_len, size_t fdz_num_surf_lay,
     size_t ****pair_fdx_all_info, size_t ***pair_fdx_all_indx, float ***pair_fdx_all_coef,
     size_t ****pair_fdy_all_info, size_t ***pair_fdy_all_indx, float ***pair_fdy_all_coef,
     size_t ****pair_fdz_all_info, size_t ***pair_fdz_all_indx, float ***pair_fdz_all_coef,
@@ -74,7 +76,7 @@ sv_eliso1st_curv_macdrp_allstep(
     char *out_dir)
 {
   // local allocated array
-  float *force_values  = NULL;  // num_of_force * 3
+  float *force_values     = NULL;  // num_of_force * 3
   float *moment_ten_value = NULL;  // num_of_moment * 6
 
   // local pointer
@@ -120,18 +122,18 @@ sv_eliso1st_curv_macdrp_allstep(
   {
     t_cur = it * dt + t0;
 
-    if (myid==0 && verbose>0) fprintf(stdout,"-> it=%d, t=\%f\n", it, t_cur);
+    if (myid==0 && verbose>10) fprintf(stdout,"-> it=%d, t=\%f\n", it, t_cur);
 
     ipair = it % num_of_pair; // mod to ipair
-    if (myid==0 && verbose>0) fprintf(stdout, " --> ipair=%d\n",ipair);
+    if (myid==0 && verbose>10) fprintf(stdout, " --> ipair=%d\n",ipair);
 
     // loop RK stages for one step
     for (istage=0; istage<num_rk_stages; istage++)
     {
-      if (myid==0 && verbose>0) fprintf(stdout, " --> istage=%d\n",istage);
+      if (myid==0 && verbose>10) fprintf(stdout, " --> istage=%d\n",istage);
 
       if (istage==0) {
-          w_cur   = w3d_pre; // to aoid one dubplication 
+          w_cur   = w_pre; // to aoid one dubplication 
           abs_vars_cur = abs_vars_pre; 
       } else {
           w_cur   = w3d + w3d_size_per_level * 1;
@@ -139,13 +141,20 @@ sv_eliso1st_curv_macdrp_allstep(
       }
 
       // stf value for cur stage
-      src_get_stage_stf(
-              num_of_force,force_info,force_vec_stf,
-              num_of_moment,moment_info,moment_ten_stf,
-              it, istage, num_rk_stages,
-              force_vec_value, moment_ten_value,
-              myid, verbose);
+      src_get_stage_stf(num_of_force,
+                        force_info,
+                        force_vec_stf,
+                        num_of_moment,
+                        moment_info,
+                        moment_ten_stf,
+                        it,
+                        istage,
+                        num_rk_stages,
+                        force_vec_value,
+                        moment_ten_value,
+                        myid, verbose);
 
+      /*
       // pack message
       wf_el_1st_pack_message(w_cur,
               ni1,ni2,nj1,nj2,nk1,nk2,ni,nj,nk,nx,ny,nz,
@@ -162,37 +171,38 @@ sv_eliso1st_curv_macdrp_allstep(
 
       // receive message and uppack
       wf_el_1st_unpack_messag();
+      */
 
       // compute
-      sv_eliso1st_curv_macdrp_onestage(
-              w_cur, w_rhs, g3d, m3d, 
-              ni1,ni2,nj1,nj2,nk1,nk2,ni,nj,nk,nx,ny,nz,
-              siz_line,siz_slice,siz_volume,
-              boundary_itype,
-              abs_itype,
-              abs_num_of_layers,
-              abs_indx,
-              abs_coefs_facepos0,
-              abs_coefs,
-              abs_vars_size_per_level,
-              abs_vars_volsiz,
-              abs_vars_facepos0,
-              abs_vars_cur,
-              abs_vars_rhs,
-              matVx2Vz, matVy2Vz,
-              num_of_force , force_loc_point , force_vec_value,
-              num_of_moment, moment_loc_point, moment_ten_value,
-              fdx_max_len, fdy_max_len, fdz_max_len, fdz_num_surf_lay,
-              pair_fdx_all_info[ipair][istage],
-              pair_fdx_all_indx[ipair][istage],
-              pair_fdx_all_coef[ipair][istage],
-              pair_fdy_all_info[ipair][istage],
-              pair_fdy_all_indx[ipair][istage],
-              pair_fdy_all_coef[ipair][istage],
-              pair_fdz_all_info[ipair][istage],
-              pair_fdz_all_indx[ipair][istage],
-              pair_fdz_all_coef[ipair][istage],
-              myid, verbose);
+      sv_eliso1st_curv_macdrp_onestage(w_cur, w_rhs, g3d, m3d, 
+                                       ni1,ni2,nj1,nj2,nk1,nk2,ni,nj,nk,nx,ny,nz,
+                                       siz_line,siz_slice,siz_volume,
+                                       boundary_itype,
+                                       abs_itype,
+                                       abs_num_of_layers,
+                                       abs_indx,
+                                       abs_coefs_facepos0,
+                                       abs_coefs,
+                                       abs_vars_size_per_level,
+                                       abs_vars_volsiz,
+                                       abs_vars_facepos0,
+                                       abs_vars_cur,
+                                       abs_vars_rhs,
+                                       matVx2Vz, matVy2Vz,
+                                       num_of_force , force_loc_point , force_vec_value,
+                                       num_of_moment, moment_loc_point, moment_ten_value,
+                                       fdx_max_half_len, fdy_max_half_len,
+                                       fdz_max_len, fdz_num_surf_lay,
+                                       pair_fdx_all_info[ipair][istage],
+                                       pair_fdx_all_indx[ipair][istage],
+                                       pair_fdx_all_coef[ipair][istage],
+                                       pair_fdy_all_info[ipair][istage],
+                                       pair_fdy_all_indx[ipair][istage],
+                                       pair_fdy_all_coef[ipair][istage],
+                                       pair_fdz_all_info[ipair][istage],
+                                       pair_fdz_all_indx[ipair][istage],
+                                       pair_fdz_all_coef[ipair][istage],
+                                       myid, verbose);
 
       // RK int
 
@@ -213,8 +223,8 @@ sv_eliso1st_curv_macdrp_allstep(
         }
         */
         // pack and isend
-        pack_message(w_cur,sbuff);
-        MPI_Startall(sreqs);
+        //pack_message(w_cur,sbuff);
+        //MPI_Startall(sreqs);
 
         // apply pml
         if (abs_itype == FD_BOUNDARY_TYPE_CFSPML)
@@ -239,8 +249,8 @@ sv_eliso1st_curv_macdrp_allstep(
         }
         */
         // pack and isend
-        pack_message(w_end,sbuff);
-        MPI_Startall(sreqs);
+        //pack_message(w_end,sbuff);
+        //MPI_Startall(sreqs);
 
         // apply pml
         if (abs_itype == FD_BOUNDARY_TYPE_CFSPML)
@@ -265,7 +275,7 @@ sv_eliso1st_curv_macdrp_allstep(
         if (abs_itype == FD_BOUNDARY_TYPE_CFSPML)
         {
           for (size_t iptr=0; iptr<abs_vars_size_per_level; iptr++) {
-            abs_vars_end[iptr] = abs_vars_cur[iptr] + coef_b * abs_vars_rhs[iptr];
+            abs_vars_end[iptr] = abs_vars_pre[iptr] + coef_b * abs_vars_rhs[iptr];
           }
         }
       }
@@ -289,8 +299,8 @@ sv_eliso1st_curv_macdrp_allstep(
     } // RK stages
 
     // QC
-    if (qc_check_nan_num_of_step >0  && it % qc_check_nan_num_of_step == 0) {
-      if (myid==0 && verbose>0) fprintf(stdout,"-> check value nan\n");
+    if (qc_check_nan_num_of_step >0  && (it % qc_check_nan_num_of_step) == 0) {
+      if (myid==0 && verbose>10) fprintf(stdout,"-> check value nan\n");
         wf_el_1st_check_value(w_end);
     }
 
@@ -299,8 +309,8 @@ sv_eliso1st_curv_macdrp_allstep(
     abs_vars_tmp = abs_vars_pre; abs_vars_pre = abs_vars_end; abs_vars_end = abs_vars_tmp;
 
     // save results
-    io_seismo_keep();
-    io_snapshot_save();
+    //io_seismo_keep();
+    //io_snapshot_save();
 
   } // time loop
 
@@ -341,7 +351,8 @@ sv_eliso1st_curv_macdrp_onestage(
     int *restrict moment_loc_point,
     float *restrict moment_ten_value,
     // include different order/stentil
-    int fdx_max_len, int fdy_max_len, int fdz_max_len, int fdz_num_surf_lay,
+    int fdx_max_half_len, int fdy_max_half_len,
+    int fdz_max_len, int fdz_num_surf_lay,
     size_t **restrict fdx_all_info, size_t *restrict fdx_all_indx,float *restrict fdx_all_coef,
     size_t **restrict fdy_all_info, size_t *restrict fdy_all_indx,float *restrict fdy_all_coef,
     size_t **restrict fdz_all_info, size_t *restrict fdz_all_indx,float *restrict fdz_all_coef,
@@ -382,7 +393,7 @@ sv_eliso1st_curv_macdrp_onestage(
   float *restrict  mu3d = m3d   + MD_ELISO_SEQ_MU     * siz_volume;
   float *restrict slw3d = m3d   + MD_ELISO_SEQ_RHO    * siz_volume;
 
-  // local fd op
+  // fd op
   size_t           fdx_inn_pos;
   size_t *restrict fdx_inn_indx;
   float  *restrict fdx_inn_coef;
@@ -393,34 +404,33 @@ sv_eliso1st_curv_macdrp_onestage(
   size_t *restrict fdz_inn_indx;
   float  *restrict fdz_inn_coef;
 
-  // for get a op from 1d array
-  fdx_inn_pos  = fdx_all_info[fdx_max_hlen][FD_INFO_POS_OF_INDX];
+  // for get a op from 1d array, currently use fdz_num_surf_lay as index
+  fdx_inn_pos  = fdx_all_info[fdx_max_half_len][FD_INFO_POS_OF_INDX];
   // length, index, coef of a op
-  fdx_inn_len  = fdx_all_info[fdx_max_hlen][FD_INFO_LENGTH_TOTAL];
+  fdx_inn_len  = fdx_all_info[fdx_max_half_len][FD_INFO_LENGTH_TOTAL];
   fdx_inn_indx = fdx_all_indx + fdx_inn_pos;
   fdx_inn_coef = fdx_all_coef + fdx_inn_pos;
 
-  fdy_inn_pos  = fdy_all_info[fdy_max_hlen][FD_INFO_POS_OF_INDX];
-  fdy_inn_len  = fdy_all_info[fdy_max_hlen][FD_INFO_LENGTH_TOTAL];
+  fdy_inn_pos  = fdy_all_info[fdy_max_half_len][FD_INFO_POS_OF_INDX];
+  fdy_inn_len  = fdy_all_info[fdy_max_half_len][FD_INFO_LENGTH_TOTAL];
   fdy_inn_indx = fdy_all_indx + fdy_inn_pos;
   fdy_inn_coef = fdy_all_coef + fdy_inn_pos;
 
-  fdz_inn_pos  = fdz_all_info[fdz_max_hlen][FD_INFO_POS_OF_INDX];
-  fdz_inn_len  = fdz_all_info[fdz_max_hlen][FD_INFO_LENGTH_TOTAL];
+  fdz_inn_pos  = fdz_all_info[fdz_num_surf_lay][FD_INFO_POS_OF_INDX];
+  fdz_inn_len  = fdz_all_info[fdz_num_surf_lay][FD_INFO_LENGTH_TOTAL];
   fdz_inn_indx = fdz_all_indx + fdz_inn_pos;
   fdz_inn_coef = fdz_all_coef + fdz_inn_pos;
 
   // inner points
-  sv_eliso1st_curv_macdrp_rhs_inner(
-           Vx,Vy,Vz,Txx,Tyy,Tzz,Txz,Tyz,Txy,
-           hVx,hVy,hVz,hTxx,hTyy,hTzz,hTxz,hTyz,hTxy,
-           xi_x, xi_y, xi_z, et_x, et_y, et_z, zt_x, zt_y, zt_z,
-           lam3d, mu3d, slw3d,
-           ni1,ni2,nj1,nj2,nk1,nk2,siz_line,siz_slice,
-           fdx_inn_len, fdx_inn_indx, fdx_inn_coef,
-           fdy_inn_len, fdy_inn_indx, fdy_inn_coef,
-           fdz_inn_len, fdz_inn_indx, fdz_inn_coef,
-           myid, verbose);
+  sv_eliso1st_curv_macdrp_rhs_inner(Vx,Vy,Vz,Txx,Tyy,Tzz,Txz,Tyz,Txy,
+                                    hVx,hVy,hVz,hTxx,hTyy,hTzz,hTxz,hTyz,hTxy,
+                                    xi_x, xi_y, xi_z, et_x, et_y, et_z, zt_x, zt_y, zt_z,
+                                    lam3d, mu3d, slw3d,
+                                    ni1,ni2,nj1,nj2,nk1,nk2,siz_line,siz_slice,
+                                    fdx_inn_len, fdx_inn_indx, fdx_inn_coef,
+                                    fdy_inn_len, fdy_inn_indx, fdy_inn_coef,
+                                    fdz_inn_len, fdz_inn_indx, fdz_inn_coef,
+                                    myid, verbose);
 
   // free, abs, source in turn
 
@@ -428,74 +438,74 @@ sv_eliso1st_curv_macdrp_onestage(
   if (boundary_itype[5] == FD_BOUNDARY_TYPE_FREE)
   {
     // tractiong
-    sv_eliso1st_curv_macdrp_rhs_timg_z2(
-            Txx,Tyy,Tzz,Txz,Tyz,Txy,hVx,hVy,hVz,
-            xi_x, xi_y, xi_z, et_x, et_y, et_z, zt_x, zt_y, zt_z,
-            jac3d, slw3d,
-            ni1,ni2,nj1,nj2,nk1,nk2,ni,nj,nk,nx,ny,nz,siz_line,siz_slice,
-            fdx_inn_len, fdx_inn_indx, fdx_inn_coef,
-            fdy_inn_len, fdy_inn_indx, fdy_inn_coef,
-            fdz_inn_len, fdz_inn_indx, fdz_inn_coef,
-            myid, verbose);
+    sv_eliso1st_curv_macdrp_rhs_timg_z2(Txx,Tyy,Tzz,Txz,Tyz,Txy,hVx,hVy,hVz,
+                                        xi_x, xi_y, xi_z, et_x, et_y, et_z, zt_x, zt_y, zt_z,
+                                        jac3d, slw3d,
+                                        ni1,ni2,nj1,nj2,nk1,nk2,ni,nj,nk,nx,ny,nz,siz_line,siz_slice,
+                                        fdx_inn_len, fdx_inn_indx, fdx_inn_coef,
+                                        fdy_inn_len, fdy_inn_indx, fdy_inn_coef,
+                                        fdz_inn_len, fdz_inn_indx, fdz_inn_coef,
+                                        myid, verbose);
 
     // velocity: vlow
-    sv_eliso1st_curv_macdrp_rhs_vlow_z2(
-            Vx,Vy,Vz,Txx,hTxx,hTyy,hTzz,hTxz,hTyz,hTxy,
-            xi_x, xi_y, xi_z, et_x, et_y, et_z, zt_x, zt_y, zt_z,
-            lam3d, mu3d, slw3d,matVx2Vz,matVy2Vz,
-            ni1,ni2,nj1,nj2,nk1,nk2,ni,nj,nk,nx,ny,nz,siz_line,siz_slice,
-            fdx_inn_len, fdx_inn_indx, fdx_inn_coef,
-            fdy_inn_len, fdy_inn_indx, fdy_inn_coef,
-            fdz_num_surf_lay,fdz_max_len,
-            fdz_all_info,fdz_all_indx,fdz_all_coef,
-            myid, verbose);
+    sv_eliso1st_curv_macdrp_rhs_vlow_z2(Vx,Vy,Vz,Txx,hTxx,hTyy,hTzz,hTxz,hTyz,hTxy,
+                                        xi_x, xi_y, xi_z, et_x, et_y, et_z, zt_x, zt_y, zt_z,
+                                        lam3d, mu3d, slw3d,matVx2Vz,matVy2Vz,
+                                        ni1,ni2,nj1,nj2,nk1,nk2,ni,nj,nk,nx,ny,nz,siz_line,siz_slice,
+                                        fdx_inn_len, fdx_inn_indx, fdx_inn_coef,
+                                        fdy_inn_len, fdy_inn_indx, fdy_inn_coef,
+                                        fdz_num_surf_lay,fdz_max_len,
+                                        fdz_all_info,fdz_all_indx,fdz_all_coef,
+                                        myid, verbose);
   }
 
   // cfs-pml, loop face inside
   if (abs_itype == FD_BOUNDARY_TYPE_CFSPML)
   {
-    sv_eliso1st_curv_macdrp_rhs_cfspml(
-            Vx,Vy,Vz,Txx,Tyy,Tzz,Txz,Tyz,Txy,
-            hVx,hVy,hVz,hTxx,hTyy,hTzz,hTxz,hTyz,hTxy,
-            xi_x, xi_y, xi_z, et_x, et_y, et_z, zt_x, zt_y, zt_z,
-            lam3d, mu3d, slw3d,
-            siz_line,siz_slice,
-            fdx_inn_len, fdx_inn_indx, fdx_inn_coef,
-            fdy_inn_len, fdy_inn_indx, fdy_inn_coef,
-            fdz_inn_len, fdz_inn_indx, fdz_inn_coef,
-            boundary_itype, abs_num_of_layers, abs_indx,
-            abs_coefs_facepos0, abs_coefs,abs_vars_volsiz, abs_vars_facepos0,
-            abs_vars_cur, abs_vars_rhs,
-            myid, verbose);
+    sv_eliso1st_curv_macdrp_rhs_cfspml(Vx,Vy,Vz,Txx,Tyy,Tzz,Txz,Tyz,Txy,
+                                       hVx,hVy,hVz,hTxx,hTyy,hTzz,hTxz,hTyz,hTxy,
+                                       xi_x, xi_y, xi_z, et_x, et_y, et_z, zt_x, zt_y, zt_z,
+                                       lam3d, mu3d, slw3d,
+                                       siz_line,siz_slice,
+                                       fdx_inn_len, fdx_inn_indx, fdx_inn_coef,
+                                       fdy_inn_len, fdy_inn_indx, fdy_inn_coef,
+                                       fdz_inn_len, fdz_inn_indx, fdz_inn_coef,
+                                       boundary_itype, abs_num_of_layers, abs_indx,
+                                       abs_coefs_facepos0, abs_coefs,
+                                       abs_vars_volsiz, abs_vars_facepos0,
+                                       abs_vars_cur, abs_vars_rhs,
+                                       myid, verbose);
     
     // if free surface,  modified 
     if (boundary_itype[5] == FD_BOUNDARY_TYPE_FREE)
     {
       // cfs-pml modified for timg
-      sv_eliso1st_curv_macdrp_rhs_cfspml_timg_z2(
-              Txx,Tyy,Tzz,Txz,Tyz,Txy,hVx,hVy,hVz,
-              xi_x, xi_y, xi_z, et_x, et_y, et_z, zt_x, zt_y, zt_z,
-              jac3d, slw3d, nk2, siz_line,siz_slice,
-              fdx_inn_len, fdx_inn_indx, fdx_inn_coef,
-              fdy_inn_len, fdy_inn_indx, fdy_inn_coef,
-              fdz_inn_len, fdz_inn_indx, fdz_inn_coef,
-              boundary_itype, abs_num_of_layers, abs_indx,
-              abs_coefs_facepos0, abs_coefs,abs_vars_volsiz, abs_vars_facepos0,
-              abs_vars_cur, abs_vars_rhs,
-              myid, verbose);
+      sv_eliso1st_curv_macdrp_rhs_cfspml_timg_z2(Txx,Tyy,Tzz,Txz,Tyz,Txy,hVx,hVy,hVz,
+                                                 xi_x, xi_y, xi_z,
+                                                 et_x, et_y, et_z, zt_x, zt_y, zt_z,
+                                                 jac3d, slw3d, nk2, siz_line,siz_slice,
+                                                 fdx_inn_len, fdx_inn_indx, fdx_inn_coef,
+                                                 fdy_inn_len, fdy_inn_indx, fdy_inn_coef,
+                                                 fdz_inn_len, fdz_inn_indx, fdz_inn_coef,
+                                                 boundary_itype, abs_num_of_layers, abs_indx,
+                                                 abs_coefs_facepos0, abs_coefs,
+                                                 abs_vars_volsiz, abs_vars_facepos0,
+                                                 abs_vars_cur, abs_vars_rhs,
+                                                 myid, verbose);
       
       // cfs-pml modified for vfree; vlow at points below surface doesn't affect pml
-      sv_eliso1st_curv_macdrp_rhs_cfspml_vfree_z2(
-              Vx,Vy,Vz,hTxx,hTyy,hTzz,hTxz,hTyz,hTxy,
-              xi_x, xi_y, xi_z, et_x, et_y, et_z, zt_x, zt_y, zt_z,
-              lam3d, mu3d, slw3d, matVx2Vz, matVy2Vz,
-              nk2,siz_line,siz_slice,
-              fdx_inn_len, fdx_inn_indx, fdx_inn_coef,
-              fdy_inn_len, fdy_inn_indx, fdy_inn_coef,
-              boundary_itype, abs_num_of_layers, abs_indx,
-              abs_coefs_facepos0, abs_coefs,abs_vars_volsiz, abs_vars_facepos0,
-              abs_vars_cur, abs_vars_rhs,
-              myid, verbose);
+      sv_eliso1st_curv_macdrp_rhs_cfspml_vfree_z2(Vx,Vy,Vz,hTxx,hTyy,hTzz,hTxz,hTyz,hTxy,
+                                                  xi_x, xi_y, xi_z,
+                                                  et_x, et_y, et_z, zt_x, zt_y, zt_z,
+                                                  lam3d, mu3d, slw3d, matVx2Vz, matVy2Vz,
+                                                  nk2,siz_line,siz_slice,
+                                                  fdx_inn_len, fdx_inn_indx, fdx_inn_coef,
+                                                  fdy_inn_len, fdy_inn_indx, fdy_inn_coef,
+                                                  boundary_itype, abs_num_of_layers, abs_indx,
+                                                  abs_coefs_facepos0, abs_coefs,
+                                                  abs_vars_volsiz, abs_vars_facepos0,
+                                                  abs_vars_cur, abs_vars_rhs,
+                                                  myid, verbose);
     }
   }
 
@@ -517,12 +527,11 @@ sv_eliso1st_curv_macdrp_onestage(
   */
   if (num_of_force>0 || num_of_moment>0)
   {
-    sv_eliso1st_curv_macdrp_rhs_src(
-              hVx,hVy,hVz,hTxx,hTyy,hTzz,hTxz,hTyz,hTxy,
-              jac3d, slw3d, siz_line,siz_slice,
-              num_of_force, force_loc_point, force_vec_value,
-              num_of_moment, moment_loc_point, moment_ten_value,
-              myid, verbose);
+    sv_eliso1st_curv_macdrp_rhs_src(hVx,hVy,hVz,hTxx,hTyy,hTzz,hTxz,hTyz,hTxy,
+                                    jac3d, slw3d, siz_line,siz_slice,
+                                    num_of_force, force_loc_point, force_vec_value,
+                                    num_of_moment, moment_loc_point, moment_ten_value,
+                                    myid, verbose);
   }
 }
 
@@ -585,14 +594,14 @@ sv_eliso1st_curv_macdrp_rhs_inner(
   for (size_t k=nk1; k<=nk2; k++)
   {
 #ifdef DEBUG
-    if (myid==0 && verbose>99) fprintf(stdout,"----> nk1=%d,nk2=%d,k=%d\n", nk1,nk2,k);
+    if (myid==0 && verbose>90) fprintf(stdout,"----> nk1=%d,nk2=%d,k=%d\n", nk1,nk2,k);
 #endif
     size_t iptr_k = k * siz_slice;
 
     for (size_t j=nj1; j<=nj2; j++)
     {
 #ifdef DEBUG
-      if (myid==0 && verbose>99) fprintf(stdout,"-----> nj1=%d,nj2=%d,j=%d\n", nj1,nj2,j);
+      if (myid==0 && verbose>91) fprintf(stdout,"-----> nj1=%d,nj2=%d,j=%d\n", nj1,nj2,j);
 #endif
       size_t iptr_j = iptr_k + j * siz_line;
 
@@ -601,7 +610,7 @@ sv_eliso1st_curv_macdrp_rhs_inner(
       for (size_t i=ni1; i<=ni2; i++)
       {
 #ifdef DEBUG
-        if (myid==0 && verbose>99) fprintf(stdout,"-----> ni1=%d,ni2=%d,i=%d\n", ni1,ni2,i);
+        if (myid==0 && verbose>92) fprintf(stdout,"-----> ni1=%d,ni2=%d,i=%d\n", ni1,ni2,i);
 #endif
         // Vx derivatives
         M_FD_SHIFT(DxVx, Vx, iptr, fdx_len, lfdx_shift, lfdx_coef, n_fd);
@@ -1194,12 +1203,12 @@ sv_eliso1st_curv_macdrp_rhs_cfspml(
     if (boundary_itype[iface] != FD_BOUNDARY_TYPE_CFSPML) continue;
 
     // get index into local var
-    size_t abs_ni1 = abs_indx[iface][0];
-    size_t abs_ni2 = abs_indx[iface][1];
-    size_t abs_nj1 = abs_indx[iface][2];
-    size_t abs_nj2 = abs_indx[iface][3];
-    size_t abs_nk1 = abs_indx[iface][4];
-    size_t abs_nk2 = abs_indx[iface][5];
+    size_t abs_ni1 = abs_indx[iface+FD_NDIM_2+0];
+    size_t abs_ni2 = abs_indx[iface+FD_NDIM_2+1];
+    size_t abs_nj1 = abs_indx[iface+FD_NDIM_2+2];
+    size_t abs_nj2 = abs_indx[iface+FD_NDIM_2+3];
+    size_t abs_nk1 = abs_indx[iface+FD_NDIM_2+4];
+    size_t abs_nk2 = abs_indx[iface+FD_NDIM_2+5];
 
     // get coef for this face
     float *restrict ptr_ceof_A = abs_coefs + abs_coefs_facepos0[iface];
@@ -1561,12 +1570,12 @@ sv_eliso1st_curv_macdrp_rhs_cfspml_timg_z2(
     if (boundary_itype[iface] != FD_BOUNDARY_TYPE_CFSPML) continue;
 
     // get index into local var
-    size_t abs_ni1 = abs_indx[iface][0];
-    size_t abs_ni2 = abs_indx[iface][1];
-    size_t abs_nj1 = abs_indx[iface][2];
-    size_t abs_nj2 = abs_indx[iface][3];
-    size_t abs_nk1 = abs_indx[iface][4];
-    size_t abs_nk2 = abs_indx[iface][5];
+    size_t abs_ni1 = abs_indx[iface+FD_NDIM_2+0];
+    size_t abs_ni2 = abs_indx[iface+FD_NDIM_2+1];
+    size_t abs_nj1 = abs_indx[iface+FD_NDIM_2+2];
+    size_t abs_nj2 = abs_indx[iface+FD_NDIM_2+3];
+    size_t abs_nk1 = abs_indx[iface+FD_NDIM_2+4];
+    size_t abs_nk2 = abs_indx[iface+FD_NDIM_2+5];
 
     // max of two values
     abs_nk1 = (k_min > abs_nk1 ) ? k_min : abs_nk1;
@@ -1829,12 +1838,12 @@ sv_eliso1st_curv_macdrp_rhs_cfspml_vfree_z2(
     if (boundary_itype[iface] != FD_BOUNDARY_TYPE_CFSPML) continue;
 
     // get index into local var
-    size_t abs_ni1 = abs_indx[iface][0];
-    size_t abs_ni2 = abs_indx[iface][1];
-    size_t abs_nj1 = abs_indx[iface][2];
-    size_t abs_nj2 = abs_indx[iface][3];
-    size_t abs_nk1 = abs_indx[iface][4];
-    size_t abs_nk2 = abs_indx[iface][5];
+    size_t abs_ni1 = abs_indx[iface+FD_NDIM_2+0];
+    size_t abs_ni2 = abs_indx[iface+FD_NDIM_2+1];
+    size_t abs_nj1 = abs_indx[iface+FD_NDIM_2+2];
+    size_t abs_nj2 = abs_indx[iface+FD_NDIM_2+3];
+    size_t abs_nk1 = abs_indx[iface+FD_NDIM_2+4];
+    size_t abs_nk2 = abs_indx[iface+FD_NDIM_2+5];
 
     // get coef for this face
     float *restrict ptr_ceof_A = abs_coefs + abs_coefs_facepos0[iface];

@@ -15,6 +15,26 @@
 void 
 fd_set_macdrp(struct fd_t *fd)
 {
+  // rk scheme is fixed in fd_t.h
+
+  // set max
+  fd->fdx_max_len = 5;
+  fd->fdy_max_len = 5;
+  fd->fdz_max_len = 5;
+  fd->fdx_max_half_len = 3;
+  fd->fdy_max_half_len = 3;
+  fd->fdz_max_half_len = 3;
+  fd->fdx_nghosts = 3;
+  fd->fdy_nghosts = 3;
+  fd->fdz_nghosts = 3;
+  fd->fdx_num_surf_lay = 0;
+  fd->fdy_num_surf_lay = 0;
+  fd->fdz_num_surf_lay = 3;
+
+  // for 3d op
+  fd->num_of_pairs = 8;
+  // BBB FFB FFF BBF
+  // BFB FBB FBF BFF
   int FD_Flags[8][FD_NDIM] = // 8 pairs, x/y/z 3 dim
   {
     { 0,  0,  0 },
@@ -27,45 +47,66 @@ fd_set_macdrp(struct fd_t *fd)
     { 0,  1,  1 }
   }; //  0(B) 1(F)
 
-  fd->num_of_pairs = 8;
-  // BBB FFB FFF BBF
-  // BFB FBB FBF BFF
-
-  // set max
-  fd->fdx_max_len = 5;
-  fd->fdy_max_len = 5;
-  fd->fdz_max_len = 5;
-  fd->fdx_nghosts = 3;
-  fd->fdy_nghosts = 3;
-  fd->fdz_nghosts = 3;
-  fd->fdx_num_surf_lay = 0;
-  fd->fdy_num_surf_lay = 0;
-  fd->fdz_num_surf_lay = 3;
-
   // alloc
   fd->pair_fdx_all_info = (size_t ****) fdlib_mem_calloc_4l_sizet( 
-                 fd->num_of_pairs, fd->num_rk_stages, fd->mac_max_half_stentil+1,FD_INFO_SIZE,
-                 0, "fd_set_macdrp");
+                                              fd->num_of_pairs,
+                                              fd->num_rk_stages,
+                                              fd->mac_max_half_stentil+1,
+                                              FD_INFO_SIZE,
+                                              0,
+                                              "fd_set_macdrp");
   fd->pair_fdx_all_indx = (size_t ***) fdlib_mem_calloc_3l_sizet( 
-                 fd->num_of_pairs , fd->num_rk_stages , fd->mac_all_coef_size, 0, "fd_set_macdrp");
+                                              fd->num_of_pairs ,
+                                              fd->num_rk_stages ,
+                                              fd->mac_all_coef_size,
+                                              0,
+                                              "fd_set_macdrp");
   fd->pair_fdx_all_coef = (int ***) fdlib_mem_calloc_3l_float( 
-                 fd->num_of_pairs , fd->num_rk_stages , fd->mac_all_coef_size, 0.0, "fd_set_macdrp");
+                                              fd->num_of_pairs ,
+                                              fd->num_rk_stages ,
+                                              fd->mac_all_coef_size,
+                                              0.0,
+                                              "fd_set_macdrp");
 
   fd->pair_fdy_all_info = (size_t ****) fdlib_mem_calloc_4l_sizet( 
-                 fd->num_of_pairs, fd->num_rk_stages, fd->mac_max_half_stentil+1,FD_INFO_SIZE,
-                 0, "fd_set_macdrp");
+                                              fd->num_of_pairs,
+                                              fd->num_rk_stages,
+                                              fd->mac_max_half_stentil+1,
+                                              FD_INFO_SIZE,
+                                              0,
+                                              "fd_set_macdrp");
   fd->pair_fdy_all_indx = (size_t ***) fdlib_mem_calloc_3l_sizet( 
-                 fd->num_of_pairs , fd->num_rk_stages , fd->mac_all_coef_size, 0, "fd_set_macdrp");
+                                              fd->num_of_pairs ,
+                                              fd->num_rk_stages ,
+                                              fd->mac_all_coef_size,
+                                              0,
+                                              "fd_set_macdrp");
   fd->pair_fdy_all_coef = (int ***) fdlib_mem_calloc_3l_float( 
-                 fd->num_of_pairs , fd->num_rk_stages , fd->mac_all_coef_size, 0.0, "fd_set_macdrp");
+                                              fd->num_of_pairs ,
+                                              fd->num_rk_stages ,
+                                              fd->mac_all_coef_size,
+                                              0.0,
+                                              "fd_set_macdrp");
 
   fd->pair_fdz_all_info = (size_t ****) fdlib_mem_calloc_4l_sizet( 
-                 fd->num_of_pairs, fd->num_rk_stages, fd->mac_max_half_stentil+1,FD_INFO_SIZE,
-                 0, "fd_set_macdrp");
+                                              fd->num_of_pairs,
+                                              fd->num_rk_stages,
+                                              fd->mac_max_half_stentil+1,
+                                              FD_INFO_SIZE,
+                                              0,
+                                              "fd_set_macdrp");
   fd->pair_fdz_all_indx = (size_t ***) fdlib_mem_calloc_3l_sizet( 
-                 fd->num_of_pairs , fd->num_rk_stages , fd->mac_all_coef_size, 0, "fd_set_macdrp");
+                                              fd->num_of_pairs ,
+                                              fd->num_rk_stages ,
+                                              fd->mac_all_coef_size,
+                                              0,
+                                              "fd_set_macdrp");
   fd->pair_fdz_all_coef = (int ***) fdlib_mem_calloc_3l_float( 
-                 fd->num_of_pairs , fd->num_rk_stages , fd->mac_all_coef_size, 0.0, "fd_set_macdrp");
+                                              fd->num_of_pairs ,
+                                              fd->num_rk_stages ,
+                                              fd->mac_all_coef_size,
+                                              0.0,
+                                              "fd_set_macdrp");
 
   // set
   for (int ipair=0; ipair < fd->num_of_pairs; ipair++)
@@ -76,34 +117,32 @@ fd_set_macdrp(struct fd_t *fd)
 
     for (int istage=0; istage < fd->num_rk_stages; istage++)
     {
+      // switch forw/back based on mod value
       int idir = (idir0 + istage) % 2;
       int jdir = (jdir0 + istage) % 2;
       int kdir = (kdir0 + istage) % 2;
 
-      // info
-      for (int ipoint=0; ipoint <= fd->op_max_half_stentil; ipoint++)
+      // for each point near surface
+      for (int ipoint=0; ipoint <= fd->mac_max_half_stentil; ipoint++)
       {
         for (int i=0; i < FD_INFO_SIZE; i++)
         {
-          pair_fdx_all_info[ipair][istage][ipoint][i] = mac_all_info[idir][ipoint][i];
-          pair_fdy_all_info[ipair][istage][ipoint][i] = mac_all_info[jdir][ipoint][i];
-          pair_fdz_all_info[ipair][istage][ipoint][i] = mac_all_info[kdir][ipoint][i];
-          //*(*(*(pair_fdx_len+ipair)+istage)+ih * 5 + i) = fd_dhs_len[idir][i][ih];
-          //*(*(*(pair_fdy_len+jpair)+istage)+ih * 5 + i) = fd_dhs_len[idir][j][ih];
-          //*(*(*(pair_fdz_len+kpair)+istage)+ih * 5 + i) = fd_dhs_len[idir][k][ih];
+          par->pair_fdx_all_info[ipair][istage][ipoint][i] = par->mac_all_info[idir][ipoint][i];
+          par->pair_fdy_all_info[ipair][istage][ipoint][i] = par->mac_all_info[jdir][ipoint][i];
+          par->pair_fdz_all_info[ipair][istage][ipoint][i] = par->mac_all_info[kdir][ipoint][i];
         }
       }
 
       // indx and coef
       for (int i=0; i < fd->mac_all_coef_size; i++)
       {
-        pair_fdx_all_indx[ipair][istage][i] = mac_all_indx[idir][i];
-        pair_fdy_all_indx[ipair][istage][i] = mac_all_indx[jdir][i];
-        pair_fdz_all_indx[ipair][istage][i] = mac_all_indx[kdir][i];
+        par->pair_fdx_all_indx[ipair][istage][i] = par->mac_all_indx[idir][i];
+        par->pair_fdy_all_indx[ipair][istage][i] = par->mac_all_indx[jdir][i];
+        par->pair_fdz_all_indx[ipair][istage][i] = par->mac_all_indx[kdir][i];
 
-        pair_fdx_all_coef[ipair][istage][i] = mac_all_coef[idir][i];
-        pair_fdy_all_coef[ipair][istage][i] = mac_all_coef[jdir][i];
-        pair_fdz_all_coef[ipair][istage][i] = mac_all_coef[kdir][i];
+        par->pair_fdx_all_coef[ipair][istage][i] = par->mac_all_coef[idir][i];
+        par->pair_fdy_all_coef[ipair][istage][i] = par->mac_all_coef[jdir][i];
+        par->pair_fdz_all_coef[ipair][istage][i] = par->mac_all_coef[kdir][i];
       }
     }
   }
@@ -114,30 +153,26 @@ fd_set_macdrp(struct fd_t *fd)
 //
 void
 fd_blk_init(struct fd_blk_t *blk,
-      int number_of_x_points,
-      int number_of_y_points,
-      int number_of_z_points,
-      int number_of_x_procs,
-      int number_of_y_procs,
-      int number_of_z_procs,
-      char boundary_type_name[][],
-      //char *abs_type_name;
-      int *abs_number_of_layers,
-      int fdx_nghosts,
-      int fdy_nghosts,
-      int fdz_nghosts,
-      int number_of_levels, // depends on time scheme, for rk4 = 4
-      int *myid2,
-      int *neighid,
-      const int myid, const int verbose)
+            int number_of_total_grid_points_x,
+            int number_of_total_grid_points_y,
+            int number_of_total_grid_points_z,
+            int number_of_mpiprocs_x,
+            int number_of_mpiprocs_y,
+            char **boundary_type_name,
+            int *abs_number_of_layers,
+            int fdx_nghosts,
+            int fdy_nghosts,
+            int fdz_nghosts,
+            int number_of_levels, // depends on time scheme, for rk4 = 4
+            int *myid2,
+            int *neighid,
+            const int myid, const int verbose)
 {
   int boundary_itype[FD_NDIM_2];
 
   //
   // set boundary itype
   //
-  //if (strcmp(abs_type_name, "cfspml")) abs_itype = FD_BOUNDARY_TYPE_CFSPML;
-  //if (strcmp(abs_type_name, "ablexp")) abs_itype = FD_BOUNDARY_TYPE_ABLEXP;
 
   int abs_itype = FD_BOUNDARY_TYPE_NONE;
 
@@ -148,18 +183,17 @@ fd_blk_init(struct fd_blk_t *blk,
 
     // set according input
     if ( (i==0 && myid2[0]==0) ||
-         (i==1 && myid2[0]==number_of_x_procs -1) ||
+         (i==1 && myid2[0]==number_of_mpiprocs_x -1) ||
          (i==2 && myid2[1] == 0) ||
-         (i==3 && myid2[1] == number_of_y_procs -1) ||
+         (i==3 && myid2[1] == number_of_mpiprocs_y -1) ||
          (i>=4))
     {
       // cfs-pml
       if (strcmp(boundary_type_name[i], "cfspml"))
       {
-        bdry_itype     = FD_BOUNDARY_TYPE_CFSPML;
-        blk->abs_itype = FD_BOUNDARY_TYPE_CFSPML;
+        bdry_itype = FD_BOUNDARY_TYPE_CFSPML;
+        abs_itype  = bdry_itype;
         blk->abs_number_of_layers[i] = abs_number_of_layers[i];
-        abs_itype = bdry_itype;
       }
 
       // free
@@ -169,7 +203,7 @@ fd_blk_init(struct fd_blk_t *blk,
     }
 
     blk->boundary_itype[i] = bdry_itype;
-    blk->abs_itype = abs_itype;
+    blk->abs_itype         = abs_itype;
   }
 
   // check this proc is boundary or not
@@ -180,13 +214,13 @@ fd_blk_init(struct fd_blk_t *blk,
   //
 
   // determine ni
-  int nx_et = number_of_x_points;
+  int nx_et = number_of_total_grid_points_x;
   // double cfspml load
   if (abs_itype == FD_BOUNDARY_TYPE_CFSPML) {
     nx_et += abs_number_of_layers[0] + abs_number_of_layers[1];
   }
-  int nx_avg  = nx_et / number_of_x_procs;
-  int nx_left = nx_et % number_of_x_procs;
+  int nx_avg  = nx_et / number_of_mpiprocs_x;
+  int nx_left = nx_et % number_of_mpiprocs_x;
   if (nx_avg < 2 * fdx_nghosts) {
     // error
   }
@@ -197,7 +231,7 @@ fd_blk_init(struct fd_blk_t *blk,
   if (abs_itype == FD_BOUNDARY_TYPE_CFSPML && myid2[0]==0) {
     ni -= abs_number_of_layers[0];
   }
-  if (abs_itype == FD_BOUNDARY_TYPE_CFSPML && myid2[0]==number_of_x_procs-1) {
+  if (abs_itype == FD_BOUNDARY_TYPE_CFSPML && myid2[0]==number_of_mpiprocs_x-1) {
     ni -= abs_number_of_layers[1];
   }
   // not equal divided points given to first nx_left procs
@@ -211,13 +245,13 @@ fd_blk_init(struct fd_blk_t *blk,
   }
 
   // determine nj
-  int ny_et = number_of_y_points;
+  int ny_et = number_of_total_grid_points_y;
   // double cfspml load
   if (abs_itype == FD_BOUNDARY_TYPE_CFSPML) {
     ny_et += abs_number_of_layers[2] + abs_number_of_layers[3];
   }
-  int ny_avg  = ny_et / number_of_y_procs;
-  int ny_left = ny_et % number_of_y_procs;
+  int ny_avg  = ny_et / number_of_mpiprocs_y;
+  int ny_left = ny_et % number_of_mpiprocs_y;
   if (ny_avg < 2 * fdy_nghosts) {
     // error
   }
@@ -228,7 +262,7 @@ fd_blk_init(struct fd_blk_t *blk,
   if (abs_itype == FD_BOUNDARY_TYPE_CFSPML && myid2[1]==0) {
     nj -= abs_number_of_layers[2];
   }
-  if (abs_itype == FD_BOUNDARY_TYPE_CFSPML && myid2[1]==number_of_y_procs-1) {
+  if (abs_itype == FD_BOUNDARY_TYPE_CFSPML && myid2[1]==number_of_mpiprocs_y-1) {
     nj -= abs_number_of_layers[3];
   }
   // not equal divided points given to first ny_left procs
@@ -242,7 +276,7 @@ fd_blk_init(struct fd_blk_t *blk,
   }
 
   // determine nk
-  int nk = number_of_z_points;
+  int nk = number_of_total_grid_points_z;
   blk->gnk1 = 0;
   
   // add ghost points
@@ -274,6 +308,203 @@ fd_blk_init(struct fd_blk_t *blk,
   
   // level
   blk->w3d_num_of_vars = number_of_levels;
+}
 
-  return ierr;
+/*
+void
+fd_blk_print(struct fd_blk_t *blk)
+{    
+  fprintf(stdout, "-------------------------------------------------------\n");
+  //fprintf(stdout, "--> ESTIMATE MEMORY INFO.\n");
+  //fprintf(stdout, "-------------------------------------------------------\n");
+  //fprintf(stdout, "total memory size Byte: %20.5f  B\n", PSV->total_memory_size_Byte);
+  //fprintf(stdout, "total memory size KB  : %20.5f KB\n", PSV->total_memory_size_KB  );
+  //fprintf(stdout, "total memory size MB  : %20.5f MB\n", PSV->total_memory_size_MB  );
+  //fprintf(stdout, "total memory size GB  : %20.5f GB\n", PSV->total_memory_size_GB  );
+  //fprintf(stdout, "\n");
+  //fprintf(stdout, "-------------------------------------------------------\n");
+  //fprintf(stdout, "--> FOLDER AND FILE INFO.\n");
+  //fprintf(stdout, "-------------------------------------------------------\n");
+  //fprintf(stdout, "   OutFolderName: %s\n", OutFolderName);
+  //fprintf(stdout, "       EventName: %s\n", OutPrefix);
+  //fprintf(stdout, "     LogFilename: %s\n", LogFilename);
+  //fprintf(stdout, " StationFilename: %s\n", StationFilename);
+  //fprintf(stdout, "  SourceFilename: %s\n", SourceFilename);
+  //fprintf(stdout, "   MediaFilename: %s\n", MediaFilename);
+  //fprintf(stdout, "\n");
+  fprintf(stdout, "-------------------------------------------------------\n");
+  fprintf(stdout, "--> GRID INFO.\n");
+  fprintf(stdout, "-------------------------------------------------------\n");
+  fprintf(stdout, " ni    = %-10d\n", PSV->ni);
+  fprintf(stdout, " nk    = %-10d\n", PSV->nk);
+  fprintf(stdout, " nx    = %-10d\n", PSV->nx);
+  fprintf(stdout, " nz    = %-10d\n", PSV->nz);
+  fprintf(stdout, " ni1   = %-10d\n", PSV->ni1);
+  fprintf(stdout, " ni2   = %-10d\n", PSV->ni2);
+  fprintf(stdout, " nk1   = %-10d\n", PSV->nk1);
+  fprintf(stdout, " nk2   = %-10d\n", PSV->nk2);
+  fprintf(stdout, " LenFD = %-10d\n", PSV->LenFD);
+  fprintf(stdout, " nt    = %-10d\n", PSV->nt);
+  fprintf(stdout, " stept = %10.4e\n", PSV->stept);
+  fprintf(stdout, " maxdt = %10.4e\n", PSV->maxdt);
+  fprintf(stdout, " steph = %10.4e\n", PSV->steph);
+  fprintf(stdout, " x0    = %10.4e\n", PSV->x0);
+  fprintf(stdout, " x1    = %10.4e\n", PSV->x1);
+  fprintf(stdout, " z0    = %10.4e\n", PSV->z0);
+  fprintf(stdout, " z1    = %10.4e\n", PSV->z1);
+  fprintf(stdout, "\n");
+  fprintf(stdout, "-------------------------------------------------------\n");
+  fprintf(stdout, "--> media info.\n");
+  fprintf(stdout, "-------------------------------------------------------\n");
+  if (PSV->media_type == MEDIA_TYPE_LAYER)
+  {
+      strcpy(str, "layer");
+  }
+  else if (PSV->media_type == MEDIA_TYPE_GRID)
+  {
+      strcpy(str, "grid");
+  }
+  fprintf(stdout, " media_type = %s\n", str);
+  if(PSV->media_type == MEDIA_TYPE_GRID)
+  {
+      fprintf(stdout, "\n --> the media filename is:\n");
+      fprintf(stdout, " velp_file  = %s\n", PSV->fnm_velp);
+      fprintf(stdout, " vels_file  = %s\n", PSV->fnm_vels);
+      fprintf(stdout, " rho_file   = %s\n", PSV->fnm_rho);
+  }
+  fprintf(stdout, "\n");
+  fprintf(stdout, "-------------------------------------------------------\n");
+  fprintf(stdout, "--> source info.\n");
+  fprintf(stdout, "-------------------------------------------------------\n");
+  fprintf(stdout, " number_of_force  = %d\n", PSV->number_of_force);
+  if(PSV->number_of_force > 0)
+  {
+      fprintf(stdout, " force_source           x           z     x_shift     z_shift           i           k:\n");
+      for(n=0; n<PSV->number_of_force; n++)
+      {
+          indx = 2*n;
+          fprintf(stdout, "         %04d  %10.4e  %10.4e  %10.4e  %10.4e  %10d  %10d\n", n+1, 
+                  PSV->force_coord[indx], PSV->force_coord[indx+1],
+                  PSV->force_shift[indx], PSV->force_shift[indx+1],
+                  PSV->force_indx [indx], PSV->force_indx [indx+1]);
+      }
+      fprintf(stdout, "\n");
+  }
+
+  fprintf(stdout, "\n");
+  fprintf(stdout, " number_of_moment = %d\n", PSV->number_of_moment);
+  if(PSV->number_of_moment > 0)
+  {
+      fprintf(stdout, " moment_source          x           z     x_shift     z_shift           i           k:\n");
+      for(n=0; n<PSV->number_of_moment; n++)
+      {
+          indx = 2*n;
+          fprintf(stdout, "         %04d  %10.4e  %10.4e  %10.4e  %10.4e  %10d  %10d\n", n+1, 
+                  PSV->moment_coord[indx], PSV->moment_coord[indx+1],
+                  PSV->moment_shift[indx], PSV->moment_shift[indx+1],
+                  PSV->moment_indx [indx], PSV->moment_indx [indx+1]);
+      }
+      fprintf(stdout, "\n");
+  }
+
+  fprintf(stdout, "\n");
+  fprintf(stdout, "-------------------------------------------------------\n");
+  fprintf(stdout, "--> boundary layer information.\n");
+  fprintf(stdout, "-------------------------------------------------------\n");
+  ierr = boundary_id2type(type1, PSV->boundary_type[0], errorMsg);
+  ierr = boundary_id2type(type2, PSV->boundary_type[1], errorMsg);
+  ierr = boundary_id2type(type3, PSV->boundary_type[2], errorMsg);
+  ierr = boundary_id2type(type4, PSV->boundary_type[3], errorMsg);
+  fprintf(stdout, " boundary_type         = %10s%10s%10s%10s\n", 
+          type1, type2, type3, type4);
+  fprintf(stdout, " boundary_layer_number = %10d%10d%10d%10d\n", 
+          PSV->boundary_layer_number[0], PSV->boundary_layer_number[1], 
+          PSV->boundary_layer_number[2], PSV->boundary_layer_number[3]);
+  fprintf(stdout, "\n");
+  fprintf(stdout, " absorb_velocity       = %10.2f%10.2f%10.2f%10.2f\n", 
+          PSV->absorb_velocity[0], PSV->absorb_velocity[1], PSV->absorb_velocity[2], 
+          PSV->absorb_velocity[3]);
+  fprintf(stdout, "\n");
+  fprintf(stdout, " CFS_alpha_max         = %10.2f%10.2f%10.2f%10.2f\n", 
+          PSV->CFS_alpha_max[0], PSV->CFS_alpha_max[1], PSV->CFS_alpha_max[2], 
+          PSV->CFS_alpha_max[3]);
+  fprintf(stdout, " CFS_beta_max          = %10.2f%10.2f%10.2f%10.2f\n", 
+          PSV->CFS_beta_max[0], PSV->CFS_beta_max[1], PSV->CFS_beta_max[2], 
+          PSV->CFS_beta_max[3]);
+  
+  fprintf(stdout, "\n");
+  fprintf(stdout, "-------------------------------------------------------\n");
+  fprintf(stdout, "--> output information.\n");
+  fprintf(stdout, "-------------------------------------------------------\n");
+  fprintf(stdout, "--> snapshot information.\n");
+  if (PSV->number_of_snapshot > 0)
+  {
+      fprintf(stdout, "number_of_snapshot=%d\n", PSV->number_of_snapshot);
+      fprintf(stdout, "#   x0    z0    nx    nz    dx    dz    dt     tdim_max    component\n");
+      for(n=0; n<PSV->number_of_snapshot; n++)
+      {
+          indx = 10*n;
+          componentV = ' ';
+          componentT = ' ';
+
+          if(PSV->snapshot_information[indx+8] == 1) {
+              componentV = 'V';
+          }
+
+          if(PSV->snapshot_information[indx+9] == 1) {
+              componentT = 'T';
+          }
+
+          for(i=0; i<7; i++)
+          {
+              fprintf(stdout, "%6d", PSV->snapshot_information[indx+i]);
+          }
+
+          fprintf(stdout, "%12d", PSV->snapshot_information[indx+7]);
+          fprintf(stdout, "         %c%c\n", componentV, componentT);
+      }
+  }
+
+  fprintf(stdout, "\n");
+  fprintf(stdout, "--> station information.\n");
+  fprintf(stdout, " number_of_station  = %4d\n", PSV->number_of_station);
+  fprintf(stdout, " seismo_format_sac  = %4d\n", PSV->seismo_format_sac );
+  fprintf(stdout, " seismo_format_segy = %4d\n", PSV->seismo_format_segy);
+  fprintf(stdout, " SeismoPrefix = %s\n", SeismoPrefix);
+  fprintf(stdout, "\n");
+
+  if(PSV->number_of_station > 0)
+  {
+      //fprintf(stdout, " station_indx:\n");
+      fprintf(stdout, " stations             x           z           i           k:\n");
+  }
+
+  for(n=0; n<PSV->number_of_station; n++)
+  {
+      indx = 2*n;
+      fprintf(stdout, "       %04d  %10.4e  %10.4e  %10d  %10d\n", n+1, 
+              PSV->station_coord[indx], PSV->station_coord[indx+1],
+              PSV->station_indx [indx], PSV->station_indx [indx+1]);
+  }
+  fprintf(stdout, "\n");
+
+  return;
+}
+*/
+
+void
+fd_mpi_create_topo(struct fd_mpi_t *fdmpi, int myid, MPI_Comm comm, int nprocx, int nprocy)
+{
+  int pdims[2]={nprocx,nprocy};
+  int periods[2] = {0,0};
+
+  // create Cartesian topology
+  MPI_Cart_create(comm, 2, pdims, periods, 0, &fdmpi->topocomm);
+
+  // get my local x,y coordinates
+  MPI_Cart_coords(fdmpi->topocomm, myid, 2, fdmpi->myid2);
+
+  // neighour
+  MPI_Cart_shift(fdmpi->topocomm, 0, 1, &(fdmpi->neighid[0]), &(fdmpi->neighid[1]));
+  MPI_Cart_shift(fdmpi->topocomm, 1, 1, &(fdmpi->neighid[2]), &(fdmpi->neighid[3]));
 }

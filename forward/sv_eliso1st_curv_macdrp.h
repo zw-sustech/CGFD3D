@@ -37,7 +37,8 @@ sv_eliso1st_curv_macdrp_allstep(
     int num_of_snap, int *restrict snap_grid_indx, int *restrict snap_time_indx,
     // scheme
     int num_rk_stages, float *rk_a, float *rk_b, int num_of_pairs, 
-    size_t fdx_max_len, size_t fdy_max_len, size_t fdz_max_len, size_t fdz_num_surf_lay,
+    size_t fdx_max_half_len, size_t fdy_max_half_len,
+    size_t fdz_max_len, size_t fdz_num_surf_lay,
     size_t ****pair_fdx_all_info, size_t ***pair_fdx_all_indx, float ***pair_fdx_all_coef,
     size_t ****pair_fdy_all_info, size_t ***pair_fdy_all_indx, float ***pair_fdy_all_coef,
     size_t ****pair_fdz_all_info, size_t ***pair_fdz_all_indx, float ***pair_fdz_all_coef,
@@ -77,7 +78,8 @@ sv_eliso1st_curv_macdrp_onestage(
     int *restrict moment_loc_point,
     float *restrict moment_ten_value,
     // include different order/stentil
-    int fdx_max_len, int fdy_max_len, int fdz_max_len, int fdz_num_surf_lay,
+    int fdx_max_half_len, int fdy_max_half_len,
+    int fdz_max_len, int fdz_num_surf_lay,
     size_t **restrict fdx_all_info, size_t *restrict fdx_all_indx,float *restrict fdx_all_coef,
     size_t **restrict fdy_all_info, size_t *restrict fdy_all_indx,float *restrict fdy_all_coef,
     size_t **restrict fdz_all_info, size_t *restrict fdz_all_indx,float *restrict fdz_all_coef,

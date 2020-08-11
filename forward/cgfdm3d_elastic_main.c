@@ -32,7 +32,7 @@ int main(int argc, char** argv)
 
   // init MPI
 
-  int myid,mpi_size;
+  int myid, mpi_size;
   MPI_Init(&argc, &argv);
   MPI_Comm comm = MPI_COMM_WORLD;
   MPI_Comm_rank(comm, &myid);
@@ -53,6 +53,7 @@ int main(int argc, char** argv)
 
     if (argc >= 3) {
       verbose = atoi(argv[2]); // verbose number
+      fprintf(stdout,"verbose=%d\n", verbose); fflush(stdout);
     }
 
     // bcast verbose to all nodes
@@ -81,14 +82,18 @@ int main(int argc, char** argv)
 
   // time
   float   t0 = par->time_start;
-  float   dt = par->time_step;
-  int     nt_total = (int) ((par->time_end - par->time_start) / dt+0.5);
+  float   dt = par->size_of_time_step;
+  int     nt_total = par->number_of_time_steps+1;
 
   // create mpi topo
   //  todo: unqual partition between nodes
-  fdmpi = (struct fd_mpi_t *) malloc(sizeof(struct fd_mpi_t));
+  struct fd_mpi_t *fdmpi = (struct fd_mpi_t *) malloc(sizeof(struct fd_mpi_t));
 
-  fd_mpi_create_topo(fdmpi, par->num_threads_per_dim);
+  fd_mpi_create_topo(fdmpi,
+                     myid,
+                     comm,
+                     par->number_of_mpiprocs_x,
+                     par->number_of_mpiprocs_y);
 
   // alloc
   struct fd_t *fd = (struct fd_t  *) malloc(sizeof(struct fd_t ));
@@ -105,46 +110,42 @@ int main(int argc, char** argv)
   struct fd_blk_t *blk = (struct blk_t *) malloc(sizeof(struct blk_t));
 
   // set parmeters of domain size
-  if (myid==0) fprintf(stdout,"set slocal/global grid parameters ...\n"); 
+  if (myid==0 && verbose>0) fprintf(stdout,"set slocal/global grid parameters ...\n"); 
 
   fd_blk_init(blk,
-      par->number_of_x_points,
-      par->number_of_y_points,
-      par->number_of_z_points,
-      par->number_of_x_procs,
-      par->number_of_y_procs,
-      par->number_of_z_procs,
-      par->boundary_type_name,
-      par->abs_type_name,
-      par->abs_number_of_layers,
-      fd->fdx_nghosts,
-      fd->fdy_nghosts,
-      fd->fdz_nghosts,
-      fd->num_rk_stages,
-      fdmpi->myid2,
-      fdmpi->neighid,
-      myid, verbose);
+              par->number_of_total_grid_points_x,
+              par->number_of_total_grid_points_y,
+              par->number_of_total_grid_points_z,
+              par->number_of_mpiprocs_x,
+              par->number_of_mpiprocs_y,
+              par->boundary_type_name,
+              par->abs_number_of_layers,
+              fd->fdx_nghosts,
+              fd->fdy_nghosts,
+              fd->fdz_nghosts,
+              fd->num_rk_stages,
+              fdmpi->myid2,
+              fdmpi->neighid,
+              myid, verbose);
 
 //-------------------------------------------------------------------------------
 //-- grid generation or import
 //-------------------------------------------------------------------------------
 
   // allocate grid array
-  if (myid==0) fprintf(stdout,"allocate grid vars ...\n"); 
+  if (myid==0 && verbose>0) fprintf(stdout,"allocate grid vars ...\n"); 
 
-  gd_curv_init_c3d(
-      blk->siz_volume,
-      &blk->c3d_num_of_vars,
-      &blk->c3d,
-      &blk->c3d_pos,
-      &blk->c3d_name);
+  gd_curv_init_c3d( blk->siz_volume,
+                   &blk->c3d_num_of_vars,
+                   &blk->c3d,
+                   &blk->c3d_pos,
+                   &blk->c3d_name);
 
-  gd_curv_init_g3d(
-      blk->siz_volume,
-      &blk->g3d_num_of_vars,
-      &blk->g3d,
-      &blk->g3d_pos,
-      &blk->g3d_name);
+  gd_curv_init_g3d( blk->siz_volume,
+                   &blk->g3d_num_of_vars,
+                   &blk->g3d,
+                   &blk->g3d_pos,
+                   &blk->g3d_name);
 
   // if import coord and metric
   /*
@@ -209,22 +210,21 @@ int main(int argc, char** argv)
     size_t *fd_indx = fd->mac_center_all_indx+fd_pos;
     float  *fd_coef = fd->mac_center_all_coef+fd_pos;
 
-    gd_curv_cal_metric(
-        blk->c3d,
-        blk->g3d,
-        blk->ni1,
-        blk->ni2,
-        blk->nj1,
-        blk->nj2,
-        blk->nk1,
-        blk->nk2,
-        blk->siz_line,
-        blk->siz_slice,
-        blk->siz_volume,
-        fd_len,
-        fd_indx,
-        fd_coef
-        );
+    gd_curv_cal_metric(blk->c3d,
+                       blk->g3d,
+                       blk->ni1,
+                       blk->ni2,
+                       blk->nj1,
+                       blk->nj2,
+                       blk->nk1,
+                       blk->nk2,
+                       blk->siz_line,
+                       blk->siz_slice,
+                       blk->siz_volume,
+                       fd_len,
+                       fd_indx,
+                       fd_coef
+                       );
 
     /*
     if (myid==0) fprintf(stdout,"exchange metrics ...\n"); 
@@ -245,13 +245,12 @@ int main(int argc, char** argv)
 //-------------------------------------------------------------------------------
 
   // allocate media vars
-  if (myid==0) fprintf(stdout,"allocate media vars ...\n"); 
-  md_el_iso_init_vars(
-      blk->siz_volume,
-      &blk->m3d_num_of_vars,
-      &blk->m3d,
-      &blk->m3d_pos,
-      &blk->m3d_name);
+  if (myid==0 && verbose>0) fprintf(stdout,"allocate media vars ...\n"); 
+  md_el_iso_init_vars( blk->siz_volume,
+                      &blk->m3d_num_of_vars,
+                      &blk->m3d,
+                      &blk->m3d_pos,
+                      &blk->m3d_name);
   
   if (par->medium_by_import==1)
   {
@@ -260,17 +259,16 @@ int main(int argc, char** argv)
   }
   else
   {
-    md_el_iso_gen_test(
-        blk->m3d,
-        blk->c3d+GD_CURV_SEQ_X3D * blk->siz_volume,
-        blk->c3d+GD_CURV_SEQ_Y3D * blk->siz_volume,
-        blk->c3d+GD_CURV_SEQ_Z3D * blk->siz_volume,
-        blk->nx,
-        blk->ny
-        blk->nz
-        blk->siz_line,
-        blk->siz_slice,
-        blk->siz_volume);
+    md_el_iso_gen_test(blk->m3d,
+                       blk->c3d+GD_CURV_SEQ_X3D * blk->siz_volume,
+                       blk->c3d+GD_CURV_SEQ_Y3D * blk->siz_volume,
+                       blk->c3d+GD_CURV_SEQ_Z3D * blk->siz_volume,
+                       blk->nx,
+                       blk->ny
+                       blk->nz
+                       blk->siz_line,
+                       blk->siz_slice,
+                       blk->siz_volume);
 
     /*
     if (par->medium_output_to_file==1) {
@@ -281,14 +279,7 @@ int main(int argc, char** argv)
   }
   
   // convert rho to 1 / rho to reduce number of arithmetic cal
-  md_el_iso_rho_to_slow(
-      blk->m3d,
-      blk->nx,
-      blk->ny,
-      blk->nz,
-      blk->siz_line,
-      blk->siz_slice,
-      blk->siz_volume);
+  md_el_iso_rho_to_slow(blk->m3d, blk->siz_volume);
 
 //-------------------------------------------------------------------------------
 //-- estimate/check time step
@@ -339,18 +330,17 @@ int main(int argc, char** argv)
 
   //src_read_file(par->src_fname, myid);
   //src_locate_extend();
-  src_gen_test(
-      t0,
-      dt,
-      nt_total,
-      fd->num_rk_stages,
-      blk->num_of_force,
-      blk->force_info,
-      blk->force_vec_stf,
-      blk->num_of_moment,
-      blk->moment_loc_point,
-      blk->moment_ten_rate,
-      verbose);
+  src_gen_test(t0,
+               dt,
+               nt_total,
+               fd->num_rk_stages,
+               &blk->num_of_force,
+               &blk->force_info,
+               &blk->force_vec_stf,
+               &blk->num_of_moment,
+               &blk->moment_loc_point,
+               &blk->moment_ten_rate,
+               verbose);
   
   /*
   if (par->source_output_to_file==1)
@@ -363,7 +353,7 @@ int main(int argc, char** argv)
 //-- setup output
 //-------------------------------------------------------------------------------
 
-  if (myid==0) fprintf(stdout,"setup output info ...\n"); 
+  if (myid==0 && verbose>0) fprintf(stdout,"setup output info ...\n"); 
   
   // receiver
   
@@ -375,20 +365,19 @@ int main(int argc, char** argv)
 //-- allocate main var
 //-------------------------------------------------------------------------------
 
-  if (myid==0) fprintf(stdout,"allocate solver vars ...\n"); 
-  wf_el_1st_init_vars(
-      blk->siz_volume,
-      blk->number_of_levels,
-      &blk->w3d_num_of_vars,
-      &blk->w3d,
-      &blk->w3d_pos,
-      &blk->w3d_name);
+  if (myid==0 && verbose>0) fprintf(stdout,"allocate solver vars ...\n"); 
+  wf_el_1st_init_vars(blk->siz_volume,
+                      blk->number_of_levels,
+                      &blk->w3d_num_of_vars,
+                      &blk->w3d,
+                      &blk->w3d_pos,
+                      &blk->w3d_name);
 
 //-------------------------------------------------------------------------------
 //-- absorbing boundary etc auxiliary variables
 //-------------------------------------------------------------------------------
 
-  if (myid==0) fprintf(stdout,"setup absorbingg boundary ...\n"); 
+  if (myid==0 && verbose>0) fprintf(stdout,"setup absorbingg boundary ...\n"); 
   
   /*
   if (par->absorbing_boundary_exp==1) {
@@ -398,35 +387,33 @@ int main(int argc, char** argv)
   
   if (blk->abs_itype == FD_BOUNDARY_TYPE_CFSPML) {
     // set pml parameters
-    abs_set_cfspml(
-        par->cfspml_alpha_max,
-        par->cfspml_beta_max,
-        par->cfspml_velocity,
-        par->cartesian_dx,
-        blk->ni1,
-        blk->ni2,
-        blk->nj1,
-        blk->nj2,
-        blk->nk1,
-        blk->nk2,
-        blk->boundary_itype,
-        blk->abs_num_of_layers,
-        blk->abs_indx,
-        blk->abs_coefs_facepos0,
-        &(blk->abs_coefs),
-        verbose);
+    abs_set_cfspml(par->cfspml_alpha_max,
+                   par->cfspml_beta_max,
+                   par->cfspml_velocity,
+                   par->cartesian_dx,
+                   blk->ni1,
+                   blk->ni2,
+                   blk->nj1,
+                   blk->nj2,
+                   blk->nk1,
+                   blk->nk2,
+                   blk->boundary_itype,
+                   blk->abs_num_of_layers,
+                   blk->abs_indx,
+                   blk->abs_coefs_facepos0,
+                   &(blk->abs_coefs),
+                   verbose);
   
     // alloc pml vars
-    abs_init_vars_cfspml(
-        blk->number_of_levels,
-        blk->number_of_vars,
-        blk->boundary_itype, 
-        blk->abs_indx, 
-        blk->abs_vars_volsiz, 
-        blk->abs_vars_facepos0,
-        &blk->abs_vars_size_per_level,
-        &blk->abs_blk_vars,
-        myid, verbose);
+    abs_init_vars_cfspml(blk->number_of_levels,
+                         blk->number_of_vars,
+                         blk->boundary_itype, 
+                         blk->abs_indx, 
+                         blk->abs_vars_volsiz, 
+                         blk->abs_vars_facepos0,
+                         &blk->abs_vars_size_per_level,
+                         &blk->abs_blk_vars,
+                         myid, verbose);
   }
 
 //-------------------------------------------------------------------------------
@@ -438,73 +425,54 @@ int main(int argc, char** argv)
 
   if (blk->boundary_itype[5] == FD_BOUNDARY_TYPE_FREE)
   {
-    sv_eliso1st_curv_macdrp_vel_dxy2dz(
-          blk->g3d,
-          blk->m3d,
-          blk->ni1,
-          blk->ni2,
-          blk->nj1,
-          blk->nj2,
-          blk->nk1,
-          blk->nk2,
-          blk->siz_line,
-          blk->siz_volume,
-          &blk->matVx2Vz,
-          &blk->matVy2Vz,
-          myid, verbose);
+    sv_eliso1st_curv_macdrp_vel_dxy2dz(blk->g3d,
+                                       blk->m3d,
+                                       blk->ni1,
+                                       blk->ni2,
+                                       blk->nj1,
+                                       blk->nj2,
+                                       blk->nk1,
+                                       blk->nk2,
+                                       blk->siz_line,
+                                       blk->siz_slice,
+                                       blk->siz_volume,
+                                       &blk->matVx2Vz,
+                                       &blk->matVy2Vz,
+                                       myid, verbose);
   }
 
-  if (myid==0) fprintf(stdout,"start time loop ...\n"); 
+  if (myid==0 && verbose>0) fprintf(stdout,"start time loop ...\n"); 
   
-  t_start = time(NULL);
+  time_t t_start = time(NULL);
   
-  sv_eliso1st_curv_macdrp_allstep(
-            blk->w3d,
-            blk->g3d,
-            blk->m3d,
-            blk->ni1,blk->ni2,blk->nj1,blk->nj2,blk->nk1,blk->nk2,
-            blk->ni,blk->nj,blk->nk,blk->nx,blk->ny,blk->nz,
-            blk->siz_line,
-            blk->siz_slice,
-            blk->siz_volume,
-            blk->boundary_ityp,
-            blk->abs_itype,
-            blk->abs_num_of_layers,
-            blk->abs_indx,
-            blk->abs_coefs_facepos0,
-            blk->abs_coefs,
-            blk->abs_vars_volsiz,
-            blk->abs_vars_facepos0,
-            blk->abs_vars,
-            blk->matVx2Vz,
-            blk->matVy2Vz,
-            blk->num_of_force,
-            blk->force_loc_point,
-            blk->force_vec_stf,
-            blk->num_of_moment,
-            blk->moment_loc_point,
-            blk->moment_ten_rate,
-            blk->num_of_sta,
-            blk->sta_loc_point,
-            blk->sta_seismo,
-            blk->num_of_snap,
-            blk->snap_grid_indx,
-            blk->snap_time_indx,
-            fd->num_rk_stages,
-            fd->rk_a,
-            fd->rk_b,
-            fd->num_of_pair,
-            fd->fdx_max_len,fd->fdy_max_len,fd->fdz_max_len,fd->fdz_num_surf_lay,
-            fd->pair_fdx_all_info, fd->pair_fdx_all_indx, fd->pair_fdx_all_coef,
-            fd->pair_fdy_all_info, fd->pair_fdy_all_indx, fd->pair_fdy_all_coef,
-            fd->pair_fdz_all_info, fd->pair_fdz_all_indx, fd->pair_fdz_all_coef,
-            dt,nt_total,t0,
-            myid, myid2, comm,
-            par->qc_check_nan_num_of_step,
-            verbose,
-            out_dir);
+  sv_eliso1st_curv_macdrp_allstep(blk->w3d, blk->g3d, blk->m3d,
+                                  blk->ni1,blk->ni2,blk->nj1,blk->nj2,blk->nk1,blk->nk2,
+                                  blk->ni,blk->nj,blk->nk,blk->nx,blk->ny,blk->nz,
+                                  blk->siz_line, blk->siz_slice, blk->siz_volume,
+                                  blk->boundary_ityp, blk->abs_itype,
+                                  blk->abs_num_of_layers, blk->abs_indx,
+                                  blk->abs_coefs_facepos0, blk->abs_coefs,
+                                  blk->abs_vars_size_per_level,
+                                  blk->abs_vars_volsiz, blk->abs_vars_facepos0, blk->abs_vars,
+                                  blk->matVx2Vz, blk->matVy2Vz,
+                                  blk->num_of_force, blk->force_loc_point, blk->force_vec_stf,
+                                  blk->num_of_moment, blk->moment_loc_point, blk->moment_ten_rate,
+                                  blk->num_of_sta, blk->sta_loc_point, blk->sta_seismo,
+                                  blk->num_of_snap, blk->snap_grid_indx, blk->snap_time_indx,
+                                  fd->num_rk_stages, fd->rk_a, fd->rk_b,
+                                  fd->num_of_pair,
+                                  fd->fdx_max_half_len,fd->fdy_max_half_len,
+                                  fd->fdz_max_len,fd->fdz_num_surf_lay,
+                                  fd->pair_fdx_all_info, fd->pair_fdx_all_indx, fd->pair_fdx_all_coef,
+                                  fd->pair_fdy_all_info, fd->pair_fdy_all_indx, fd->pair_fdy_all_coef,
+                                  fd->pair_fdz_all_info, fd->pair_fdz_all_indx, fd->pair_fdz_all_coef,
+                                  dt,nt_total,t0,
+                                  myid, fdmpi->myid2, comm,
+                                  par->check_nan_every_nummber_of_steps,
+                                  verbose,
+                                  blk->out_dir);
   
-  t_end = time(NULL);
+  time_t t_end = time(NULL);
   
   fprintf(stdout,"\n\nRuning Time of time :%f s \n", difftime(t_end,t_start));
 

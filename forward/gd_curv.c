@@ -27,8 +27,9 @@ gd_curv_init_c3d(
    */
   
   // vars
-  float *c3d = (float *) fdlib_mem_calloc_1d_float( 
-               siz_volume * num_gird_vars, 0.0, "gd_curv_init_c3d");
+  float *c3d = (float *) fdlib_mem_calloc_1d_float(siz_volume * num_gird_vars,
+                                                   0.0,
+                                                   "gd_curv_init_c3d");
   if (c3d == NULL) {
       fprintf(stderr,"Error: failed to alloc coord vars\n");
       fflush(stderr);
@@ -36,12 +37,14 @@ gd_curv_init_c3d(
   }
   
   // position of each var
-  size_t *c3d_pos = (size_t *) fdlib_mem_calloc_1d_sizet( 
-               num_grid_vars, 0, "gd_curv_init_c3d");
+  size_t *c3d_pos = (size_t *) fdlib_mem_calloc_1d_sizet(num_grid_vars,
+                                                         0,
+                                                         "gd_curv_init_c3d");
   
   // name of each var
-  char **c3d_name = (char **) fdlib_mem_malloc_2l_char( 
-               num_grid_vars, FD_MAX_STRLEN, "gd_curv_init_c3d");
+  char **c3d_name = (char **) fdlib_mem_malloc_2l_char(num_grid_vars,
+                                                       FD_MAX_STRLEN,
+                                                       "gd_curv_init_c3d");
   
   // set value
   int ivar = GD_CURV_SEQ_X3D;
@@ -80,8 +83,9 @@ gd_curv_init_g3d(
    */
   
   // vars
-  float *g3d = (float *) fdlib_mem_calloc_1d_float( 
-               siz_volume * num_gird_vars, 0.0, "grid_curv_init_g3d");
+  float *g3d = (float *) fdlib_mem_calloc_1d_float(siz_volume * num_gird_vars,
+                                                   0.0,
+                                                   "grid_curv_init_g3d");
   if (g3d == NULL) {
       fprintf(stderr,"Error: failed to alloc metric vars\n");
       fflush(stderr);
@@ -89,12 +93,14 @@ gd_curv_init_g3d(
   }
   
   // position of each var
-  size_t *g3d_pos = (size_t *) fdlib_mem_calloc_1d_sizet( 
-               num_grid_vars, 0, "grid_curv_init_g3d");
+  size_t *g3d_pos = (size_t *) fdlib_mem_calloc_1d_sizet(num_grid_vars,
+                                                         0, 
+                                                         "grid_curv_init_g3d");
   
   // name of each var
-  char **g3d_name = (char **) fdlib_mem_malloc_2l_char( 
-               num_grid_vars, FD_MAX_STRLEN, "grid_curv_init_g3d");
+  char **g3d_name = (char **) fdlib_mem_malloc_2l_char(num_grid_vars,
+                                                       FD_MAX_STRLEN,
+                                                       "grid_curv_init_g3d");
   
   // set value
   int ivar; 

@@ -23,7 +23,7 @@ src_gen_test(
 float 
 fun_ricker(float t, float fc, float t0);
 
-int
+void
 src_get_stage_stf(
     int num_of_force,
     int *restrict force_info, // num_of_force * 6 : si,sj,sk,start_pos_in_stf,start_it, end_it

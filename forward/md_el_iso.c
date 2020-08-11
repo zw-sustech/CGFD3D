@@ -28,8 +28,9 @@ md_el_iso_init_vars(
    */
 
   // vars
-  float *m3d = (float *) fdlib_mem_calloc_1d_float( 
-               siz_volume * num_medium_vars, 0.0, "md_el_iso_init_vars");
+  float *m3d = (float *) fdlib_mem_calloc_1d_float(siz_volume * num_medium_vars,
+                                                   0.0,
+                                                   "md_el_iso_init_vars");
   if (m3d == NULL) {
       fprintf(stderr,"Error: failed to alloc medium_el_iso\n");
       fflush(stderr);
@@ -37,12 +38,14 @@ md_el_iso_init_vars(
   }
 
   // position of each var
-  size_t *m3d_pos = (size_t *) fdlib_mem_calloc_1d_sizet( 
-               num_medium_vars, 0, "medium_el_iso_init_vars");
+  size_t *m3d_pos = (size_t *) fdlib_mem_calloc_1d_sizet(num_medium_vars,
+                                                         0,
+                                                         "medium_el_iso_init_vars");
 
   // name of each var
-  char **m3d_name = (char **) fdlib_mem_malloc_2l_char( 
-               num_medium_vars, FD_MAX_STRLEN, "medium_el_iso_init_vars");
+  char **m3d_name = (char **) fdlib_mem_malloc_2l_char(num_medium_vars,
+                                                       FD_MAX_STRLEN,
+                                                       "medium_el_iso_init_vars");
 
   // init
   ivar = MD_EL_ISO_SEQ_RHO;

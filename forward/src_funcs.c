@@ -95,7 +95,7 @@ fun_ricker(float t, float fc, float t0)
  * get the stf and moment rate for one stage
  */
 
-int
+void
 src_get_stage_stf(
     int num_of_force,
     int *restrict force_info, // num_of_force * 6 : si,sj,sk,start_pos_in_stf,start_it, end_it
@@ -108,8 +108,6 @@ src_get_stage_stf(
     float *restrict moment_ten_value,
     const int myid, const int verbose)
 {
-  int ierr = 0;
-  
   for (int n=0; n<num_of_force; n++)
   {
     size_t ipos = force_info[3];
@@ -161,6 +159,4 @@ src_get_stage_stf(
       }
     }
   }
-
-  return ierr;
 }
