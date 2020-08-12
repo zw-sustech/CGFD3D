@@ -22,9 +22,10 @@ CFLAGS   := -g $(CFLAGS)
 #CFLAGS   := -O3 $(CFLAGS)
 
 #- static
-#LDFLAGS := $(NETCDF)/lib/libnetcdf.a -static $(LDFLAGS)
+#LDFLAGS := $(NETCDF)/lib/libnetcdf.a -lm -static $(LDFLAGS)
+LDFLAGS := -lm $(LDFLAGS) $(NETCDF)/lib/libnetcdf.a
 #- dynamic
-LDFLAGS := -L$(NETCDF)/lib -lnetcdf -lm $(LDFLAGS)
+#LDFLAGS := -L$(NETCDF)/lib -lnetcdf -lm $(LDFLAGS)
 
 #-------------------------------------------------------------------------------
 # target
@@ -42,7 +43,7 @@ cgfdm3d_elastic_mpi: \
 		abs_funcs.o src_funcs.o \
 		sv_eliso1st_curv_macdrp.o \
 		cgfdm3d_elastic_main.o
-	$(CC) -o $@ $(LDFLAGS) $^
+	$(CC) -o $@ $^ $(LDFLAGS)
 
 cJSON.o: lib/cJSON.c
 	${CC} -c -o $@ $(CFLAGS) $<
