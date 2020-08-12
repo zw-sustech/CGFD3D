@@ -59,7 +59,7 @@ fdlib_mem_calloc_1d_int(size_t n, int v0, char *msg)
 }
 
 size_t *
-fdlib_mem_calloc_1d_int(size_t n, size_t v0, char *msg)
+fdlib_mem_calloc_1d_sizet(size_t n, size_t v0, char *msg)
 {
   if (n <= 0 ) {
     fprintf(stderr, "Error: size=%i is negative (%s)!\n", n, msg);
@@ -78,7 +78,7 @@ fdlib_mem_calloc_1d_int(size_t n, size_t v0, char *msg)
 }
 
 float *
-fdlib_mem_calloc_1d_int(size_t n, float v0, char *msg)
+fdlib_mem_calloc_1d_float(size_t n, float v0, char *msg)
 {
   if (n <= 0 ) {
     fprintf(stderr, "Error: size=%i is negative (%s)!\n", n, msg);
@@ -108,8 +108,6 @@ fdlib_mem_free_1d(void *p)
   } else {
     free(p);
   }
-
-  return NULL;
 }
 
 /******************************************************************************
@@ -156,7 +154,6 @@ fdlib_mem_calloc_2l_int(size_t n1, size_t n2, int v0, char *msg)
   for (size_t i=0; i < n1; i++ ) 
     for (size_t j=0; j < n2; j++)
       buff[i][j] = v0;
-  }
 
   return buff;
 }
@@ -210,7 +207,6 @@ fdlib_mem_calloc_2l_sizet(size_t n1, size_t n2, size_t v0, char *msg)
   for (size_t i=0; i < n1; i++ ) 
     for (size_t j=0; j < n2; j++)
       buff[i][j] = v0;
-  }
 
   return buff;
 }
@@ -264,7 +260,6 @@ fdlib_mem_calloc_2l_float(size_t n1, size_t n2, float v0, char *msg)
   for (size_t i=0; i < n1; i++ ) 
     for (size_t j=0; j < n2; j++)
       buff[i][j] = v0;
-  }
 
   return buff;
 }
@@ -324,7 +319,7 @@ fdlib_mem_free_2l_char(char **p, size_t n1, char *msg)
 
 // int
 int ***
-fdlib_mem_malloc_3l_int(size_t n1, size_t n2, size_t, n3, char *msg)
+fdlib_mem_malloc_3l_int(size_t n1, size_t n2, size_t n3, char *msg)
 {
   int ***buff;
   
@@ -373,7 +368,6 @@ fdlib_mem_calloc_3l_int(size_t n1, size_t n2, size_t n3, int v0, char *msg)
     for (size_t j=0; j < n2; j++)
       for (size_t k=0; k < n3; k++)
        buff[i][j][k] = v0;
-  }
 
   return buff;
 }
@@ -392,7 +386,7 @@ fdlib_mem_free_3l_int(int ***p, size_t n1, size_t n2, char *msg)
 
 // size_t
 size_t ***
-fdlib_mem_malloc_3l_sizet(size_t n1, size_t n2, size_t, n3, char *msg)
+fdlib_mem_malloc_3l_sizet(size_t n1, size_t n2, size_t n3, char *msg)
 {
   size_t ***buff;
   
@@ -441,7 +435,6 @@ fdlib_mem_calloc_3l_sizet(size_t n1, size_t n2, size_t n3, size_t v0, char *msg)
     for (size_t j=0; j < n2; j++)
       for (size_t k=0; k < n3; k++)
        buff[i][j][k] = v0;
-  }
 
   return buff;
 }
@@ -460,7 +453,7 @@ fdlib_mem_free_3l_sizet(size_t ***p, size_t n1, size_t n2, char *msg)
 
 // float
 float ***
-fdlib_mem_malloc_3l_float(size_t n1, size_t n2, size_t, n3, char *msg)
+fdlib_mem_malloc_3l_float(size_t n1, size_t n2, size_t n3, char *msg)
 {
   float ***buff;
   
@@ -509,7 +502,6 @@ fdlib_mem_calloc_3l_float(size_t n1, size_t n2, size_t n3, float v0, char *msg)
     for (size_t j=0; j < n2; j++)
       for (size_t k=0; k < n3; k++)
        buff[i][j][k] = v0;
-  }
 
   return buff;
 }
@@ -528,7 +520,7 @@ fdlib_mem_free_3l_float(float ***p, size_t n1, size_t n2, char *msg)
 
 // char
 char ***
-fdlib_mem_malloc_3l_char(size_t n1, size_t n2, size_t, n3, char *msg)
+fdlib_mem_malloc_3l_char(size_t n1, size_t n2, size_t n3, char *msg)
 {
   char ***buff;
   
@@ -585,7 +577,7 @@ fdlib_mem_free_3l_char(char ***p, size_t n1, size_t n2, char *msg)
 
 // int
 int ****
-fdlib_mem_malloc_4l_int(size_t n1, size_t n2, size_t, n3, size_t n4, char *msg)
+fdlib_mem_malloc_4l_int(size_t n1, size_t n2, size_t n3, size_t n4, char *msg)
 {
   int ****buff;
   
@@ -645,7 +637,6 @@ fdlib_mem_calloc_4l_int(size_t n1, size_t n2, size_t n3, size_t n4, int v0, char
       for (size_t k=0; k < n3; k++)
         for (size_t m=0; m < n4; m++)
        buff[i][j][k][m] = v0;
-  }
 
   return buff;
 }
@@ -672,7 +663,7 @@ fdlib_mem_free_4l_int(int ****p, size_t n1, size_t n2, size_t n3, char *msg)
 
 // size_t
 size_t ****
-fdlib_mem_malloc_4l_sizet(size_t n1, size_t n2, size_t, n3, size_t n4, char *msg)
+fdlib_mem_malloc_4l_sizet(size_t n1, size_t n2, size_t n3, size_t n4, char *msg)
 {
   size_t ****buff;
   
@@ -732,7 +723,6 @@ fdlib_mem_calloc_4l_sizet(size_t n1, size_t n2, size_t n3, size_t n4, size_t v0,
       for (size_t k=0; k < n3; k++)
         for (size_t m=0; m < n4; m++)
        buff[i][j][k][m] = v0;
-  }
 
   return buff;
 }
@@ -759,7 +749,7 @@ fdlib_mem_free_4l_sizet(size_t ****p, size_t n1, size_t n2, size_t n3, char *msg
 
 // float
 float ****
-fdlib_mem_malloc_4l_float(size_t n1, size_t n2, size_t, n3, size_t n4, char *msg)
+fdlib_mem_malloc_4l_float(size_t n1, size_t n2, size_t n3, size_t n4, char *msg)
 {
   float ****buff;
   
@@ -819,7 +809,6 @@ fdlib_mem_calloc_4l_float(size_t n1, size_t n2, size_t n3, size_t n4, float v0, 
       for (size_t k=0; k < n3; k++)
         for (size_t m=0; m < n4; m++)
        buff[i][j][k][m] = v0;
-  }
 
   return buff;
 }
@@ -846,7 +835,7 @@ fdlib_mem_free_4l_float(float ****p, size_t n1, size_t n2, size_t n3, char *msg)
 
 // char
 char ****
-fdlib_mem_malloc_4l_char(size_t n1, size_t n2, size_t, n3, size_t n4, char *msg)
+fdlib_mem_malloc_4l_char(size_t n1, size_t n2, size_t n3, size_t n4, char *msg)
 {
   char ****buff;
   
