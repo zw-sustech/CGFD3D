@@ -7,16 +7,19 @@
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 #include "netcdf.h"
+
 #include "fdlib_mem.h"
 #include "fdlib_math.h"
+#include "fd_t.h"
 #include "gd_curv.h"
 
 void 
 gd_curv_init_c3d(
     size_t siz_volume,
-    int *number_of_vars,
+    int *c3d_num_of_vars,
     float  **p_c3d,
     size_t **p_c3d_pos,
     char  ***p_c3d_name)
@@ -27,13 +30,12 @@ gd_curv_init_c3d(
    */
   
   // vars
-  float *c3d = (float *) fdlib_mem_calloc_1d_float(siz_volume * num_gird_vars,
+  float *c3d = (float *) fdlib_mem_calloc_1d_float(siz_volume * num_grid_vars,
                                                    0.0,
                                                    "gd_curv_init_c3d");
   if (c3d == NULL) {
       fprintf(stderr,"Error: failed to alloc coord vars\n");
       fflush(stderr);
-      ierr = -1;
   }
   
   // position of each var
@@ -69,7 +71,7 @@ gd_curv_init_c3d(
 void 
 gd_curv_init_g3d(
     size_t siz_volume,
-    int *number_of_vars,
+    int *g3d_num_of_vars,
     float  **p_g3d,
     size_t **p_g3d_pos,
     char  ***p_g3d_name)
@@ -83,13 +85,12 @@ gd_curv_init_g3d(
    */
   
   // vars
-  float *g3d = (float *) fdlib_mem_calloc_1d_float(siz_volume * num_gird_vars,
+  float *g3d = (float *) fdlib_mem_calloc_1d_float(siz_volume * num_grid_vars,
                                                    0.0,
                                                    "grid_curv_init_g3d");
   if (g3d == NULL) {
       fprintf(stderr,"Error: failed to alloc metric vars\n");
       fflush(stderr);
-      ierr = -1;
   }
   
   // position of each var
@@ -165,19 +166,31 @@ gd_curv_metric_import(float *restrict g3d, size_t *restrict g3d_pos, char **rest
   // read in nc
   int ncid, varid;
   int ierr = nc_open(in_file, NC_NOWRITE, &ncid);
-  if (ierr != NC_NOERR) errh(ierr);
+  if (ierr != NC_NOERR) {
+    fprintf(stderr,"nc error: %s\n", nc_strerror(ierr));
+    exit(-1);
+  }
   
   for (int ivar=0; ivar<number_of_vars; ivar++) {
       ierr = nc_inq_varid(ncid, g3d_name[ivar], &varid);
-      if (ierr != NC_NOERR) errh(ierr);
+      if (ierr != NC_NOERR){
+        fprintf(stderr,"nc error: %s\n", nc_strerror(ierr));
+        exit(-1);
+      }
   
-      ierr = nc_get_vara_float(ncid,varid,g3d+g3d_pos[ivar]);
-      if (ierr != NC_NOERR) errh(ierr);
+      ierr = nc_get_var_float(ncid,varid,g3d+g3d_pos[ivar]);
+      if (ierr != NC_NOERR){
+        fprintf(stderr,"nc error: %s\n", nc_strerror(ierr));
+        exit(-1);
+      }
   }
   
   // close file
   ierr = nc_close(ncid);
-  if (ierr != NC_NOERR) errh(ierr);
+  if (ierr != NC_NOERR){
+    fprintf(stderr,"nc error: %s\n", nc_strerror(ierr));
+    exit(-1);
+  }
 }
 
 void
@@ -191,19 +204,31 @@ gd_curv_coord_import(float *restrict g3d, size_t *restrict g3d_pos, char **restr
   // read in nc
   int ncid, varid;
   int ierr = nc_open(in_file, NC_NOWRITE, &ncid);
-  if (ierr != NC_NOERR) errh(ierr);
+  if (ierr != NC_NOERR){
+    fprintf(stderr,"nc error: %s\n", nc_strerror(ierr));
+    exit(-1);
+  }
   
   for (int ivar=0; ivar<number_of_vars; ivar++) {
       ierr = nc_inq_varid(ncid, g3d_name[ivar], &varid);
-      if (ierr != NC_NOERR) errh(ierr);
+      if (ierr != NC_NOERR){
+        fprintf(stderr,"nc error: %s\n", nc_strerror(ierr));
+        exit(-1);
+      }
   
-      ierr = nc_get_vara_float(ncid,varid,g3d+g3d_pos[ivar]);
-      if (ierr != NC_NOERR) errh(ierr);
+      ierr = nc_get_var_float(ncid,varid,g3d+g3d_pos[ivar]);
+      if (ierr != NC_NOERR){
+        fprintf(stderr,"nc error: %s\n", nc_strerror(ierr));
+        exit(-1);
+      }
   }
   
   // close file
   ierr = nc_close(ncid);
-  if (ierr != NC_NOERR) errh(ierr);
+  if (ierr != NC_NOERR){
+    fprintf(stderr,"nc error: %s\n", nc_strerror(ierr));
+    exit(-1);
+  }
 }
 
 //
@@ -253,23 +278,23 @@ gd_curv_cal_metric(
     for (size_t j = nj1; j <= nj2; j++) {
       for (size_t i = ni1; i <= ni2; i++)
       {
-        iptr = i + j * siz_line + k * siz_slice;
+        size_t iptr = i + j * siz_line + k * siz_slice;
 
         x_xi = 0.0; x_et = 0.0; x_zt = 0.0;
         y_xi = 0.0; y_et = 0.0; y_zt = 0.0;
         z_xi = 0.0; z_et = 0.0; z_zt = 0.0;
 
-        M_FD_SHIFT(x_xi, x3d, iptr, fd_length, lfd_shift, lfd_coef, n_fd);
-        M_FD_SHIFT(y_xi, y3d, iptr, fd_length, lfd_shift, lfd_coef, n_fd);
-        M_FD_SHIFT(z_xi, z3d, iptr, fd_length, lfd_shift, lfd_coef, n_fd);
+        M_FD_SHIFT(x_xi, x3d, iptr, fd_len, lfd_shift, lfd_coef, n_fd);
+        M_FD_SHIFT(y_xi, y3d, iptr, fd_len, lfd_shift, lfd_coef, n_fd);
+        M_FD_SHIFT(z_xi, z3d, iptr, fd_len, lfd_shift, lfd_coef, n_fd);
 
-        M_FD_SHIFT(x_ei, x3d, iptr, fd_length, lfd_shift, lfd_coef, n_fd);
-        M_FD_SHIFT(y_ei, y3d, iptr, fd_length, lfd_shift, lfd_coef, n_fd);
-        M_FD_SHIFT(z_ei, z3d, iptr, fd_length, lfd_shift, lfd_coef, n_fd);
+        M_FD_SHIFT(x_et, x3d, iptr, fd_len, lfd_shift, lfd_coef, n_fd);
+        M_FD_SHIFT(y_et, y3d, iptr, fd_len, lfd_shift, lfd_coef, n_fd);
+        M_FD_SHIFT(z_et, z3d, iptr, fd_len, lfd_shift, lfd_coef, n_fd);
 
-        M_FD_SHIFT(x_zt, x3d, iptr, fd_length, lfd_shift, lfd_coef, n_fd);
-        M_FD_SHIFT(y_zt, y3d, iptr, fd_length, lfd_shift, lfd_coef, n_fd);
-        M_FD_SHIFT(z_zt, z3d, iptr, fd_length, lfd_shift, lfd_coef, n_fd);
+        M_FD_SHIFT(x_zt, x3d, iptr, fd_len, lfd_shift, lfd_coef, n_fd);
+        M_FD_SHIFT(y_zt, y3d, iptr, fd_len, lfd_shift, lfd_coef, n_fd);
+        M_FD_SHIFT(z_zt, z3d, iptr, fd_len, lfd_shift, lfd_coef, n_fd);
 
         vec1[0] = x_xi; vec1[1] = y_xi; vec1[2] = z_xi;
         vec2[0] = x_et; vec2[1] = y_et; vec2[2] = z_et;
@@ -280,19 +305,19 @@ gd_curv_cal_metric(
         jac3d[iptr]  = jac;
 
         fdlib_math_cross_product(vec2, vec3, vecg);
-        xi_x[iptr] = vecg[0] / jac_val;
-        xi_y[iptr] = vecg[1] / jac_val;
-        xi_z[iptr] = vecg[2] / jac_val;
+        xi_x[iptr] = vecg[0] / jac;
+        xi_y[iptr] = vecg[1] / jac;
+        xi_z[iptr] = vecg[2] / jac;
 
         fdlib_math_cross_product(vec3, vec1, vecg);
-        eta_x[iptr] = vecg[0] / jac_val;
-        eta_y[iptr] = vecg[1] / jac_val;
-        eta_z[iptr] = vecg[2] / jac_val;
+        et_x[iptr] = vecg[0] / jac;
+        et_y[iptr] = vecg[1] / jac;
+        et_z[iptr] = vecg[2] / jac;
 
         fdlib_math_cross_product(vec1, vec2, vecg);
-        zeta_x[iptr] = vecg[0] / jac_val;
-        zeta_y[iptr] = vecg[1] / jac_val;
-        zeta_z[iptr] = vecg[2] / jac_val;
+        zt_x[iptr] = vecg[0] / jac;
+        zt_y[iptr] = vecg[1] / jac;
+        zt_z[iptr] = vecg[2] / jac;
       }
     }
   }
@@ -304,7 +329,7 @@ gd_curv_cal_metric(
 void
 gd_curv_gen_cart(
     float *restrict c3d,
-    size_t siz_voluem,
+    size_t siz_volume,
     size_t nx, float dx, float x0,
     size_t ny, float dy, float y0,
     size_t nz, float dz, float z0)

@@ -26,10 +26,10 @@ fun_ricker(float t, float fc, float t0);
 void
 src_get_stage_stf(
     int num_of_force,
-    int *restrict force_info, // num_of_force * 6 : si,sj,sk,start_pos_in_stf,start_it, end_it
+    size_t *restrict force_info, // num_of_force * 6 : si,sj,sk,start_pos_in_stf,start_it, end_it
     float *restrict force_vec_stf,
     int num_of_moment,
-    int *restrict moment_info, // num_of_force * 6 : si,sj,sk,start_pos_in_rate,start_it, end_it
+    size_t *restrict moment_info, // num_of_force * 6 : si,sj,sk,start_pos_in_rate,start_it, end_it
     float *restrict moment_ten_rate,
     int it, int istage, int num_of_stages,
     float *restrict force_vec_value,

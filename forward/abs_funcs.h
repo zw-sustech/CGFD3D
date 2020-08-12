@@ -38,7 +38,7 @@ abs_set_cfspml(
     size_t nk2,
     int *boundary_itype, // input
     int *abs_num_of_layers, // output
-    size_t *abs_indx;
+    size_t *abs_indx,
     size_t *abs_coefs_facepos0,
     float **p_abs_coefs,
     int verbose);
@@ -53,7 +53,7 @@ abs_init_vars_cfspml(
     size_t *restrict abs_vars_volsiz,
     size_t *restrict abs_vars_facepos0,
     size_t *abs_vars_size_per_level,
-    float *restrict p_abs_blk_vars
+    float **restrict p_abs_vars,
     const int myid, const int verbose);
 
 #endif

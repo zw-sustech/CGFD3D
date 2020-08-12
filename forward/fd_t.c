@@ -258,6 +258,9 @@ fd_set_macdrp(struct fd_t *fd)
     fd->fd_indx[i] = mac_center_all_indx[fd_pos+i];
     fd->fd_coef[i] = mac_center_all_coef[fd_pos+i];
   }
+  fd->fd_len = fd_len;
+  fd->fd_half_len = mac_center_all_info[3][2];
+  fd->fd_nghosts  = fd->fd_half_len;
 }
 
 //

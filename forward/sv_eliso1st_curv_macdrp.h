@@ -27,14 +27,14 @@ sv_eliso1st_curv_macdrp_allstep(
     float *matVy2Vz, //
     // source term
     int num_of_force,
-    int *restrict force_info, // num_of_force * 6 : si,sj,sk,start_pos_in_stf,start_it, end_it
+    size_t *restrict force_info, // num_of_force * 6 : si,sj,sk,start_pos_in_stf,start_it, end_it
     float *restrict force_vec_stf,
     int num_of_moment,
-    int *restrict moment_info, // num_of_force * 6 : si,sj,sk,start_pos_in_rate,start_it, end_it
+    size_t *restrict moment_info, // num_of_force * 6 : si,sj,sk,start_pos_in_rate,start_it, end_it
     float *restrict moment_ten_rate,
     // io
-    int num_of_sta, int *restrict sta_loc_point, float *restrict sta_seismo,
-    int num_of_snap, int *restrict snap_grid_indx, int *restrict snap_time_indx,
+    int num_of_sta, size_t *restrict sta_loc_point, float *restrict sta_seismo,
+    int num_of_snap, size_t *restrict snap_grid_indx, int *restrict snap_time_indx,
     // scheme
     int num_rk_stages, float *rk_a, float *rk_b, int num_of_pairs, 
     size_t fdx_max_half_len, size_t fdy_max_half_len,
@@ -72,10 +72,10 @@ sv_eliso1st_curv_macdrp_onestage(
     float *matVx2Vz, float *matVy2Vz, //
     // source term
     int num_of_force,
-    int *restrict force_loc_point,
+    size_t *restrict force_loc_point,
     float *restrict force_vec_value, // only for cur stage, size: num_of_force
     int num_of_moment,
-    int *restrict moment_loc_point,
+    size_t *restrict moment_loc_point,
     float *restrict moment_ten_value,
     // include different order/stentil
     int fdx_max_half_len, int fdy_max_half_len,
@@ -221,10 +221,10 @@ sv_eliso1st_curv_macdrp_rhs_src(
     float *restrict jac3d, float *restrict slw3d,
     size_t siz_line, size_t siz_slice,
     int num_of_force,
-    int *restrict force_loc_point,
+    size_t *restrict force_info,
     float *restrict force_vec_value,
     int num_of_moment,
-    int *restrict moment_loc_point,
+    size_t *restrict moment_info,
     float *restrict moment_ten_value, // size: num_of_moment * 6
     const int myid, const int verbose);
 

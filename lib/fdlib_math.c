@@ -80,8 +80,8 @@ fdlib_math_dist_point2plane(float x0[3], float x1[3], float x2[3], float x3[3])
 
   fdlib_math_cross_product(x12, x13, p);
   float d = fdlib_math_dot_product(p, x1);
-  float L = (float)fabs( dot_product(p, x0) - d);
-  L = L/sqrtf(dot_product(p, p));
+  float L = (float)fabs( fdlib_math_dot_product(p, x0) - d);
+  L = L/sqrtf(fdlib_math_dot_product(p, p));
 
   return L;
 }

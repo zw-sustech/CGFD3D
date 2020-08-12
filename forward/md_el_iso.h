@@ -30,4 +30,9 @@ md_el_iso_gen_test(
     size_t siz_slice,
     size_t siz_volume);
 
+void
+md_el_iso_rho_to_slow(
+    float *restrict m3d,
+    size_t siz_volume);
+
 #endif

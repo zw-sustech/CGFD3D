@@ -17,9 +17,11 @@
 void
 par_mpi_get(char *par_fname, int myid, MPI_Comm comm, struct par_t *par, int verbose)
 {
+  char *str;
+
   if (myid==0)
   {
-    FILE fp=fopen(par_fname,"r");
+    FILE *fp=fopen(par_fname,"r");
     if (!fp) {
       fprintf(stderr,"Error: can't open par file: %s\n", par_fname);
       MPI_Finalize();
@@ -29,10 +31,10 @@ par_mpi_get(char *par_fname, int myid, MPI_Comm comm, struct par_t *par, int ver
     long len = ftell(fp);
 
     // bcast len to all nodes
-    MPI_Bcast(len, 1, MPI_LONG, 0, comm);
+    MPI_Bcast(&len, 1, MPI_LONG, 0, comm);
 
     fseek(fp, 0, SEEK_SET);
-    char *str = (char*)malloc(len+1);
+    str = (char*)malloc(len+1);
     fread(str, 1, len, fp);
     fclose(fp);
 
@@ -43,9 +45,9 @@ par_mpi_get(char *par_fname, int myid, MPI_Comm comm, struct par_t *par, int ver
   {
     long len;
     // get len 
-    MPI_Bcast(len, 1, MPI_LONG, 0, comm);
+    MPI_Bcast(&len, 1, MPI_LONG, 0, comm);
 
-    char *str = (char*)malloc(len+1);
+    str = (char*)malloc(len+1);
     // get str
     MPI_Bcast(str, len+1, MPI_CHAR, 0, comm);
   }
@@ -64,7 +66,7 @@ par_read_from_file(char *par_fname, int myid, MPI_Comm comm, struct par_t *par, 
   //
   // read whole file inot str
   //
-  FILE *fp = fopen(par_file_name,"r");
+  FILE *fp = fopen(par_fname,"r");
 
   fseek(fp, 0, SEEK_END);
   long len = ftell(fp);
@@ -82,10 +84,10 @@ par_read_from_file(char *par_fname, int myid, MPI_Comm comm, struct par_t *par, 
  * funcs to get par from alread read in str
  */
 void 
-par_read_from_str(char *str, struct par_struct *par)
+par_read_from_str(char *str, struct par_t *par)
 {
   // allocate
-  par->boundary_type_name = (char *)malloc(FD_NDIM_2 * sizeof(char*));
+  par->boundary_type_name = (char **)malloc(FD_NDIM_2 * sizeof(char*));
   for (int i=0; i<FD_NDIM_2; i++) {
     par->boundary_type_name[i] = (char *)malloc(10*sizeof(char));
   }
@@ -360,13 +362,13 @@ par_print(struct par_t *par)
           par->abs_num_of_layers[3],
           par->abs_num_of_layers[4],
           par->abs_num_of_layers[5]);
-  fprintf(stdout, " abs_velocity = %10.2f%10.2f%10.2f%10.2f%10.2f%10.2f\n", 
-          par->abs_velocity[0],
-          par->abs_velocity[1],
-          par->abs_velocity[2],
-          par->abs_velocity[3],
-          par->abs_velocity[4],
-          par->abs_velocity[5]);
+  fprintf(stdout, " cfspml_velocity = %10.2f%10.2f%10.2f%10.2f%10.2f%10.2f\n", 
+          par->cfspml_velocity[0],
+          par->cfspml_velocity[1],
+          par->cfspml_velocity[2],
+          par->cfspml_velocity[3],
+          par->cfspml_velocity[4],
+          par->cfspml_velocity[5]);
   fprintf(stdout, " cfspml_alpha_max = %10.2f%10.2f%10.2f%10.2f%10.2f%10.2f\n", 
           par->cfspml_alpha_max[0],
           par->cfspml_alpha_max[1],

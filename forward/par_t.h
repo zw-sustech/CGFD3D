@@ -62,13 +62,13 @@ struct par_t{
   char medium_in_fname[PAR_MAX_STRLEN];
 
   // boundary, FD_NDIM_2
-  char **boundary_type_name
+  char **boundary_type_name;
   
   // abs
   int abs_num_of_layers[FD_NDIM_2];
-  float cfspml_alpha_max[FD_NDIM][2];
-  float cfspml_beta_max[FD_NDIM][2];
-  float cfspml_velocity[FD_NDIM][2];
+  float cfspml_alpha_max[FD_NDIM_2];
+  float cfspml_beta_max[FD_NDIM_2];
+  float cfspml_velocity[FD_NDIM_2];
 
   // source
   char source_in_fname[PAR_MAX_STRLEN];
@@ -86,7 +86,7 @@ void
 par_read_from_file(char *par_fname, int myid, MPI_Comm comm, struct par_t *par, int verbose);
 
 void 
-par_read_from_str(char *str, struct par_struct *par);
+par_read_from_str(char *str, struct par_t *par);
 
 void
 par_print(struct par_t *par);

@@ -20,7 +20,10 @@
 #define CONSPD 2.0f // power for d
 #define CONSPB 2.0f // power for beta
 #define CONSPA 1.0f // power for alpha
-//#define PI 3.1415926535898
+
+#ifndef PI
+#define PI 3.1415926535898
+#endif
 
 /*
  * set up abs_coefs for cfs-pml
@@ -75,7 +78,7 @@ abs_set_cfspml(
     size_t nk2,
     int *boundary_itype, // input
     int *abs_num_of_layers, // output
-    size_t *abs_indx;
+    size_t *abs_indx,
     size_t *abs_coefs_facepos0,
     float **p_abs_coefs,
     int verbose)
@@ -96,7 +99,7 @@ abs_set_cfspml(
 
   // alloc coef
   size_of_coef *= num_of_coefs;
-  float *abs_coefs = (float *) fdlib_mem_malloc_1d_float(size_of_coef,"abs_set_cfspml");
+  float *abs_coefs = (float *) fdlib_mem_malloc_1d(size_of_coef*sizeof(float),"abs_set_cfspml");
 
   // for each face
   for (int i_dim=0; i_dim<FD_NDIM_2; i_dim++)
@@ -107,7 +110,7 @@ abs_set_cfspml(
       abs_indx[i_dim * FD_NDIM_2 + j] = 0;
 
       // end size
-      if (j%2==1) abs_indx[i_dim][j] = -1;
+      if (j%2==1) abs_indx[i_dim * FD_NDIM_2 + j] = -1;
     }
 
     if (boundary_itype[i_dim] == FD_BOUNDARY_TYPE_CFSPML && abs_num_of_layers[i_dim]>0)
@@ -188,7 +191,7 @@ abs_init_vars_cfspml(
     size_t *restrict abs_vars_volsiz,
     size_t *restrict abs_vars_facepos0,
     size_t *abs_vars_size_per_level,
-    float *restrict p_abs_blk_vars
+    float **restrict p_abs_vars,
     const int myid, const int verbose)
 {
     size_t siz_level = 0;

@@ -19,6 +19,8 @@
 #include "gd_curv.h"
 #include "md_el_iso.h"
 #include "wf_el_1st.h"
+#include "abs_funcs.h"
+#include "src_funcs.h"
 #include "sv_eliso1st_curv_macdrp.h"
 
 int main(int argc, char** argv)
@@ -57,12 +59,12 @@ int main(int argc, char** argv)
     }
 
     // bcast verbose to all nodes
-    MPI_Bcast(verbose, 1, MPI_INT, 0, comm);
+    MPI_Bcast(&verbose, 1, MPI_INT, 0, comm);
   }
   else
   {
     // get verbose from id 0
-    MPI_Bcast(verbose, 1, MPI_INT, 0, comm);
+    MPI_Bcast(&verbose, 1, MPI_INT, 0, comm);
   }
 
   if (myid==0 && verbose>0) fprintf(stdout,"comm=%d, size=%d\n", comm, mpi_size); 
@@ -107,7 +109,7 @@ int main(int argc, char** argv)
 // init blk
 //-------------------------------------------------------------------------------
 
-  struct fd_blk_t *blk = (struct blk_t *) malloc(sizeof(struct blk_t));
+  struct fd_blk_t *blk = (struct fd_blk_t *) malloc(sizeof(struct fd_blk_t));
 
   // set parmeters of domain size
   if (myid==0 && verbose>0) fprintf(stdout,"set slocal/global grid parameters ...\n"); 
@@ -119,7 +121,7 @@ int main(int argc, char** argv)
               par->number_of_mpiprocs_x,
               par->number_of_mpiprocs_y,
               par->boundary_type_name,
-              par->abs_number_of_layers,
+              par->abs_num_of_layers,
               fd->fdx_nghosts,
               fd->fdy_nghosts,
               fd->fdz_nghosts,
@@ -164,10 +166,16 @@ int main(int argc, char** argv)
   // if cartesian coord
   if (par->coord_by_cartesian==1)
   {
-      gd_curv_gen_cart(blk->c3d, blk->nx, blk->ny, blk->nz, blk->siz_volume,
-          blk->nx, par->grid_dx, par->grid_x0 + (blk->gni - fd->fdx_nghosts) * par->grid_dx,
-          blk->ny, par->grid_dy, par->grid_y0 + (blk->gnj - fd->fdy_nghosts) * par->grid_dy,
-          blk->nz, par->grid_dz, par->grid_z0 + (blk->gnk - fd->fdz_nghosts) * par->grid_dz);
+      gd_curv_gen_cart(blk->c3d, blk->siz_volume,
+                       blk->nx,
+                       par->cartesian_grid_dx,
+                       par->cartesian_grid_x0 + (blk->gni1 - fd->fdx_nghosts) * par->cartesian_grid_dx,
+                       blk->ny,
+                       par->cartesian_grid_dy,
+                       par->cartesian_grid_y0 + (blk->gnj1 - fd->fdy_nghosts) * par->cartesian_grid_dy,
+                       blk->nz,
+                       par->cartesian_grid_dz,
+                       par->cartesian_grid_z0 + (blk->gnk1 - fd->fdz_nghosts) * par->cartesian_grid_dz);
   }
   /*
   // if vmap coord
@@ -205,10 +213,6 @@ int main(int argc, char** argv)
   if (par->metric_by_import==0)
   {
     if (myid==0 && verbose>0) fprintf(stdout,"calculate metrics ...\n"); 
-    size_t fd_len   = fd->mac_center_all_info[3][1];
-    size_t fd_pos   = fd->mac_center_all_info[3][0];
-    size_t *fd_indx = fd->mac_center_all_indx+fd_pos;
-    float  *fd_coef = fd->mac_center_all_coef+fd_pos;
 
     gd_curv_cal_metric(blk->c3d,
                        blk->g3d,
@@ -221,10 +225,9 @@ int main(int argc, char** argv)
                        blk->siz_line,
                        blk->siz_slice,
                        blk->siz_volume,
-                       fd_len,
-                       fd_indx,
-                       fd_coef
-                       );
+                       fd->fd_len,
+                       fd->fd_indx,
+                       fd->fd_coef);
 
     /*
     if (myid==0) fprintf(stdout,"exchange metrics ...\n"); 
@@ -264,8 +267,8 @@ int main(int argc, char** argv)
                        blk->c3d+GD_CURV_SEQ_Y3D * blk->siz_volume,
                        blk->c3d+GD_CURV_SEQ_Z3D * blk->siz_volume,
                        blk->nx,
-                       blk->ny
-                       blk->nz
+                       blk->ny,
+                       blk->nz,
                        blk->siz_line,
                        blk->siz_slice,
                        blk->siz_volume);
@@ -338,7 +341,7 @@ int main(int argc, char** argv)
                &blk->force_info,
                &blk->force_vec_stf,
                &blk->num_of_moment,
-               &blk->moment_loc_point,
+               &blk->moment_info,
                &blk->moment_ten_rate,
                verbose);
   
@@ -367,7 +370,7 @@ int main(int argc, char** argv)
 
   if (myid==0 && verbose>0) fprintf(stdout,"allocate solver vars ...\n"); 
   wf_el_1st_init_vars(blk->siz_volume,
-                      blk->number_of_levels,
+                      blk->w3d_num_of_levels,
                       &blk->w3d_num_of_vars,
                       &blk->w3d,
                       &blk->w3d_pos,
@@ -390,7 +393,7 @@ int main(int argc, char** argv)
     abs_set_cfspml(par->cfspml_alpha_max,
                    par->cfspml_beta_max,
                    par->cfspml_velocity,
-                   par->cartesian_dx,
+                   par->cartesian_grid_dx,
                    blk->ni1,
                    blk->ni2,
                    blk->nj1,
@@ -405,14 +408,14 @@ int main(int argc, char** argv)
                    verbose);
   
     // alloc pml vars
-    abs_init_vars_cfspml(blk->number_of_levels,
-                         blk->number_of_vars,
+    abs_init_vars_cfspml(blk->w3d_num_of_levels,
+                         blk->w3d_num_of_vars,
                          blk->boundary_itype, 
                          blk->abs_indx, 
                          blk->abs_vars_volsiz, 
                          blk->abs_vars_facepos0,
                          &blk->abs_vars_size_per_level,
-                         &blk->abs_blk_vars,
+                         &blk->abs_vars,
                          myid, verbose);
   }
 
@@ -449,18 +452,18 @@ int main(int argc, char** argv)
                                   blk->ni1,blk->ni2,blk->nj1,blk->nj2,blk->nk1,blk->nk2,
                                   blk->ni,blk->nj,blk->nk,blk->nx,blk->ny,blk->nz,
                                   blk->siz_line, blk->siz_slice, blk->siz_volume,
-                                  blk->boundary_ityp, blk->abs_itype,
+                                  blk->boundary_itype, blk->abs_itype,
                                   blk->abs_num_of_layers, blk->abs_indx,
                                   blk->abs_coefs_facepos0, blk->abs_coefs,
                                   blk->abs_vars_size_per_level,
                                   blk->abs_vars_volsiz, blk->abs_vars_facepos0, blk->abs_vars,
                                   blk->matVx2Vz, blk->matVy2Vz,
-                                  blk->num_of_force, blk->force_loc_point, blk->force_vec_stf,
-                                  blk->num_of_moment, blk->moment_loc_point, blk->moment_ten_rate,
+                                  blk->num_of_force, blk->force_info, blk->force_vec_stf,
+                                  blk->num_of_moment, blk->moment_info, blk->moment_ten_rate,
                                   blk->num_of_sta, blk->sta_loc_point, blk->sta_seismo,
                                   blk->num_of_snap, blk->snap_grid_indx, blk->snap_time_indx,
                                   fd->num_rk_stages, fd->rk_a, fd->rk_b,
-                                  fd->num_of_pair,
+                                  fd->num_of_pairs,
                                   fd->fdx_max_half_len,fd->fdy_max_half_len,
                                   fd->fdz_max_len,fd->fdz_num_surf_lay,
                                   fd->pair_fdx_all_info, fd->pair_fdx_all_indx, fd->pair_fdx_all_coef,

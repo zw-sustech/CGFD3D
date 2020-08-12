@@ -10,6 +10,7 @@
 
 #include "fdlib_math.h"
 #include "fdlib_mem.h"
+#include "fd_t.h"
 #include "src_funcs.h"
 
 /*
@@ -84,8 +85,9 @@ src_gen_test(
 float 
 fun_ricker(float t, float fc, float t0)
 {
-    float f0 = sqrtf(PI)/2.0;
-    float u = (t-t0)*2.0*PI*fc;
+    float pi = acos(-1.0);
+    float f0 = sqrtf(pi)/2.0;
+    float u = (t-t0)*2.0*pi*fc;
     float v = (u*u/4-0.5)*exp(-u*u/4)*f0;
 
     return v;
@@ -98,10 +100,10 @@ fun_ricker(float t, float fc, float t0)
 void
 src_get_stage_stf(
     int num_of_force,
-    int *restrict force_info, // num_of_force * 6 : si,sj,sk,start_pos_in_stf,start_it, end_it
+    size_t *restrict force_info, // num_of_force * 6 : si,sj,sk,start_pos_in_stf,start_it, end_it
     float *restrict force_vec_stf,
     int num_of_moment,
-    int *restrict moment_info, // num_of_force * 6 : si,sj,sk,start_pos_in_rate,start_it, end_it
+    size_t *restrict moment_info, // num_of_force * 6 : si,sj,sk,start_pos_in_rate,start_it, end_it
     float *restrict moment_ten_rate,
     int it, int istage, int num_of_stages,
     float *restrict force_vec_value,
@@ -115,9 +117,9 @@ src_get_stage_stf(
     size_t it2  = force_info[5];
     size_t nt_force = it2 - it1 + 1;
 
-    int* ptr_force = force_vec_stf + ipos;
+    float *ptr_force = force_vec_stf + ipos;
 
-    for (icmp=0; icmp<FD_NDIM; icmp++)
+    for (int icmp=0; icmp<FD_NDIM; icmp++)
     {
       size_t iptr_value = n * FD_NDIM + icmp;
       if (it < it1 || it > it2)
@@ -141,7 +143,7 @@ src_get_stage_stf(
     int it2 = moment_info[5];
     int nt_moment = it2 - it1 + 1;
 
-    int* ptr_moment = moment_ten_rate + ipos;
+    float *ptr_moment = moment_ten_rate + ipos;
     
     for (int icmp=0; icmp<6; icmp++)
     {

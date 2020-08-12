@@ -65,8 +65,8 @@ struct fd_t{
   // single centered scheme for all dim
   //----------------------------------------------------------------------------
 
-  int     fd_max_len;
-  int     fd_max_half_len;
+  int     fd_len;
+  int     fd_half_len;
   int     fd_nghosts;
   size_t *fd_indx;
   float  *fd_coef;
@@ -253,7 +253,7 @@ struct fd_blk_t
     float  *sta_seismo;
 
     int num_of_snap;
-    int *snap_grid_indx;
+    size_t *snap_grid_indx;
     int *snap_time_indx;
 
     // dir

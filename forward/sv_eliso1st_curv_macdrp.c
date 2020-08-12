@@ -51,14 +51,14 @@ sv_eliso1st_curv_macdrp_allstep(
     float *matVy2Vz, //
     // source term
     int num_of_force,
-    int *restrict force_info, // num_of_force * 6 : si,sj,sk,start_pos_in_stf,start_it, end_it
+    size_t *restrict force_info, // num_of_force * 6 : si,sj,sk,start_pos_in_stf,start_it, end_it
     float *restrict force_vec_stf,
     int num_of_moment,
-    int *restrict moment_info, // num_of_force * 6 : si,sj,sk,start_pos_in_rate,start_it, end_it
+    size_t *restrict moment_info, // num_of_force * 6 : si,sj,sk,start_pos_in_rate,start_it, end_it
     float *restrict moment_ten_rate,
     // io
-    int num_of_sta, int *restrict sta_loc_point, float *restrict sta_seismo,
-    int num_of_snap, int *restrict snap_grid_indx, int *restrict snap_time_indx,
+    int num_of_sta, size_t *restrict sta_loc_point, float *restrict sta_seismo,
+    int num_of_snap, size_t *restrict snap_grid_indx, int *restrict snap_time_indx,
     // scheme
     int num_rk_stages, float *rk_a, float *rk_b,
     int num_of_pairs, 
@@ -76,7 +76,7 @@ sv_eliso1st_curv_macdrp_allstep(
     char *out_dir)
 {
   // local allocated array
-  float *force_values     = NULL;  // num_of_force * 3
+  float *force_vec_value  = NULL;  // num_of_force * 3
   float *moment_ten_value = NULL;  // num_of_moment * 6
 
   // local pointer
@@ -95,14 +95,16 @@ sv_eliso1st_curv_macdrp_allstep(
   int   ipair, istage;
   float t_cur;
 
-  size_t w3d_size_per_level = w3d_num_of_vars * siz_volume;
+  size_t w3d_size_per_level = WF_EL_1ST_NVAR * siz_volume;
 
   // alloc
   if (num_of_force > 0) {
-    force_vec_value = (float *)fdlib_mem_malloc_1d_float(num_of_force*3, "alloc force stf all step");
+    force_vec_value = (float *)fdlib_mem_malloc_1d(num_of_force*3*sizeof(float),
+                                                   "alloc force stf all step");
   }
   if (num_of_moment > 0) {
-    moment_ten_value = (float *)fdlib_mem_malloc_1d_float(num_of_force*6, "alloc force stf all step");
+    moment_ten_value = (float *)fdlib_mem_malloc_1d(num_of_force*6*sizeof(float),
+                                                    "alloc force stf all step");
   }
 
   // get wavefield
@@ -124,7 +126,7 @@ sv_eliso1st_curv_macdrp_allstep(
 
     if (myid==0 && verbose>10) fprintf(stdout,"-> it=%d, t=\%f\n", it, t_cur);
 
-    ipair = it % num_of_pair; // mod to ipair
+    ipair = it % num_of_pairs; // mod to ipair
     if (myid==0 && verbose>10) fprintf(stdout, " --> ipair=%d\n",ipair);
 
     // loop RK stages for one step
@@ -146,7 +148,7 @@ sv_eliso1st_curv_macdrp_allstep(
                         force_vec_stf,
                         num_of_moment,
                         moment_info,
-                        moment_ten_stf,
+                        moment_ten_rate,
                         it,
                         istage,
                         num_rk_stages,
@@ -189,8 +191,8 @@ sv_eliso1st_curv_macdrp_allstep(
                                        abs_vars_cur,
                                        abs_vars_rhs,
                                        matVx2Vz, matVy2Vz,
-                                       num_of_force , force_loc_point , force_vec_value,
-                                       num_of_moment, moment_loc_point, moment_ten_value,
+                                       num_of_force , force_info , force_vec_value,
+                                       num_of_moment, moment_info, moment_ten_value,
                                        fdx_max_half_len, fdy_max_half_len,
                                        fdz_max_len, fdz_num_surf_lay,
                                        pair_fdx_all_info[ipair][istage],
@@ -212,7 +214,7 @@ sv_eliso1st_curv_macdrp_allstep(
         float coef_a = rk_a[istage] * dt;
 
         // wavefield
-        for (size_t iptr=0; iptr<num_of_vars*siz_volume; iptr++) {
+        for (size_t iptr=0; iptr<WF_EL_1ST_NVAR*siz_volume; iptr++) {
             w_cur[iptr] = w_pre[iptr] + coef_a * w_rhs[iptr];
         }
         // apply abs
@@ -239,7 +241,7 @@ sv_eliso1st_curv_macdrp_allstep(
         float coef_b = rk_b[istage] * dt;
 
         // wavefield
-        for (size_t iptr=0; iptr<num_of_vars*siz_volume; iptr++) {
+        for (size_t iptr=0; iptr<WF_EL_1ST_NVAR*siz_volume; iptr++) {
             w_end[iptr] += coef_b * w_rhs[iptr];
         }
         /*
@@ -264,10 +266,10 @@ sv_eliso1st_curv_macdrp_allstep(
       // cal w_end at other stages, non-communicate vars
       if (istage==0)
       {
-        float coef_b = rk_b[istage] * dh;
+        float coef_b = rk_b[istage] * dt;
 
         // wavefield
-        for (size_t iptr=0; iptr<num_of_vars*siz_volume; iptr++) {
+        for (size_t iptr=0; iptr<WF_EL_1ST_NVAR*siz_volume; iptr++) {
             w_end[iptr] = w_pre[iptr] + coef_b * w_rhs[iptr];
         }
 
@@ -284,7 +286,7 @@ sv_eliso1st_curv_macdrp_allstep(
         float coef_b = rk_b[istage] * dt;
 
         // wavefield
-        for (size_t iptr=0; iptr<num_of_vars*siz_volume; iptr++) {
+        for (size_t iptr=0; iptr<WF_EL_1ST_NVAR*siz_volume; iptr++) {
             w_end[iptr] += coef_b * w_rhs[iptr];
         }
 
@@ -301,7 +303,7 @@ sv_eliso1st_curv_macdrp_allstep(
     // QC
     if (qc_check_nan_num_of_step >0  && (it % qc_check_nan_num_of_step) == 0) {
       if (myid==0 && verbose>10) fprintf(stdout,"-> check value nan\n");
-        wf_el_1st_check_value(w_end);
+        //wf_el_1st_check_value(w_end);
     }
 
     // swap w_pre and w_end, avoid copying
@@ -345,10 +347,10 @@ sv_eliso1st_curv_macdrp_onestage(
     float *matVx2Vz, float *matVy2Vz, //
     // source term
     int num_of_force,
-    int *restrict force_loc_point,
+    size_t *restrict force_info,
     float *restrict force_vec_value, // only for cur stage, size: num_of_force
     int num_of_moment,
-    int *restrict moment_loc_point,
+    size_t *restrict moment_info,
     float *restrict moment_ten_value,
     // include different order/stentil
     int fdx_max_half_len, int fdy_max_half_len,
@@ -361,24 +363,24 @@ sv_eliso1st_curv_macdrp_onestage(
   size_t i,j,k;
 
   // local pointer get each vars
-  float *restrict Vx    = w_cur + WF_EL_1ST_SEQ_VX    * siz_volume;
-  float *restrict Vy    = w_cur + WF_EL_1ST_SEQ_VY    * siz_volume;
-  float *restrict Vz    = w_cur + WF_EL_1ST_SEQ_VZ    * siz_volume;
-  float *restrict Txx   = w_cur + WF_EL_1ST_SEQ_TXX   * siz_volume;
-  float *restrict Tyy   = w_cur + WF_EL_1ST_SEQ_TYY   * siz_volume;
-  float *restrict Tzz   = w_cur + WF_EL_1ST_SEQ_TZZ   * siz_volume;
-  float *restrict Txz   = w_cur + WF_EL_1ST_SEQ_TXZ   * siz_volume;
-  float *restrict Tyz   = w_cur + WF_EL_1ST_SEQ_TYZ   * siz_volume;
-  float *restrict Txy   = w_cur + WF_EL_1ST_SEQ_TXY   * siz_volume;
-  float *restrict hVx   = w_rhs + WF_EL_1ST_SEQ_VX    * siz_volume;
-  float *restrict hVy   = w_rhs + WF_EL_1ST_SEQ_VY    * siz_volume;
-  float *restrict hVz   = w_rhs + WF_EL_1ST_SEQ_VZ    * siz_volume;
-  float *restrict hTxx  = w_rhs + WF_EL_1ST_SEQ_TXX   * siz_volume;
-  float *restrict hTyy  = w_rhs + WF_EL_1ST_SEQ_TYY   * siz_volume;
-  float *restrict hTzz  = w_rhs + WF_EL_1ST_SEQ_TZZ   * siz_volume;
-  float *restrict hTxz  = w_rhs + WF_EL_1ST_SEQ_TXZ   * siz_volume;
-  float *restrict hTyz  = w_rhs + WF_EL_1ST_SEQ_TYZ   * siz_volume;
-  float *restrict hTxy  = w_rhs + WF_EL_1ST_SEQ_TXY   * siz_volume;
+  float *restrict Vx    = w_cur + WF_EL_1ST_SEQ_Vx    * siz_volume;
+  float *restrict Vy    = w_cur + WF_EL_1ST_SEQ_Vy    * siz_volume;
+  float *restrict Vz    = w_cur + WF_EL_1ST_SEQ_Vz    * siz_volume;
+  float *restrict Txx   = w_cur + WF_EL_1ST_SEQ_Txx   * siz_volume;
+  float *restrict Tyy   = w_cur + WF_EL_1ST_SEQ_Tyy   * siz_volume;
+  float *restrict Tzz   = w_cur + WF_EL_1ST_SEQ_Tzz   * siz_volume;
+  float *restrict Txz   = w_cur + WF_EL_1ST_SEQ_Txz   * siz_volume;
+  float *restrict Tyz   = w_cur + WF_EL_1ST_SEQ_Tyz   * siz_volume;
+  float *restrict Txy   = w_cur + WF_EL_1ST_SEQ_Txy   * siz_volume;
+  float *restrict hVx   = rhs + WF_EL_1ST_SEQ_Vx    * siz_volume;
+  float *restrict hVy   = rhs + WF_EL_1ST_SEQ_Vy    * siz_volume;
+  float *restrict hVz   = rhs + WF_EL_1ST_SEQ_Vz    * siz_volume;
+  float *restrict hTxx  = rhs + WF_EL_1ST_SEQ_Txx   * siz_volume;
+  float *restrict hTyy  = rhs + WF_EL_1ST_SEQ_Tyy   * siz_volume;
+  float *restrict hTzz  = rhs + WF_EL_1ST_SEQ_Tzz   * siz_volume;
+  float *restrict hTxz  = rhs + WF_EL_1ST_SEQ_Txz   * siz_volume;
+  float *restrict hTyz  = rhs + WF_EL_1ST_SEQ_Tyz   * siz_volume;
+  float *restrict hTxy  = rhs + WF_EL_1ST_SEQ_Txy   * siz_volume;
   float *restrict xi_x  = g3d   + GD_CURV_SEQ_XIX   * siz_volume;
   float *restrict xi_y  = g3d   + GD_CURV_SEQ_XIY   * siz_volume;
   float *restrict xi_z  = g3d   + GD_CURV_SEQ_XIZ   * siz_volume;
@@ -389,17 +391,20 @@ sv_eliso1st_curv_macdrp_onestage(
   float *restrict zt_y  = g3d   + GD_CURV_SEQ_ZTY   * siz_volume;
   float *restrict zt_z  = g3d   + GD_CURV_SEQ_ZTZ   * siz_volume;
   float *restrict jac3d = g3d   + GD_CURV_SEQ_JAC   * siz_volume;
-  float *restrict lam3d = m3d   + MD_ELISO_SEQ_LAMBDA * siz_volume;
-  float *restrict  mu3d = m3d   + MD_ELISO_SEQ_MU     * siz_volume;
-  float *restrict slw3d = m3d   + MD_ELISO_SEQ_RHO    * siz_volume;
+  float *restrict lam3d = m3d   + MD_EL_ISO_SEQ_LAMBDA * siz_volume;
+  float *restrict  mu3d = m3d   + MD_EL_ISO_SEQ_MU     * siz_volume;
+  float *restrict slw3d = m3d   + MD_EL_ISO_SEQ_RHO    * siz_volume;
 
   // fd op
+  size_t           fdx_inn_len;
   size_t           fdx_inn_pos;
   size_t *restrict fdx_inn_indx;
   float  *restrict fdx_inn_coef;
+  size_t           fdy_inn_len;
   size_t           fdy_inn_pos;
   size_t *restrict fdy_inn_indx;
   float  *restrict fdy_inn_coef;
+  size_t           fdz_inn_len;
   size_t           fdz_inn_pos;
   size_t *restrict fdz_inn_indx;
   float  *restrict fdz_inn_coef;
@@ -441,17 +446,17 @@ sv_eliso1st_curv_macdrp_onestage(
     sv_eliso1st_curv_macdrp_rhs_timg_z2(Txx,Tyy,Tzz,Txz,Tyz,Txy,hVx,hVy,hVz,
                                         xi_x, xi_y, xi_z, et_x, et_y, et_z, zt_x, zt_y, zt_z,
                                         jac3d, slw3d,
-                                        ni1,ni2,nj1,nj2,nk1,nk2,ni,nj,nk,nx,ny,nz,siz_line,siz_slice,
+                                        ni1,ni2,nj1,nj2,nk1,nk2,siz_line,siz_slice,
                                         fdx_inn_len, fdx_inn_indx, fdx_inn_coef,
                                         fdy_inn_len, fdy_inn_indx, fdy_inn_coef,
                                         fdz_inn_len, fdz_inn_indx, fdz_inn_coef,
                                         myid, verbose);
 
     // velocity: vlow
-    sv_eliso1st_curv_macdrp_rhs_vlow_z2(Vx,Vy,Vz,Txx,hTxx,hTyy,hTzz,hTxz,hTyz,hTxy,
+    sv_eliso1st_curv_macdrp_rhs_vlow_z2(Vx,Vy,Vz,hTxx,hTyy,hTzz,hTxz,hTyz,hTxy,
                                         xi_x, xi_y, xi_z, et_x, et_y, et_z, zt_x, zt_y, zt_z,
                                         lam3d, mu3d, slw3d,matVx2Vz,matVy2Vz,
-                                        ni1,ni2,nj1,nj2,nk1,nk2,ni,nj,nk,nx,ny,nz,siz_line,siz_slice,
+                                        ni1,ni2,nj1,nj2,nk1,nk2,siz_line,siz_slice,
                                         fdx_inn_len, fdx_inn_indx, fdx_inn_coef,
                                         fdy_inn_len, fdy_inn_indx, fdy_inn_coef,
                                         fdz_num_surf_lay,fdz_max_len,
@@ -529,8 +534,8 @@ sv_eliso1st_curv_macdrp_onestage(
   {
     sv_eliso1st_curv_macdrp_rhs_src(hVx,hVy,hVz,hTxx,hTyy,hTzz,hTxz,hTyz,hTxy,
                                     jac3d, slw3d, siz_line,siz_slice,
-                                    num_of_force, force_loc_point, force_vec_value,
-                                    num_of_moment, moment_loc_point, moment_ten_value,
+                                    num_of_force, force_info, force_vec_value,
+                                    num_of_moment, moment_info, moment_ten_value,
                                     myid, verbose);
   }
 }
@@ -1010,8 +1015,8 @@ sv_eliso1st_curv_macdrp_rhs_vlow_z2(
     size_t  lfdz_pos0 = fdz_all_info[n][FD_INFO_POS_OF_INDX];
     size_t  lfdz_len  = fdz_all_info[n][FD_INFO_LENGTH_TOTAL];
     // point to indx/coef for this point
-    size_t  *p_fdz_indx  = fdz_all_indx[lfdz_pos0];
-    float   *p_fdz_coef  = fdz_all_coef[lfdz_pos0];
+    size_t  *p_fdz_indx  = fdz_all_indx+lfdz_pos0;
+    float   *p_fdz_coef  = fdz_all_coef+lfdz_pos0;
     for (n_fd = 0; n_fd < lfdz_len ; n_fd++) {
       lfdz_shift[n_fd] = p_fdz_indx[n_fd] * siz_slice;
       lfdz_coef[n_fd]  = p_fdz_coef[n_fd];
@@ -1175,7 +1180,7 @@ sv_eliso1st_curv_macdrp_rhs_cfspml(
   float lam,mu,lam2mu,slw;
   float xix,xiy,xiz,etx,ety,etz,ztx,zty,ztz;
   float hVx_rhs,hVy_rhs,hVz_rhs;
-  float hTxx_rhs,hTyy_rhs,hTzz_rhs,hTxz_rhs,hTyz_rhs,hTxy_rhs
+  float hTxx_rhs,hTyy_rhs,hTzz_rhs,hTxz_rhs,hTyz_rhs,hTxy_rhs;
 
   // local
   size_t i,j,k;
@@ -1211,31 +1216,31 @@ sv_eliso1st_curv_macdrp_rhs_cfspml(
     size_t abs_nk2 = abs_indx[iface+FD_NDIM_2+5];
 
     // get coef for this face
-    float *restrict ptr_ceof_A = abs_coefs + abs_coefs_facepos0[iface];
+    float *restrict ptr_coef_A = abs_coefs + abs_coefs_facepos0[iface];
     float *restrict ptr_coef_B = ptr_coef_A + abs_num_of_layers[iface];
     float *restrict ptr_coef_D = ptr_coef_B + abs_num_of_layers[iface];
 
     // get pml vars
     size_t pos_cur_face = abs_vars_facepos0[iface];
     size_t pml_volsiz   = abs_vars_volsiz[iface];
-    float *restrict pml_Vx  = abs_vars_cur + pos_cur_face + WF_EL_1ST_SEQ_VX  * pml_volsiz;
-    float *restrict pml_Vy  = abs_vars_cur + pos_cur_face + WF_EL_1ST_SEQ_VY  * pml_volsiz;
-    float *restrict pml_Vz  = abs_vars_cur + pos_cur_face + WF_EL_1ST_SEQ_VZ  * pml_volsiz;
-    float *restrict pml_Txx = abs_vars_cur + pos_cur_face + WF_EL_1ST_SEQ_TXX * pml_volsiz;
-    float *restrict pml_Tyy = abs_vars_cur + pos_cur_face + WF_EL_1ST_SEQ_TYY * pml_volsiz;
-    float *restrict pml_Tzz = abs_vars_cur + pos_cur_face + WF_EL_1ST_SEQ_TZZ * pml_volsiz;
-    float *restrict pml_Txz = abs_vars_cur + pos_cur_face + WF_EL_1ST_SEQ_TXZ * pml_volsiz;
-    float *restrict pml_Tyz = abs_vars_cur + pos_cur_face + WF_EL_1ST_SEQ_TYZ * pml_volsiz;
-    float *restrict pml_Txy = abs_vars_cur + pos_cur_face + WF_EL_1ST_SEQ_TXY * pml_volsiz;
-    float *restrict pml_hVx  = abs_vars_rhs + pos_cur_face + WF_EL_1ST_SEQ_VX  * pml_volsiz;
-    float *restrict pml_hVy  = abs_vars_rhs + pos_cur_face + WF_EL_1ST_SEQ_VY  * pml_volsiz;
-    float *restrict pml_hVz  = abs_vars_rhs + pos_cur_face + WF_EL_1ST_SEQ_VZ  * pml_volsiz;
-    float *restrict pml_hTxx = abs_vars_rhs + pos_cur_face + WF_EL_1ST_SEQ_TXX * pml_volsiz;
-    float *restrict pml_hTyy = abs_vars_rhs + pos_cur_face + WF_EL_1ST_SEQ_TYY * pml_volsiz;
-    float *restrict pml_hTzz = abs_vars_rhs + pos_cur_face + WF_EL_1ST_SEQ_TZZ * pml_volsiz;
-    float *restrict pml_hTxz = abs_vars_rhs + pos_cur_face + WF_EL_1ST_SEQ_TXZ * pml_volsiz;
-    float *restrict pml_hTyz = abs_vars_rhs + pos_cur_face + WF_EL_1ST_SEQ_TYZ * pml_volsiz;
-    float *restrict pml_hTxy = abs_vars_rhs + pos_cur_face + WF_EL_1ST_SEQ_TXY * pml_volsiz;
+    float *restrict pml_Vx  = abs_vars_cur + pos_cur_face + WF_EL_1ST_SEQ_Vx  * pml_volsiz;
+    float *restrict pml_Vy  = abs_vars_cur + pos_cur_face + WF_EL_1ST_SEQ_Vy  * pml_volsiz;
+    float *restrict pml_Vz  = abs_vars_cur + pos_cur_face + WF_EL_1ST_SEQ_Vz  * pml_volsiz;
+    float *restrict pml_Txx = abs_vars_cur + pos_cur_face + WF_EL_1ST_SEQ_Txx * pml_volsiz;
+    float *restrict pml_Tyy = abs_vars_cur + pos_cur_face + WF_EL_1ST_SEQ_Tyy * pml_volsiz;
+    float *restrict pml_Tzz = abs_vars_cur + pos_cur_face + WF_EL_1ST_SEQ_Tzz * pml_volsiz;
+    float *restrict pml_Txz = abs_vars_cur + pos_cur_face + WF_EL_1ST_SEQ_Txz * pml_volsiz;
+    float *restrict pml_Tyz = abs_vars_cur + pos_cur_face + WF_EL_1ST_SEQ_Tyz * pml_volsiz;
+    float *restrict pml_Txy = abs_vars_cur + pos_cur_face + WF_EL_1ST_SEQ_Txy * pml_volsiz;
+    float *restrict pml_hVx  = abs_vars_rhs + pos_cur_face + WF_EL_1ST_SEQ_Vx  * pml_volsiz;
+    float *restrict pml_hVy  = abs_vars_rhs + pos_cur_face + WF_EL_1ST_SEQ_Vy  * pml_volsiz;
+    float *restrict pml_hVz  = abs_vars_rhs + pos_cur_face + WF_EL_1ST_SEQ_Vz  * pml_volsiz;
+    float *restrict pml_hTxx = abs_vars_rhs + pos_cur_face + WF_EL_1ST_SEQ_Txx * pml_volsiz;
+    float *restrict pml_hTyy = abs_vars_rhs + pos_cur_face + WF_EL_1ST_SEQ_Tyy * pml_volsiz;
+    float *restrict pml_hTzz = abs_vars_rhs + pos_cur_face + WF_EL_1ST_SEQ_Tzz * pml_volsiz;
+    float *restrict pml_hTxz = abs_vars_rhs + pos_cur_face + WF_EL_1ST_SEQ_Txz * pml_volsiz;
+    float *restrict pml_hTyz = abs_vars_rhs + pos_cur_face + WF_EL_1ST_SEQ_Tyz * pml_volsiz;
+    float *restrict pml_hTxy = abs_vars_rhs + pos_cur_face + WF_EL_1ST_SEQ_Txy * pml_volsiz;
 
     // for each dim
     if (iface < 2) // x direction
@@ -1305,15 +1310,15 @@ sv_eliso1st_curv_macdrp_rhs_cfspml(
             
             // 2: aux var
             //   a1 = alpha + d / beta, dealt in abs_set_cfspml
-            pml_hVx[iptr_a] = d1 * hVx_rhs - a1 * pml_Vx[iptr_a];
-            pml_hVy[iptr_a] = d1 * hVy_rhs - a1 * pml_Vy[iptr_a];
-            pml_hVz[iptr_a] = d1 * hVz_rhs - a1 * pml_Vz[iptr_a];
-            pml_hTxx[iptr_a] = d1 * hTxx_rhs - a1 * pml_Txx[iptr_a];
-            pml_hTyy[iptr_a] = d1 * hTyy_rhs - a1 * pml_Tyy[iptr_a];
-            pml_hTzz[iptr_a] = d1 * hTzz_rhs - a1 * pml_Tzz[iptr_a];
-            pml_hTxz[iptr_a] = d1 * hTxz_rhs - a1 * pml_Txz[iptr_a];
-            pml_hTyz[iptr_a] = d1 * hTyz_rhs - a1 * pml_Tyz[iptr_a];
-            pml_hTxy[iptr_a] = d1 * hTxy_rhs - a1 * pml_Txy[iptr_a];
+            pml_hVx[iptr_a]  = coef_D * hVx_rhs  - coef_A * pml_Vx[iptr_a];
+            pml_hVy[iptr_a]  = coef_D * hVy_rhs  - coef_A * pml_Vy[iptr_a];
+            pml_hVz[iptr_a]  = coef_D * hVz_rhs  - coef_A * pml_Vz[iptr_a];
+            pml_hTxx[iptr_a] = coef_D * hTxx_rhs - coef_A * pml_Txx[iptr_a];
+            pml_hTyy[iptr_a] = coef_D * hTyy_rhs - coef_A * pml_Tyy[iptr_a];
+            pml_hTzz[iptr_a] = coef_D * hTzz_rhs - coef_A * pml_Tzz[iptr_a];
+            pml_hTxz[iptr_a] = coef_D * hTxz_rhs - coef_A * pml_Txz[iptr_a];
+            pml_hTyz[iptr_a] = coef_D * hTyz_rhs - coef_A * pml_Tyz[iptr_a];
+            pml_hTxy[iptr_a] = coef_D * hTxy_rhs - coef_A * pml_Txy[iptr_a];
 
             // incr index
             iptr   += 1;
@@ -1390,15 +1395,15 @@ sv_eliso1st_curv_macdrp_rhs_cfspml(
             
             // 2: aux var
             //   a1 = alpha + d / beta, dealt in abs_set_cfspml
-            pml_hVx[iptr_a] = d1 * hVx_rhs - a1 * pml_Vx[iptr_a];
-            pml_hVy[iptr_a] = d1 * hVy_rhs - a1 * pml_Vy[iptr_a];
-            pml_hVz[iptr_a] = d1 * hVz_rhs - a1 * pml_Vz[iptr_a];
-            pml_hTxx[iptr_a] = d1 * hTxx_rhs - a1 * pml_Txx[iptr_a];
-            pml_hTyy[iptr_a] = d1 * hTyy_rhs - a1 * pml_Tyy[iptr_a];
-            pml_hTzz[iptr_a] = d1 * hTzz_rhs - a1 * pml_Tzz[iptr_a];
-            pml_hTxz[iptr_a] = d1 * hTxz_rhs - a1 * pml_Txz[iptr_a];
-            pml_hTyz[iptr_a] = d1 * hTyz_rhs - a1 * pml_Tyz[iptr_a];
-            pml_hTxy[iptr_a] = d1 * hTxy_rhs - a1 * pml_Txy[iptr_a];
+            pml_hVx[iptr_a]  = coef_D * hVx_rhs  - coef_A * pml_Vx[iptr_a];
+            pml_hVy[iptr_a]  = coef_D * hVy_rhs  - coef_A * pml_Vy[iptr_a];
+            pml_hVz[iptr_a]  = coef_D * hVz_rhs  - coef_A * pml_Vz[iptr_a];
+            pml_hTxx[iptr_a] = coef_D * hTxx_rhs - coef_A * pml_Txx[iptr_a];
+            pml_hTyy[iptr_a] = coef_D * hTyy_rhs - coef_A * pml_Tyy[iptr_a];
+            pml_hTzz[iptr_a] = coef_D * hTzz_rhs - coef_A * pml_Tzz[iptr_a];
+            pml_hTxz[iptr_a] = coef_D * hTxz_rhs - coef_A * pml_Txz[iptr_a];
+            pml_hTyz[iptr_a] = coef_D * hTyz_rhs - coef_A * pml_Tyz[iptr_a];
+            pml_hTxy[iptr_a] = coef_D * hTxy_rhs - coef_A * pml_Txy[iptr_a];
 
             // incr index
             iptr   += 1;
@@ -1475,15 +1480,15 @@ sv_eliso1st_curv_macdrp_rhs_cfspml(
             
             // 2: aux var
             //   a1 = alpha + d / beta, dealt in abs_set_cfspml
-            pml_hVx[iptr_a] = d1 * hVx_rhs - a1 * pml_Vx[iptr_a];
-            pml_hVy[iptr_a] = d1 * hVy_rhs - a1 * pml_Vy[iptr_a];
-            pml_hVz[iptr_a] = d1 * hVz_rhs - a1 * pml_Vz[iptr_a];
-            pml_hTxx[iptr_a] = d1 * hTxx_rhs - a1 * pml_Txx[iptr_a];
-            pml_hTyy[iptr_a] = d1 * hTyy_rhs - a1 * pml_Tyy[iptr_a];
-            pml_hTzz[iptr_a] = d1 * hTzz_rhs - a1 * pml_Tzz[iptr_a];
-            pml_hTxz[iptr_a] = d1 * hTxz_rhs - a1 * pml_Txz[iptr_a];
-            pml_hTyz[iptr_a] = d1 * hTyz_rhs - a1 * pml_Tyz[iptr_a];
-            pml_hTxy[iptr_a] = d1 * hTxy_rhs - a1 * pml_Txy[iptr_a];
+            pml_hVx[iptr_a]  = coef_D * hVx_rhs  - coef_A * pml_Vx[iptr_a];
+            pml_hVy[iptr_a]  = coef_D * hVy_rhs  - coef_A * pml_Vy[iptr_a];
+            pml_hVz[iptr_a]  = coef_D * hVz_rhs  - coef_A * pml_Vz[iptr_a];
+            pml_hTxx[iptr_a] = coef_D * hTxx_rhs - coef_A * pml_Txx[iptr_a];
+            pml_hTyy[iptr_a] = coef_D * hTyy_rhs - coef_A * pml_Tyy[iptr_a];
+            pml_hTzz[iptr_a] = coef_D * hTzz_rhs - coef_A * pml_Tzz[iptr_a];
+            pml_hTxz[iptr_a] = coef_D * hTxz_rhs - coef_A * pml_Txz[iptr_a];
+            pml_hTyz[iptr_a] = coef_D * hTyz_rhs - coef_A * pml_Tyz[iptr_a];
+            pml_hTxy[iptr_a] = coef_D * hTxy_rhs - coef_A * pml_Txy[iptr_a];
 
             // incr index
             iptr   += 1;
@@ -1581,32 +1586,32 @@ sv_eliso1st_curv_macdrp_rhs_cfspml_timg_z2(
     abs_nk1 = (k_min > abs_nk1 ) ? k_min : abs_nk1;
 
     // get coef for this face
-    float *restrict ptr_ceof_A = abs_coefs + abs_coefs_facepos0[iface];
+    float *restrict ptr_coef_A = abs_coefs + abs_coefs_facepos0[iface];
     float *restrict ptr_coef_B = ptr_coef_A + abs_num_of_layers[iface];
     float *restrict ptr_coef_D = ptr_coef_B + abs_num_of_layers[iface];
 
     // get pml vars
     size_t pos_cur_face = abs_vars_facepos0[iface];
     size_t pml_volsiz   = abs_vars_volsiz[iface];
-    float *restrict pml_Vx  = abs_vars_cur + pos_cur_face + WF_EL_1ST_SEQ_VX  * pml_volsiz;
-    float *restrict pml_Vy  = abs_vars_cur + pos_cur_face + WF_EL_1ST_SEQ_VY  * pml_volsiz;
-    float *restrict pml_Vz  = abs_vars_cur + pos_cur_face + WF_EL_1ST_SEQ_VZ  * pml_volsiz;
-    float *restrict pml_hVx  = abs_vars_rhs + pos_cur_face + WF_EL_1ST_SEQ_VX  * pml_volsiz;
-    float *restrict pml_hVy  = abs_vars_rhs + pos_cur_face + WF_EL_1ST_SEQ_VY  * pml_volsiz;
-    float *restrict pml_hVz  = abs_vars_rhs + pos_cur_face + WF_EL_1ST_SEQ_VZ  * pml_volsiz;
+    float *restrict pml_Vx  = abs_vars_cur + pos_cur_face + WF_EL_1ST_SEQ_Vx  * pml_volsiz;
+    float *restrict pml_Vy  = abs_vars_cur + pos_cur_face + WF_EL_1ST_SEQ_Vy  * pml_volsiz;
+    float *restrict pml_Vz  = abs_vars_cur + pos_cur_face + WF_EL_1ST_SEQ_Vz  * pml_volsiz;
+    float *restrict pml_hVx  = abs_vars_rhs + pos_cur_face + WF_EL_1ST_SEQ_Vx  * pml_volsiz;
+    float *restrict pml_hVy  = abs_vars_rhs + pos_cur_face + WF_EL_1ST_SEQ_Vy  * pml_volsiz;
+    float *restrict pml_hVz  = abs_vars_rhs + pos_cur_face + WF_EL_1ST_SEQ_Vz  * pml_volsiz;
 
     // for each dim
     if (iface < 2) // x direction
     {
       iptr_a = 0;
-      for (k=abs_nk1; k<=abs_nk2; k++)
+      for (int k=abs_nk1; k<=abs_nk2; k++)
       {
         iptr_k = k * siz_slice;
-        for (j=abs_nj1; j<=abs_nj2; j++)
+        for (int j=abs_nj1; j<=abs_nj2; j++)
         {
           iptr_j = iptr_k + j * siz_line;
           iptr = iptr_j + abs_ni1;
-          for (i=abs_ni1; i<=abs_ni2; i++)
+          for (int i=abs_ni1; i<=abs_ni2; i++)
           {
             // pml coefs
             int abs_i = i - abs_ni1;
@@ -1638,7 +1643,7 @@ sv_eliso1st_curv_macdrp_rhs_cfspml_timg_z2(
             hVx[iptr] += (coef_B - 1.0) * hVx_rhs - coef_B * pml_Vx[iptr_a];
             // aux var
             //   a1 = alpha + d / beta, dealt in abs_set_cfspml
-            pml_hVx[iptr_a] = d1 * hVx_rhs - a1 * pml_Vx[iptr_a];
+            pml_hVx[iptr_a] = coef_D * hVx_rhs - coef_A * pml_Vx[iptr_a];
 
             // for hVy
             // transform to conservative vars
@@ -1656,7 +1661,7 @@ sv_eliso1st_curv_macdrp_rhs_cfspml_timg_z2(
             hVy[iptr] += (coef_B - 1.0) * hVy_rhs - coef_B * pml_Vy[iptr_a];
             // aux var
             //   a1 = alpha + d / beta, dealt in abs_set_cfspml
-            pml_hVy[iptr_a] = d1 * hVy_rhs - a1 * pml_Vy[iptr_a];
+            pml_hVy[iptr_a] = coef_D * hVy_rhs - coef_A * pml_Vy[iptr_a];
 
             //
             // for hVz
@@ -1675,7 +1680,7 @@ sv_eliso1st_curv_macdrp_rhs_cfspml_timg_z2(
             hVz[iptr] += (coef_B - 1.0) * hVz_rhs - coef_B * pml_Vz[iptr_a];
             // aux var
             //   a1 = alpha + d / beta, dealt in abs_set_cfspml
-            pml_hVz[iptr_a] = d1 * hVz_rhs - a1 * pml_Vz[iptr_a];
+            pml_hVz[iptr_a] = coef_D * hVz_rhs - coef_A * pml_Vz[iptr_a];
 
             // incr index
             iptr   += 1;
@@ -1687,10 +1692,10 @@ sv_eliso1st_curv_macdrp_rhs_cfspml_timg_z2(
     else // y direction
     {
       iptr_a = 0;
-      for (k=abs_nk1; k<=abs_nk2; k++)
+      for (int k=abs_nk1; k<=abs_nk2; k++)
       {
         iptr_k = k * siz_slice;
-        for (j=abs_nj1; j<=abs_nj2; j++)
+        for (int j=abs_nj1; j<=abs_nj2; j++)
         {
           iptr_j = iptr_k + j * siz_line;
           iptr = iptr_j + abs_ni1;
@@ -1701,7 +1706,7 @@ sv_eliso1st_curv_macdrp_rhs_cfspml_timg_z2(
           coef_A = ptr_coef_A[abs_j];
           coef_B = ptr_coef_B[abs_j];
 
-          for (i=abs_ni1; i<=abs_ni2; i++)
+          for (int i=abs_ni1; i<=abs_ni2; i++)
           {
             // metric
             etx = et_x[iptr];
@@ -1727,7 +1732,7 @@ sv_eliso1st_curv_macdrp_rhs_cfspml_timg_z2(
             hVx[iptr] += (coef_B - 1.0) * hVx_rhs - coef_B * pml_Vx[iptr_a];
             // aux var
             //   a1 = alpha + d / beta, dealt in abs_set_cfspml
-            pml_hVx[iptr_a] = d1 * hVx_rhs - a1 * pml_Vx[iptr_a];
+            pml_hVx[iptr_a] = coef_D * hVx_rhs - coef_A * pml_Vx[iptr_a];
 
             // for hVy
             // transform to conservative vars
@@ -1745,7 +1750,7 @@ sv_eliso1st_curv_macdrp_rhs_cfspml_timg_z2(
             hVy[iptr] += (coef_B - 1.0) * hVy_rhs - coef_B * pml_Vy[iptr_a];
             // aux var
             //   a1 = alpha + d / beta, dealt in abs_set_cfspml
-            pml_hVy[iptr_a] = d1 * hVy_rhs - a1 * pml_Vy[iptr_a];
+            pml_hVy[iptr_a] = coef_D * hVy_rhs - coef_A * pml_Vy[iptr_a];
 
             // for hVz
             // transform to conservative vars
@@ -1763,7 +1768,7 @@ sv_eliso1st_curv_macdrp_rhs_cfspml_timg_z2(
             hVz[iptr] += (coef_B - 1.0) * hVz_rhs - coef_B * pml_Vz[iptr_a];
             // aux var
             //   a1 = alpha + d / beta, dealt in abs_set_cfspml
-            pml_hVz[iptr_a] = d1 * hVz_rhs - a1 * pml_Vz[iptr_a];
+            pml_hVz[iptr_a] = coef_D * hVz_rhs - coef_A * pml_Vz[iptr_a];
 
             // incr index
             iptr   += 1;
@@ -1819,7 +1824,7 @@ sv_eliso1st_curv_macdrp_rhs_cfspml_vfree_z2(
   float DxVx,DxVy,DxVz;
   float DyVx,DyVy,DyVz;
   float Dx_DzVx,Dy_DzVx,Dx_DzVy,Dy_DzVy,Dx_DzVz,Dy_DzVz;
-  float hTxx_rhs,hTyy_rhs,hTzz_rhs,hTxz_rhs,hTyz_rhs,hTxy_rhs
+  float hTxx_rhs,hTyy_rhs,hTzz_rhs,hTxz_rhs,hTyz_rhs,hTxy_rhs;
 
   // put fd op into local array
   for (int i=0; i < fdx_len; i++) {
@@ -1846,22 +1851,25 @@ sv_eliso1st_curv_macdrp_rhs_cfspml_vfree_z2(
     size_t abs_nk2 = abs_indx[iface+FD_NDIM_2+5];
 
     // get coef for this face
-    float *restrict ptr_ceof_A = abs_coefs + abs_coefs_facepos0[iface];
+    float *restrict ptr_coef_A = abs_coefs + abs_coefs_facepos0[iface];
     float *restrict ptr_coef_B = ptr_coef_A + abs_num_of_layers[iface];
     float *restrict ptr_coef_D = ptr_coef_B + abs_num_of_layers[iface];
 
     // get pml vars
     size_t pos_cur_face = abs_vars_facepos0[iface];
     size_t pml_volsiz = abs_vars_volsiz[iface];
-    float *restrict pml_Vx  = abs_vars_cur + pos_cur_face + WF_EL_1ST_SEQ_VX  * pml_volsiz;
-    float *restrict pml_Vy  = abs_vars_cur + pos_cur_face + WF_EL_1ST_SEQ_VY  * pml_volsiz;
-    float *restrict pml_Vz  = abs_vars_cur + pos_cur_face + WF_EL_1ST_SEQ_VZ  * pml_volsiz;
-    float *restrict pml_hTxx = abs_vars_rhs + pos_cur_face + WF_EL_1ST_SEQ_TXX * pml_volsiz;
-    float *restrict pml_hTyy = abs_vars_rhs + pos_cur_face + WF_EL_1ST_SEQ_TYY * pml_volsiz;
-    float *restrict pml_hTzz = abs_vars_rhs + pos_cur_face + WF_EL_1ST_SEQ_TZZ * pml_volsiz;
-    float *restrict pml_hTxz = abs_vars_rhs + pos_cur_face + WF_EL_1ST_SEQ_TXZ * pml_volsiz;
-    float *restrict pml_hTyz = abs_vars_rhs + pos_cur_face + WF_EL_1ST_SEQ_TYZ * pml_volsiz;
-    float *restrict pml_hTxy = abs_vars_rhs + pos_cur_face + WF_EL_1ST_SEQ_TXY * pml_volsiz;
+    float *restrict pml_Txx = abs_vars_cur + pos_cur_face + WF_EL_1ST_SEQ_Txx * pml_volsiz;
+    float *restrict pml_Tyy = abs_vars_cur + pos_cur_face + WF_EL_1ST_SEQ_Tyy * pml_volsiz;
+    float *restrict pml_Tzz = abs_vars_cur + pos_cur_face + WF_EL_1ST_SEQ_Tzz * pml_volsiz;
+    float *restrict pml_Txz = abs_vars_cur + pos_cur_face + WF_EL_1ST_SEQ_Txz * pml_volsiz;
+    float *restrict pml_Tyz = abs_vars_cur + pos_cur_face + WF_EL_1ST_SEQ_Tyz * pml_volsiz;
+    float *restrict pml_Txy = abs_vars_cur + pos_cur_face + WF_EL_1ST_SEQ_Txy * pml_volsiz;
+    float *restrict pml_hTxx = abs_vars_rhs + pos_cur_face + WF_EL_1ST_SEQ_Txx * pml_volsiz;
+    float *restrict pml_hTyy = abs_vars_rhs + pos_cur_face + WF_EL_1ST_SEQ_Tyy * pml_volsiz;
+    float *restrict pml_hTzz = abs_vars_rhs + pos_cur_face + WF_EL_1ST_SEQ_Tzz * pml_volsiz;
+    float *restrict pml_hTxz = abs_vars_rhs + pos_cur_face + WF_EL_1ST_SEQ_Txz * pml_volsiz;
+    float *restrict pml_hTyz = abs_vars_rhs + pos_cur_face + WF_EL_1ST_SEQ_Tyz * pml_volsiz;
+    float *restrict pml_hTxy = abs_vars_rhs + pos_cur_face + WF_EL_1ST_SEQ_Txy * pml_volsiz;
 
     // for each dim
     if (iface < 2) // x direction
@@ -1954,12 +1962,12 @@ sv_eliso1st_curv_macdrp_rhs_cfspml_vfree_z2(
 
           // aux var
           //   a1 = alpha + d / beta, dealt in abs_set_cfspml
-          pml_hTxx[iptr_a] = d1 * hTxx_rhs - a1 * pml_Txx[iptr_a];
-          pml_hTyy[iptr_a] = d1 * hTyy_rhs - a1 * pml_Tyy[iptr_a];
-          pml_hTzz[iptr_a] = d1 * hTzz_rhs - a1 * pml_Tzz[iptr_a];
-          pml_hTxz[iptr_a] = d1 * hTxz_rhs - a1 * pml_Txz[iptr_a];
-          pml_hTyz[iptr_a] = d1 * hTyz_rhs - a1 * pml_Tyz[iptr_a];
-          pml_hTxy[iptr_a] = d1 * hTxy_rhs - a1 * pml_Txy[iptr_a];
+          pml_hTxx[iptr_a] = coef_D * hTxx_rhs - coef_A * pml_Txx[iptr_a];
+          pml_hTyy[iptr_a] = coef_D * hTyy_rhs - coef_A * pml_Tyy[iptr_a];
+          pml_hTzz[iptr_a] = coef_D * hTzz_rhs - coef_A * pml_Tzz[iptr_a];
+          pml_hTxz[iptr_a] = coef_D * hTxz_rhs - coef_A * pml_Txz[iptr_a];
+          pml_hTyz[iptr_a] = coef_D * hTyz_rhs - coef_A * pml_Tyz[iptr_a];
+          pml_hTxy[iptr_a] = coef_D * hTxy_rhs - coef_A * pml_Txy[iptr_a];
 
           // incr index
           iptr   += 1;
@@ -2057,12 +2065,12 @@ sv_eliso1st_curv_macdrp_rhs_cfspml_vfree_z2(
 
           // aux var
           //   a1 = alpha + d / beta, dealt in abs_set_cfspml
-          pml_hTxx[iptr_a] = d1 * hTxx_rhs - a1 * pml_Txx[iptr_a];
-          pml_hTyy[iptr_a] = d1 * hTyy_rhs - a1 * pml_Tyy[iptr_a];
-          pml_hTzz[iptr_a] = d1 * hTzz_rhs - a1 * pml_Tzz[iptr_a];
-          pml_hTxz[iptr_a] = d1 * hTxz_rhs - a1 * pml_Txz[iptr_a];
-          pml_hTyz[iptr_a] = d1 * hTyz_rhs - a1 * pml_Tyz[iptr_a];
-          pml_hTxy[iptr_a] = d1 * hTxy_rhs - a1 * pml_Txy[iptr_a];
+          pml_hTxx[iptr_a] = coef_D * hTxx_rhs - coef_A * pml_Txx[iptr_a];
+          pml_hTyy[iptr_a] = coef_D * hTyy_rhs - coef_A * pml_Tyy[iptr_a];
+          pml_hTzz[iptr_a] = coef_D * hTzz_rhs - coef_A * pml_Tzz[iptr_a];
+          pml_hTxz[iptr_a] = coef_D * hTxz_rhs - coef_A * pml_Txz[iptr_a];
+          pml_hTyz[iptr_a] = coef_D * hTyz_rhs - coef_A * pml_Tyz[iptr_a];
+          pml_hTxy[iptr_a] = coef_D * hTxy_rhs - coef_A * pml_Txy[iptr_a];
 
           // incr index
           iptr   += 1;
@@ -2149,19 +2157,19 @@ sv_eliso1st_curv_macdrp_rhs_cfspml_vlow_z2(
     size_t abs_nk2 = abs_indx[iface][5];
 
     // get coef for this face
-    float *restrict ptr_ceof_A = abs_coefs + abs_coefs_facepos0[iface];
+    float *restrict ptr_coef_A = abs_coefs + abs_coefs_facepos0[iface];
     float *restrict ptr_coef_B = ptr_coef_A + abs_num_of_layers[iface];
     float *restrict ptr_coef_D = ptr_coef_B + abs_num_of_layers[iface];
 
     // get pml vars
     size_t pos_cur_face = abs_vars_facepos0[iface];
     size_t pml_volsiz = abs_vars_volsiz[iface];
-    float *restrict pml_Vx  = abs_vars_cur + pos_cur_face + WF_EL_1ST_SEQ_VX  * pml_volsiz;
-    float *restrict pml_Vy  = abs_vars_cur + pos_cur_face + WF_EL_1ST_SEQ_VY  * pml_volsiz;
-    float *restrict pml_Vz  = abs_vars_cur + pos_cur_face + WF_EL_1ST_SEQ_VZ  * pml_volsiz;
-    float *restrict pml_hVx  = abs_vars_rhs + pos_cur_face + WF_EL_1ST_SEQ_VX  * pml_volsiz;
-    float *restrict pml_hVy  = abs_vars_rhs + pos_cur_face + WF_EL_1ST_SEQ_VY  * pml_volsiz;
-    float *restrict pml_hVz  = abs_vars_rhs + pos_cur_face + WF_EL_1ST_SEQ_VZ  * pml_volsiz;
+    float *restrict pml_Vx  = abs_vars_cur + pos_cur_face + WF_EL_1ST_SEQ_Vx  * pml_volsiz;
+    float *restrict pml_Vy  = abs_vars_cur + pos_cur_face + WF_EL_1ST_SEQ_Vy  * pml_volsiz;
+    float *restrict pml_Vz  = abs_vars_cur + pos_cur_face + WF_EL_1ST_SEQ_Vz  * pml_volsiz;
+    float *restrict pml_hVx  = abs_vars_rhs + pos_cur_face + WF_EL_1ST_SEQ_Vx  * pml_volsiz;
+    float *restrict pml_hVy  = abs_vars_rhs + pos_cur_face + WF_EL_1ST_SEQ_Vy  * pml_volsiz;
+    float *restrict pml_hVz  = abs_vars_rhs + pos_cur_face + WF_EL_1ST_SEQ_Vz  * pml_volsiz;
 
     // for each dim
     if (iface < 2) // x direction
@@ -2358,7 +2366,7 @@ int sv_eliso1st_curv_macdrp_apply_ablexp(float *restrict w_cur,
  * add source terms
  ******************************************************************************/
 
-int
+void
 sv_eliso1st_curv_macdrp_rhs_src(
     float *restrict hVx , float *restrict hVy , float *restrict hVz ,
     float *restrict hTxx, float *restrict hTyy, float *restrict hTzz,
@@ -2366,27 +2374,25 @@ sv_eliso1st_curv_macdrp_rhs_src(
     float *restrict jac3d, float *restrict slw3d,
     size_t siz_line, size_t siz_slice,
     int num_of_force,
-    int *restrict force_loc_point,
+    size_t *restrict force_info,
     float *restrict force_vec_value,
     int num_of_moment,
-    int *restrict moment_loc_point,
+    size_t *restrict moment_info,
     float *restrict moment_ten_value, // size: num_of_moment * 6
     const int myid, const int verbose)
 {
-  int ierr = 0;
-
   // local var
   size_t si,sj,sk, iptr;
 
   // add force
   for (int n=0; n<num_of_force; n++)
   {
-    size_t *ptr_force_loc = force_loc_point + n * FD_NDIM;
-    size_t *ptr_force_val = force_vec_value + n * 3;
+    size_t *ptr_force_loc = force_info + n * 6;
+    float  *ptr_force_val = force_vec_value + n * 3;
 
-    si = force_loc_point[0];
-    sj = force_loc_point[1];
-    sk = force_loc_point[2];
+    si = ptr_force_loc[0];
+    sj = ptr_force_loc[1];
+    sk = ptr_force_loc[2];
 
     iptr = si + sj * siz_line + sk * siz_slice;
 
@@ -2400,12 +2406,12 @@ sv_eliso1st_curv_macdrp_rhs_src(
   // add moment source
   for (int n=0; n<num_of_moment; n++)
   {
-    size_t *ptr_moment_loc = moment_loc_point + n * FD_NDIM;
-    size_t *ptr_moment_val = moment_ten_value + n * 6;
+    size_t *ptr_moment_loc = moment_info + n * 6;
+    float  *ptr_moment_val = moment_ten_value + n * 6;
 
-    si = moment_loc_point[0];
-    sj = moment_loc_point[1];
-    sk = moment_loc_point[2];
+    si = ptr_moment_loc[0];
+    sj = ptr_moment_loc[1];
+    sk = ptr_moment_loc[2];
 
     iptr = si + sj * siz_line + sk * siz_slice;
 
@@ -2418,8 +2424,6 @@ sv_eliso1st_curv_macdrp_rhs_src(
     hTyz[iptr] -= ptr_moment_val[ 4 ] / jac;
     hTxy[iptr] -= ptr_moment_val[ 5 ] / jac;
   }
-
-  return ierr;
 }
 
 /*******************************************************************************
@@ -2441,12 +2445,12 @@ sv_eliso1st_curv_macdrp_vel_dxy2dz(
   float A[3][3], B[3][3], C[3][3];
   float AB[3][3], AC[3][3];
 
-  (float *) matVx2Vz = (float *)fdlib_mem_calloc_1d_float(
+  float *matVx2Vz = (float *)fdlib_mem_calloc_1d_float(
                                       siz_slice * FD_NDIM * FD_NDIM,
                                       0.0,
                                       "sv_eliso1st_curv_macdrp_vel_dxy2dz");
 
-  (float *) matVy2Vz = (float *)fdlib_mem_calloc_1d_float(
+  float *matVy2Vz = (float *)fdlib_mem_calloc_1d_float(
                                       siz_slice * FD_NDIM * FD_NDIM,
                                       0.0,
                                       "sv_eliso1st_curv_macdrp_vel_dxy2dz");
@@ -2460,8 +2464,8 @@ sv_eliso1st_curv_macdrp_vel_dxy2dz(
   float *restrict zt_x = g3d + GD_CURV_SEQ_ZTX * siz_volume;
   float *restrict zt_y = g3d + GD_CURV_SEQ_ZTY * siz_volume;
   float *restrict zt_z = g3d + GD_CURV_SEQ_ZTZ * siz_volume;
-  float *restrict lam3d = m3d + MD_ELISO_SEQ_LAMBDA * siz_volume;
-  float *restrict  mu3d = m3d + MD_ELISO_SEQ_MU     * siz_volume;
+  float *restrict lam3d = m3d + MD_EL_ISO_SEQ_LAMBDA * siz_volume;
+  float *restrict  mu3d = m3d + MD_EL_ISO_SEQ_MU     * siz_volume;
 
   size_t k = nk2;
 
