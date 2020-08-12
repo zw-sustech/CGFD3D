@@ -4,6 +4,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <math.h>
 
 #include "fd_t.h"
@@ -15,7 +16,26 @@
 void 
 fd_set_macdrp(struct fd_t *fd)
 {
-  // rk scheme is fixed in fd_t.h
+  //----------------------------------------------------------------------------
+  // rk scheme
+  //----------------------------------------------------------------------------
+  fd->num_rk_stages = 4;
+
+  fd->rk_a = (float *) fdlib_mem_malloc_1d(fd->num_rk_stages*sizeof(float),"fd_set_macdrp");
+  fd->rk_b = (float *) fdlib_mem_malloc_1d(fd->num_rk_stages*sizeof(float),"fd_set_macdrp");
+
+  fd->rk_a[0] = 0.5;
+  fd->rk_a[1] = 0.5;
+  fd->rk_a[2] = 1.0;
+
+  fd->rk_b[0] = 1.0/6.0;
+  fd->rk_b[1] = 1.0/3.0;
+  fd->rk_b[2] = 1.0/3.0;
+  fd->rk_b[3] = 1.0/6.0;
+
+  //----------------------------------------------------------------------------
+  // MacCormack-type scheme
+  //----------------------------------------------------------------------------
 
   // set max
   fd->fdx_max_len = 5;
@@ -27,9 +47,90 @@ fd_set_macdrp(struct fd_t *fd)
   fd->fdx_nghosts = 3;
   fd->fdy_nghosts = 3;
   fd->fdz_nghosts = 3;
-  fd->fdx_num_surf_lay = 0;
-  fd->fdy_num_surf_lay = 0;
+  fd->fdx_num_surf_lay = 3;
+  fd->fdy_num_surf_lay = 3;
   fd->fdz_num_surf_lay = 3;
+
+  // 1d scheme for different points to surface, or different half length
+#define  m_mac_max_half_stentil   3
+#define  m_mac_all_coef_size      10
+
+  // forw/back, free at 0/1/2/3 point to free, indx/total/half/left/right
+  // half, left, right number will be used to pack message
+  size_t mac_all_info[2][m_mac_max_half_stentil+1][FD_INFO_SIZE] =
+  {
+    { // forw
+      // POS, TOTAL, HALF, LEFT, RIGHT
+      { 0, 0, 0, 0, 0 }, // 0 free, not used
+      { 0, 2, 1, 0, 1 }, // 1 to free
+      { 2, 3, 2, 0, 2 }, // 2
+      { 5, 5, 3, 1, 3 }  // 3, normal op for cur scheme
+    },
+    { // back
+      { 0, 0, 0, 0, 0 }, // 0 free, not used
+      { 0, 2, 1, 1, 0 }, // 1 to free
+      { 2, 3, 2, 2, 0 }, // 2
+      { 5, 5, 3, 3, 1 }  // 3, normal op for cur scheme
+    }
+  };
+
+  size_t mac_all_indx[2][m_mac_all_coef_size] =
+  {
+    { // fowrd
+      0, 1,
+      0, 1, 2,
+      -1, 0, 1, 2, 3
+    },
+    { // back
+      -1, 0, 
+      -2, -1, 0,
+      -3,-2,-1,0,1
+    } 
+  };
+
+  float mac_all_coef[2][m_mac_all_coef_size] = 
+  {
+    {
+      -1.0, 1.0,
+      -7.0/6.0, 8.0/6.0, -1.0/6.0, 
+      -0.30874,-0.6326 ,1.233 ,-0.3334,0.04168 
+    },
+    {
+      1.0, -1.0,
+      1.0/6.0, -8.0/6.0, 7.0/6.0, 
+      -0.04168 , 0.3334, -1.233 , 0.6326 , 0.30874
+    } 
+  };
+
+  // center scheme for macdrp, which is used in metric calculation
+#define m_mac_center_all_coef_size 15
+  size_t mac_center_all_info[m_mac_max_half_stentil+1][FD_INFO_SIZE] =
+    {
+      // POS, TOTAL, HALF, LEFT, RIGHT
+      { 0, 0, 0, 0, 0 }, // 0 free, not used
+      { 0, 3, 1, 1, 1 }, // 1 to free
+      { 2, 5, 2, 2, 2 }, // 2
+      { 5, 7, 3, 3, 3 }  // 3, normal op for cur scheme
+    };
+  float mac_center_all_indx[m_mac_center_all_coef_size] =
+  {
+    -1, 0, 1,
+    -2,-1,0, 1, 2,
+    -3,-2,-1, 0, 1, 2, 3
+  };
+  float mac_center_all_coef[m_mac_center_all_coef_size] =
+  {
+    -0.5, 0.0, 0.5,
+    // 2-4 scheme
+    //                   -7.0/6.0, 8.0/6.0, -1.0/6.0, 
+    // 1.0/6.0, -8.0/6.0, 7.0/6.0, 
+    0.08333333, -0.6666666, 0.0, 0.6666666, -0.08333333,
+    // drp scheme
+    //                   -0.30874,-0.6326 ,1.233 ,-0.3334,0.04168 
+    // -0.04168 , 0.3334, -1.233 , 0.6326 , 0.30874
+    // 
+    -0.02084, 0.1667, -0.7709, 0.0, 0.7709, -0.1667, 0.02084 
+  };
 
   // for 3d op
   fd->num_of_pairs = 8;
@@ -51,60 +152,60 @@ fd_set_macdrp(struct fd_t *fd)
   fd->pair_fdx_all_info = (size_t ****) fdlib_mem_calloc_4l_sizet( 
                                               fd->num_of_pairs,
                                               fd->num_rk_stages,
-                                              fd->mac_max_half_stentil+1,
+                                              m_mac_max_half_stentil+1,
                                               FD_INFO_SIZE,
                                               0,
                                               "fd_set_macdrp");
   fd->pair_fdx_all_indx = (size_t ***) fdlib_mem_calloc_3l_sizet( 
                                               fd->num_of_pairs ,
                                               fd->num_rk_stages ,
-                                              fd->mac_all_coef_size,
+                                              m_mac_all_coef_size,
                                               0,
                                               "fd_set_macdrp");
-  fd->pair_fdx_all_coef = (int ***) fdlib_mem_calloc_3l_float( 
+  fd->pair_fdx_all_coef = (float ***) fdlib_mem_calloc_3l_float( 
                                               fd->num_of_pairs ,
                                               fd->num_rk_stages ,
-                                              fd->mac_all_coef_size,
+                                              m_mac_all_coef_size,
                                               0.0,
                                               "fd_set_macdrp");
 
   fd->pair_fdy_all_info = (size_t ****) fdlib_mem_calloc_4l_sizet( 
                                               fd->num_of_pairs,
                                               fd->num_rk_stages,
-                                              fd->mac_max_half_stentil+1,
+                                              m_mac_max_half_stentil+1,
                                               FD_INFO_SIZE,
                                               0,
                                               "fd_set_macdrp");
   fd->pair_fdy_all_indx = (size_t ***) fdlib_mem_calloc_3l_sizet( 
                                               fd->num_of_pairs ,
                                               fd->num_rk_stages ,
-                                              fd->mac_all_coef_size,
+                                              m_mac_all_coef_size,
                                               0,
                                               "fd_set_macdrp");
-  fd->pair_fdy_all_coef = (int ***) fdlib_mem_calloc_3l_float( 
+  fd->pair_fdy_all_coef = (float ***) fdlib_mem_calloc_3l_float( 
                                               fd->num_of_pairs ,
                                               fd->num_rk_stages ,
-                                              fd->mac_all_coef_size,
+                                              m_mac_all_coef_size,
                                               0.0,
                                               "fd_set_macdrp");
 
   fd->pair_fdz_all_info = (size_t ****) fdlib_mem_calloc_4l_sizet( 
                                               fd->num_of_pairs,
                                               fd->num_rk_stages,
-                                              fd->mac_max_half_stentil+1,
+                                              m_mac_max_half_stentil+1,
                                               FD_INFO_SIZE,
                                               0,
                                               "fd_set_macdrp");
   fd->pair_fdz_all_indx = (size_t ***) fdlib_mem_calloc_3l_sizet( 
                                               fd->num_of_pairs ,
                                               fd->num_rk_stages ,
-                                              fd->mac_all_coef_size,
+                                              m_mac_all_coef_size,
                                               0,
                                               "fd_set_macdrp");
-  fd->pair_fdz_all_coef = (int ***) fdlib_mem_calloc_3l_float( 
+  fd->pair_fdz_all_coef = (float ***) fdlib_mem_calloc_3l_float( 
                                               fd->num_of_pairs ,
                                               fd->num_rk_stages ,
-                                              fd->mac_all_coef_size,
+                                              m_mac_all_coef_size,
                                               0.0,
                                               "fd_set_macdrp");
 
@@ -123,28 +224,39 @@ fd_set_macdrp(struct fd_t *fd)
       int kdir = (kdir0 + istage) % 2;
 
       // for each point near surface
-      for (int ipoint=0; ipoint <= fd->mac_max_half_stentil; ipoint++)
+      for (int ipoint=0; ipoint <= m_mac_max_half_stentil; ipoint++)
       {
         for (int i=0; i < FD_INFO_SIZE; i++)
         {
-          par->pair_fdx_all_info[ipair][istage][ipoint][i] = par->mac_all_info[idir][ipoint][i];
-          par->pair_fdy_all_info[ipair][istage][ipoint][i] = par->mac_all_info[jdir][ipoint][i];
-          par->pair_fdz_all_info[ipair][istage][ipoint][i] = par->mac_all_info[kdir][ipoint][i];
+          fd->pair_fdx_all_info[ipair][istage][ipoint][i] = mac_all_info[idir][ipoint][i];
+          fd->pair_fdy_all_info[ipair][istage][ipoint][i] = mac_all_info[jdir][ipoint][i];
+          fd->pair_fdz_all_info[ipair][istage][ipoint][i] = mac_all_info[kdir][ipoint][i];
         }
       }
 
       // indx and coef
-      for (int i=0; i < fd->mac_all_coef_size; i++)
+      for (int i=0; i < m_mac_all_coef_size; i++)
       {
-        par->pair_fdx_all_indx[ipair][istage][i] = par->mac_all_indx[idir][i];
-        par->pair_fdy_all_indx[ipair][istage][i] = par->mac_all_indx[jdir][i];
-        par->pair_fdz_all_indx[ipair][istage][i] = par->mac_all_indx[kdir][i];
+        fd->pair_fdx_all_indx[ipair][istage][i] = mac_all_indx[idir][i];
+        fd->pair_fdy_all_indx[ipair][istage][i] = mac_all_indx[jdir][i];
+        fd->pair_fdz_all_indx[ipair][istage][i] = mac_all_indx[kdir][i];
 
-        par->pair_fdx_all_coef[ipair][istage][i] = par->mac_all_coef[idir][i];
-        par->pair_fdy_all_coef[ipair][istage][i] = par->mac_all_coef[jdir][i];
-        par->pair_fdz_all_coef[ipair][istage][i] = par->mac_all_coef[kdir][i];
+        fd->pair_fdx_all_coef[ipair][istage][i] = mac_all_coef[idir][i];
+        fd->pair_fdy_all_coef[ipair][istage][i] = mac_all_coef[jdir][i];
+        fd->pair_fdz_all_coef[ipair][istage][i] = mac_all_coef[kdir][i];
       }
     }
+  }
+
+  // centered op for metrics
+  size_t fd_len   = mac_center_all_info[3][1];
+  size_t fd_pos   = mac_center_all_info[3][0];
+
+  fd->fd_indx = (size_t *) fdlib_mem_malloc_1d(fd_len*sizeof(size_t),"fd_set_macdrp");
+  fd->fd_coef = (float  *) fdlib_mem_malloc_1d(fd_len*sizeof(float),"fd_set_macdrp");
+  for (size_t i=0; i<fd_len; i++) {
+    fd->fd_indx[i] = mac_center_all_indx[fd_pos+i];
+    fd->fd_coef[i] = mac_center_all_coef[fd_pos+i];
   }
 }
 
@@ -159,7 +271,7 @@ fd_blk_init(struct fd_blk_t *blk,
             int number_of_mpiprocs_x,
             int number_of_mpiprocs_y,
             char **boundary_type_name,
-            int *abs_number_of_layers,
+            int *abs_num_of_layers,
             int fdx_nghosts,
             int fdy_nghosts,
             int fdz_nghosts,
@@ -179,7 +291,7 @@ fd_blk_init(struct fd_blk_t *blk,
   for (int i=0; i<FD_NDIM_2; i++) {
     // default none
     int bdry_itype = FD_BOUNDARY_TYPE_NONE;
-    blk->abs_number_of_layers[i] = 0;
+    blk->abs_num_of_layers[i] = 0;
 
     // set according input
     if ( (i==0 && myid2[0]==0) ||
@@ -193,7 +305,7 @@ fd_blk_init(struct fd_blk_t *blk,
       {
         bdry_itype = FD_BOUNDARY_TYPE_CFSPML;
         abs_itype  = bdry_itype;
-        blk->abs_number_of_layers[i] = abs_number_of_layers[i];
+        blk->abs_num_of_layers[i] = abs_num_of_layers[i];
       }
 
       // free
@@ -217,29 +329,29 @@ fd_blk_init(struct fd_blk_t *blk,
   int nx_et = number_of_total_grid_points_x;
   // double cfspml load
   if (abs_itype == FD_BOUNDARY_TYPE_CFSPML) {
-    nx_et += abs_number_of_layers[0] + abs_number_of_layers[1];
+    nx_et += abs_num_of_layers[0] + abs_num_of_layers[1];
   }
   int nx_avg  = nx_et / number_of_mpiprocs_x;
   int nx_left = nx_et % number_of_mpiprocs_x;
   if (nx_avg < 2 * fdx_nghosts) {
     // error
   }
-  if (nx_avg<abs_number_of_layers[0] || nx_avg<abs_number_of_layers[1]) {
+  if (nx_avg<abs_num_of_layers[0] || nx_avg<abs_num_of_layers[1]) {
     // error
   }
   int ni = nx_avg;
   if (abs_itype == FD_BOUNDARY_TYPE_CFSPML && myid2[0]==0) {
-    ni -= abs_number_of_layers[0];
+    ni -= abs_num_of_layers[0];
   }
   if (abs_itype == FD_BOUNDARY_TYPE_CFSPML && myid2[0]==number_of_mpiprocs_x-1) {
-    ni -= abs_number_of_layers[1];
+    ni -= abs_num_of_layers[1];
   }
   // not equal divided points given to first nx_left procs
   if (myid2[0] < nx_left) {
     ni++;
   }
   // global index
-  blk->gni1 = myid2[0] * nx_avg - abs_number_of_layers[0];
+  blk->gni1 = myid2[0] * nx_avg - abs_num_of_layers[0];
   if (nx_left != 0) {
     blk->gni1 += (myid2[0] < nx_left)? myid2[0] : nx_left;
   }
@@ -248,29 +360,29 @@ fd_blk_init(struct fd_blk_t *blk,
   int ny_et = number_of_total_grid_points_y;
   // double cfspml load
   if (abs_itype == FD_BOUNDARY_TYPE_CFSPML) {
-    ny_et += abs_number_of_layers[2] + abs_number_of_layers[3];
+    ny_et += abs_num_of_layers[2] + abs_num_of_layers[3];
   }
   int ny_avg  = ny_et / number_of_mpiprocs_y;
   int ny_left = ny_et % number_of_mpiprocs_y;
   if (ny_avg < 2 * fdy_nghosts) {
     // error
   }
-  if (ny_avg<abs_number_of_layers[2] || ny_avg<abs_number_of_layers[3]) {
+  if (ny_avg<abs_num_of_layers[2] || ny_avg<abs_num_of_layers[3]) {
     // error
   }
   int nj = ny_avg;
   if (abs_itype == FD_BOUNDARY_TYPE_CFSPML && myid2[1]==0) {
-    nj -= abs_number_of_layers[2];
+    nj -= abs_num_of_layers[2];
   }
   if (abs_itype == FD_BOUNDARY_TYPE_CFSPML && myid2[1]==number_of_mpiprocs_y-1) {
-    nj -= abs_number_of_layers[3];
+    nj -= abs_num_of_layers[3];
   }
   // not equal divided points given to first ny_left procs
   if (myid2[1] < ny_left) {
     nj++;
   }
   // global index
-  blk->gnj1 = myid2[1] * ny_avg - abs_number_of_layers[2];
+  blk->gnj1 = myid2[1] * ny_avg - abs_num_of_layers[2];
   if (ny_left != 0) {
     blk->gnj1 += (myid2[1] < ny_left)? myid2[1] : ny_left;
   }
@@ -280,9 +392,9 @@ fd_blk_init(struct fd_blk_t *blk,
   blk->gnk1 = 0;
   
   // add ghost points
-  nx = ni + 2 * fdx_nghosts;
-  ny = nj + 2 * fdy_nghosts;
-  nz = nk + 2 * fdz_nghosts;
+  int nx = ni + 2 * fdx_nghosts;
+  int ny = nj + 2 * fdy_nghosts;
+  int nz = nk + 2 * fdz_nghosts;
 
   blk->ni = ni;
   blk->nj = nj;
