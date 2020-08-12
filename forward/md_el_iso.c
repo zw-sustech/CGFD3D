@@ -137,7 +137,7 @@ md_el_iso_gen_test(
     {
       for (size_t i=0; i<nx; i++)
       {
-        size_t iptr = i + j * siz_line + k * siz_volume;
+        size_t iptr = i + j * siz_line + k * siz_slice;
         float Vp=3000.0;
         float Vs=2000.0;
         float rho=1500.0;

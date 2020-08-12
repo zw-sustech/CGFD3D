@@ -100,11 +100,11 @@ sv_eliso1st_curv_macdrp_allstep(
   // alloc
   if (num_of_force > 0) {
     force_vec_value = (float *)fdlib_mem_malloc_1d(num_of_force*3*sizeof(float),
-                                                   "alloc force stf all step");
+                                                   "alloc force_vec_value in all step");
   }
   if (num_of_moment > 0) {
-    moment_ten_value = (float *)fdlib_mem_malloc_1d(num_of_force*6*sizeof(float),
-                                                    "alloc force stf all step");
+    moment_ten_value = (float *)fdlib_mem_malloc_1d(num_of_moment*6*sizeof(float),
+                                                    "alloc moment_ten_value in all step");
   }
 
   // get wavefield

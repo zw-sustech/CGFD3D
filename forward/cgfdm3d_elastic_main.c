@@ -26,7 +26,7 @@
 int main(int argc, char** argv)
 {
   int verbose = 1; // default fprint
-  char par_fname[FD_MAX_STRLEN];
+  char *par_fname;
 
 //-------------------------------------------------------------------------------
 // start MPI and read par
@@ -51,7 +51,8 @@ int main(int argc, char** argv)
       exit(1);
     }
 
-    strncpy(par_fname, argv[1], sizeof(argv[1]));
+    //strncpy(par_fname, argv[1], sizeof(argv[1]));
+    par_fname = argv[1];
 
     if (argc >= 3) {
       verbose = atoi(argv[2]); // verbose number

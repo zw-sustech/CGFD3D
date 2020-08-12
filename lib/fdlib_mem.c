@@ -21,7 +21,8 @@ void *
 fdlib_mem_malloc_1d(size_t siz_byte, char *msg)
 {
     if (siz_byte <= 0 ) {
-        fprintf(stderr, "Error: the length of buff %i is negative!\n", siz_byte);
+        fprintf(stderr, "Error: siz_byte=%i is zero or negative (%s)(!\n", siz_byte, msg);
+        fflush(stderr);
         return NULL;
     }
 
@@ -29,6 +30,7 @@ fdlib_mem_malloc_1d(size_t siz_byte, char *msg)
     void *buff = (void *) malloc( siz_byte );
     if ( buff == NULL ) {
         fprintf(stderr, "Error: can't malloc enough mem (%s)!\n", msg);
+        fflush(stderr);
         exit(-1);
     }
 
@@ -43,13 +45,15 @@ int *
 fdlib_mem_calloc_1d_int(size_t n, int v0, char *msg)
 {
   if (n <= 0 ) {
-    fprintf(stderr, "Error: size=%i is negative (%s)!\n", n, msg);
+    fprintf(stderr, "Error: size=%i is zero or negative (%s)!\n", n, msg);
+        fflush(stderr);
     return NULL;
   }
   
   int *buff = (int *) malloc( n * sizeof(int));
   if ( buff == NULL ) {
     fprintf(stderr, "Error: can't malloc enough mem (%s)!\n", msg);
+        fflush(stderr);
     exit(-1);
   }
   
@@ -62,13 +66,15 @@ size_t *
 fdlib_mem_calloc_1d_sizet(size_t n, size_t v0, char *msg)
 {
   if (n <= 0 ) {
-    fprintf(stderr, "Error: size=%i is negative (%s)!\n", n, msg);
+    fprintf(stderr, "Error: size=%i is zero or negative (%s)!\n", n, msg);
+        fflush(stderr);
     return NULL;
   }
   
   size_t *buff = (size_t *) malloc( n * sizeof(size_t));
   if ( buff == NULL ) {
     fprintf(stderr, "Error: can't malloc enough mem (%s)!\n", msg);
+        fflush(stderr);
     exit(-1);
   }
   
@@ -81,13 +87,15 @@ float *
 fdlib_mem_calloc_1d_float(size_t n, float v0, char *msg)
 {
   if (n <= 0 ) {
-    fprintf(stderr, "Error: size=%i is negative (%s)!\n", n, msg);
+    fprintf(stderr, "Error: size=%i is zero or negative (%s)!\n", n, msg);
+        fflush(stderr);
     return NULL;
   }
 
   float *buff = (float *) malloc( n * sizeof(float));
   if ( buff == NULL ) {
     fprintf(stderr, "Error: can't malloc enough mem (%s)!\n", msg);
+        fflush(stderr);
     exit(-1);
   }
 
@@ -105,6 +113,7 @@ fdlib_mem_free_1d(void *p)
 {
   if (p==NULL) {
     fprintf(stderr, "Pointer is null!\n");
+        fflush(stderr);
   } else {
     free(p);
   }
@@ -122,6 +131,7 @@ fdlib_mem_malloc_2l_int(size_t n1, size_t n2, char *msg)
   
   if (n1 <= 0 || n2<=0) {
     fprintf(stderr, "Error: n1=%i n2=%i negative (%s)!\n", n1, n2, msg);
+        fflush(stderr);
     return NULL;
   }
   
@@ -129,6 +139,7 @@ fdlib_mem_malloc_2l_int(size_t n1, size_t n2, char *msg)
   buff = (int**) malloc( n1 * sizeof(int*));
   if ( buff == NULL ) {
       fprintf(stderr, "Error: allocate 1 fails (%s)!\n", msg);
+        fflush(stderr);
       exit(-1);
   }
   
@@ -138,6 +149,7 @@ fdlib_mem_malloc_2l_int(size_t n1, size_t n2, char *msg)
     buff[i] = (int*) malloc( n2 * sizeof(int));
     if ( buff[i] == NULL ) {
         fprintf(stderr, "Error: allocate 2 fails (%s)!\n", msg);
+        fflush(stderr);
         exit(-1);
     }
   }
@@ -175,6 +187,7 @@ fdlib_mem_malloc_2l_sizet(size_t n1, size_t n2, char *msg)
   
   if (n1 <= 0 || n2<=0) {
     fprintf(stderr, "Error: n1=%i n2=%i negative (%s)!\n", n1, n2, msg);
+        fflush(stderr);
     return NULL;
   }
   
@@ -182,6 +195,7 @@ fdlib_mem_malloc_2l_sizet(size_t n1, size_t n2, char *msg)
   buff = (size_t**) malloc( n1 * sizeof(size_t*));
   if ( buff == NULL ) {
       fprintf(stderr, "Error: allocate 1 fails (%s)!\n", msg);
+        fflush(stderr);
       exit(-1);
   }
   
@@ -191,6 +205,7 @@ fdlib_mem_malloc_2l_sizet(size_t n1, size_t n2, char *msg)
     buff[i] = (size_t*) malloc( n2 * sizeof(size_t));
     if ( buff[i] == NULL ) {
         fprintf(stderr, "Error: allocate 2 fails (%s)!\n", msg);
+        fflush(stderr);
         exit(-1);
     }
   }
@@ -228,6 +243,7 @@ fdlib_mem_malloc_2l_float(size_t n1, size_t n2, char *msg)
   
   if (n1 <= 0 || n2<=0) {
     fprintf(stderr, "Error: n1=%i n2=%i negative (%s)!\n", n1, n2, msg);
+        fflush(stderr);
     return NULL;
   }
   
@@ -235,6 +251,7 @@ fdlib_mem_malloc_2l_float(size_t n1, size_t n2, char *msg)
   buff = (float**) malloc( n1 * sizeof(float*));
   if ( buff == NULL ) {
       fprintf(stderr, "Error: allocate 1 fails (%s)!\n", msg);
+        fflush(stderr);
       exit(-1);
   }
   
@@ -244,6 +261,7 @@ fdlib_mem_malloc_2l_float(size_t n1, size_t n2, char *msg)
     buff[i] = (float*) malloc( n2 * sizeof(float));
     if ( buff[i] == NULL ) {
         fprintf(stderr, "Error: allocate 2 fails (%s)!\n", msg);
+        fflush(stderr);
         exit(-1);
     }
   }
@@ -281,6 +299,7 @@ fdlib_mem_malloc_2l_char(size_t n1, size_t n2, char *msg)
   
   if (n1 <= 0 || n2<=0) {
     fprintf(stderr, "Error: n1=%i n2=%i negative (%s)!\n", n1, n2, msg);
+        fflush(stderr);
     return NULL;
   }
   
@@ -288,6 +307,7 @@ fdlib_mem_malloc_2l_char(size_t n1, size_t n2, char *msg)
   buff = (char**) malloc( n1 * sizeof(char*));
   if ( buff == NULL ) {
       fprintf(stderr, "Error: allocate 1 fails (%s)!\n", msg);
+        fflush(stderr);
       exit(-1);
   }
   
@@ -297,6 +317,7 @@ fdlib_mem_malloc_2l_char(size_t n1, size_t n2, char *msg)
     buff[i] = (char*) malloc( n2 * sizeof(char));
     if ( buff[i] == NULL ) {
         fprintf(stderr, "Error: allocate 2 fails (%s)!\n", msg);
+        fflush(stderr);
         exit(-1);
     }
   }
@@ -325,6 +346,7 @@ fdlib_mem_malloc_3l_int(size_t n1, size_t n2, size_t n3, char *msg)
   
   if (n1 <= 0 || n2<=0 || n3<=0) {
     fprintf(stderr, "Error: n1=%i n2=%i n3=%i negative (%s)!\n", n1, n2, n3, msg);
+        fflush(stderr);
     return NULL;
   }
   
@@ -332,6 +354,7 @@ fdlib_mem_malloc_3l_int(size_t n1, size_t n2, size_t n3, char *msg)
   buff = (int***) malloc( n1 * sizeof(int**));
   if ( buff == NULL ) {
       fprintf(stderr, "Error: allocate 1 fails (%s)!\n", msg);
+        fflush(stderr);
       exit(-1);
   }
   
@@ -341,6 +364,7 @@ fdlib_mem_malloc_3l_int(size_t n1, size_t n2, size_t n3, char *msg)
     buff[i] = (int**) malloc( n2 * sizeof(int*));
     if ( buff[i] == NULL ) {
         fprintf(stderr, "Error: allocate 2 fails (%s)!\n", msg);
+        fflush(stderr);
         exit(-1);
     }
 
@@ -350,6 +374,7 @@ fdlib_mem_malloc_3l_int(size_t n1, size_t n2, size_t n3, char *msg)
       buff[i][j] = (int*) malloc( n3 * sizeof(int));
       if ( buff[i][j] == NULL ) {
           fprintf(stderr, "Error: allocate 3 fails (%s)!\n", msg);
+        fflush(stderr);
           exit(-1);
       }
     }
@@ -392,6 +417,7 @@ fdlib_mem_malloc_3l_sizet(size_t n1, size_t n2, size_t n3, char *msg)
   
   if (n1 <= 0 || n2<=0 || n3<=0) {
     fprintf(stderr, "Error: n1=%i n2=%i n3=%i negative (%s)!\n", n1, n2, n3, msg);
+        fflush(stderr);
     return NULL;
   }
   
@@ -399,6 +425,7 @@ fdlib_mem_malloc_3l_sizet(size_t n1, size_t n2, size_t n3, char *msg)
   buff = (size_t***) malloc( n1 * sizeof(size_t**));
   if ( buff == NULL ) {
       fprintf(stderr, "Error: allocate 1 fails (%s)!\n", msg);
+        fflush(stderr);
       exit(-1);
   }
   
@@ -408,6 +435,7 @@ fdlib_mem_malloc_3l_sizet(size_t n1, size_t n2, size_t n3, char *msg)
     buff[i] = (size_t**) malloc( n2 * sizeof(size_t*));
     if ( buff[i] == NULL ) {
         fprintf(stderr, "Error: allocate 2 fails (%s)!\n", msg);
+        fflush(stderr);
         exit(-1);
     }
 
@@ -417,6 +445,7 @@ fdlib_mem_malloc_3l_sizet(size_t n1, size_t n2, size_t n3, char *msg)
       buff[i][j] = (size_t*) malloc( n3 * sizeof(size_t));
       if ( buff[i][j] == NULL ) {
           fprintf(stderr, "Error: allocate 3 fails (%s)!\n", msg);
+        fflush(stderr);
           exit(-1);
       }
     }
@@ -459,6 +488,7 @@ fdlib_mem_malloc_3l_float(size_t n1, size_t n2, size_t n3, char *msg)
   
   if (n1 <= 0 || n2<=0 || n3<=0) {
     fprintf(stderr, "Error: n1=%i n2=%i n3=%i negative (%s)!\n", n1, n2, n3, msg);
+        fflush(stderr);
     return NULL;
   }
   
@@ -466,6 +496,7 @@ fdlib_mem_malloc_3l_float(size_t n1, size_t n2, size_t n3, char *msg)
   buff = (float***) malloc( n1 * sizeof(float**));
   if ( buff == NULL ) {
       fprintf(stderr, "Error: allocate 1 fails (%s)!\n", msg);
+        fflush(stderr);
       exit(-1);
   }
   
@@ -475,6 +506,7 @@ fdlib_mem_malloc_3l_float(size_t n1, size_t n2, size_t n3, char *msg)
     buff[i] = (float**) malloc( n2 * sizeof(float*));
     if ( buff[i] == NULL ) {
         fprintf(stderr, "Error: allocate 2 fails (%s)!\n", msg);
+        fflush(stderr);
         exit(-1);
     }
 
@@ -484,6 +516,7 @@ fdlib_mem_malloc_3l_float(size_t n1, size_t n2, size_t n3, char *msg)
       buff[i][j] = (float*) malloc( n3 * sizeof(float));
       if ( buff[i][j] == NULL ) {
           fprintf(stderr, "Error: allocate 3 fails (%s)!\n", msg);
+        fflush(stderr);
           exit(-1);
       }
     }
@@ -526,6 +559,7 @@ fdlib_mem_malloc_3l_char(size_t n1, size_t n2, size_t n3, char *msg)
   
   if (n1 <= 0 || n2<=0 || n3<=0) {
     fprintf(stderr, "Error: n1=%i n2=%i n3=%i negative (%s)!\n", n1, n2, n3, msg);
+        fflush(stderr);
     return NULL;
   }
   
@@ -533,6 +567,7 @@ fdlib_mem_malloc_3l_char(size_t n1, size_t n2, size_t n3, char *msg)
   buff = (char***) malloc( n1 * sizeof(char**));
   if ( buff == NULL ) {
       fprintf(stderr, "Error: allocate 1 fails (%s)!\n", msg);
+        fflush(stderr);
       exit(-1);
   }
   
@@ -542,6 +577,7 @@ fdlib_mem_malloc_3l_char(size_t n1, size_t n2, size_t n3, char *msg)
     buff[i] = (char**) malloc( n2 * sizeof(char*));
     if ( buff[i] == NULL ) {
         fprintf(stderr, "Error: allocate 2 fails (%s)!\n", msg);
+        fflush(stderr);
         exit(-1);
     }
 
@@ -551,6 +587,7 @@ fdlib_mem_malloc_3l_char(size_t n1, size_t n2, size_t n3, char *msg)
       buff[i][j] = (char*) malloc( n3 * sizeof(char));
       if ( buff[i][j] == NULL ) {
           fprintf(stderr, "Error: allocate 3 fails (%s)!\n", msg);
+        fflush(stderr);
           exit(-1);
       }
     }
@@ -583,6 +620,7 @@ fdlib_mem_malloc_4l_int(size_t n1, size_t n2, size_t n3, size_t n4, char *msg)
   
   if (n1 <= 0 || n2<=0 || n3<=0 || n4<=0) {
     fprintf(stderr, "Error: n1=%i n2=%i n3=%i n4=%i negative (%s)!\n", n1, n2, n3, n4, msg);
+        fflush(stderr);
     return NULL;
   }
   
@@ -590,6 +628,7 @@ fdlib_mem_malloc_4l_int(size_t n1, size_t n2, size_t n3, size_t n4, char *msg)
   buff = (int****) malloc( n1 * sizeof(int***));
   if ( buff == NULL ) {
       fprintf(stderr, "Error: allocate 1 fails (%s)!\n", msg);
+        fflush(stderr);
       exit(-1);
   }
   
@@ -599,6 +638,7 @@ fdlib_mem_malloc_4l_int(size_t n1, size_t n2, size_t n3, size_t n4, char *msg)
     buff[i] = (int***) malloc( n2 * sizeof(int**));
     if ( buff[i] == NULL ) {
         fprintf(stderr, "Error: allocate 2 fails (%s)!\n", msg);
+        fflush(stderr);
         exit(-1);
     }
 
@@ -608,6 +648,7 @@ fdlib_mem_malloc_4l_int(size_t n1, size_t n2, size_t n3, size_t n4, char *msg)
       buff[i][j] = (int**) malloc( n3 * sizeof(int*));
       if ( buff[i][j] == NULL ) {
           fprintf(stderr, "Error: allocate 3 fails (%s)!\n", msg);
+        fflush(stderr);
           exit(-1);
       }
 
@@ -617,6 +658,7 @@ fdlib_mem_malloc_4l_int(size_t n1, size_t n2, size_t n3, size_t n4, char *msg)
         buff[i][j][k] = (int*) malloc( n4 * sizeof(int));
         if ( buff[i][j][k] == NULL ) {
             fprintf(stderr, "Error: allocate 4 fails (%s)!\n", msg);
+        fflush(stderr);
             exit(-1);
         }
       }
@@ -669,6 +711,7 @@ fdlib_mem_malloc_4l_sizet(size_t n1, size_t n2, size_t n3, size_t n4, char *msg)
   
   if (n1 <= 0 || n2<=0 || n3<=0 || n4<=0) {
     fprintf(stderr, "Error: n1=%i n2=%i n3=%i n4=%i negative (%s)!\n", n1, n2, n3, n4, msg);
+        fflush(stderr);
     return NULL;
   }
   
@@ -676,6 +719,7 @@ fdlib_mem_malloc_4l_sizet(size_t n1, size_t n2, size_t n3, size_t n4, char *msg)
   buff = (size_t****) malloc( n1 * sizeof(size_t***));
   if ( buff == NULL ) {
       fprintf(stderr, "Error: allocate 1 fails (%s)!\n", msg);
+        fflush(stderr);
       exit(-1);
   }
   
@@ -685,6 +729,7 @@ fdlib_mem_malloc_4l_sizet(size_t n1, size_t n2, size_t n3, size_t n4, char *msg)
     buff[i] = (size_t***) malloc( n2 * sizeof(size_t**));
     if ( buff[i] == NULL ) {
         fprintf(stderr, "Error: allocate 2 fails (%s)!\n", msg);
+        fflush(stderr);
         exit(-1);
     }
 
@@ -694,6 +739,7 @@ fdlib_mem_malloc_4l_sizet(size_t n1, size_t n2, size_t n3, size_t n4, char *msg)
       buff[i][j] = (size_t**) malloc( n3 * sizeof(size_t*));
       if ( buff[i][j] == NULL ) {
           fprintf(stderr, "Error: allocate 3 fails (%s)!\n", msg);
+        fflush(stderr);
           exit(-1);
       }
 
@@ -703,6 +749,7 @@ fdlib_mem_malloc_4l_sizet(size_t n1, size_t n2, size_t n3, size_t n4, char *msg)
         buff[i][j][k] = (size_t*) malloc( n4 * sizeof(size_t));
         if ( buff[i][j][k] == NULL ) {
             fprintf(stderr, "Error: allocate 4 fails (%s)!\n", msg);
+        fflush(stderr);
             exit(-1);
         }
       }
@@ -755,6 +802,7 @@ fdlib_mem_malloc_4l_float(size_t n1, size_t n2, size_t n3, size_t n4, char *msg)
   
   if (n1 <= 0 || n2<=0 || n3<=0 || n4<=0) {
     fprintf(stderr, "Error: n1=%i n2=%i n3=%i n4=%i negative (%s)!\n", n1, n2, n3, n4, msg);
+        fflush(stderr);
     return NULL;
   }
   
@@ -762,6 +810,7 @@ fdlib_mem_malloc_4l_float(size_t n1, size_t n2, size_t n3, size_t n4, char *msg)
   buff = (float****) malloc( n1 * sizeof(float***));
   if ( buff == NULL ) {
       fprintf(stderr, "Error: allocate 1 fails (%s)!\n", msg);
+        fflush(stderr);
       exit(-1);
   }
   
@@ -771,6 +820,7 @@ fdlib_mem_malloc_4l_float(size_t n1, size_t n2, size_t n3, size_t n4, char *msg)
     buff[i] = (float***) malloc( n2 * sizeof(float**));
     if ( buff[i] == NULL ) {
         fprintf(stderr, "Error: allocate 2 fails (%s)!\n", msg);
+        fflush(stderr);
         exit(-1);
     }
 
@@ -780,6 +830,7 @@ fdlib_mem_malloc_4l_float(size_t n1, size_t n2, size_t n3, size_t n4, char *msg)
       buff[i][j] = (float**) malloc( n3 * sizeof(float*));
       if ( buff[i][j] == NULL ) {
           fprintf(stderr, "Error: allocate 3 fails (%s)!\n", msg);
+        fflush(stderr);
           exit(-1);
       }
 
@@ -789,6 +840,7 @@ fdlib_mem_malloc_4l_float(size_t n1, size_t n2, size_t n3, size_t n4, char *msg)
         buff[i][j][k] = (float*) malloc( n4 * sizeof(float));
         if ( buff[i][j][k] == NULL ) {
             fprintf(stderr, "Error: allocate 4 fails (%s)!\n", msg);
+        fflush(stderr);
             exit(-1);
         }
       }
@@ -841,6 +893,7 @@ fdlib_mem_malloc_4l_char(size_t n1, size_t n2, size_t n3, size_t n4, char *msg)
   
   if (n1 <= 0 || n2<=0 || n3<=0 || n4<=0) {
     fprintf(stderr, "Error: n1=%i n2=%i n3=%i n4=%i negative (%s)!\n", n1, n2, n3, n4, msg);
+        fflush(stderr);
     return NULL;
   }
   
@@ -848,6 +901,7 @@ fdlib_mem_malloc_4l_char(size_t n1, size_t n2, size_t n3, size_t n4, char *msg)
   buff = (char****) malloc( n1 * sizeof(char***));
   if ( buff == NULL ) {
       fprintf(stderr, "Error: allocate 1 fails (%s)!\n", msg);
+        fflush(stderr);
       exit(-1);
   }
   
@@ -857,6 +911,7 @@ fdlib_mem_malloc_4l_char(size_t n1, size_t n2, size_t n3, size_t n4, char *msg)
     buff[i] = (char***) malloc( n2 * sizeof(char**));
     if ( buff[i] == NULL ) {
         fprintf(stderr, "Error: allocate 2 fails (%s)!\n", msg);
+        fflush(stderr);
         exit(-1);
     }
 
@@ -866,6 +921,7 @@ fdlib_mem_malloc_4l_char(size_t n1, size_t n2, size_t n3, size_t n4, char *msg)
       buff[i][j] = (char**) malloc( n3 * sizeof(char*));
       if ( buff[i][j] == NULL ) {
           fprintf(stderr, "Error: allocate 3 fails (%s)!\n", msg);
+        fflush(stderr);
           exit(-1);
       }
       // alloc 4th-level
@@ -874,6 +930,7 @@ fdlib_mem_malloc_4l_char(size_t n1, size_t n2, size_t n3, size_t n4, char *msg)
         buff[i][j][k] = (char*) malloc( n4 * sizeof(char));
         if ( buff[i][j][k] == NULL ) {
             fprintf(stderr, "Error: allocate 4 fails (%s)!\n", msg);
+        fflush(stderr);
             exit(-1);
         }
       }

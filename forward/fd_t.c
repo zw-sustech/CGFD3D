@@ -304,7 +304,7 @@ fd_blk_init(struct fd_blk_t *blk,
          (i>=4))
     {
       // cfs-pml
-      if (strcmp(boundary_type_name[i], "cfspml"))
+      if (strcmp(boundary_type_name[i], "cfspml")==0)
       {
         bdry_itype = FD_BOUNDARY_TYPE_CFSPML;
         abs_itype  = bdry_itype;
@@ -312,7 +312,7 @@ fd_blk_init(struct fd_blk_t *blk,
       }
 
       // free
-      if (strcmp(boundary_type_name[i], "free"  )) {
+      if (strcmp(boundary_type_name[i], "free"  )==0) {
         bdry_itype = FD_BOUNDARY_TYPE_FREE;
       }
     }
@@ -422,7 +422,7 @@ fd_blk_init(struct fd_blk_t *blk,
   blk->siz_volume = nx * ny * nz;
   
   // level
-  blk->w3d_num_of_vars = number_of_levels;
+  blk->w3d_num_of_levels = number_of_levels;
 }
 
 /*
