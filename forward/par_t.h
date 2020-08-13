@@ -74,6 +74,13 @@ struct par_t{
   char source_in_fname[PAR_MAX_STRLEN];
 
   // output
+  int number_of_snapshot;
+  int *snapshot_index_start;
+  int *snapshot_index_count;
+  int *snapshot_index_stride;
+  int *snapshot_time_start;
+  int *snapshot_time_count;
+  int *snapshot_time_stride;
 
   // misc
   int check_nan_every_nummber_of_steps;
@@ -86,7 +93,7 @@ void
 par_read_from_file(char *par_fname, int myid, MPI_Comm comm, struct par_t *par, int verbose);
 
 void 
-par_read_from_str(char *str, struct par_t *par);
+par_read_from_str(const char *str, struct par_t *par);
 
 void
 par_print(struct par_t *par);

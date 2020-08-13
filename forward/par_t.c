@@ -84,7 +84,7 @@ par_read_from_file(char *par_fname, int myid, MPI_Comm comm, struct par_t *par, 
  * funcs to get par from alread read in str
  */
 void 
-par_read_from_str(char *str, struct par_t *par)
+par_read_from_str(const char *str, struct par_t *par)
 {
   // allocate
   par->boundary_type_name = (char **)malloc(FD_NDIM_2 * sizeof(char*));
@@ -102,6 +102,8 @@ par_read_from_str(char *str, struct par_t *par)
   }
 
   cJSON *item;
+  cJSON *subitem, *snapitem;
+
   if (item = cJSON_GetObjectItem(root, "number_of_total_grid_points_x")) {
     par->number_of_total_grid_points_x = item->valueint;
   }
@@ -167,10 +169,92 @@ par_read_from_str(char *str, struct par_t *par)
     for (int i = 0; i < FD_NDIM_2; i++) {
       strncpy(par->boundary_type_name[i],
               cJSON_GetArrayItem(item, i)->valuestring,
-              sizeof(cJSON_GetArrayItem(item, i)->valuestring));
+              strlen(cJSON_GetArrayItem(item, i)->valuestring));
     }
   }
 
+  // cfs-pml
+  if (item = cJSON_GetObjectItem(root, "cfspml"))
+  {
+    if (subitem = cJSON_GetObjectItem(item, "number_of_layers"))
+    {
+      for (int i = 0; i < FD_NDIM_2; i++) {
+        par->abs_num_of_layers[i] = cJSON_GetArrayItem(subitem, i)->valueint;
+      }
+    }
+    if (subitem = cJSON_GetObjectItem(item, "alpha_max"))
+    {
+      for (int i = 0; i < FD_NDIM_2; i++) {
+        par->cfspml_alpha_max[i] = cJSON_GetArrayItem(subitem, i)->valuedouble;
+      }
+    }
+    if (subitem = cJSON_GetObjectItem(item, "beta_max"))
+    {
+      for (int i = 0; i < FD_NDIM_2; i++) {
+        par->cfspml_beta_max[i] = cJSON_GetArrayItem(subitem, i)->valuedouble;
+      }
+    }
+    if (subitem = cJSON_GetObjectItem(item, "pml_velocity"))
+    {
+      for (int i = 0; i < FD_NDIM_2; i++) {
+        par->cfspml_velocity[i] = cJSON_GetArrayItem(subitem, i)->valuedouble;
+      }
+    }
+  }
+
+  // io
+  if (item = cJSON_GetObjectItem(root, "snapshot"))
+  {
+    par->number_of_snapshot = cJSON_GetArraySize(item);
+    fprintf(stdout,"size=%d, %d, %d\n", par->number_of_snapshot, sizeof(int), FD_NDIM);
+    fflush(stdout);
+    par->snapshot_index_start  = (int *)malloc(par->number_of_snapshot*sizeof(int)*FD_NDIM);
+    if (par->snapshot_index_start == NULL) {
+      fprintf(stdout,"eror\n");
+      fflush(stdout);
+    }
+    par->snapshot_index_count  = (int *)malloc(par->number_of_snapshot*sizeof(int)*FD_NDIM);
+    par->snapshot_index_stride = (int *)malloc(par->number_of_snapshot*sizeof(int)*FD_NDIM);
+    par->snapshot_time_start  = (int *)malloc(par->number_of_snapshot*sizeof(int));
+    par->snapshot_time_count  = (int *)malloc(par->number_of_snapshot*sizeof(int));
+    par->snapshot_time_stride = (int *)malloc(par->number_of_snapshot*sizeof(int));
+
+    // each snapshot
+    for (int i=0; i < cJSON_GetArraySize(item) ; i++)
+    {
+      snapitem = cJSON_GetArrayItem(item, i);
+
+      if (subitem = cJSON_GetObjectItem(snapitem, "grid_index_start"))
+      {
+        for (int j = 0; j < FD_NDIM; j++) {
+          par->snapshot_index_start[i*FD_NDIM+j] = cJSON_GetArrayItem(subitem, j)->valueint;
+        }
+      }
+
+      if (subitem = cJSON_GetObjectItem(snapitem, "grid_index_count"))
+      {
+        for (int j = 0; j < FD_NDIM; j++) {
+          par->snapshot_index_count[i*FD_NDIM+j] = cJSON_GetArrayItem(subitem, j)->valueint;
+        }
+      }
+
+      if (subitem = cJSON_GetObjectItem(snapitem, "grid_index_stride"))
+      {
+        for (int j = 0; j < FD_NDIM; j++) {
+          par->snapshot_index_stride[i*FD_NDIM+j] = cJSON_GetArrayItem(subitem, j)->valueint;
+        }
+      }
+
+      if (subitem = cJSON_GetObjectItem(snapitem, "time_step_start_count_stride"))
+      {
+        par->snapshot_time_start[i]  = cJSON_GetArrayItem(subitem, 0)->valueint;
+        par->snapshot_time_count[i]  = cJSON_GetArrayItem(subitem, 1)->valueint;
+        par->snapshot_time_stride[i] = cJSON_GetArrayItem(subitem, 2)->valueint;
+      }
+    }
+  }
+
+  /*
   // pml
   if (item = cJSON_GetObjectItem(root, "abs_num_of_layers"))
   {
@@ -196,6 +280,7 @@ par_read_from_str(char *str, struct par_t *par)
       par->cfspml_velocity[i] = cJSON_GetArrayItem(item, i)->valuedouble;
     }
   }
+  */
 
   /*
   if (item = cJSON_GetObjectItem(root, "OUT"))
@@ -385,60 +470,56 @@ par_print(struct par_t *par)
           par->cfspml_beta_max[5]);
   fprintf(stdout, "\n");
   
-  /*
   fprintf(stdout, "\n");
   fprintf(stdout, "-------------------------------------------------------\n");
   fprintf(stdout, "--> output information.\n");
   fprintf(stdout, "-------------------------------------------------------\n");
   fprintf(stdout, "--> snapshot information.\n");
-  if (PSV->number_of_snapshot > 0)
+
+  fprintf(stdout, "number_of_snapshot=%d\n", par->number_of_snapshot);
+  if (par->number_of_snapshot > 0)
   {
-      fprintf(stdout, "number_of_snapshot=%d\n", PSV->number_of_snapshot);
-      fprintf(stdout, "#   x0    z0    nx    nz    dx    dz    dt     tdim_max    component\n");
-      for(n=0; n<PSV->number_of_snapshot; n++)
+      fprintf(stdout, "#   i0  j0  k0  ni  nj  nk  di  dj   dk  it0  nt  dit\n");
+      for(int n=0; n<par->number_of_snapshot; n++)
       {
-          indx = 10*n;
-          componentV = ' ';
-          componentT = ' ';
-
-          if(PSV->snapshot_information[indx+8] == 1) {
-              componentV = 'V';
-          }
-
-          if(PSV->snapshot_information[indx+9] == 1) {
-              componentT = 'T';
-          }
-
-          for(i=0; i<7; i++)
-          {
-              fprintf(stdout, "%6d", PSV->snapshot_information[indx+i]);
-          }
-
-          fprintf(stdout, "%12d", PSV->snapshot_information[indx+7]);
-          fprintf(stdout, "         %c%c\n", componentV, componentT);
+         fprintf(stdout, "%6d %6d %6d %6d %6d %6d %6d %6d %6d %6d %6d %6d %6d\n",
+             n,
+             par->snapshot_index_start[n*3+0],
+             par->snapshot_index_start[n*3+1],
+             par->snapshot_index_start[n*3+2],
+             par->snapshot_index_count[n*3+0],
+             par->snapshot_index_count[n*3+1],
+             par->snapshot_index_count[n*3+2],
+             par->snapshot_index_stride[n*3+0],
+             par->snapshot_index_stride[n*3+1],
+             par->snapshot_index_stride[n*3+2],
+             par->snapshot_time_start[n],
+             par->snapshot_time_count[n],
+             par->snapshot_time_stride[n]);
       }
   }
 
+  /*
   fprintf(stdout, "\n");
   fprintf(stdout, "--> station information.\n");
-  fprintf(stdout, " number_of_station  = %4d\n", PSV->number_of_station);
-  fprintf(stdout, " seismo_format_sac  = %4d\n", PSV->seismo_format_sac );
-  fprintf(stdout, " seismo_format_segy = %4d\n", PSV->seismo_format_segy);
+  fprintf(stdout, " number_of_station  = %4d\n", par->number_of_station);
+  fprintf(stdout, " seismo_format_sac  = %4d\n", par->seismo_format_sac );
+  fprintf(stdout, " seismo_format_segy = %4d\n", par->seismo_format_segy);
   fprintf(stdout, " SeismoPrefix = %s\n", SeismoPrefix);
   fprintf(stdout, "\n");
 
-  if(PSV->number_of_station > 0)
+  if(par->number_of_station > 0)
   {
       //fprintf(stdout, " station_indx:\n");
       fprintf(stdout, " stations             x           z           i           k:\n");
   }
 
-  for(n=0; n<PSV->number_of_station; n++)
+  for(n=0; n<par->number_of_station; n++)
   {
       indx = 2*n;
       fprintf(stdout, "       %04d  %10.4e  %10.4e  %10d  %10d\n", n+1, 
-              PSV->station_coord[indx], PSV->station_coord[indx+1],
-              PSV->station_indx [indx], PSV->station_indx [indx+1]);
+              par->station_coord[indx], par->station_coord[indx+1],
+              par->station_indx [indx], par->station_indx [indx+1]);
   }
   fprintf(stdout, "\n");
   */
