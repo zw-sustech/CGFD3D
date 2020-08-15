@@ -23,9 +23,9 @@ md_el_iso_gen_test(
     float *restrict x3d,
     float *restrict y3d,
     float *restrict z3d,
-    size_t nx,
-    size_t ny,
-    size_t nz,
+    int nx,
+    int ny,
+    int nz,
     size_t siz_line,
     size_t siz_slice,
     size_t siz_volume);

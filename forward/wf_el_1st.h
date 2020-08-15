@@ -13,6 +13,10 @@
 #define WF_EL_1ST_SEQ_Tyz 7
 #define WF_EL_1ST_SEQ_Txy 8
 
+// cal index of var, not finished
+#define M_WF_EL_1ST_IND(icmp,it,istage,nt,num_stage) \
+  ((icmp) * (nt) * (num_stage) + (it) * (num_stage) + (istage))
+
 void 
 wf_el_1st_init_vars(
     size_t siz_volume,
@@ -24,5 +28,17 @@ wf_el_1st_init_vars(
 
 void
 wf_el_1st_check_value(float *restrict w, size_t siz_volume);
+
+static inline float *
+wf_el_1st_getptr_Vx(float *restrict w, size_t siz_volume)
+{
+  return (w + WF_EL_1ST_SEQ_Vx * siz_volume);
+}
+
+static inline float *
+wf_el_1st_getptr_Vz(float *restrict w, size_t siz_volume)
+{
+  return (w + WF_EL_1ST_SEQ_Vz * siz_volume);
+}
 
 #endif

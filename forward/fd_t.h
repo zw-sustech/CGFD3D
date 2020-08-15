@@ -68,7 +68,7 @@ struct fd_t{
   int     fd_len;
   int     fd_half_len;
   int     fd_nghosts;
-  size_t *fd_indx;
+  int    *fd_indx;
   float  *fd_coef;
 
   //----------------------------------------------------------------------------
@@ -103,15 +103,15 @@ struct fd_t{
   //----------------------------------------------------------------------------
 
   int    **fdx_all_info; // [k2free][pos, total, half, left, right]
-  size_t **fdx_all_indx;
+  int    **fdx_all_indx;
   float  **fdx_all_coef;
 
   int    **fdy_all_info;
-  size_t **fdy_all_indx;
+  int    **fdy_all_indx;
   float  **fdy_all_coef;
 
   int    **fdz_all_info;
-  size_t **fdz_all_indx;
+  int    **fdz_all_indx;
   float  **fdz_all_coef;
 
   //----------------------------------------------------------------------------
@@ -119,15 +119,15 @@ struct fd_t{
   //----------------------------------------------------------------------------
 
   int    **filtx_all_info; // [k2free][pos, total, half, left, right] 
-  size_t **filtx_all_indx;
+  int    **filtx_all_indx;
   float  **filtx_all_coef;
 
   int    **filty_all_info;
-  size_t **filty_all_indx;
+  int    **filty_all_indx;
   float  **filty_all_coef;
 
   int    **filtz_all_info;
-  size_t **filtz_all_indx;
+  int    **filtz_all_indx;
   float  **filtz_all_coef;
 
   //----------------------------------------------------------------------------
@@ -136,16 +136,16 @@ struct fd_t{
 
   int num_of_pairs;
 
-  size_t ****pair_fdx_all_info;  // [pair][stage][k2free][pos, total, half, left, right]
-  size_t  ***pair_fdx_all_indx;  // [pair][stage][1-10 ele], not include [hlen] due to different length
+  int    ****pair_fdx_all_info;  // [pair][stage][k2free][pos, total, half, left, right]
+  int     ***pair_fdx_all_indx;  // [pair][stage][1-10 ele], not include [hlen] due to different length
   float   ***pair_fdx_all_coef;
 
-  size_t ****pair_fdy_all_info; 
-  size_t  ***pair_fdy_all_indx; 
+  int    ****pair_fdy_all_info; 
+  int     ***pair_fdy_all_indx; 
   float   ***pair_fdy_all_coef;
 
-  size_t ****pair_fdz_all_info;
-  size_t  ***pair_fdz_all_indx;
+  int    ****pair_fdz_all_info;
+  int     ***pair_fdz_all_indx;
   float   ***pair_fdz_all_coef;
 };
 
@@ -155,109 +155,112 @@ struct fd_t{
 
 struct fd_blk_t
 {
-    //
-    // grid index
-    //
-    int nx, ny, nz;
-    int ni1, ni2, nj1, nj2, nk1, nk2, ni, nj, nk;
-    int gni1, gnj1, gnk1; // global index
+  // name for output file name
+  char name[FD_MAX_STRLEN];
 
-    // size of a single var
-    size_t siz_line;
-    size_t siz_slice;
-    size_t siz_volume; // number of points per var
-
-    //size_t siz_vars; // volume * num_of_vars, not easy for understand, may named with w3d and aux
-
-    //
-    // coordnate: x3d, y3d, z3d
-    float  *c3d; // grid 3d vars
-    int     c3d_num_of_vars;
-    size_t *c3d_pos; // postion 0 for each var
-    char  **c3d_name;
-
-    // grid metrics: jac, xi_x, etc
-    float  *g3d; // grid 3d vars
-    int     g3d_num_of_vars;
-    size_t *g3d_pos; // postion 0 for each var
-    char  **g3d_name;
-
-    //
-    // media: rho, lambda, mu etc
-    float  *m3d; // media 3d vars
-    int     m3d_num_of_vars;
-    size_t *m3d_pos;
-    char  **m3d_name;
-
-    // Wavefield
-    //
-    float  *w3d; // wavefield 3d vars
-    //size_t pos_vx, pos_vz, pos_txx, pos_tyy
-    int     w3d_num_of_vars;
-    int     w3d_num_of_levels;;
-    //size_t  w3d_size_per_level; // can be cal by num_of_vars * siz_volume on fly
-    size_t *w3d_pos; // pos of 0 elem for each vars in one level
-    char  **w3d_name;
-
-    // auxiliary vars, may be used in the future
-    //
-    float  *a3d; // auxiliary vars
-    int     a3d_num_of_vars;
-    int     a3d_num_of_levels;
-    //size_t  a3d_size_per_level;
-    size_t *a3d_pos;
-    char  **a3d_name;
-
-    // boundary 
-    int boundary_itype[ FD_NDIM_2 ];
-
-    // free surface
-    float *matVx2Vz, *matVy2Vz;
-
-    // source term
-    int     num_of_force;
-    size_t *force_info; // num_of_force * 6 : si,sj,sk,start_pos_in_stf,start_it, end_it
-    float  *force_vec_stf;
-    int     num_of_moment;
-    size_t *moment_info; // num_of_force * 6 : si,sj,sk,start_pos_in_rate,start_it, end_it
-    float  *moment_ten_rate; // stage, it, Mij, num
-
-    //
-    // abs
-    //
-
-    // only support one type each run, may combine in the future
-    //  which requires different vars in blk_t
-    int  abs_itype;
-
-    // only for this block, may diff with global values from input par
-    int  abs_num_of_layers[ FD_NDIM_2 ];
-
-    // grid index of each face
-    size_t abs_indx[FD_NDIM_2 * FD_NDIM_2];
-
-    size_t   abs_coefs_facepos0[FD_NDIM_2];  // 
-    float   *abs_coefs; // all coefs all faces 
-
-    // may add abs_numb_of_vars later for mpml
-    //   may not need it since 
-
-    size_t  abs_vars_volsiz[FD_NDIM_2]; // size of single var in abs_blk_vars for each block
-    size_t  abs_vars_facepos0[FD_NDIM_2]; // start pos of each blk in first level; other level similar
-    size_t  abs_vars_size_per_level; // size of vars per level
-    float   *abs_vars; //  order: vars_one_block -> all block -> one level -> 4 levels
-
-    // io
-    int num_of_sta;
-    size_t *sta_loc_point;
-    float  *sta_seismo;
-
-    int num_of_snap;
-    size_t *snap_grid_indx;
-    int *snap_time_indx;
-
-    // dir
-    char out_dir[FD_MAX_STRLEN];
+  //
+  // grid index
+  //
+  int nx, ny, nz;
+  int ni1, ni2, nj1, nj2, nk1, nk2, ni, nj, nk;
+  int gni1, gnj1, gnk1; // global index
+  
+  // size of a single var
+  size_t siz_line;
+  size_t siz_slice;
+  size_t siz_volume; // number of points per var
+  
+  //size_t siz_vars; // volume * num_of_vars, not easy for understand, may named with w3d and aux
+  
+  //
+  // coordnate: x3d, y3d, z3d
+  float  *c3d; // grid 3d vars
+  int     c3d_num_of_vars;
+  size_t *c3d_pos; // postion 0 for each var
+  char  **c3d_name;
+  
+  // grid metrics: jac, xi_x, etc
+  float  *g3d; // grid 3d vars
+  int     g3d_num_of_vars;
+  size_t *g3d_pos; // postion 0 for each var
+  char  **g3d_name;
+  
+  //
+  // media: rho, lambda, mu etc
+  float  *m3d; // media 3d vars
+  int     m3d_num_of_vars;
+  size_t *m3d_pos;
+  char  **m3d_name;
+  
+  // Wavefield
+  //
+  float  *w3d; // wavefield 3d vars
+  //size_t pos_vx, pos_vz, pos_txx, pos_tyy
+  int     w3d_num_of_vars;
+  int     w3d_num_of_levels;;
+  //size_t  w3d_size_per_level; // can be cal by num_of_vars * siz_volume on fly
+  size_t *w3d_pos; // pos of 0 elem for each vars in one level
+  char  **w3d_name;
+  
+  // auxiliary vars, may be used in the future
+  //
+  float  *a3d; // auxiliary vars
+  int     a3d_num_of_vars;
+  int     a3d_num_of_levels;
+  //size_t  a3d_size_per_level;
+  size_t *a3d_pos;
+  char  **a3d_name;
+  
+  // boundary 
+  int boundary_itype[ FD_NDIM_2 ];
+  
+  // free surface
+  float *matVx2Vz, *matVy2Vz;
+  
+  // source term
+  int     num_of_force;
+  int    *force_info; // num_of_force * 6 : si,sj,sk,start_pos_in_stf,start_it, end_it
+  float  *force_vec_stf;
+  int     num_of_moment;
+  int    *moment_info; // num_of_force * 6 : si,sj,sk,start_pos_in_rate,start_it, end_it
+  float  *moment_ten_rate; // stage, it, Mij, num
+  
+  //
+  // abs
+  //
+  
+  // only support one type each run, may combine in the future
+  //  which requires different vars in blk_t
+  int  abs_itype;
+  
+  // only for this block, may diff with global values from input par
+  int  abs_num_of_layers[ FD_NDIM_2 ];
+  
+  // grid index of each face
+  int    abs_indx[FD_NDIM_2 * FD_NDIM_2];
+  
+  int      abs_coefs_facepos0[FD_NDIM_2];  // 
+  float   *abs_coefs; // all coefs all faces 
+  
+  // may add abs_numb_of_vars later for mpml
+  //   may not need it since 
+  
+  int     abs_vars_volsiz[FD_NDIM_2]; // size of single var in abs_blk_vars for each block
+  int     abs_vars_facepos0[FD_NDIM_2]; // start pos of each blk in first level; other level similar
+  int     abs_vars_size_per_level; // size of vars per level
+  float   *abs_vars; //  order: vars_one_block -> all block -> one level -> 4 levels
+  
+  // io
+  int     num_of_sta;
+  int    *sta_loc_point;
+  float  *sta_seismo;
+  
+  int     num_of_snap;
+  int    *snap_grid_indx;
+  int    *snap_time_indx;
+  
+  // dir
+  char output_dir[FD_MAX_STRLEN];
 
 /*
     //
@@ -301,6 +304,7 @@ fd_set_macdrp(struct fd_t *fd);
 
 void
 fd_blk_init(struct fd_blk_t *blk,
+            char *name,
             int number_of_total_grid_points_x,
             int number_of_total_grid_points_y,
             int number_of_total_grid_points_z,
@@ -308,6 +312,7 @@ fd_blk_init(struct fd_blk_t *blk,
             int number_of_mpiprocs_y,
             char **boundary_type_name,
             int *abs_number_of_layers,
+            char *output_dir,
             int fdx_nghosts,
             int fdy_nghosts,
             int fdz_nghosts,
@@ -318,5 +323,16 @@ fd_blk_init(struct fd_blk_t *blk,
 
 void
 fd_mpi_create_topo(struct fd_mpi_t *fdmpi, int myid, MPI_Comm comm, int nprocx, int nprocy);
+
+void
+fd_blk_set_snapshot(struct fd_blk_t *blk,
+                    int  fd_nghosts,
+                    int  number_of_snapshot,
+                    int *snapshot_index_start,
+                    int *snapshot_index_count,
+                    int *snapshot_index_stride,
+                    int *snapshot_time_start,
+                    int *snapshot_time_count,
+                    int *snapshot_time_stride);
 
 #endif

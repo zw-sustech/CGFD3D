@@ -116,6 +116,7 @@ int main(int argc, char** argv)
   if (myid==0 && verbose>0) fprintf(stdout,"set slocal/global grid parameters ...\n"); 
 
   fd_blk_init(blk,
+              par->grid_name,
               par->number_of_total_grid_points_x,
               par->number_of_total_grid_points_y,
               par->number_of_total_grid_points_z,
@@ -123,6 +124,7 @@ int main(int argc, char** argv)
               par->number_of_mpiprocs_y,
               par->boundary_type_name,
               par->abs_num_of_layers,
+              par->output_dir,
               fd->fdx_nghosts,
               fd->fdy_nghosts,
               fd->fdz_nghosts,
@@ -200,15 +202,21 @@ int main(int argc, char** argv)
   }
   */
 
-  /*
   // generate topo over all the domain
-  ierr = gd_curv_topoall_generate();
+  //ierr = gd_curv_topoall_generate();
 
   // output
-  if (par->grid_output_to_file==1) {
-      ierr = gd_curv_coord_export();
-  }
-  */
+  //if (par->grid_output_to_file==1) {
+      gd_curv_coord_export(blk->c3d,
+                           blk->c3d_pos,
+                           blk->c3d_name,
+                           blk->c3d_num_of_vars,
+                           blk->nx,
+                           blk->ny,
+                           blk->nz,
+                           fdmpi->myid2,
+                           blk->output_dir);
+  //}
 
   // cal metrics and output for QC
   if (par->metric_by_import==0)
@@ -230,15 +238,21 @@ int main(int argc, char** argv)
                        fd->fd_indx,
                        fd->fd_coef);
 
-    /*
-    if (myid==0) fprintf(stdout,"exchange metrics ...\n"); 
-    gd_curv_exchange_metric();
+    //if (myid==0) fprintf(stdout,"exchange metrics ...\n"); 
+    //gd_curv_exchange_metric();
 
-    if (par->metric_output_to_file==1) {
+    //if (par->metric_output_to_file==1) {
         if (myid==0) fprintf(stdout,"export metric to file ...\n"); 
-        gd_curv_metric_export();
-    }
-    */
+        gd_curv_metric_export(blk->g3d,
+                              blk->g3d_pos,
+                              blk->g3d_name,
+                              blk->g3d_num_of_vars,
+                              blk->nx,
+                              blk->ny,
+                              blk->nz,
+                              fdmpi->myid2,
+                              blk->output_dir);
+    //}
   }
   else // import metric
   {
@@ -354,7 +368,7 @@ int main(int argc, char** argv)
   */
 
 //-------------------------------------------------------------------------------
-//-- setup output
+//-- setup output, may require coord info
 //-------------------------------------------------------------------------------
 
   if (myid==0 && verbose>0) fprintf(stdout,"setup output info ...\n"); 
@@ -364,6 +378,15 @@ int main(int argc, char** argv)
   // inline
   
   // snapshot
+  fd_blk_set_snapshot(blk,
+                      fd->fdx_nghosts,
+                      par->number_of_snapshot,
+                      par->snapshot_index_start,
+                      par->snapshot_index_count,
+                      par->snapshot_index_stride,
+                      par->snapshot_time_start,
+                      par->snapshot_time_count,
+                      par->snapshot_time_stride);
 
 //-------------------------------------------------------------------------------
 //-- allocate main var
@@ -474,7 +497,8 @@ int main(int argc, char** argv)
                                   myid, fdmpi->myid2, comm,
                                   par->check_nan_every_nummber_of_steps,
                                   verbose,
-                                  blk->out_dir);
+                                  blk->name,
+                                  blk->output_dir);
   
   time_t t_end = time(NULL);
   

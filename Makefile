@@ -6,6 +6,9 @@
 #
 ################################################################################
 
+# known issues:
+#  .h dependency is not included, use make cleanall
+
 #-------------------------------------------------------------------------------
 # compiler
 #-------------------------------------------------------------------------------
@@ -40,7 +43,7 @@ cgfdm3d_elastic_mpi: \
 		cJSON.o fdlib_mem.o fdlib_math.o  \
 		fd_t.o par_t.o \
 		gd_curv.o md_el_iso.o wf_el_1st.o \
-		abs_funcs.o src_funcs.o \
+		abs_funcs.o src_funcs.o io_funcs.o \
 		sv_eliso1st_curv_macdrp.o \
 		cgfdm3d_elastic_main.o
 	$(CC) -o $@ $^ $(LDFLAGS)
@@ -64,6 +67,8 @@ wf_el_1st.o: forward/wf_el_1st.c
 abs_funcs.o: forward/abs_funcs.c
 	${CC} -c -o $@ $(CFLAGS) $<
 src_funcs.o: forward/src_funcs.c
+	${CC} -c -o $@ $(CFLAGS) $<
+io_funcs.o: forward/io_funcs.c
 	${CC} -c -o $@ $(CFLAGS) $<
 sv_eliso1st_curv_macdrp.o: forward/sv_eliso1st_curv_macdrp.c
 	${CC} -c -o $@ $(CFLAGS) $<

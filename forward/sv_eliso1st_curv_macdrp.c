@@ -19,6 +19,7 @@
 #include "wf_el_1st.h"
 #include "abs_funcs.h"
 #include "src_funcs.h"
+#include "io_funcs.h"
 #include "sv_eliso1st_curv_macdrp.h"
 
 /*******************************************************************************
@@ -31,53 +32,55 @@ sv_eliso1st_curv_macdrp_allstep(
     float *restrict g3d,  // grid vars
     float *restrict m3d,  // medium vars
     // grid size
-    size_t ni1, size_t ni2, size_t nj1, size_t nj2, size_t nk1, size_t nk2,
-    size_t ni, size_t nj, size_t nk, size_t nx, size_t ny, size_t nz,
+    int ni1, int ni2, int nj1, int nj2, int nk1, int nk2,
+    int ni, int nj, int nk, int nx, int ny, int nz,
     size_t siz_line, size_t siz_slice, size_t siz_volume,
     // boundary type
     int *restrict boundary_itype,
     // if abs
     int              abs_itype, //
     int    *restrict abs_num_of_layers, //
-    size_t *restrict abs_indx, //
-    size_t *restrict abs_coefs_facepos0, //
+    int *restrict abs_indx, //
+    int *restrict abs_coefs_facepos0, //
     float  *restrict abs_coefs, //
-    size_t           abs_vars_size_per_level, //
-    size_t *restrict abs_vars_volsiz, //
-    size_t *restrict abs_vars_facepos0, //
+    int           abs_vars_size_per_level, //
+    int *restrict abs_vars_volsiz, //
+    int *restrict abs_vars_facepos0, //
     float  *restrict abs_vars,
     // if free surface
     float *matVx2Vz, //
     float *matVy2Vz, //
     // source term
     int num_of_force,
-    size_t *restrict force_info, // num_of_force * 6 : si,sj,sk,start_pos_in_stf,start_it, end_it
+    int *restrict force_info, // num_of_force * 6 : si,sj,sk,start_pos_in_stf,start_it, end_it
     float *restrict force_vec_stf,
     int num_of_moment,
-    size_t *restrict moment_info, // num_of_force * 6 : si,sj,sk,start_pos_in_rate,start_it, end_it
+    int *restrict moment_info, // num_of_force * 6 : si,sj,sk,start_pos_in_rate,start_it, end_it
     float *restrict moment_ten_rate,
     // io
-    int num_of_sta, size_t *restrict sta_loc_point, float *restrict sta_seismo,
-    int num_of_snap, size_t *restrict snap_grid_indx, int *restrict snap_time_indx,
+    int num_of_sta, int *restrict sta_loc_point, float *restrict sta_seismo,
+    int num_of_snap, int *restrict snap_grid_indx, int *restrict snap_time_indx,
     // scheme
     int num_rk_stages, float *rk_a, float *rk_b,
     int num_of_pairs, 
-    size_t fdx_max_half_len, size_t fdy_max_half_len,
-    size_t fdz_max_len, size_t fdz_num_surf_lay,
-    size_t ****pair_fdx_all_info, size_t ***pair_fdx_all_indx, float ***pair_fdx_all_coef,
-    size_t ****pair_fdy_all_info, size_t ***pair_fdy_all_indx, float ***pair_fdy_all_coef,
-    size_t ****pair_fdz_all_info, size_t ***pair_fdz_all_indx, float ***pair_fdz_all_coef,
+    int fdx_max_half_len, int fdy_max_half_len,
+    int fdz_max_len, int fdz_num_surf_lay,
+    int ****pair_fdx_all_info, int ***pair_fdx_all_indx, float ***pair_fdx_all_coef,
+    int ****pair_fdy_all_info, int ***pair_fdy_all_indx, float ***pair_fdy_all_coef,
+    int ****pair_fdz_all_info, int ***pair_fdz_all_indx, float ***pair_fdz_all_coef,
     // time
     float dt, int nt_total, float t0,
     // mpi
     int myid, int *myid2, MPI_Comm comm,
     int qc_check_nan_num_of_step,
     const int verbose, // used for fprint qc
-    char *out_dir)
+    char *name,
+    char *output_dir)
 {
   // local allocated array
   float *force_vec_value  = NULL;  // num_of_force * 3
   float *moment_ten_value = NULL;  // num_of_moment * 6
+  char ou_fname[FD_MAX_STRLEN];
 
   // local pointer
   float *restrict w_cur;
@@ -306,13 +309,31 @@ sv_eliso1st_curv_macdrp_allstep(
         //wf_el_1st_check_value(w_end);
     }
 
+    // save results
+    //io_seismo_keep();
+    for (int n=0; n<num_of_snap; n++)
+    {
+      int snap_it1 = snap_time_indx[n*3+0];
+      int snap_it_total = snap_time_indx[n*3+1];
+      int snap_dit = snap_time_indx[n*3+2];
+      int snap_it_mod = (it - snap_it1) % snap_dit;
+      int snap_it_num = (it - snap_it1) / snap_dit;
+
+      if (it>=snap_it1 && snap_it_num<=snap_it_total && snap_it_mod==0)
+      {
+        //sprintf(ou_fname,"%s/%s_snapshot_%03d_Vz_it%d.bin", output_dir,name,n,it);
+        sprintf(ou_fname,"%s/%s_snapshot_%d_Vz_it%d.bin", output_dir,name,n,it);
+        io_snapshot_export(ou_fname,
+                           wf_el_1st_getptr_Vz(w_cur, siz_volume),
+                           nx,ny,nz,
+                           snap_grid_indx,
+                           verbose);
+      }
+    }
+
     // swap w_pre and w_end, avoid copying
     w_tmp = w_pre; w_pre = w_end; w_end = w_tmp;
     abs_vars_tmp = abs_vars_pre; abs_vars_pre = abs_vars_end; abs_vars_end = abs_vars_tmp;
-
-    // save results
-    //io_seismo_keep();
-    //io_snapshot_save();
 
   } // time loop
 
@@ -330,37 +351,37 @@ sv_eliso1st_curv_macdrp_onestage(
     float *restrict w_cur, float *restrict rhs, 
     float *restrict g3d, float *restrict m3d,
     // grid size
-    size_t ni1, size_t ni2, size_t nj1, size_t nj2, size_t nk1, size_t nk2,
-    size_t ni, size_t nj, size_t nk, size_t nx, size_t ny, size_t nz,
+    int ni1, int ni2, int nj1, int nj2, int nk1, int nk2,
+    int ni, int nj, int nk, int nx, int ny, int nz,
     size_t siz_line, size_t siz_slice, size_t siz_volume,
     int *restrict boundary_itype,
     int              abs_itype,
     int    *restrict abs_num_of_layers,
-    size_t *restrict abs_indx,
-    size_t *restrict abs_coefs_facepos0,
+    int *restrict abs_indx,
+    int *restrict abs_coefs_facepos0,
     float  *restrict abs_coefs,
-    size_t           abs_vars_size_per_level,
-    size_t *restrict abs_vars_volsiz,
-    size_t *restrict abs_vars_facepos0, //
+    int           abs_vars_size_per_level,
+    int *restrict abs_vars_volsiz,
+    int *restrict abs_vars_facepos0, //
     float  *restrict abs_vars_cur,
     float  *restrict abs_vars_rhs,
     float *matVx2Vz, float *matVy2Vz, //
     // source term
     int num_of_force,
-    size_t *restrict force_info,
+    int *restrict force_info,
     float *restrict force_vec_value, // only for cur stage, size: num_of_force
     int num_of_moment,
-    size_t *restrict moment_info,
+    int *restrict moment_info,
     float *restrict moment_ten_value,
     // include different order/stentil
     int fdx_max_half_len, int fdy_max_half_len,
     int fdz_max_len, int fdz_num_surf_lay,
-    size_t **restrict fdx_all_info, size_t *restrict fdx_all_indx,float *restrict fdx_all_coef,
-    size_t **restrict fdy_all_info, size_t *restrict fdy_all_indx,float *restrict fdy_all_coef,
-    size_t **restrict fdz_all_info, size_t *restrict fdz_all_indx,float *restrict fdz_all_coef,
+    int **restrict fdx_all_info, int *restrict fdx_all_indx,float *restrict fdx_all_coef,
+    int **restrict fdy_all_info, int *restrict fdy_all_indx,float *restrict fdy_all_coef,
+    int **restrict fdz_all_info, int *restrict fdz_all_indx,float *restrict fdz_all_coef,
     const int myid, const int verbose)
 {
-  size_t i,j,k;
+  int i,j,k;
 
   // local pointer get each vars
   float *restrict Vx    = w_cur + WF_EL_1ST_SEQ_Vx    * siz_volume;
@@ -396,17 +417,17 @@ sv_eliso1st_curv_macdrp_onestage(
   float *restrict slw3d = m3d   + MD_EL_ISO_SEQ_RHO    * siz_volume;
 
   // fd op
-  size_t           fdx_inn_len;
-  size_t           fdx_inn_pos;
-  size_t *restrict fdx_inn_indx;
+  int           fdx_inn_len;
+  int           fdx_inn_pos;
+  int *restrict fdx_inn_indx;
   float  *restrict fdx_inn_coef;
-  size_t           fdy_inn_len;
-  size_t           fdy_inn_pos;
-  size_t *restrict fdy_inn_indx;
+  int           fdy_inn_len;
+  int           fdy_inn_pos;
+  int *restrict fdy_inn_indx;
   float  *restrict fdy_inn_coef;
-  size_t           fdz_inn_len;
-  size_t           fdz_inn_pos;
-  size_t *restrict fdz_inn_indx;
+  int           fdz_inn_len;
+  int           fdz_inn_pos;
+  int *restrict fdz_inn_indx;
   float  *restrict fdz_inn_coef;
 
   // for get a op from 1d array, currently use fdz_num_surf_lay as index
@@ -556,23 +577,23 @@ sv_eliso1st_curv_macdrp_rhs_inner(
     float *restrict et_x, float *restrict et_y, float *restrict et_z,
     float *restrict zt_x, float *restrict zt_y, float *restrict zt_z,
     float *restrict lam3d, float *restrict mu3d, float *restrict slw3d,
-    size_t ni1, size_t ni2, size_t nj1, size_t nj2, size_t nk1, size_t nk2,
+    int ni1, int ni2, int nj1, int nj2, int nk1, int nk2,
     size_t siz_line, size_t siz_slice,
-    size_t fdx_len, size_t *restrict fdx_indx, float *restrict fdx_coef,
-    size_t fdy_len, size_t *restrict fdy_indx, float *restrict fdy_coef,
-    size_t fdz_len, size_t *restrict fdz_indx, float *restrict fdz_coef,
+    int fdx_len, int *restrict fdx_indx, float *restrict fdx_coef,
+    int fdy_len, int *restrict fdy_indx, float *restrict fdy_coef,
+    int fdz_len, int *restrict fdz_indx, float *restrict fdz_coef,
     const int myid, const int verbose)
 {
   // use local stack array for speedup
   float  lfdx_coef [fdx_len];
-  size_t lfdx_shift[fdx_len];
+  int lfdx_shift[fdx_len];
   float  lfdy_coef [fdy_len];
-  size_t lfdy_shift[fdy_len];
+  int lfdy_shift[fdy_len];
   float  lfdz_coef [fdz_len];
-  size_t lfdz_shift[fdz_len];
+  int lfdz_shift[fdz_len];
 
   // loop var for fd
-  size_t n_fd; // loop var for fd
+  int n_fd; // loop var for fd
 
   // local var
   float DxTxx,DxTyy,DxTzz,DxTxy,DxTxz,DxTyz,DxVx,DxVy,DxVz;
@@ -742,23 +763,23 @@ sv_eliso1st_curv_macdrp_rhs_timg_z2(
     float *restrict et_x, float *restrict et_y, float *restrict et_z,
     float *restrict zt_x, float *restrict zt_y, float *restrict zt_z,
     float *restrict jac3d, float *restrict slw3d,
-    size_t ni1, size_t ni2, size_t nj1, size_t nj2, size_t nk1, size_t nk2,
+    int ni1, int ni2, int nj1, int nj2, int nk1, int nk2,
     size_t siz_line, size_t siz_slice,
-    size_t fdx_len, size_t *restrict fdx_indx, float *restrict fdx_coef,
-    size_t fdy_len, size_t *restrict fdy_indx, float *restrict fdy_coef,
-    size_t fdz_len, size_t *restrict fdz_indx, float *restrict fdz_coef,
+    int fdx_len, int *restrict fdx_indx, float *restrict fdx_coef,
+    int fdy_len, int *restrict fdy_indx, float *restrict fdy_coef,
+    int fdz_len, int *restrict fdz_indx, float *restrict fdz_coef,
     const int myid, const int verbose)
 {
   // use local stack array for speedup
   float  lfdx_coef [fdx_len];
-  size_t lfdx_shift[fdx_len];
+  int lfdx_shift[fdx_len];
   float  lfdy_coef [fdy_len];
-  size_t lfdy_shift[fdy_len];
+  int lfdy_shift[fdy_len];
   float  lfdz_coef [fdz_len];
-  size_t lfdz_shift[fdz_len];
+  int lfdz_shift[fdz_len];
 
   // loop var for fd
-  size_t n_fd; // loop var for fd
+  int n_fd; // loop var for fd
 
   // local var
   float DxTx,DyTy,DzTz;
@@ -769,7 +790,7 @@ sv_eliso1st_curv_macdrp_rhs_timg_z2(
   float vecxi[fdx_len];
   float vecet[fdy_len];
   float veczt[fdz_len];
-  size_t n, iptr4vec;
+  int n, iptr4vec;
 
   // put fd op into local array
   for (int i=0; i < fdx_len; i++) {
@@ -786,7 +807,7 @@ sv_eliso1st_curv_macdrp_rhs_timg_z2(
   }
 
   // last indx, free surface force Tx/Ty/Tz to 0 in cal
-  size_t k_min = nk2 - fdz_indx[fdz_len-1];
+  int k_min = nk2 - fdz_indx[fdz_len-1];
 
   // point affected by timg
   for (size_t k=k_min; k <= nk2; k++)
@@ -794,7 +815,7 @@ sv_eliso1st_curv_macdrp_rhs_timg_z2(
     // k corresponding to 0 index of the fd op
 
     // index of free surface
-    size_t n_free = nk2 - k - fdz_indx[0]; // first indx is negative
+    int n_free = nk2 - k - fdz_indx[0]; // first indx is negative
 
     // for 1d index
     size_t iptr_k = k * siz_slice;
@@ -965,28 +986,28 @@ sv_eliso1st_curv_macdrp_rhs_vlow_z2(
     float *restrict zt_x, float *restrict zt_y, float *restrict zt_z,
     float *restrict lam3d, float *restrict mu3d, float *restrict slw3d,
     float *restrict matVx2Vz, float *restrict matVy2Vz,
-    size_t ni1, size_t ni2, size_t nj1, size_t nj2, size_t nk1, size_t nk2,
+    int ni1, int ni2, int nj1, int nj2, int nk1, int nk2,
     size_t siz_line, size_t siz_slice,
-    size_t fdx_len, size_t *restrict fdx_indx, float *restrict fdx_coef,
-    size_t fdy_len, size_t *restrict fdy_indx, float *restrict fdy_coef,
-    size_t fdz_num_surf_lay, size_t fdz_max_len, size_t **restrict fdz_all_info,
-    size_t *restrict fdz_all_indx, float *restrict fdz_all_coef,
+    int fdx_len, int *restrict fdx_indx, float *restrict fdx_coef,
+    int fdy_len, int *restrict fdy_indx, float *restrict fdy_coef,
+    int fdz_num_surf_lay, int fdz_max_len, int **restrict fdz_all_info,
+    int *restrict fdz_all_indx, float *restrict fdz_all_coef,
     const int myid, const int verbose)
 {
   // use local stack array for speedup
   float  lfdx_coef [fdx_len];
-  size_t lfdx_shift[fdx_len];
+  int lfdx_shift[fdx_len];
   float  lfdy_coef [fdy_len];
-  size_t lfdy_shift[fdy_len];
+  int lfdy_shift[fdy_len];
 
   // allocate max_len because fdz may have different lens
   float  lfdz_coef [fdz_max_len];
-  size_t lfdz_shift[fdz_max_len];
+  int lfdz_shift[fdz_max_len];
 
   // local var
-  size_t i,j,k;
-  size_t n_fd; // loop var for fd
-  size_t fdz_len;
+  int i,j,k;
+  int n_fd; // loop var for fd
+  int fdz_len;
 
   // local var
   float DxVx,DxVy,DxVz;
@@ -1012,10 +1033,10 @@ sv_eliso1st_curv_macdrp_rhs_vlow_z2(
     k = nk2 - n;
 
     // get pos and len for this point
-    size_t  lfdz_pos0 = fdz_all_info[n][FD_INFO_POS_OF_INDX];
-    size_t  lfdz_len  = fdz_all_info[n][FD_INFO_LENGTH_TOTAL];
+    int  lfdz_pos0 = fdz_all_info[n][FD_INFO_POS_OF_INDX];
+    int  lfdz_len  = fdz_all_info[n][FD_INFO_LENGTH_TOTAL];
     // point to indx/coef for this point
-    size_t  *p_fdz_indx  = fdz_all_indx+lfdz_pos0;
+    int  *p_fdz_indx  = fdz_all_indx+lfdz_pos0;
     float   *p_fdz_coef  = fdz_all_coef+lfdz_pos0;
     for (n_fd = 0; n_fd < lfdz_len ; n_fd++) {
       lfdz_shift[n_fd] = p_fdz_indx[n_fd] * siz_slice;
@@ -1149,29 +1170,29 @@ sv_eliso1st_curv_macdrp_rhs_cfspml(
     float *restrict zt_x, float *restrict zt_y, float *restrict zt_z,
     float *restrict lam3d, float *restrict  mu3d, float *restrict slw3d,
     size_t siz_line, size_t siz_slice,
-    size_t fdx_len, size_t *restrict fdx_indx, float *restrict fdx_coef,
-    size_t fdy_len, size_t *restrict fdy_indx, float *restrict fdy_coef,
-    size_t fdz_len, size_t *restrict fdz_indx, float *restrict fdz_coef,
+    int fdx_len, int *restrict fdx_indx, float *restrict fdx_coef,
+    int fdy_len, int *restrict fdy_indx, float *restrict fdy_coef,
+    int fdz_len, int *restrict fdz_indx, float *restrict fdz_coef,
     int *restrict boundary_itype,
     int *restrict abs_num_of_layers,
-    size_t *restrict abs_indx, // pml range of each face
-    size_t *restrict abs_coefs_facepos0, // pos of 0 elem of each face
+    int *restrict abs_indx, // pml range of each face
+    int *restrict abs_coefs_facepos0, // pos of 0 elem of each face
     float  *restrict abs_coefs,
-    size_t *restrict abs_vars_volsiz, // size of single var in abs_blk_vars for each block
-    size_t *restrict abs_vars_facepos0, // start pos of each blk in first level; other level similar
+    int *restrict abs_vars_volsiz, // size of single var in abs_blk_vars for each block
+    int *restrict abs_vars_facepos0, // start pos of each blk in first level; other level similar
     float  *restrict abs_vars_cur, //
     float  *restrict abs_vars_rhs,
     const int myid, const int verbose)
 {
   // loop var for fd
-  size_t n_fd; // loop var for fd
+  int n_fd; // loop var for fd
   // use local stack array for better speed
   float  lfdx_coef [fdx_len];
-  size_t lfdx_shift[fdx_len];
+  int lfdx_shift[fdx_len];
   float  lfdy_coef [fdy_len];
-  size_t lfdy_shift[fdy_len];
+  int lfdy_shift[fdy_len];
   float  lfdz_coef [fdz_len];
-  size_t lfdz_shift[fdz_len];
+  int lfdz_shift[fdz_len];
 
   // val on point
   float DxTxx,DxTyy,DxTzz,DxTxy,DxTxz,DxTyz,DxVx,DxVy,DxVz;
@@ -1183,8 +1204,8 @@ sv_eliso1st_curv_macdrp_rhs_cfspml(
   float hTxx_rhs,hTyy_rhs,hTzz_rhs,hTxz_rhs,hTyz_rhs,hTxy_rhs;
 
   // local
-  size_t i,j,k;
-  size_t iptr, iptr_j, iptr_k, iptr_a;
+  int i,j,k;
+  int iptr, iptr_j, iptr_k, iptr_a;
   float coef_A, coef_B, coef_D, coef_B_minus_1;
 
   // put fd op into local array
@@ -1208,12 +1229,12 @@ sv_eliso1st_curv_macdrp_rhs_cfspml(
     if (boundary_itype[iface] != FD_BOUNDARY_TYPE_CFSPML) continue;
 
     // get index into local var
-    size_t abs_ni1 = abs_indx[iface+FD_NDIM_2+0];
-    size_t abs_ni2 = abs_indx[iface+FD_NDIM_2+1];
-    size_t abs_nj1 = abs_indx[iface+FD_NDIM_2+2];
-    size_t abs_nj2 = abs_indx[iface+FD_NDIM_2+3];
-    size_t abs_nk1 = abs_indx[iface+FD_NDIM_2+4];
-    size_t abs_nk2 = abs_indx[iface+FD_NDIM_2+5];
+    int abs_ni1 = abs_indx[iface+FD_NDIM_2+0];
+    int abs_ni2 = abs_indx[iface+FD_NDIM_2+1];
+    int abs_nj1 = abs_indx[iface+FD_NDIM_2+2];
+    int abs_nj2 = abs_indx[iface+FD_NDIM_2+3];
+    int abs_nk1 = abs_indx[iface+FD_NDIM_2+4];
+    int abs_nk2 = abs_indx[iface+FD_NDIM_2+5];
 
     // get coef for this face
     float *restrict ptr_coef_A = abs_coefs + abs_coefs_facepos0[iface];
@@ -1221,8 +1242,8 @@ sv_eliso1st_curv_macdrp_rhs_cfspml(
     float *restrict ptr_coef_D = ptr_coef_B + abs_num_of_layers[iface];
 
     // get pml vars
-    size_t pos_cur_face = abs_vars_facepos0[iface];
-    size_t pml_volsiz   = abs_vars_volsiz[iface];
+    int pos_cur_face = abs_vars_facepos0[iface];
+    int pml_volsiz   = abs_vars_volsiz[iface];
     float *restrict pml_Vx  = abs_vars_cur + pos_cur_face + WF_EL_1ST_SEQ_Vx  * pml_volsiz;
     float *restrict pml_Vy  = abs_vars_cur + pos_cur_face + WF_EL_1ST_SEQ_Vy  * pml_volsiz;
     float *restrict pml_Vz  = abs_vars_cur + pos_cur_face + WF_EL_1ST_SEQ_Vz  * pml_volsiz;
@@ -1510,30 +1531,30 @@ sv_eliso1st_curv_macdrp_rhs_cfspml_timg_z2(
     float *restrict et_x, float *restrict et_y, float *restrict et_z,
     float *restrict zt_x, float *restrict zt_y, float *restrict zt_z,
     float *restrict jac3d, float *restrict slw3d,
-    size_t nk2, size_t siz_line, size_t siz_slice,
-    size_t fdx_len, size_t *restrict fdx_indx, float *restrict fdx_coef,
-    size_t fdy_len, size_t *restrict fdy_indx, float *restrict fdy_coef,
-    size_t fdz_len, size_t *restrict fdz_indx, float *restrict fdz_coef,
+    int nk2, size_t siz_line, size_t siz_slice,
+    int fdx_len, int *restrict fdx_indx, float *restrict fdx_coef,
+    int fdy_len, int *restrict fdy_indx, float *restrict fdy_coef,
+    int fdz_len, int *restrict fdz_indx, float *restrict fdz_coef,
     int *restrict boundary_itype,
     int *restrict abs_num_of_layers,
-    size_t *restrict abs_indx, // pml range of each face
-    size_t *restrict abs_coefs_facepos0, // pos of 0 elem of each face
+    int *restrict abs_indx, // pml range of each face
+    int *restrict abs_coefs_facepos0, // pos of 0 elem of each face
     float  *restrict abs_coefs,
-    size_t *restrict abs_vars_volsiz, // size of single var in abs_blk_vars for each block
-    size_t *restrict abs_vars_facepos0, // start pos of each blk in first level; other level similar
+    int *restrict abs_vars_volsiz, // size of single var in abs_blk_vars for each block
+    int *restrict abs_vars_facepos0, // start pos of each blk in first level; other level similar
     float  *restrict abs_vars_cur, //
     float  *restrict abs_vars_rhs,
     const int myid, const int verbose)
 {
   // loop var for fd
-  size_t n_fd; // loop var for fd
+  int n_fd; // loop var for fd
   // use local stack array for better speed
   float  lfdx_coef [fdx_len];
-  size_t lfdx_shift[fdx_len];
+  int lfdx_shift[fdx_len];
   float  lfdy_coef [fdy_len];
-  size_t lfdy_shift[fdy_len];
+  int lfdy_shift[fdy_len];
   float  lfdz_coef [fdz_len];
-  size_t lfdz_shift[fdz_len];
+  int lfdz_shift[fdz_len];
   
   // val on point
   float slw, slwjac;
@@ -1548,8 +1569,8 @@ sv_eliso1st_curv_macdrp_rhs_cfspml_timg_z2(
   float vecxi[fdz_len];
   float vecet[fdz_len];
   float veczt[fdz_len];
-  size_t n, iptr4vec;
-  size_t iptr, iptr_j, iptr_k, iptr_a;
+  int n, iptr4vec;
+  int iptr, iptr_j, iptr_k, iptr_a;
 
   // put fd op into local array
   for (int i=0; i < fdx_len; i++) {
@@ -1566,7 +1587,7 @@ sv_eliso1st_curv_macdrp_rhs_cfspml_timg_z2(
   }
 
   // last indx, free surface force Tx/Ty/Tz to 0 in cal
-  size_t k_min = nk2 - fdz_indx[fdz_len-1];
+  int k_min = nk2 - fdz_indx[fdz_len-1];
 
   // loop x/y face
   for (int iface=0; iface<4; iface++)
@@ -1575,12 +1596,12 @@ sv_eliso1st_curv_macdrp_rhs_cfspml_timg_z2(
     if (boundary_itype[iface] != FD_BOUNDARY_TYPE_CFSPML) continue;
 
     // get index into local var
-    size_t abs_ni1 = abs_indx[iface+FD_NDIM_2+0];
-    size_t abs_ni2 = abs_indx[iface+FD_NDIM_2+1];
-    size_t abs_nj1 = abs_indx[iface+FD_NDIM_2+2];
-    size_t abs_nj2 = abs_indx[iface+FD_NDIM_2+3];
-    size_t abs_nk1 = abs_indx[iface+FD_NDIM_2+4];
-    size_t abs_nk2 = abs_indx[iface+FD_NDIM_2+5];
+    int abs_ni1 = abs_indx[iface+FD_NDIM_2+0];
+    int abs_ni2 = abs_indx[iface+FD_NDIM_2+1];
+    int abs_nj1 = abs_indx[iface+FD_NDIM_2+2];
+    int abs_nj2 = abs_indx[iface+FD_NDIM_2+3];
+    int abs_nk1 = abs_indx[iface+FD_NDIM_2+4];
+    int abs_nk2 = abs_indx[iface+FD_NDIM_2+5];
 
     // max of two values
     abs_nk1 = (k_min > abs_nk1 ) ? k_min : abs_nk1;
@@ -1591,8 +1612,8 @@ sv_eliso1st_curv_macdrp_rhs_cfspml_timg_z2(
     float *restrict ptr_coef_D = ptr_coef_B + abs_num_of_layers[iface];
 
     // get pml vars
-    size_t pos_cur_face = abs_vars_facepos0[iface];
-    size_t pml_volsiz   = abs_vars_volsiz[iface];
+    int pos_cur_face = abs_vars_facepos0[iface];
+    int pml_volsiz   = abs_vars_volsiz[iface];
     float *restrict pml_Vx  = abs_vars_cur + pos_cur_face + WF_EL_1ST_SEQ_Vx  * pml_volsiz;
     float *restrict pml_Vy  = abs_vars_cur + pos_cur_face + WF_EL_1ST_SEQ_Vy  * pml_volsiz;
     float *restrict pml_Vz  = abs_vars_cur + pos_cur_face + WF_EL_1ST_SEQ_Vz  * pml_volsiz;
@@ -1791,35 +1812,35 @@ sv_eliso1st_curv_macdrp_rhs_cfspml_vfree_z2(
     float *restrict zt_x, float *restrict zt_y, float *restrict zt_z,
     float *restrict lam3d, float *restrict mu3d, float *restrict slw3d,
     float *restrict matVx2Vz, float *restrict matVy2Vz,
-    size_t nk2, size_t siz_line, size_t siz_slice,
-    size_t fdx_len, size_t *restrict fdx_indx, float *restrict fdx_coef,
-    size_t fdy_len, size_t *restrict fdy_indx, float *restrict fdy_coef,
+    int nk2, size_t siz_line, size_t siz_slice,
+    int fdx_len, int *restrict fdx_indx, float *restrict fdx_coef,
+    int fdy_len, int *restrict fdy_indx, float *restrict fdy_coef,
     int *restrict boundary_itype,
     int *restrict abs_num_of_layers,
-    size_t *restrict abs_indx, // pml range of each face
-    size_t *restrict abs_coefs_facepos0, // pos of 0 elem of each face
+    int *restrict abs_indx, // pml range of each face
+    int *restrict abs_coefs_facepos0, // pos of 0 elem of each face
     float  *restrict abs_coefs,
-    size_t *restrict abs_vars_volsiz, // size of single var in abs_blk_vars for each block
-    size_t *restrict abs_vars_facepos0, // start pos of each blk in first level; other level similar
+    int *restrict abs_vars_volsiz, // size of single var in abs_blk_vars for each block
+    int *restrict abs_vars_facepos0, // start pos of each blk in first level; other level similar
     float  *restrict abs_vars_cur, //
     float  *restrict abs_vars_rhs,
     const int myid, const int verbose)
 {
   // loop var for fd
-  size_t n_fd; // loop var for fd
+  int n_fd; // loop var for fd
   // use local stack array for better speed
   float  lfdx_coef [fdx_len];
-  size_t lfdx_shift[fdx_len];
+  int lfdx_shift[fdx_len];
   float  lfdy_coef [fdy_len];
-  size_t lfdy_shift[fdy_len];
+  int lfdy_shift[fdy_len];
 
   // val on point
   float lam,mu,lam2mu,slw;
   float xix,xiy,xiz,etx,ety,etz,ztx,zty,ztz;
 
   // local
-  size_t i,j,k;
-  size_t iptr, iptr_j, iptr_k, iptr_a;
+  int i,j,k;
+  int iptr, iptr_j, iptr_k, iptr_a;
   float coef_A, coef_B, coef_D;
   float DxVx,DxVy,DxVz;
   float DyVx,DyVy,DyVz;
@@ -1843,12 +1864,12 @@ sv_eliso1st_curv_macdrp_rhs_cfspml_vfree_z2(
     if (boundary_itype[iface] != FD_BOUNDARY_TYPE_CFSPML) continue;
 
     // get index into local var
-    size_t abs_ni1 = abs_indx[iface+FD_NDIM_2+0];
-    size_t abs_ni2 = abs_indx[iface+FD_NDIM_2+1];
-    size_t abs_nj1 = abs_indx[iface+FD_NDIM_2+2];
-    size_t abs_nj2 = abs_indx[iface+FD_NDIM_2+3];
-    size_t abs_nk1 = abs_indx[iface+FD_NDIM_2+4];
-    size_t abs_nk2 = abs_indx[iface+FD_NDIM_2+5];
+    int abs_ni1 = abs_indx[iface+FD_NDIM_2+0];
+    int abs_ni2 = abs_indx[iface+FD_NDIM_2+1];
+    int abs_nj1 = abs_indx[iface+FD_NDIM_2+2];
+    int abs_nj2 = abs_indx[iface+FD_NDIM_2+3];
+    int abs_nk1 = abs_indx[iface+FD_NDIM_2+4];
+    int abs_nk2 = abs_indx[iface+FD_NDIM_2+5];
 
     // get coef for this face
     float *restrict ptr_coef_A = abs_coefs + abs_coefs_facepos0[iface];
@@ -1856,8 +1877,8 @@ sv_eliso1st_curv_macdrp_rhs_cfspml_vfree_z2(
     float *restrict ptr_coef_D = ptr_coef_B + abs_num_of_layers[iface];
 
     // get pml vars
-    size_t pos_cur_face = abs_vars_facepos0[iface];
-    size_t pml_volsiz = abs_vars_volsiz[iface];
+    int pos_cur_face = abs_vars_facepos0[iface];
+    int pml_volsiz = abs_vars_volsiz[iface];
     float *restrict pml_Txx = abs_vars_cur + pos_cur_face + WF_EL_1ST_SEQ_Txx * pml_volsiz;
     float *restrict pml_Tyy = abs_vars_cur + pos_cur_face + WF_EL_1ST_SEQ_Tyy * pml_volsiz;
     float *restrict pml_Tzz = abs_vars_cur + pos_cur_face + WF_EL_1ST_SEQ_Tzz * pml_volsiz;
@@ -1913,7 +1934,7 @@ sv_eliso1st_curv_macdrp_rhs_cfspml_vfree_z2(
           M_FD_SHIFT(DxVz, Vz, iptr, fdx_len, lfdx_shift, lfdx_coef, n_fd);
 
           // zeta derivatives
-          size_t ij = i + j * siz_line;
+          int ij = i + j * siz_line;
           Dx_DzVx = matVx2Vz[ij+3*0+0] * DxVx
                   + matVx2Vz[ij+3*0+1] * DxVy
                   + matVx2Vz[ij+3*0+2] * DxVz;
@@ -2017,7 +2038,7 @@ sv_eliso1st_curv_macdrp_rhs_cfspml_vfree_z2(
           M_FD_SHIFT(DyVz, Vz, iptr, fdy_len, lfdy_shift, lfdy_coef, n_fd);
 
           // zeta derivatives
-          size_t ij = i + j * siz_line;
+          int ij = i + j * siz_line;
           Dy_DzVx = matVy2Vz[ij+3*0+0] * DyVx
                   + matVy2Vz[ij+3*0+1] * DyVy
                   + matVy2Vz[ij+3*0+2] * DyVz;
@@ -2093,33 +2114,33 @@ sv_eliso1st_curv_macdrp_rhs_cfspml_vlow_z2(
     float *restrict zt_x, float *restrict zt_y, float *restrict zt_z,
     float *restrict lam3d, float *restrict mu3d, float *restrict slw3d,
     float *restrict matVx2Vz, float *restrict matVy2Vz,
-    size_t nk2, size_t siz_line, size_t siz_slice,
-    size_t fdx_len, size_t *restrict fdx_indx, float *restrict fdx_coef,
-    size_t fdy_len, size_t *restrict fdy_indx, float *restrict fdy_coef,
-    size_t fdz_num_surf_lay, size_t fdz_max_len, size_t **restrict fdz_all_info,
-    size_t *restrict fdz_all_indx, float *restrict fdz_all_coef,
+    int nk2, size_t siz_line, size_t siz_slice,
+    int fdx_len, int *restrict fdx_indx, float *restrict fdx_coef,
+    int fdy_len, int *restrict fdy_indx, float *restrict fdy_coef,
+    int fdz_num_surf_lay, int fdz_max_len, int **restrict fdz_all_info,
+    int *restrict fdz_all_indx, float *restrict fdz_all_coef,
     int *restrict boundary_itype,
     int *restrict abs_num_of_layers,
-    size_t *restrict abs_indx, // pml range of each face
-    size_t *restrict abs_coefs_facepos0, // pos of 0 elem of each face
+    int *restrict abs_indx, // pml range of each face
+    int *restrict abs_coefs_facepos0, // pos of 0 elem of each face
     float  *restrict abs_coefs,
-    size_t *restrict abs_vars_volsiz, // size of single var in abs_blk_vars for each block
-    size_t *restrict abs_vars_facepos0, // start pos of each blk in first level; other level similar
+    int *restrict abs_vars_volsiz, // size of single var in abs_blk_vars for each block
+    int *restrict abs_vars_facepos0, // start pos of each blk in first level; other level similar
     float  *restrict abs_vars_cur, //
     float  *restrict abs_vars_rhs)
 {
   // use local stack array for better speed
   float  lfdx_coef [fdx_len];
-  size_t lfdx_shift[fdx_len];
+  int lfdx_shift[fdx_len];
   float  lfdy_coef [fdy_len];
-  size_t lfdy_shift[fdy_len];
+  int lfdy_shift[fdy_len];
   float  lfdz_coef [fdz_len];
-  size_t lfdz_shift[fdz_len];
+  int lfdz_shift[fdz_len];
 
   // loop var for fd
-  size_t i,j,k;
-  size_t n_fd; // loop var for fd
-  size_t fdz_len;
+  int i,j,k;
+  int n_fd; // loop var for fd
+  int fdz_len;
 
   // local var
   float DxTxx,DxTyy,DxTzz,DxTxy,DxTxz,DxTyz,DxVx,DxVy,DxVz;
@@ -2149,12 +2170,12 @@ sv_eliso1st_curv_macdrp_rhs_cfspml_vlow_z2(
     if (boundary_itype[iface] != FD_BOUNDARY_TYPE_CFSPML) continue;
 
     // get index into local var
-    size_t abs_ni1 = abs_indx[iface][0];
-    size_t abs_ni2 = abs_indx[iface][1];
-    size_t abs_nj1 = abs_indx[iface][2];
-    size_t abs_nj2 = abs_indx[iface][3];
-    size_t abs_nk1 = abs_indx[iface][4];
-    size_t abs_nk2 = abs_indx[iface][5];
+    int abs_ni1 = abs_indx[iface][0];
+    int abs_ni2 = abs_indx[iface][1];
+    int abs_nj1 = abs_indx[iface][2];
+    int abs_nj2 = abs_indx[iface][3];
+    int abs_nk1 = abs_indx[iface][4];
+    int abs_nk2 = abs_indx[iface][5];
 
     // get coef for this face
     float *restrict ptr_coef_A = abs_coefs + abs_coefs_facepos0[iface];
@@ -2162,8 +2183,8 @@ sv_eliso1st_curv_macdrp_rhs_cfspml_vlow_z2(
     float *restrict ptr_coef_D = ptr_coef_B + abs_num_of_layers[iface];
 
     // get pml vars
-    size_t pos_cur_face = abs_vars_facepos0[iface];
-    size_t pml_volsiz = abs_vars_volsiz[iface];
+    int pos_cur_face = abs_vars_facepos0[iface];
+    int pml_volsiz = abs_vars_volsiz[iface];
     float *restrict pml_Vx  = abs_vars_cur + pos_cur_face + WF_EL_1ST_SEQ_Vx  * pml_volsiz;
     float *restrict pml_Vy  = abs_vars_cur + pos_cur_face + WF_EL_1ST_SEQ_Vy  * pml_volsiz;
     float *restrict pml_Vz  = abs_vars_cur + pos_cur_face + WF_EL_1ST_SEQ_Vz  * pml_volsiz;
@@ -2182,9 +2203,9 @@ sv_eliso1st_curv_macdrp_rhs_cfspml_vlow_z2(
         iptr_k = k * siz_slice;
 
         // get different hlen fz near surface
-        size_t  lfdz_pos0 = fdz_info[n][FD_INFO_POS_OF_INDX];
-        size_t  lfdz_len  = fdz_info[n][FD_INFO_LENGTH_TOTAL];
-        size_t  *p_fdz_indx  = fdz_all_indx[lfdz_pos0];
+        int  lfdz_pos0 = fdz_info[n][FD_INFO_POS_OF_INDX];
+        int  lfdz_len  = fdz_info[n][FD_INFO_LENGTH_TOTAL];
+        int  *p_fdz_indx  = fdz_all_indx[lfdz_pos0];
         float   *p_fdz_coef  = fdz_all_coef[lfdz_pos0];
         for (n_fd = 0; n_fd < lfdz_len ; n_fd++) {
           lfdz_shift[n_fd] = p_fdz_indx[n_fd] * siz_slice;
@@ -2263,19 +2284,19 @@ sv_eliso1st_curv_macdrp_rhs_cfspml_vlow_z2(
 /* 
 // apply on wavefield, not on derivatives
 int sv_eliso1st_curv_macdrp_apply_ablexp_pointcoef(float *restrict w_cur, 
-    int number_of_vars, size_t *restrict vars_pos,
+    int number_of_vars, int *restrict vars_pos,
     // grid size
-    size_t ni1, size_t ni2, size_t nj1, size_t nj2, size_t nk1, size_t nk2,
-    size_t ni, size_t nj, size_t nk, size_t nx, size_t ny, size_t nz,
+    int ni1, int ni2, int nj1, int nj2, int nk1, int nk2,
+    int ni, int nj, int nk, int nx, int ny, int nz,
     // ablexp info
-    size_t *restrict abs_indx, float *restrict abs_damp
+    int *restrict abs_indx, float *restrict abs_damp
     )
 {
   int ierr = 0;
 
-  size_t iptr,iptr_abs, iptr_var, iptr_k, iptr_j;
+  int iptr,iptr_abs, iptr_var, iptr_k, iptr_j;
   size_t siz_line, siz_slice;
-  size_t i,j,k,ivar;
+  int i,j,k,ivar;
 
   siz_line  = nx;
   siz_slice = nx * ny;
@@ -2308,18 +2329,18 @@ int sv_eliso1st_curv_macdrp_apply_ablexp_pointcoef(float *restrict w_cur,
 }
 
 int sv_eliso1st_curv_macdrp_apply_ablexp(float *restrict w_cur, 
-    int number_of_vars, size_t *restrict vars_pos,
+    int number_of_vars, int *restrict vars_pos,
     // grid size
-    size_t nx, size_t ny, size_t nz,
+    int nx, int ny, int nz,
     // ablexp info
-    size_t *restrict abs_indx, float *restrict abs_damp
+    int *restrict abs_indx, float *restrict abs_damp
     )
 {
   int ierr = 0;
 
-  size_t iptr,iptr_abs, iptr_var, iptr_k, iptr_j;
+  int iptr,iptr_abs, iptr_var, iptr_k, iptr_j;
   size_t siz_line, siz_slice;
-  size_t i,j,k,ivar;
+  int i,j,k,ivar;
   float *restrict Dx, Dy, Dz;
   float dampx, dampy, dampz, dampmin;
 
@@ -2374,20 +2395,20 @@ sv_eliso1st_curv_macdrp_rhs_src(
     float *restrict jac3d, float *restrict slw3d,
     size_t siz_line, size_t siz_slice,
     int num_of_force,
-    size_t *restrict force_info,
+    int *restrict force_info,
     float *restrict force_vec_value,
     int num_of_moment,
-    size_t *restrict moment_info,
+    int *restrict moment_info,
     float *restrict moment_ten_value, // size: num_of_moment * 6
     const int myid, const int verbose)
 {
   // local var
-  size_t si,sj,sk, iptr;
+  int si,sj,sk, iptr;
 
   // add force
   for (int n=0; n<num_of_force; n++)
   {
-    size_t *ptr_force_loc = force_info + n * 6;
+    int *ptr_force_loc = force_info + n * 6;
     float  *ptr_force_val = force_vec_value + n * 3;
 
     si = ptr_force_loc[0];
@@ -2406,7 +2427,7 @@ sv_eliso1st_curv_macdrp_rhs_src(
   // add moment source
   for (int n=0; n<num_of_moment; n++)
   {
-    size_t *ptr_moment_loc = moment_info + n * 6;
+    int *ptr_moment_loc = moment_info + n * 6;
     float  *ptr_moment_val = moment_ten_value + n * 6;
 
     si = ptr_moment_loc[0];
@@ -2434,7 +2455,7 @@ void
 sv_eliso1st_curv_macdrp_vel_dxy2dz(
     float *restrict g3d,
     float *restrict m3d,
-    size_t ni1, size_t ni2, size_t nj1, size_t nj2, size_t nk1, size_t nk2,
+    int ni1, int ni2, int nj1, int nj2, int nk1, int nk2,
     size_t siz_line, size_t siz_slice, size_t siz_volume,
     float **restrict p_matVx2Vz,
     float **restrict p_matVy2Vz,
@@ -2467,11 +2488,11 @@ sv_eliso1st_curv_macdrp_vel_dxy2dz(
   float *restrict lam3d = m3d + MD_EL_ISO_SEQ_LAMBDA * siz_volume;
   float *restrict  mu3d = m3d + MD_EL_ISO_SEQ_MU     * siz_volume;
 
-  size_t k = nk2;
+  int k = nk2;
 
-  for (size_t j = nj1; j < nj2; j++)
+  for (size_t j = nj1; j <= nj2; j++)
   {
-    for (size_t i = ni1; i < ni2; i++)
+    for (size_t i = ni1; i <= ni2; i++)
     {
       size_t iptr = i + j * siz_line + k * siz_slice;
 

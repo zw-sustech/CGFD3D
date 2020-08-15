@@ -57,7 +57,7 @@ fd_set_macdrp(struct fd_t *fd)
 
   // forw/back, free at 0/1/2/3 point to free, indx/total/half/left/right
   // half, left, right number will be used to pack message
-  size_t mac_all_info[2][m_mac_max_half_stentil+1][FD_INFO_SIZE] =
+  int    mac_all_info[2][m_mac_max_half_stentil+1][FD_INFO_SIZE] =
   {
     { // forw
       // POS, TOTAL, HALF, LEFT, RIGHT
@@ -74,7 +74,7 @@ fd_set_macdrp(struct fd_t *fd)
     }
   };
 
-  size_t mac_all_indx[2][m_mac_all_coef_size] =
+  int    mac_all_indx[2][m_mac_all_coef_size] =
   {
     { // fowrd
       0, 1,
@@ -104,13 +104,13 @@ fd_set_macdrp(struct fd_t *fd)
 
   // center scheme for macdrp, which is used in metric calculation
 #define m_mac_center_all_coef_size 15
-  size_t mac_center_all_info[m_mac_max_half_stentil+1][FD_INFO_SIZE] =
+  int    mac_center_all_info[m_mac_max_half_stentil+1][FD_INFO_SIZE] =
     {
       // POS, TOTAL, HALF, LEFT, RIGHT
       { 0, 0, 0, 0, 0 }, // 0 free, not used
       { 0, 3, 1, 1, 1 }, // 1 to free
-      { 2, 5, 2, 2, 2 }, // 2
-      { 5, 7, 3, 3, 3 }  // 3, normal op for cur scheme
+      { 3, 5, 2, 2, 2 }, // 2
+      { 8, 7, 3, 3, 3 }  // 3, normal op for cur scheme
     };
   float mac_center_all_indx[m_mac_center_all_coef_size] =
   {
@@ -149,14 +149,14 @@ fd_set_macdrp(struct fd_t *fd)
   }; //  0(B) 1(F)
 
   // alloc
-  fd->pair_fdx_all_info = (size_t ****) fdlib_mem_calloc_4l_sizet( 
+  fd->pair_fdx_all_info = (int    ****) fdlib_mem_calloc_4l_int( 
                                               fd->num_of_pairs,
                                               fd->num_rk_stages,
                                               m_mac_max_half_stentil+1,
                                               FD_INFO_SIZE,
                                               0,
                                               "fd_set_macdrp");
-  fd->pair_fdx_all_indx = (size_t ***) fdlib_mem_calloc_3l_sizet( 
+  fd->pair_fdx_all_indx = (int    ***) fdlib_mem_calloc_3l_int( 
                                               fd->num_of_pairs ,
                                               fd->num_rk_stages ,
                                               m_mac_all_coef_size,
@@ -169,14 +169,14 @@ fd_set_macdrp(struct fd_t *fd)
                                               0.0,
                                               "fd_set_macdrp");
 
-  fd->pair_fdy_all_info = (size_t ****) fdlib_mem_calloc_4l_sizet( 
+  fd->pair_fdy_all_info = (int    ****) fdlib_mem_calloc_4l_int( 
                                               fd->num_of_pairs,
                                               fd->num_rk_stages,
                                               m_mac_max_half_stentil+1,
                                               FD_INFO_SIZE,
                                               0,
                                               "fd_set_macdrp");
-  fd->pair_fdy_all_indx = (size_t ***) fdlib_mem_calloc_3l_sizet( 
+  fd->pair_fdy_all_indx = (int    ***) fdlib_mem_calloc_3l_int( 
                                               fd->num_of_pairs ,
                                               fd->num_rk_stages ,
                                               m_mac_all_coef_size,
@@ -189,14 +189,14 @@ fd_set_macdrp(struct fd_t *fd)
                                               0.0,
                                               "fd_set_macdrp");
 
-  fd->pair_fdz_all_info = (size_t ****) fdlib_mem_calloc_4l_sizet( 
+  fd->pair_fdz_all_info = (int    ****) fdlib_mem_calloc_4l_int( 
                                               fd->num_of_pairs,
                                               fd->num_rk_stages,
                                               m_mac_max_half_stentil+1,
                                               FD_INFO_SIZE,
                                               0,
                                               "fd_set_macdrp");
-  fd->pair_fdz_all_indx = (size_t ***) fdlib_mem_calloc_3l_sizet( 
+  fd->pair_fdz_all_indx = (int    ***) fdlib_mem_calloc_3l_int( 
                                               fd->num_of_pairs ,
                                               fd->num_rk_stages ,
                                               m_mac_all_coef_size,
@@ -249,10 +249,10 @@ fd_set_macdrp(struct fd_t *fd)
   }
 
   // centered op for metrics
-  size_t fd_len   = mac_center_all_info[3][1];
-  size_t fd_pos   = mac_center_all_info[3][0];
+  int fd_len   = mac_center_all_info[3][1];
+  int fd_pos   = mac_center_all_info[3][0];
 
-  fd->fd_indx = (size_t *) fdlib_mem_malloc_1d(fd_len*sizeof(size_t),"fd_set_macdrp");
+  fd->fd_indx = (int *) fdlib_mem_malloc_1d(fd_len*sizeof(int),"fd_set_macdrp");
   fd->fd_coef = (float  *) fdlib_mem_malloc_1d(fd_len*sizeof(float),"fd_set_macdrp");
   for (size_t i=0; i<fd_len; i++) {
     fd->fd_indx[i] = mac_center_all_indx[fd_pos+i];
@@ -268,6 +268,7 @@ fd_set_macdrp(struct fd_t *fd)
 //
 void
 fd_blk_init(struct fd_blk_t *blk,
+            char *name,
             int number_of_total_grid_points_x,
             int number_of_total_grid_points_y,
             int number_of_total_grid_points_z,
@@ -275,6 +276,7 @@ fd_blk_init(struct fd_blk_t *blk,
             int number_of_mpiprocs_y,
             char **boundary_type_name,
             int *abs_num_of_layers,
+            char *output_dir,
             int fdx_nghosts,
             int fdy_nghosts,
             int fdz_nghosts,
@@ -284,6 +286,9 @@ fd_blk_init(struct fd_blk_t *blk,
             const int myid, const int verbose)
 {
   int boundary_itype[FD_NDIM_2];
+
+  // set name
+  sprintf(blk->name, "%s", name);
 
   //
   // set boundary itype
@@ -354,7 +359,11 @@ fd_blk_init(struct fd_blk_t *blk,
     ni++;
   }
   // global index
-  blk->gni1 = myid2[0] * nx_avg - abs_num_of_layers[0];
+  if (myid2[0]==0) {
+    blk->gni1 = 0;
+  } else {
+    blk->gni1 = myid2[0] * nx_avg - abs_num_of_layers[0];
+  }
   if (nx_left != 0) {
     blk->gni1 += (myid2[0] < nx_left)? myid2[0] : nx_left;
   }
@@ -385,7 +394,11 @@ fd_blk_init(struct fd_blk_t *blk,
     nj++;
   }
   // global index
-  blk->gnj1 = myid2[1] * ny_avg - abs_num_of_layers[2];
+  if (myid2[1]==0) {
+    blk->gnj1 = 0;
+  } else {
+    blk->gnj1 = myid2[1] * ny_avg - abs_num_of_layers[2];
+  }
   if (ny_left != 0) {
     blk->gnj1 += (myid2[1] < ny_left)? myid2[1] : ny_left;
   }
@@ -423,6 +436,9 @@ fd_blk_init(struct fd_blk_t *blk,
   
   // level
   blk->w3d_num_of_levels = number_of_levels;
+
+  // output
+  sprintf(blk->output_dir, "%s", output_dir);
 }
 
 /*
@@ -622,4 +638,49 @@ fd_mpi_create_topo(struct fd_mpi_t *fdmpi, int myid, MPI_Comm comm, int nprocx, 
   // neighour
   MPI_Cart_shift(fdmpi->topocomm, 0, 1, &(fdmpi->neighid[0]), &(fdmpi->neighid[1]));
   MPI_Cart_shift(fdmpi->topocomm, 1, 1, &(fdmpi->neighid[2]), &(fdmpi->neighid[3]));
+}
+
+void
+fd_blk_set_snapshot(struct fd_blk_t *blk,
+                    int  fd_nghosts,
+                    int  number_of_snapshot,
+                    int *snapshot_index_start,
+                    int *snapshot_index_count,
+                    int *snapshot_index_stride,
+                    int *snapshot_time_start,
+                    int *snapshot_time_count,
+                    int *snapshot_time_stride)
+{
+  blk->num_of_snap = number_of_snapshot;
+
+  blk->snap_grid_indx = (int *) malloc(number_of_snapshot * FD_NDIM*3 * sizeof(int));
+  blk->snap_time_indx = (int *) malloc(number_of_snapshot * 3 * sizeof(int));
+
+  for (int n=0; n < number_of_snapshot; n++)
+  {
+    // start
+    blk->snap_grid_indx[n*FD_NDIM*3+0] = snapshot_index_start[n*FD_NDIM+0] + fd_nghosts;
+    blk->snap_grid_indx[n*FD_NDIM*3+1] = snapshot_index_start[n*FD_NDIM+1] + fd_nghosts;
+    blk->snap_grid_indx[n*FD_NDIM*3+2] = snapshot_index_start[n*FD_NDIM+2] + fd_nghosts;
+
+    // count, convert -1 to num
+    for (int i=0; i < FD_NDIM; i++)
+    {
+      blk->snap_grid_indx[n*FD_NDIM*3+3+i] = snapshot_index_count[n*FD_NDIM+i];
+      //if (snapshot_index_count[n*FD_NDIM+i]==-1) {
+      //  blk->snap_grid_indx[n*FD_NDIM*3+3] = blk->ni
+      //}
+    }
+
+    // stride
+    for (int i=0; i < FD_NDIM; i++)
+    {
+      blk->snap_grid_indx[n*FD_NDIM*3+6+i] = snapshot_index_stride[n*FD_NDIM+i];
+    }
+    
+    // time
+    blk->snap_time_indx[n*3+0] = snapshot_time_start[n];
+    blk->snap_time_indx[n*3+1] = snapshot_time_count[n];
+    blk->snap_time_indx[n*3+2] = snapshot_time_stride[n];
+  }
 }

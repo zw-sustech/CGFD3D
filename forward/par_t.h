@@ -33,6 +33,9 @@ struct par_t{
   int   time_end_index;
   float time_start;
   float time_end  ;
+
+  // for each block
+  char grid_name[PAR_MAX_STRLEN];
   
   // grid
   int  number_of_total_grid_points_x;
@@ -75,6 +78,7 @@ struct par_t{
 
   // output
   int number_of_snapshot;
+  char **snapshot_name;
   int *snapshot_index_start;
   int *snapshot_index_count;
   int *snapshot_index_stride;

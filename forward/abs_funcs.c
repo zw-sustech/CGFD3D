@@ -70,23 +70,23 @@ abs_set_cfspml(
     float *beta_max, //
     float *velocity, //
     float dh, // average grid size, need to change use x3d etc to cal
-    size_t ni1,
-    size_t ni2,
-    size_t nj1,
-    size_t nj2,
-    size_t nk1,
-    size_t nk2,
+    int    ni1,
+    int    ni2,
+    int    nj1,
+    int    nj2,
+    int    nk1,
+    int    nk2,
     int *boundary_itype, // input
     int *abs_num_of_layers, // output
-    size_t *abs_indx,
-    size_t *abs_coefs_facepos0,
+    int    *abs_indx,
+    int    *abs_coefs_facepos0,
     float **p_abs_coefs,
     int verbose)
 {
   const int num_of_coefs = 3; // Alpha, Beta, D
 
   // coef size
-  size_t size_of_coef = 0;
+  int    size_of_coef = 0;
   for (int i=0; i<FD_NDIM_2; i++)
   {
     // facepos starts from previous end
@@ -187,14 +187,14 @@ abs_init_vars_cfspml(
     int number_of_levels,
     int number_of_vars,
     int *restrict boundary_itype,
-    size_t *restrict abs_indx,
-    size_t *restrict abs_vars_volsiz,
-    size_t *restrict abs_vars_facepos0,
-    size_t *abs_vars_size_per_level,
+    int    *restrict abs_indx,
+    int    *restrict abs_vars_volsiz,
+    int    *restrict abs_vars_facepos0,
+    int    *abs_vars_size_per_level,
     float **restrict p_abs_vars,
     const int myid, const int verbose)
 {
-    size_t siz_level = 0;
+    int    siz_level = 0;
 
     for (int i=0; i < FD_NDIM_2; i++)
     {

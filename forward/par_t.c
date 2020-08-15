@@ -167,9 +167,7 @@ par_read_from_str(const char *str, struct par_t *par)
   {
     //int array_size = cJSON_GetArraySize(item);
     for (int i = 0; i < FD_NDIM_2; i++) {
-      strncpy(par->boundary_type_name[i],
-              cJSON_GetArrayItem(item, i)->valuestring,
-              strlen(cJSON_GetArrayItem(item, i)->valuestring));
+      sprintf(par->boundary_type_name[i], "%s",cJSON_GetArrayItem(item, i)->valuestring);
     }
   }
 
@@ -206,23 +204,33 @@ par_read_from_str(const char *str, struct par_t *par)
   if (item = cJSON_GetObjectItem(root, "snapshot"))
   {
     par->number_of_snapshot = cJSON_GetArraySize(item);
-    fprintf(stdout,"size=%d, %d, %d\n", par->number_of_snapshot, sizeof(int), FD_NDIM);
-    fflush(stdout);
+    //fprintf(stdout,"size=%d, %d, %d\n", par->number_of_snapshot, sizeof(int), FD_NDIM);
+    //fflush(stdout);
     par->snapshot_index_start  = (int *)malloc(par->number_of_snapshot*sizeof(int)*FD_NDIM);
-    if (par->snapshot_index_start == NULL) {
-      fprintf(stdout,"eror\n");
-      fflush(stdout);
-    }
+    //if (par->snapshot_index_start == NULL) {
+    //  fprintf(stdout,"eror\n");
+    //  fflush(stdout);
+    //}
     par->snapshot_index_count  = (int *)malloc(par->number_of_snapshot*sizeof(int)*FD_NDIM);
     par->snapshot_index_stride = (int *)malloc(par->number_of_snapshot*sizeof(int)*FD_NDIM);
     par->snapshot_time_start  = (int *)malloc(par->number_of_snapshot*sizeof(int));
     par->snapshot_time_count  = (int *)malloc(par->number_of_snapshot*sizeof(int));
     par->snapshot_time_stride = (int *)malloc(par->number_of_snapshot*sizeof(int));
+    // name of snapshot
+    par->snapshot_name = (char **)malloc(par->number_of_snapshot*sizeof(char*));
+    for (int n=0; n<par->number_of_snapshot; n++) {
+      par->snapshot_name[n] = (char *)malloc(PAR_MAX_STRLEN*sizeof(char));
+    }
 
     // each snapshot
     for (int i=0; i < cJSON_GetArraySize(item) ; i++)
     {
       snapitem = cJSON_GetArrayItem(item, i);
+
+      if (subitem = cJSON_GetObjectItem(snapitem, "name"))
+      {
+        sprintf(par->snapshot_name[i],"%s",subitem->valuestring);
+      }
 
       if (subitem = cJSON_GetObjectItem(snapitem, "grid_index_start"))
       {
@@ -252,6 +260,14 @@ par_read_from_str(const char *str, struct par_t *par)
         par->snapshot_time_stride[i] = cJSON_GetArrayItem(subitem, 2)->valueint;
       }
     }
+  }
+
+  if (item = cJSON_GetObjectItem(root, "output_dir")) {
+      sprintf(par->output_dir,"%s",item->valuestring);
+  }
+
+  if (item = cJSON_GetObjectItem(root, "grid_name")) {
+      sprintf(par->grid_name,"%s",item->valuestring);
   }
 
   /*
@@ -482,8 +498,9 @@ par_print(struct par_t *par)
       fprintf(stdout, "#   i0  j0  k0  ni  nj  nk  di  dj   dk  it0  nt  dit\n");
       for(int n=0; n<par->number_of_snapshot; n++)
       {
-         fprintf(stdout, "%6d %6d %6d %6d %6d %6d %6d %6d %6d %6d %6d %6d %6d\n",
+         fprintf(stdout, "%6d %s %6d %6d %6d %6d %6d %6d %6d %6d %6d %6d %6d %6d\n",
              n,
+             par->snapshot_name[n],
              par->snapshot_index_start[n*3+0],
              par->snapshot_index_start[n*3+1],
              par->snapshot_index_start[n*3+2],

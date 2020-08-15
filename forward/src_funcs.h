@@ -13,10 +13,10 @@ src_gen_test(
     int   nt_total,
     int   num_of_stages,
     int  *num_of_force,
-    size_t **restrict p_force_info,
+    int  **restrict p_force_info,
     float  **restrict p_force_vec_stf,
     int  *num_of_moment,
-    size_t **restrict p_moment_info,
+    int  **restrict p_moment_info,
     float  **restrict p_moment_ten_rate,
     int verbose);
 
@@ -26,10 +26,10 @@ fun_ricker(float t, float fc, float t0);
 void
 src_get_stage_stf(
     int num_of_force,
-    size_t *restrict force_info, // num_of_force * 6 : si,sj,sk,start_pos_in_stf,start_it, end_it
+    int  *restrict force_info, // num_of_force * 6 : si,sj,sk,start_pos_in_stf,start_it, end_it
     float *restrict force_vec_stf,
     int num_of_moment,
-    size_t *restrict moment_info, // num_of_force * 6 : si,sj,sk,start_pos_in_rate,start_it, end_it
+    int  *restrict moment_info, // num_of_force * 6 : si,sj,sk,start_pos_in_rate,start_it, end_it
     float *restrict moment_ten_rate,
     int it, int istage, int num_of_stages,
     float *restrict force_vec_value,

@@ -44,16 +44,38 @@ void
 gd_curv_cal_metric(
     float *restrict c3d,
     float *restrict g3d,
-    size_t ni1, size_t ni2, size_t nj1, size_t nj2, size_t nk1, size_t nk2,
+    int ni1, int ni2, int nj1, int nj2, int nk1, int nk2,
     size_t siz_line, size_t siz_slice, size_t siz_volume,
-    size_t fd_len, size_t *restrict fd_indx, float *restrict fd_coef);
+    int fd_len, int *restrict fd_indx, float *restrict fd_coef);
 
 void
 gd_curv_gen_cart(
     float *restrict c3d,
     size_t siz_voluem,
-    size_t nx, float dx, float x0,
-    size_t ny, float dy, float y0,
-    size_t nz, float dz, float z0);
+    int nx, float dx, float x0,
+    int ny, float dy, float y0,
+    int nz, float dz, float z0);
+
+void
+gd_curv_metric_export(float  *restrict g3d,
+                      size_t *restrict g3d_pos,
+                      char  **restrict g3d_name,
+                      int number_of_vars,
+                      int  nx,
+                      int  ny,
+                      int  nz,
+                      int *myid2,
+                      char *output_dir);
+
+void
+gd_curv_coord_export(float  *restrict c3d,
+                     size_t *restrict c3d_pos,
+                     char  **restrict c3d_name,
+                     int number_of_vars,
+                     int  nx,
+                     int  ny,
+                     int  nz,
+                     int *myid2,
+                     char *output_dir);
 
 #endif
