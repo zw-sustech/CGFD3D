@@ -22,7 +22,8 @@ gd_curv_init_c3d(
     int *number_of_vars,
     float  **p_c3d,
     size_t **p_c3d_pos,
-    char  ***p_c3d_name);
+    char  ***p_c3d_name,
+    char  ***p_coord_name);
 
 void 
 gd_curv_init_g3d(

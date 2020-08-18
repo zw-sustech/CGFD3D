@@ -22,7 +22,8 @@ gd_curv_init_c3d(
     int *c3d_num_of_vars,
     float  **p_c3d,
     size_t **p_c3d_pos,
-    char  ***p_c3d_name)
+    char  ***p_c3d_name,
+    char  ***p_coord_name)
 {
   const int num_grid_vars = 3;
   /*
@@ -48,6 +49,11 @@ gd_curv_init_c3d(
                                                        FD_MAX_STRLEN,
                                                        "gd_curv_init_c3d");
   
+  // name of mapped coordinate
+  char **coord_name = (char **) fdlib_mem_malloc_2l_char(FD_NDIM,
+                                                       FD_MAX_STRLEN,
+                                                       "gd_curv_init_c3d");
+  
   // set value
   int ivar = GD_CURV_SEQ_X3D;
   c3d_pos[ivar] = ivar * siz_volume;
@@ -60,11 +66,17 @@ gd_curv_init_c3d(
   ivar = GD_CURV_SEQ_Z3D;
   c3d_pos[ivar] = ivar * siz_volume;
   strcpy(c3d_name[ivar],"z");
+
+  // coord name
+  strcpy(coord_name[0],"xi");
+  strcpy(coord_name[1],"eta");
+  strcpy(coord_name[2],"zeta");
   
   // set return values
   *p_c3d = c3d;
   *p_c3d_pos = c3d_pos;
   *p_c3d_name = c3d_name;
+  *p_coord_name = coord_name;
   *c3d_num_of_vars = num_grid_vars;
 }
 

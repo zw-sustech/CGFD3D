@@ -4,6 +4,10 @@
 void
 sv_eliso1st_curv_macdrp_allstep(
     float *restrict w3d,  // wavefield
+    size_t *restrict w3d_pos,
+    char **w3d_name,
+    int   w3d_num_of_vars,
+    char **coord_name,
     float *restrict g3d,  // grid vars
     float *restrict m3d,  // medium vars
     // grid size

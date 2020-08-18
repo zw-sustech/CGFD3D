@@ -490,6 +490,8 @@ par_print(struct par_t *par)
   fprintf(stdout, "-------------------------------------------------------\n");
   fprintf(stdout, "--> output information.\n");
   fprintf(stdout, "-------------------------------------------------------\n");
+  fprintf(stdout, "--> output_dir = %s\n", par->output_dir);
+
   fprintf(stdout, "--> snapshot information.\n");
 
   fprintf(stdout, "number_of_snapshot=%d\n", par->number_of_snapshot);

@@ -171,8 +171,10 @@ struct fd_blk_t
   size_t siz_volume; // number of points per var
   
   //size_t siz_vars; // volume * num_of_vars, not easy for understand, may named with w3d and aux
+
+  // mapping coord name
+  char **coord_name;
   
-  //
   // coordnate: x3d, y3d, z3d
   float  *c3d; // grid 3d vars
   int     c3d_num_of_vars;

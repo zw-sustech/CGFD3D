@@ -439,6 +439,10 @@ fd_blk_init(struct fd_blk_t *blk,
 
   // output
   sprintf(blk->output_dir, "%s", output_dir);
+
+  //fprintf(stdout,"in output_dir=%s\n",output_dir);
+  //fprintf(stdout,"blk output_dir=%s\n",blk->output_dir);
+  //fflush(stdout);
 }
 
 /*

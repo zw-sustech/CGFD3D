@@ -21,12 +21,14 @@
 #include "wf_el_1st.h"
 #include "abs_funcs.h"
 #include "src_funcs.h"
+#include "io_funcs.h"
 #include "sv_eliso1st_curv_macdrp.h"
 
 int main(int argc, char** argv)
 {
   int verbose = 1; // default fprint
   char *par_fname;
+  char ou_file[FD_MAX_STRLEN];
 
 //-------------------------------------------------------------------------------
 // start MPI and read par
@@ -144,7 +146,8 @@ int main(int argc, char** argv)
                    &blk->c3d_num_of_vars,
                    &blk->c3d,
                    &blk->c3d_pos,
-                   &blk->c3d_name);
+                   &blk->c3d_name,
+                   &blk->coord_name);
 
   gd_curv_init_g3d( blk->siz_volume,
                    &blk->g3d_num_of_vars,
@@ -207,15 +210,16 @@ int main(int argc, char** argv)
 
   // output
   //if (par->grid_output_to_file==1) {
-      gd_curv_coord_export(blk->c3d,
-                           blk->c3d_pos,
-                           blk->c3d_name,
-                           blk->c3d_num_of_vars,
-                           blk->nx,
-                           blk->ny,
-                           blk->nz,
-                           fdmpi->myid2,
-                           blk->output_dir);
+      io_build_fname(blk->output_dir,"coord",".nc",fdmpi->myid2,ou_file);
+      io_var3d_export_nc(ou_file,
+                         blk->c3d,
+                         blk->c3d_pos,
+                         blk->c3d_name,
+                         blk->c3d_num_of_vars,
+                         blk->coord_name,
+                         blk->nx,
+                         blk->ny,
+                         blk->nz);
   //}
 
   // cal metrics and output for QC
@@ -243,15 +247,16 @@ int main(int argc, char** argv)
 
     //if (par->metric_output_to_file==1) {
         if (myid==0) fprintf(stdout,"export metric to file ...\n"); 
-        gd_curv_metric_export(blk->g3d,
-                              blk->g3d_pos,
-                              blk->g3d_name,
-                              blk->g3d_num_of_vars,
-                              blk->nx,
-                              blk->ny,
-                              blk->nz,
-                              fdmpi->myid2,
-                              blk->output_dir);
+        io_build_fname(blk->output_dir,"metric",".nc",fdmpi->myid2,ou_file);
+        io_var3d_export_nc(ou_file,
+                           blk->g3d,
+                           blk->g3d_pos,
+                           blk->g3d_name,
+                           blk->g3d_num_of_vars,
+                           blk->coord_name,
+                           blk->nx,
+                           blk->ny,
+                           blk->nz);
     //}
   }
   else // import metric
@@ -472,7 +477,9 @@ int main(int argc, char** argv)
   
   time_t t_start = time(NULL);
   
-  sv_eliso1st_curv_macdrp_allstep(blk->w3d, blk->g3d, blk->m3d,
+  sv_eliso1st_curv_macdrp_allstep(blk->w3d,blk->w3d_pos,blk->w3d_name,blk->w3d_num_of_vars,
+                                  blk->coord_name,
+                                  blk->g3d, blk->m3d,
                                   blk->ni1,blk->ni2,blk->nj1,blk->nj2,blk->nk1,blk->nk2,
                                   blk->ni,blk->nj,blk->nk,blk->nx,blk->ny,blk->nz,
                                   blk->siz_line, blk->siz_slice, blk->siz_volume,

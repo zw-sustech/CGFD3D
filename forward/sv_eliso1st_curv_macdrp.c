@@ -29,6 +29,10 @@
 void
 sv_eliso1st_curv_macdrp_allstep(
     float *restrict w3d,  // wavefield
+    size_t *restrict w3d_pos,
+    char **w3d_name,
+    int   w3d_num_of_vars,
+    char **coord_name,
     float *restrict g3d,  // grid vars
     float *restrict m3d,  // medium vars
     // grid size
@@ -80,7 +84,7 @@ sv_eliso1st_curv_macdrp_allstep(
   // local allocated array
   float *force_vec_value  = NULL;  // num_of_force * 3
   float *moment_ten_value = NULL;  // num_of_moment * 6
-  char ou_fname[FD_MAX_STRLEN];
+  char ou_file[FD_MAX_STRLEN];
 
   // local pointer
   float *restrict w_cur;
@@ -321,15 +325,27 @@ sv_eliso1st_curv_macdrp_allstep(
 
       if (it>=snap_it1 && snap_it_num<=snap_it_total && snap_it_mod==0)
       {
-        //sprintf(ou_fname,"%s/%s_snapshot_%03d_Vz_it%d.bin", output_dir,name,n,it);
-        sprintf(ou_fname,"%s/%s_snapshot_%d_Vz_it%d.bin", output_dir,name,n,it);
-        io_snapshot_export(ou_fname,
+        //sprintf(ou_file,"%s/%s_snapshot_%03d_Vz_it%d.bin", output_dir,name,n,it);
+        sprintf(ou_file,"%s/%s_snapshot_%d_Vz_it%d.bin", output_dir,name,n,it);
+        io_snapshot_export(ou_file,
                            wf_el_1st_getptr_Vz(w_cur, siz_volume),
                            nx,ny,nz,
                            snap_grid_indx,
                            verbose);
       }
     }
+
+    // debug output
+        io_build_fname_time(output_dir,"w3d",".nc",myid2,it,ou_file);
+        io_var3d_export_nc(ou_file,
+                           w_end,
+                           w3d_pos,
+                           w3d_name,
+                           w3d_num_of_vars,
+                           coord_name,
+                           nx,
+                           ny,
+                           nz);
 
     // swap w_pre and w_end, avoid copying
     w_tmp = w_pre; w_pre = w_end; w_end = w_tmp;
