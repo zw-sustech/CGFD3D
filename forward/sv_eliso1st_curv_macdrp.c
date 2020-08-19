@@ -22,6 +22,12 @@
 #include "io_funcs.h"
 #include "sv_eliso1st_curv_macdrp.h"
 
+#define SV_ELISO1ST_CURV_MACDRP_DEBUG
+
+//#ifdef SV_ELISO1ST_CURV_MACDRP_DEBUG
+//#include "fd_debug.h"
+//#endif
+
 /*******************************************************************************
  * one simulation over all time steps, could be used in imaging or inversion
  ******************************************************************************/
@@ -632,18 +638,50 @@ sv_eliso1st_curv_macdrp_rhs_inner(
     lfdz_shift[k] = fdz_indx[k] * siz_slice;
   }
 
+#ifdef SV_ELISO1ST_CURV_MACDRP_DEBUG
+  for (int i=0; i < fdx_len; i++) {
+    fprintf(stdout," %d", fdx_indx [i]);
+  }
+  fprintf(stdout,"\n");
+  for (int i=0; i < fdx_len; i++) {
+    fprintf(stdout," %f", fdx_coef [i]);
+  }
+  fprintf(stdout,"\n");
+  fflush(stdout);
+
+  for (int j=0; j < fdy_len; j++) {
+    fprintf(stdout," %d", fdy_indx [j]);
+  }
+  fprintf(stdout,"\n");
+  for (int j=0; j < fdy_len; j++) {
+    fprintf(stdout," %f", fdy_coef [j]);
+  }
+  fprintf(stdout,"\n");
+  fflush(stdout);
+
+  for (int k=0; k < fdz_len; k++) {
+    fprintf(stdout," %d", fdz_indx [k]);
+  }
+  fprintf(stdout,"\n");
+  for (int k=0; k < fdz_len; k++) {
+    fprintf(stdout," %f", fdz_coef [k]);
+  }
+  fprintf(stdout,"\n");
+  fflush(stdout);
+#endif
+
   // loop all points
   for (size_t k=nk1; k<=nk2; k++)
   {
-#ifdef DEBUG
-    if (myid==0 && verbose>90) fprintf(stdout,"----> nk1=%d,nk2=%d,k=%d\n", nk1,nk2,k);
+#ifdef SV_ELISO1ST_CURV_MACDRP_DEBUG
+    if (myid==0 && verbose>900) fprintf(stdout,"----> nk1=%d,nk2=%d,k=%d\n", nk1,nk2,k);
 #endif
     size_t iptr_k = k * siz_slice;
 
     for (size_t j=nj1; j<=nj2; j++)
     {
-#ifdef DEBUG
-      if (myid==0 && verbose>91) fprintf(stdout,"-----> nj1=%d,nj2=%d,j=%d\n", nj1,nj2,j);
+#ifdef SV_ELISO1ST_CURV_MACDRP_DEBUG
+      if (myid==0 && verbose>910) fprintf(stdout,"-----> nj1=%d,nj2=%d,j=%d\n", nj1,nj2,j);
 #endif
       size_t iptr_j = iptr_k + j * siz_line;
 
@@ -651,8 +689,8 @@ sv_eliso1st_curv_macdrp_rhs_inner(
 
       for (size_t i=ni1; i<=ni2; i++)
       {
-#ifdef DEBUG
-        if (myid==0 && verbose>92) fprintf(stdout,"-----> ni1=%d,ni2=%d,i=%d\n", ni1,ni2,i);
+#ifdef SV_ELISO1ST_CURV_MACDRP_DEBUG
+        if (myid==0 && verbose>920) fprintf(stdout,"-----> ni1=%d,ni2=%d,i=%d\n", ni1,ni2,i);
 #endif
         // Vx derivatives
         M_FD_SHIFT(DxVx, Vx, iptr, fdx_len, lfdx_shift, lfdx_coef, n_fd);
