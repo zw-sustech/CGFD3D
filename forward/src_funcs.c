@@ -39,23 +39,18 @@ src_gen_test(
   int nforce = 0;
   
   int nmoment = 1;
-  int *moment_info = (int *)fdlib_mem_calloc_1d_int(nmoment*6, 1, "src_gen_test");
+  int *moment_info = (int *)fdlib_mem_calloc_1d_int(nmoment*M_SRC_INFO_NVAL, 1, "src_gen_test");
 
-  /*
-  moment_info[0] = 50; //si
-  moment_info[1] = 50; //sj
-  moment_info[2] = 50; //sk
-  */
-  moment_info[0] = 52; //si
-  moment_info[1] = 52; //sj
-  moment_info[2] = 32; //sk
-  moment_info[3] = 0;
-  moment_info[4] = 0;
-  moment_info[5] = (int) (stf_dur / dt);
+  moment_info[M_SRC_INFO_SEQ_SI   ] = 52; //si
+  moment_info[M_SRC_INFO_SEQ_SJ   ] = 52; //sj
+  moment_info[M_SRC_INFO_SEQ_SK   ] = 32; //sk
+  moment_info[M_SRC_INFO_SEQ_POS  ] = 0;
+  moment_info[M_SRC_INFO_SEQ_ITBEG] = 0;
+  moment_info[M_SRC_INFO_SEQ_ITEND] = (int) (stf_dur / dt);
 
-  int ipos = moment_info[3];
-  int it1 = moment_info[4];
-  int it2 = moment_info[5];
+  int ipos = moment_info[M_SRC_INFO_SEQ_POS];
+  int it1  = moment_info[M_SRC_INFO_SEQ_ITBEG];
+  int it2  = moment_info[M_SRC_INFO_SEQ_ITEND];
   int nt_moment = it2 - it1 + 1;
 
   float *moment_ten_rate = (float *)fdlib_mem_calloc_1d_float(
@@ -119,9 +114,9 @@ src_get_stage_stf(
 {
   for (int n=0; n<num_of_force; n++)
   {
-    int ipos = force_info[3];
-    int it1  = force_info[4];
-    int it2  = force_info[5];
+    int ipos = force_info[M_SRC_INFO_SEQ_POS];
+    int it1  = force_info[M_SRC_INFO_SEQ_ITBEG];
+    int it2  = force_info[M_SRC_INFO_SEQ_ITEND];
     int nt_force = it2 - it1 + 1;
 
     float *ptr_force = force_vec_stf + ipos;
@@ -145,9 +140,9 @@ src_get_stage_stf(
   
   for (int n=0; n<num_of_moment; n++)
   {
-    int ipos = moment_info[3];
-    int it1 = moment_info[4];
-    int it2 = moment_info[5];
+    int ipos = moment_info[M_SRC_INFO_SEQ_POS];
+    int it1  = moment_info[M_SRC_INFO_SEQ_ITBEG];
+    int it2  = moment_info[M_SRC_INFO_SEQ_ITEND];
     int nt_moment = it2 - it1 + 1;
 
     float *ptr_moment = moment_ten_rate + ipos;

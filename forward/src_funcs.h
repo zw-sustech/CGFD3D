@@ -1,6 +1,14 @@
 #ifndef SRC_FUNCS_H
 #define SRC_FUNCS_H
 
+#define M_SRC_INFO_SEQ_SI 0
+#define M_SRC_INFO_SEQ_SJ 1
+#define M_SRC_INFO_SEQ_SK 2
+#define M_SRC_INFO_SEQ_POS 3
+#define M_SRC_INFO_SEQ_ITBEG 4
+#define M_SRC_INFO_SEQ_ITEND 5
+#define M_SRC_INFO_NVAL 6
+
 // cal force_vec_stf/moment_ten_rate 1d index for icmp,it,istage
 //  with respect to the start pointer of this source point
 #define M_SRC_IND(icmp,it,istage,nt,num_stage) \
