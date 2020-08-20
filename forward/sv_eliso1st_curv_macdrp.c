@@ -22,7 +22,7 @@
 #include "io_funcs.h"
 #include "sv_eliso1st_curv_macdrp.h"
 
-#define SV_ELISO1ST_CURV_MACDRP_DEBUG
+//#define SV_ELISO1ST_CURV_MACDRP_DEBUG
 
 //#ifdef SV_ELISO1ST_CURV_MACDRP_DEBUG
 //#include "fd_debug.h"
@@ -122,11 +122,13 @@ sv_eliso1st_curv_macdrp_allstep(
 
   // get wavefield
   w_pre = w3d + w3d_size_per_level * 0;
+  w_cur = w3d + w3d_size_per_level * 1;
   w_rhs = w3d + w3d_size_per_level * 2;
   w_end = w3d + w3d_size_per_level * 3;
 
   // get pml
   abs_vars_pre = abs_vars + abs_vars_size_per_level * 0;
+  abs_vars_cur = abs_vars + abs_vars_size_per_level * 1;
   abs_vars_rhs = abs_vars + abs_vars_size_per_level * 2;
   abs_vars_end = abs_vars + abs_vars_size_per_level * 3;
 
@@ -146,14 +148,6 @@ sv_eliso1st_curv_macdrp_allstep(
     for (istage=0; istage<num_rk_stages; istage++)
     {
       if (myid==0 && verbose>10) fprintf(stdout, " --> istage=%d\n",istage);
-
-      if (istage==0) {
-          w_cur   = w_pre; // to aoid one dubplication 
-          abs_vars_cur = abs_vars_pre; 
-      } else {
-          w_cur   = w3d + w3d_size_per_level * 1;
-          abs_vars_cur = abs_vars + abs_vars_size_per_level * 1;
-      }
 
       // stf value for cur stage
       src_get_stage_stf(num_of_force,
@@ -189,40 +183,72 @@ sv_eliso1st_curv_macdrp_allstep(
       */
 
       // compute
-      sv_eliso1st_curv_macdrp_onestage(w_cur, w_rhs, g3d, m3d, 
-                                       ni1,ni2,nj1,nj2,nk1,nk2,ni,nj,nk,nx,ny,nz,
-                                       siz_line,siz_slice,siz_volume,
-                                       boundary_itype,
-                                       abs_itype,
-                                       abs_num_of_layers,
-                                       abs_indx,
-                                       abs_coefs_facepos0,
-                                       abs_coefs,
-                                       abs_vars_size_per_level,
-                                       abs_vars_volsiz,
-                                       abs_vars_facepos0,
-                                       abs_vars_cur,
-                                       abs_vars_rhs,
-                                       matVx2Vz, matVy2Vz,
-                                       num_of_force , force_info , force_vec_value,
-                                       num_of_moment, moment_info, moment_ten_value,
-                                       fdx_max_half_len, fdy_max_half_len,
-                                       fdz_max_len, fdz_num_surf_lay,
-                                       pair_fdx_all_info[ipair][istage],
-                                       pair_fdx_all_indx[ipair][istage],
-                                       pair_fdx_all_coef[ipair][istage],
-                                       pair_fdy_all_info[ipair][istage],
-                                       pair_fdy_all_indx[ipair][istage],
-                                       pair_fdy_all_coef[ipair][istage],
-                                       pair_fdz_all_info[ipair][istage],
-                                       pair_fdz_all_indx[ipair][istage],
-                                       pair_fdz_all_coef[ipair][istage],
-                                       myid, verbose);
+      if (istage!=0) {
+        sv_eliso1st_curv_macdrp_onestage(w_cur, w_rhs, g3d, m3d, 
+                                         ni1,ni2,nj1,nj2,nk1,nk2,ni,nj,nk,nx,ny,nz,
+                                         siz_line,siz_slice,siz_volume,
+                                         boundary_itype,
+                                         abs_itype,
+                                         abs_num_of_layers,
+                                         abs_indx,
+                                         abs_coefs_facepos0,
+                                         abs_coefs,
+                                         abs_vars_size_per_level,
+                                         abs_vars_volsiz,
+                                         abs_vars_facepos0,
+                                         abs_vars_cur,
+                                         abs_vars_rhs,
+                                         matVx2Vz, matVy2Vz,
+                                         num_of_force , force_info , force_vec_value,
+                                         num_of_moment, moment_info, moment_ten_value,
+                                         fdx_max_half_len, fdy_max_half_len,
+                                         fdz_max_len, fdz_num_surf_lay,
+                                         pair_fdx_all_info[ipair][istage],
+                                         pair_fdx_all_indx[ipair][istage],
+                                         pair_fdx_all_coef[ipair][istage],
+                                         pair_fdy_all_info[ipair][istage],
+                                         pair_fdy_all_indx[ipair][istage],
+                                         pair_fdy_all_coef[ipair][istage],
+                                         pair_fdz_all_info[ipair][istage],
+                                         pair_fdz_all_indx[ipair][istage],
+                                         pair_fdz_all_coef[ipair][istage],
+                                         myid, verbose);
+      } else {
+        sv_eliso1st_curv_macdrp_onestage(w_pre, w_rhs, g3d, m3d, 
+                                         ni1,ni2,nj1,nj2,nk1,nk2,ni,nj,nk,nx,ny,nz,
+                                         siz_line,siz_slice,siz_volume,
+                                         boundary_itype,
+                                         abs_itype,
+                                         abs_num_of_layers,
+                                         abs_indx,
+                                         abs_coefs_facepos0,
+                                         abs_coefs,
+                                         abs_vars_size_per_level,
+                                         abs_vars_volsiz,
+                                         abs_vars_facepos0,
+                                         abs_vars_cur,
+                                         abs_vars_rhs,
+                                         matVx2Vz, matVy2Vz,
+                                         num_of_force , force_info , force_vec_value,
+                                         num_of_moment, moment_info, moment_ten_value,
+                                         fdx_max_half_len, fdy_max_half_len,
+                                         fdz_max_len, fdz_num_surf_lay,
+                                         pair_fdx_all_info[ipair][istage],
+                                         pair_fdx_all_indx[ipair][istage],
+                                         pair_fdx_all_coef[ipair][istage],
+                                         pair_fdy_all_info[ipair][istage],
+                                         pair_fdy_all_indx[ipair][istage],
+                                         pair_fdy_all_coef[ipair][istage],
+                                         pair_fdz_all_info[ipair][istage],
+                                         pair_fdz_all_indx[ipair][istage],
+                                         pair_fdz_all_coef[ipair][istage],
+                                         myid, verbose);
+      }
 
       // RK int
 
-      // cal w_cur first, then start send etc; or w_end at last stage
-      if (istage != num_rk_stages-1)
+      // cal var for send first
+      if (istage < num_rk_stages-1)
       {
         float coef_a = rk_a[istage] * dt;
 
@@ -240,14 +266,6 @@ sv_eliso1st_curv_macdrp_allstep(
         // pack and isend
         //pack_message(w_cur,sbuff);
         //MPI_Startall(sreqs);
-
-        // apply pml
-        if (abs_itype == FD_BOUNDARY_TYPE_CFSPML)
-        {
-          for (size_t iptr=0; iptr<abs_vars_size_per_level; iptr++) {
-            abs_vars_cur[iptr] = abs_vars_pre[iptr] + coef_a * abs_vars_rhs[iptr];
-          }
-        }
       }
       else // w_end for send at last stage
       {
@@ -266,27 +284,28 @@ sv_eliso1st_curv_macdrp_allstep(
         // pack and isend
         //pack_message(w_end,sbuff);
         //MPI_Startall(sreqs);
+      }
 
-        // apply pml
+      // cal rest
+      if (istage==0)
+      {
+        float coef_a = rk_a[istage] * dt;
+        float coef_b = rk_b[istage] * dt;
+
+        // w_cur is done
+        // pml_cur
         if (abs_itype == FD_BOUNDARY_TYPE_CFSPML)
         {
           for (size_t iptr=0; iptr<abs_vars_size_per_level; iptr++) {
-            abs_vars_end[iptr] += coef_b * abs_vars_rhs[iptr];
+            abs_vars_cur[iptr] = abs_vars_pre[iptr] + coef_a * abs_vars_rhs[iptr];
           }
         }
-      }
 
-      // cal w_end at other stages, non-communicate vars
-      if (istage==0)
-      {
-        float coef_b = rk_b[istage] * dt;
-
-        // wavefield
+        // w_end
         for (size_t iptr=0; iptr<WF_EL_1ST_NVAR*siz_volume; iptr++) {
             w_end[iptr] = w_pre[iptr] + coef_b * w_rhs[iptr];
         }
-
-        // apply pml
+        // pml_end
         if (abs_itype == FD_BOUNDARY_TYPE_CFSPML)
         {
           for (size_t iptr=0; iptr<abs_vars_size_per_level; iptr++) {
@@ -296,21 +315,43 @@ sv_eliso1st_curv_macdrp_allstep(
       }
       else if (istage<num_rk_stages-1)
       {
+        float coef_a = rk_a[istage] * dt;
         float coef_b = rk_b[istage] * dt;
 
-        // wavefield
+        // w_cur is done
+        // pml_cur
+        if (abs_itype == FD_BOUNDARY_TYPE_CFSPML)
+        {
+          for (size_t iptr=0; iptr<abs_vars_size_per_level; iptr++) {
+            abs_vars_cur[iptr] = abs_vars_pre[iptr] + coef_a * abs_vars_rhs[iptr];
+          }
+        }
+
+        // w_end
         for (size_t iptr=0; iptr<WF_EL_1ST_NVAR*siz_volume; iptr++) {
             w_end[iptr] += coef_b * w_rhs[iptr];
         }
-
-        // apply pml
+        // pml_end
         if (abs_itype == FD_BOUNDARY_TYPE_CFSPML)
         {
           for (size_t iptr=0; iptr<abs_vars_size_per_level; iptr++) {
             abs_vars_end[iptr] += coef_b * abs_vars_rhs[iptr];
           }
         }
-      } 
+      }
+      else // last stage
+      {
+        float coef_b = rk_b[istage] * dt;
+
+        // w_end is done
+        // pml_end
+        if (abs_itype == FD_BOUNDARY_TYPE_CFSPML)
+        {
+          for (size_t iptr=0; iptr<abs_vars_size_per_level; iptr++) {
+            abs_vars_end[iptr] += coef_b * abs_vars_rhs[iptr];
+          }
+        }
+      }
     } // RK stages
 
     // QC
