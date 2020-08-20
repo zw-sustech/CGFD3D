@@ -31,17 +31,24 @@ src_gen_test(
     float  **restrict p_moment_ten_rate,
     int verbose)
 {
+  //float stf_fc = 5.0;
+  //float stf_dur = 0.4;
   float stf_fc = 1.0;
-  float stf_dur = 4.0;
+  float stf_dur = 2.0;
 
   int nforce = 0;
   
   int nmoment = 1;
   int *moment_info = (int *)fdlib_mem_calloc_1d_int(nmoment*6, 1, "src_gen_test");
 
+  /*
   moment_info[0] = 50; //si
   moment_info[1] = 50; //sj
   moment_info[2] = 50; //sk
+  */
+  moment_info[0] = 52; //si
+  moment_info[1] = 52; //sj
+  moment_info[2] = 32; //sk
   moment_info[3] = 0;
   moment_info[4] = 0;
   moment_info[5] = (int) stf_dur / dt;
@@ -54,7 +61,7 @@ src_gen_test(
   float *moment_ten_rate = (float *)fdlib_mem_calloc_1d_float(
                                       nt_moment*6*num_of_stages,0.0,"src_gen_test");
 
-  float rk_a[4] = {0.0,0.5,0.5,1.0};
+  float rk_tinc[4] = {0.0,0.5,0.5,1.0};
 
   for (int icmp=0; icmp<6; icmp++)
   {
@@ -68,7 +75,7 @@ src_gen_test(
       for (int istage=0; istage<num_of_stages; istage++)
       {
         int iptr = M_SRC_IND(icmp,it_to_it1,istage,nt_moment,num_of_stages);
-        float t = it * dt + t0 + rk_a[istage] * dt;
+        float t = it * dt + t0 + rk_tinc[istage] * dt;
         float stf_val = fun_ricker(t, stf_fc, 2.0);
         moment_ten_rate[iptr] = stf_val * Mij;
       }
@@ -161,4 +168,19 @@ src_get_stage_stf(
       }
     }
   }
+
+  // for test, reset only at it=0
+  //int n = 0;
+  //for (int icmp=0; icmp<6; icmp++)
+  //{
+  //  int iptr_value = n * 6 + icmp;
+  //  if (it==0 && icmp<3) {
+  //    moment_ten_value[iptr_value] = 1.0e9;
+  //  }
+  //  else
+  //  {
+  //    moment_ten_value[iptr_value] = 0.0;
+  //  }
+  //}
+
 }
