@@ -31,10 +31,10 @@ src_gen_test(
     float  **restrict p_moment_ten_rate,
     int verbose)
 {
-  //float stf_fc = 5.0;
-  //float stf_dur = 0.4;
-  float stf_fc = 1.0;
-  float stf_dur = 2.0;
+  float stf_fc = 5.0;
+  float stf_dur = 0.4;
+  //float stf_fc = 1.0;
+  //float stf_dur = 2.0;
 
   int nforce = 0;
   
@@ -51,7 +51,7 @@ src_gen_test(
   moment_info[2] = 32; //sk
   moment_info[3] = 0;
   moment_info[4] = 0;
-  moment_info[5] = (int) stf_dur / dt;
+  moment_info[5] = (int) (stf_dur / dt);
 
   int ipos = moment_info[3];
   int it1 = moment_info[4];
@@ -76,7 +76,7 @@ src_gen_test(
       {
         int iptr = M_SRC_IND(icmp,it_to_it1,istage,nt_moment,num_of_stages);
         float t = it * dt + t0 + rk_tinc[istage] * dt;
-        float stf_val = fun_ricker(t, stf_fc, 2.0);
+        float stf_val = fun_ricker(t, stf_fc, stf_dur/2.0);
         moment_ten_rate[iptr] = stf_val * Mij;
       }
     }
