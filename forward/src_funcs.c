@@ -31,8 +31,8 @@ src_gen_test(
     float  **restrict p_moment_ten_rate,
     int verbose)
 {
-  float stf_fc = 5.0;
-  float stf_dur = 0.4;
+  float stf_fc = 2.0;
+  float stf_dur = 1.0;
   //float stf_fc = 1.0;
   //float stf_dur = 2.0;
 
@@ -42,8 +42,12 @@ src_gen_test(
   int *moment_info = (int *)fdlib_mem_calloc_1d_int(nmoment*M_SRC_INFO_NVAL, 1, "src_gen_test");
 
   moment_info[M_SRC_INFO_SEQ_SI   ] = 52; //si
-  moment_info[M_SRC_INFO_SEQ_SJ   ] = 52; //sj
-  moment_info[M_SRC_INFO_SEQ_SK   ] = 32; //sk
+  moment_info[M_SRC_INFO_SEQ_SJ   ] = 22; //sj
+  //moment_info[M_SRC_INFO_SEQ_SK   ] = 48; //sk
+  //moment_info[M_SRC_INFO_SEQ_SJ   ] = 52; //sj
+  moment_info[M_SRC_INFO_SEQ_SK   ] = 58; //sk
+
+  //moment_info[M_SRC_INFO_SEQ_SK   ] = 32; //sk
   moment_info[M_SRC_INFO_SEQ_POS  ] = 0;
   moment_info[M_SRC_INFO_SEQ_ITBEG] = 0;
   moment_info[M_SRC_INFO_SEQ_ITEND] = (int) (stf_dur / dt);

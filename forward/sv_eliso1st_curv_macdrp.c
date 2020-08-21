@@ -680,6 +680,7 @@ sv_eliso1st_curv_macdrp_rhs_inner(
   }
 
 #ifdef SV_ELISO1ST_CURV_MACDRP_DEBUG
+  /*
   for (int i=0; i < fdx_len; i++) {
     fprintf(stdout," %d", fdx_indx [i]);
   }
@@ -709,6 +710,7 @@ sv_eliso1st_curv_macdrp_rhs_inner(
   }
   fprintf(stdout,"\n");
   fflush(stdout);
+  */
 #endif
 
   // loop all points
@@ -935,7 +937,7 @@ sv_eliso1st_curv_macdrp_rhs_timg_z2(
           ztz = zt_z[iptr];
 
           // slowness and jac
-          slwjac = slw3d[iptr] * jac3d[iptr];
+          slwjac = slw3d[iptr] / jac3d[iptr];
 
           //
           // for hVx
@@ -964,11 +966,18 @@ sv_eliso1st_curv_macdrp_rhs_timg_z2(
           }
 
           // at surface -> set to 0
-          vecet[n_free] = 0.0;
+          veczt[n_free] = 0.0;
 
           // above surface -> mirror
-          for (n=n_free+1; n<fdz_len; n++) {
-            veczt[n] = -veczt[n_free-(n-n_free)];
+          for (n=n_free+1; n<fdz_len; n++)
+          {
+            int n_img = fdz_indx[n] - 2*(n-n_free);
+            //int n_img = n_free-(n-n_free);
+            iptr4vec = iptr + n_img * siz_slice;
+            veczt[n] = -jac3d[iptr4vec] * (  zt_x[iptr4vec] * Txx[iptr4vec]
+                                           + zt_y[iptr4vec] * Txy[iptr4vec]
+                                           + zt_z[iptr4vec] * Txz[iptr4vec] );
+            //veczt[n] = -veczt[n_free-(n-n_free)];
           }
 
           // deri
@@ -977,6 +986,39 @@ sv_eliso1st_curv_macdrp_rhs_timg_z2(
           M_FD_NOINDX(DzTz, veczt, fdz_len, lfdz_coef, n_fd);
 
           hVx[iptr] = ( DxTx+DyTy+DzTz ) * slwjac;
+#ifdef SV_ELISO1ST_CURV_MACDRP_DEBUG
+            /*
+            if (hVx[iptr] > 1.0e-25) {
+              fprintf(stderr, "WARNING: nonzero value for zero input:\n");
+              fprintf(stderr, "  i=%d,j=%d,k=%d: DxTx=%f, DyTy=%f, DzTz=%f\n",
+                      i,j,k,DxTx,DyTy,DzTz);
+              fprintf(stderr, "  %e,%e,%e,%e,%e\n",
+                                  veczt[0],
+                                  veczt[1],
+                                  veczt[2],
+                                  veczt[3],
+                                  veczt[4]);
+              fprintf(stderr, "  n_free=%d,siz_slice=%d,fdz_len=%d,fdz_indx=%d,%d,%d,%d,%d\n",
+                          n_free,siz_slice,fdz_len,
+                          fdz_indx[0],
+                          fdz_indx[1],
+                          fdz_indx[2],
+                          fdz_indx[3],
+                          fdz_indx[4]);
+
+              for (n=0; n<n_free; n++) {
+                iptr4vec = iptr + fdz_indx[n] * siz_slice;
+                fprintf(stderr,"   n=%d,jac=%e,zt_x=%e,Txx=%e,zt_y=%e,Txy=%e,zt_z=%e,Txz=%e\n",
+                           jac3d[iptr4vec] ,    zt_x[iptr4vec] , Txx[iptr4vec],
+                                                zt_y[iptr4vec] , Txy[iptr4vec],
+                                                zt_z[iptr4vec] , Txz[iptr4vec]);
+              }
+
+              fflush(stdout);
+              exit(2);
+            }
+            */
+#endif
 
           //
           // for hVy
@@ -1005,11 +1047,15 @@ sv_eliso1st_curv_macdrp_rhs_timg_z2(
           }
 
           // at surface -> set to 0
-          vecet[n_free] = 0.0;
+          veczt[n_free] = 0.0;
 
           // above surface -> mirror
           for (n=n_free+1; n<fdz_len; n++) {
-            veczt[n] = -veczt[n_free-(n-n_free)];
+            int n_img = fdz_indx[n] - 2*(n-n_free);
+            iptr4vec = iptr + n_img * siz_slice;
+            veczt[n] = -jac3d[iptr4vec] * (  zt_x[iptr4vec] * Txy[iptr4vec]
+                                           + zt_y[iptr4vec] * Tyy[iptr4vec]
+                                           + zt_z[iptr4vec] * Tyz[iptr4vec] );
           }
 
           // deri
@@ -1046,11 +1092,15 @@ sv_eliso1st_curv_macdrp_rhs_timg_z2(
           }
 
           // at surface -> set to 0
-          vecet[n_free] = 0.0;
+          veczt[n_free] = 0.0;
 
           // above surface -> mirror
           for (n=n_free+1; n<fdz_len; n++) {
-            veczt[n] = -veczt[n_free-(n-n_free)];
+            int n_img = fdz_indx[n] - 2*(n-n_free);
+            iptr4vec = iptr + n_img * siz_slice;
+            veczt[n] = -jac3d[iptr4vec] * (  zt_x[iptr4vec] * Txz[iptr4vec]
+                                           + zt_y[iptr4vec] * Tyz[iptr4vec]
+                                           + zt_z[iptr4vec] * Tzz[iptr4vec] );
           }
 
           // for hVx 
@@ -1085,8 +1135,10 @@ sv_eliso1st_curv_macdrp_rhs_vlow_z2(
     size_t siz_line, size_t siz_slice,
     int fdx_len, int *restrict fdx_indx, float *restrict fdx_coef,
     int fdy_len, int *restrict fdy_indx, float *restrict fdy_coef,
-    int fdz_num_surf_lay, int fdz_max_len, int **restrict fdz_all_info,
-    int *restrict fdz_all_indx, float *restrict fdz_all_coef,
+    int fdz_num_surf_lay, int fdz_max_len,
+    int  **restrict fdz_all_info,
+    int   *restrict fdz_all_indx,
+    float *restrict fdz_all_coef,
     const int myid, const int verbose)
 {
   // use local stack array for speedup
@@ -1122,6 +1174,7 @@ sv_eliso1st_curv_macdrp_rhs_vlow_z2(
   }
 
   // loop near surface layers
+  //for (size_t n=0; n < 1; n++)
   for (size_t n=0; n < fdz_num_surf_lay; n++)
   {
     // conver to k index, from surface to inner
@@ -1131,8 +1184,8 @@ sv_eliso1st_curv_macdrp_rhs_vlow_z2(
     int  lfdz_pos0 = fdz_all_info[n][FD_INFO_POS_OF_INDX];
     int  lfdz_len  = fdz_all_info[n][FD_INFO_LENGTH_TOTAL];
     // point to indx/coef for this point
-    int  *p_fdz_indx  = fdz_all_indx+lfdz_pos0;
-    float   *p_fdz_coef  = fdz_all_coef+lfdz_pos0;
+    int   *p_fdz_indx  = fdz_all_indx+lfdz_pos0;
+    float *p_fdz_coef  = fdz_all_coef+lfdz_pos0;
     for (n_fd = 0; n_fd < lfdz_len ; n_fd++) {
       lfdz_shift[n_fd] = p_fdz_indx[n_fd] * siz_slice;
       lfdz_coef[n_fd]  = p_fdz_coef[n_fd];
@@ -1180,7 +1233,7 @@ sv_eliso1st_curv_macdrp_rhs_vlow_z2(
 
         if (k==nk2) // at surface, convert
         {
-          size_t ij = i + j * siz_line;
+          size_t ij = (i + j * siz_line)*9;
           DzVx = matVx2Vz[ij+3*0+0] * DxVx
                + matVx2Vz[ij+3*0+1] * DxVy
                + matVx2Vz[ij+3*0+2] * DxVz
@@ -1741,7 +1794,7 @@ sv_eliso1st_curv_macdrp_rhs_cfspml_timg_z2(
             xiz = xi_z[iptr];
 
             // slowness and jac
-            slwjac = slw3d[iptr] * jac3d[iptr];
+            slwjac = slw3d[iptr] / jac3d[iptr];
 
             // for hVx
             // transform to conservative vars
@@ -1830,7 +1883,7 @@ sv_eliso1st_curv_macdrp_rhs_cfspml_timg_z2(
             etz = et_z[iptr];
 
             // slowness and jac
-            slwjac = slw3d[iptr] * jac3d[iptr];
+            slwjac = slw3d[iptr] / jac3d[iptr];
 
             // for hVx
             // transform to conservative vars
@@ -2605,7 +2658,7 @@ sv_eliso1st_curv_macdrp_vel_dxy2dz(
       mu     =  mu3d[iptr];
       lam2mu = lam + 2.0f * mu;
 
-      // first dim: x; sec dim: y, as Fortran code
+      // first dim: irow; sec dim: jcol, as Fortran code
       A[0][0] = lam2mu*e31*e31 + mu*(e32*e32+e33*e33);
       A[0][1] = lam*e31*e32 + mu*e32*e31;
       A[0][2] = lam*e31*e33 + mu*e33*e31;
@@ -2640,13 +2693,13 @@ sv_eliso1st_curv_macdrp_vel_dxy2dz(
       fdlib_math_matmul3x3(A, B, AB);
       fdlib_math_matmul3x3(A, C, AC);
 
-      size_t ij = (i * siz_line + j) * 9;
+      size_t ij = (j * siz_line + i) * 9;
 
       // save into mat
-      for(int m = 0; m < 3; m++)
-        for(int n = 0; n < 3; n++){
-          matVx2Vz[ij + m*3 + n] = AB[m][n];
-          matVy2Vz[ij + m*3 + n] = AC[m][n];
+      for(int irow = 0; irow < 3; irow++)
+        for(int jcol = 0; jcol < 3; jcol++){
+          matVx2Vz[ij + irow*3 + jcol] = AB[irow][jcol];
+          matVy2Vz[ij + irow*3 + jcol] = AC[irow][jcol];
         }
     }
   }
