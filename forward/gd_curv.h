@@ -46,6 +46,7 @@ gd_curv_cal_metric(
     float *restrict c3d,
     float *restrict g3d,
     int ni1, int ni2, int nj1, int nj2, int nk1, int nk2,
+    int nx, int ny, int nz,
     size_t siz_line, size_t siz_slice, size_t siz_volume,
     int fd_len, int *restrict fd_indx, float *restrict fd_coef);
 

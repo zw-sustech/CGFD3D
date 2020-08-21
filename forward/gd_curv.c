@@ -172,6 +172,7 @@ gd_curv_cal_metric(
     float *restrict c3d,
     float *restrict g3d,
     int ni1, int ni2, int nj1, int nj2, int nk1, int nk2,
+    int nx, int ny, int nz,
     size_t siz_line, size_t siz_slice, size_t siz_volume,
     int fd_len, int *restrict fd_indx, float *restrict fd_coef)
 {
@@ -258,6 +259,141 @@ gd_curv_cal_metric(
       }
     }
   }
+
+  // extend to ghosts. may replaced by mpi exchange
+  // x1, mirror
+  for (size_t k = 0; k < nz; k++){
+    for (size_t j = 0; j < ny; j++) {
+      for (size_t i = 0; i < ni1; i++)
+      {
+        size_t iptr = i + j * siz_line + k * siz_slice;
+        jac3d[iptr] = jac3d[iptr + (ni1-i)*2 -1 ];
+         xi_x[iptr] =  xi_x[iptr + (ni1-i)*2 -1 ];
+         xi_y[iptr] =  xi_y[iptr + (ni1-i)*2 -1 ];
+         xi_z[iptr] =  xi_z[iptr + (ni1-i)*2 -1 ];
+         et_x[iptr] =  et_x[iptr + (ni1-i)*2 -1 ];
+         et_y[iptr] =  et_y[iptr + (ni1-i)*2 -1 ];
+         et_z[iptr] =  et_z[iptr + (ni1-i)*2 -1 ];
+         zt_x[iptr] =  zt_x[iptr + (ni1-i)*2 -1 ];
+         zt_y[iptr] =  zt_y[iptr + (ni1-i)*2 -1 ];
+         zt_z[iptr] =  zt_z[iptr + (ni1-i)*2 -1 ];
+      }
+    }
+  }
+  // x2, mirror
+  for (size_t k = 0; k < nz; k++){
+    for (size_t j = 0; j < ny; j++) {
+      for (size_t i = ni2+1; i < nx; i++)
+      {
+        size_t iptr = i + j * siz_line + k * siz_slice;
+        jac3d[iptr] = jac3d[iptr - (i-ni2)*2 +1 ];
+         xi_x[iptr] =  xi_x[iptr - (i-ni2)*2 +1 ];
+         xi_y[iptr] =  xi_y[iptr - (i-ni2)*2 +1 ];
+         xi_z[iptr] =  xi_z[iptr - (i-ni2)*2 +1 ];
+         et_x[iptr] =  et_x[iptr - (i-ni2)*2 +1 ];
+         et_y[iptr] =  et_y[iptr - (i-ni2)*2 +1 ];
+         et_z[iptr] =  et_z[iptr - (i-ni2)*2 +1 ];
+         zt_x[iptr] =  zt_x[iptr - (i-ni2)*2 +1 ];
+         zt_y[iptr] =  zt_y[iptr - (i-ni2)*2 +1 ];
+         zt_z[iptr] =  zt_z[iptr - (i-ni2)*2 +1 ];
+      }
+    }
+  }
+  // y1, mirror
+  for (size_t k = 0; k < nz; k++){
+    for (size_t j = 0; j < nj1; j++) {
+      for (size_t i = 0; i < nx; i++) {
+        size_t iptr = i + j * siz_line + k * siz_slice;
+        jac3d[iptr] = jac3d[iptr + ((nj1-j)*2 -1) * siz_line ];
+         xi_x[iptr] =  xi_x[iptr + ((nj1-j)*2 -1) * siz_line ];
+         xi_y[iptr] =  xi_y[iptr + ((nj1-j)*2 -1) * siz_line ];
+         xi_z[iptr] =  xi_z[iptr + ((nj1-j)*2 -1) * siz_line ];
+         et_x[iptr] =  et_x[iptr + ((nj1-j)*2 -1) * siz_line ];
+         et_y[iptr] =  et_y[iptr + ((nj1-j)*2 -1) * siz_line ];
+         et_z[iptr] =  et_z[iptr + ((nj1-j)*2 -1) * siz_line ];
+         zt_x[iptr] =  zt_x[iptr + ((nj1-j)*2 -1) * siz_line ];
+         zt_y[iptr] =  zt_y[iptr + ((nj1-j)*2 -1) * siz_line ];
+         zt_z[iptr] =  zt_z[iptr + ((nj1-j)*2 -1) * siz_line ];
+      }
+    }
+  }
+  // y2, mirror
+  for (size_t k = 0; k < nz; k++){
+    for (size_t j = nj2+1; j < ny; j++) {
+      for (size_t i = 0; i < nx; i++) {
+        size_t iptr = i + j * siz_line + k * siz_slice;
+        jac3d[iptr] = jac3d[iptr - ((j-nj2)*2 -1) * siz_line ];
+         xi_x[iptr] =  xi_x[iptr - ((j-nj2)*2 -1) * siz_line ];
+         xi_y[iptr] =  xi_y[iptr - ((j-nj2)*2 -1) * siz_line ];
+         xi_z[iptr] =  xi_z[iptr - ((j-nj2)*2 -1) * siz_line ];
+         et_x[iptr] =  et_x[iptr - ((j-nj2)*2 -1) * siz_line ];
+         et_y[iptr] =  et_y[iptr - ((j-nj2)*2 -1) * siz_line ];
+         et_z[iptr] =  et_z[iptr - ((j-nj2)*2 -1) * siz_line ];
+         zt_x[iptr] =  zt_x[iptr - ((j-nj2)*2 -1) * siz_line ];
+         zt_y[iptr] =  zt_y[iptr - ((j-nj2)*2 -1) * siz_line ];
+         zt_z[iptr] =  zt_z[iptr - ((j-nj2)*2 -1) * siz_line ];
+      }
+    }
+  }
+  // z1, mirror
+  for (size_t k = 0; k < nk1; k++) {
+    for (size_t j = 0; j < ny; j++){
+      for (size_t i = 0; i < nx; i++) {
+        size_t iptr = i + j * siz_line + k * siz_slice;
+        jac3d[iptr] = jac3d[iptr + ((nk1-k)*2 -1) * siz_slice ];
+         xi_x[iptr] =  xi_x[iptr + ((nk1-k)*2 -1) * siz_slice ];
+         xi_y[iptr] =  xi_y[iptr + ((nk1-k)*2 -1) * siz_slice ];
+         xi_z[iptr] =  xi_z[iptr + ((nk1-k)*2 -1) * siz_slice ];
+         et_x[iptr] =  et_x[iptr + ((nk1-k)*2 -1) * siz_slice ];
+         et_y[iptr] =  et_y[iptr + ((nk1-k)*2 -1) * siz_slice ];
+         et_z[iptr] =  et_z[iptr + ((nk1-k)*2 -1) * siz_slice ];
+         zt_x[iptr] =  zt_x[iptr + ((nk1-k)*2 -1) * siz_slice ];
+         zt_y[iptr] =  zt_y[iptr + ((nk1-k)*2 -1) * siz_slice ];
+         zt_z[iptr] =  zt_z[iptr + ((nk1-k)*2 -1) * siz_slice ];
+      }
+    }
+  }
+  // z2, mirror
+  for (size_t k = nk2+1; k < nz; k++) {
+    for (size_t j = 0; j < ny; j++){
+      for (size_t i = 0; i < nx; i++) {
+        size_t iptr = i + j * siz_line + k * siz_slice;
+        jac3d[iptr] = jac3d[iptr - ((k-nk2)*2 -1) * siz_slice ];
+         xi_x[iptr] =  xi_x[iptr - ((k-nk2)*2 -1) * siz_slice ];
+         xi_y[iptr] =  xi_y[iptr - ((k-nk2)*2 -1) * siz_slice ];
+         xi_z[iptr] =  xi_z[iptr - ((k-nk2)*2 -1) * siz_slice ];
+         et_x[iptr] =  et_x[iptr - ((k-nk2)*2 -1) * siz_slice ];
+         et_y[iptr] =  et_y[iptr - ((k-nk2)*2 -1) * siz_slice ];
+         et_z[iptr] =  et_z[iptr - ((k-nk2)*2 -1) * siz_slice ];
+         zt_x[iptr] =  zt_x[iptr - ((k-nk2)*2 -1) * siz_slice ];
+         zt_y[iptr] =  zt_y[iptr - ((k-nk2)*2 -1) * siz_slice ];
+         zt_z[iptr] =  zt_z[iptr - ((k-nk2)*2 -1) * siz_slice ];
+      }
+    }
+  }
+
+  // for test
+  /*
+  for (size_t k = 0; k < nz; k++){
+    for (size_t j = 0; j < ny; j++) {
+      for (size_t i = 0; i < nx; i++)
+      {
+        float dh=100.0;
+        size_t iptr = i + j * siz_line + k * siz_slice;
+        jac3d[iptr] = dh*dh*dh;
+         xi_x[iptr] = 1.0/dh;
+         xi_y[iptr] =  0.0;
+         xi_z[iptr] =  0.0;
+         et_x[iptr] =  0.0;
+         et_y[iptr] = 1.0/dh;
+         et_z[iptr] =  0.0;
+         zt_x[iptr] =  0.0;
+         zt_y[iptr] =  0.0;
+         zt_z[iptr] = 1.0/dh;
+      }
+    }
+  }
+  */
 }
 
 /*
