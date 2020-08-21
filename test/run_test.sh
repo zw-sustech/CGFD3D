@@ -60,7 +60,7 @@ cat << ieof > $parfile
   "number_of_mpiprocs_y" : 1,
 
   "size_of_time_step" : 0.01,
-  "number_of_time_steps" : 200,
+  "number_of_time_steps" : 1500,
 
   "coord_by_cartesian" : 1,
   "cartesian_grid_x0" : 0.0,
@@ -89,7 +89,7 @@ cat << ieof > $parfile
       "none",
       "none",
       "none",
-      "none"
+      "free"
   ],
 
   "cfspml" : {
