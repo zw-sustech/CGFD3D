@@ -105,7 +105,7 @@ abs_set_cfspml(
   for (int i_dim=0; i_dim<FD_NDIM_2; i_dim++)
   {
     // set default indx to 0
-    for (int j; j<FD_NDIM_2; j++)
+    for (int j=0; j<FD_NDIM_2; j++)
     {
       abs_indx[i_dim * FD_NDIM_2 + j] = 0;
 
@@ -142,9 +142,9 @@ abs_set_cfspml(
         abs_indx[i_dim*FD_NDIM_2+4] = nk2 - num_lay + 1;
       }
 
-      float *A = this_coefs + num_lay;
-      float *B =          A + num_lay;
-      float *D =          B + num_lay;
+      float *A = this_coefs;
+      float *B = A + num_lay;
+      float *D = B + num_lay;
 
       // calculate
       float L0   = num_lay * dh;

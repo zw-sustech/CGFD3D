@@ -1377,12 +1377,18 @@ sv_eliso1st_curv_macdrp_rhs_cfspml(
     if (boundary_itype[iface] != FD_BOUNDARY_TYPE_CFSPML) continue;
 
     // get index into local var
-    int abs_ni1 = abs_indx[iface+FD_NDIM_2+0];
-    int abs_ni2 = abs_indx[iface+FD_NDIM_2+1];
-    int abs_nj1 = abs_indx[iface+FD_NDIM_2+2];
-    int abs_nj2 = abs_indx[iface+FD_NDIM_2+3];
-    int abs_nk1 = abs_indx[iface+FD_NDIM_2+4];
-    int abs_nk2 = abs_indx[iface+FD_NDIM_2+5];
+    int abs_ni1 = abs_indx[iface*FD_NDIM_2+0];
+    int abs_ni2 = abs_indx[iface*FD_NDIM_2+1];
+    int abs_nj1 = abs_indx[iface*FD_NDIM_2+2];
+    int abs_nj2 = abs_indx[iface*FD_NDIM_2+3];
+    int abs_nk1 = abs_indx[iface*FD_NDIM_2+4];
+    int abs_nk2 = abs_indx[iface*FD_NDIM_2+5];
+
+#ifdef SV_ELISO1ST_CURV_MACDRP_DEBUG
+    //fprintf(stdout," iface=%d,ni1=%d,ni2=%d,nj1=%d,nj2=%d,nk1=%d,nk2=%d\n",
+    //        iface,abs_ni1,abs_ni2,abs_nj1,abs_nj2,abs_nk1,abs_nk2);
+    //fflush(stdout);
+#endif
 
     // get coef for this face
     float *restrict ptr_coef_A = abs_coefs + abs_coefs_facepos0[iface];
@@ -1744,12 +1750,12 @@ sv_eliso1st_curv_macdrp_rhs_cfspml_timg_z2(
     if (boundary_itype[iface] != FD_BOUNDARY_TYPE_CFSPML) continue;
 
     // get index into local var
-    int abs_ni1 = abs_indx[iface+FD_NDIM_2+0];
-    int abs_ni2 = abs_indx[iface+FD_NDIM_2+1];
-    int abs_nj1 = abs_indx[iface+FD_NDIM_2+2];
-    int abs_nj2 = abs_indx[iface+FD_NDIM_2+3];
-    int abs_nk1 = abs_indx[iface+FD_NDIM_2+4];
-    int abs_nk2 = abs_indx[iface+FD_NDIM_2+5];
+    int abs_ni1 = abs_indx[iface*FD_NDIM_2+0];
+    int abs_ni2 = abs_indx[iface*FD_NDIM_2+1];
+    int abs_nj1 = abs_indx[iface*FD_NDIM_2+2];
+    int abs_nj2 = abs_indx[iface*FD_NDIM_2+3];
+    int abs_nk1 = abs_indx[iface*FD_NDIM_2+4];
+    int abs_nk2 = abs_indx[iface*FD_NDIM_2+5];
 
     // max of two values
     abs_nk1 = (k_min > abs_nk1 ) ? k_min : abs_nk1;
@@ -2012,12 +2018,12 @@ sv_eliso1st_curv_macdrp_rhs_cfspml_vfree_z2(
     if (boundary_itype[iface] != FD_BOUNDARY_TYPE_CFSPML) continue;
 
     // get index into local var
-    int abs_ni1 = abs_indx[iface+FD_NDIM_2+0];
-    int abs_ni2 = abs_indx[iface+FD_NDIM_2+1];
-    int abs_nj1 = abs_indx[iface+FD_NDIM_2+2];
-    int abs_nj2 = abs_indx[iface+FD_NDIM_2+3];
-    int abs_nk1 = abs_indx[iface+FD_NDIM_2+4];
-    int abs_nk2 = abs_indx[iface+FD_NDIM_2+5];
+    int abs_ni1 = abs_indx[iface*FD_NDIM_2+0];
+    int abs_ni2 = abs_indx[iface*FD_NDIM_2+1];
+    int abs_nj1 = abs_indx[iface*FD_NDIM_2+2];
+    int abs_nj2 = abs_indx[iface*FD_NDIM_2+3];
+    int abs_nk1 = abs_indx[iface*FD_NDIM_2+4];
+    int abs_nk2 = abs_indx[iface*FD_NDIM_2+5];
 
     // get coef for this face
     float *restrict ptr_coef_A = abs_coefs + abs_coefs_facepos0[iface];
