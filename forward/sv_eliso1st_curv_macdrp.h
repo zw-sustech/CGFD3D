@@ -33,9 +33,11 @@ sv_eliso1st_curv_macdrp_allstep(
     int num_of_force,
     int *restrict force_info, // num_of_force * 6 : si,sj,sk,start_pos_in_stf,start_it, end_it
     float *restrict force_vec_stf,
-    int num_of_moment,
-    int *restrict moment_info, // num_of_force * 6 : si,sj,sk,start_pos_in_rate,start_it, end_it
+    int             num_of_moment,
+    int   *restrict moment_info, // num_of_force * 6 : si,sj,sk,start_pos_in_rate,start_it, end_it
     float *restrict moment_ten_rate,
+    int   *restrict moment_ext_indx,
+    float *restrict moment_ext_coef,
     // io
     int num_of_sta, int *restrict sta_loc_point, float *restrict sta_seismo,
     int num_of_snap, int *restrict snap_grid_indx, int *restrict snap_time_indx,
@@ -79,9 +81,11 @@ sv_eliso1st_curv_macdrp_onestage(
     int num_of_force,
     int *restrict force_loc_point,
     float *restrict force_vec_value, // only for cur stage, size: num_of_force
-    int num_of_moment,
-    int *restrict moment_loc_point,
-    float *restrict moment_ten_value,
+    int             num_of_moment,
+    int   *restrict moment_info, // num_of_force * 6 : si,sj,sk,start_pos_in_rate,start_it, end_it
+    float *restrict moment_ten_rate,
+    int   *restrict moment_ext_indx,
+    float *restrict moment_ext_coef,
     // include different order/stentil
     int fdx_max_half_len, int fdy_max_half_len,
     int fdz_max_len, int fdz_num_surf_lay,
@@ -226,9 +230,11 @@ sv_eliso1st_curv_macdrp_rhs_src(
     int num_of_force,
     int *restrict force_info,
     float *restrict force_vec_value,
-    int num_of_moment,
-    int *restrict moment_info,
+    int             num_of_moment,
+    int   *restrict moment_info,
     float *restrict moment_ten_value, // size: num_of_moment * 6
+    int   *restrict moment_ext_indx,
+    float *restrict moment_ext_coef,
     const int myid, const int verbose);
 
 void

@@ -356,17 +356,33 @@ int main(int argc, char** argv)
 
   //src_read_file(par->src_fname, myid);
   //src_locate_extend();
-  src_gen_test(t0,
-               dt,
-               nt_total,
-               fd->num_rk_stages,
-               &blk->num_of_force,
-               &blk->force_info,
-               &blk->force_vec_stf,
-               &blk->num_of_moment,
-               &blk->moment_info,
-               &blk->moment_ten_rate,
-               verbose);
+  //src_gen_test(t0,
+  //             dt,
+  //             nt_total,
+  //             fd->num_rk_stages,
+  //             &blk->num_of_force,
+  //             &blk->force_info,
+  //             &blk->force_vec_stf,
+  //             &blk->num_of_moment,
+  //             &blk->moment_info,
+  //             &blk->moment_ten_rate,
+  //             verbose);
+
+  src_gen_test_gauss(blk->siz_line,
+                     blk->siz_slice,
+                     t0,
+                     dt,
+                     nt_total,
+                     fd->num_rk_stages,
+                     &blk->num_of_force,
+                     &blk->force_info,
+                     &blk->force_vec_stf,
+                     &blk->num_of_moment,
+                     &blk->moment_info,
+                     &blk->moment_ten_rate,
+                     &blk->moment_ext_indx,
+                     &blk->moment_ext_coef,
+                     verbose);
   
   /*
   if (par->source_output_to_file==1)
@@ -494,6 +510,7 @@ int main(int argc, char** argv)
                                   blk->matVx2Vz, blk->matVy2Vz,
                                   blk->num_of_force, blk->force_info, blk->force_vec_stf,
                                   blk->num_of_moment, blk->moment_info, blk->moment_ten_rate,
+                                  blk->moment_ext_indx,blk->moment_ext_coef,
                                   blk->num_of_sta, blk->sta_loc_point, blk->sta_seismo,
                                   blk->num_of_snap, blk->snap_grid_indx, blk->snap_time_indx,
                                   fd->num_rk_stages, fd->rk_a, fd->rk_b,

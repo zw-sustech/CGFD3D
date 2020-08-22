@@ -224,8 +224,10 @@ struct fd_blk_t
   int    *force_info; // num_of_force * 6 : si,sj,sk,start_pos_in_stf,start_it, end_it
   float  *force_vec_stf;
   int     num_of_moment;
-  int    *moment_info; // num_of_force * 6 : si,sj,sk,start_pos_in_rate,start_it, end_it
+  int    *moment_info; // num_of_force * 7 : si,sj,sk,start_pos_in_rate,start_it, end_it, n_ext
   float  *moment_ten_rate; // stage, it, Mij, num
+  int    *moment_ext_indx;
+  float  *moment_ext_coef;
   
   //
   // abs
