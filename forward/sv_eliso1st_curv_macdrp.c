@@ -568,7 +568,7 @@ sv_eliso1st_curv_macdrp_onestage(
     // if free surface,  modified 
     if (boundary_itype[5] == FD_BOUNDARY_TYPE_FREE)
     {
-      // cfs-pml modified for timg
+      // cfs-pml modified for timg: can't used, double corr with main cfspml
       //sv_eliso1st_curv_macdrp_rhs_cfspml_timg_z2(Txx,Tyy,Tzz,Txz,Tyz,Txy,hVx,hVy,hVz,
       //                                           xi_x, xi_y, xi_z,
       //                                           et_x, et_y, et_z, zt_x, zt_y, zt_z,
@@ -581,12 +581,11 @@ sv_eliso1st_curv_macdrp_onestage(
       //                                           abs_vars_volsiz, abs_vars_facepos0,
       //                                           abs_vars_cur, abs_vars_rhs,
       //                                           myid, verbose);
-      //
+      
       // cfs-pml modified for vfree; vlow at points below surface doesn't affect pml
       sv_eliso1st_curv_macdrp_rhs_cfspml_vfree_z2(Vx,Vy,Vz,hTxx,hTyy,hTzz,hTxz,hTyz,hTxy,
-                                                  xi_x, xi_y, xi_z,
-                                                  et_x, et_y, et_z, zt_x, zt_y, zt_z,
-                                                  lam3d, mu3d, slw3d, matVx2Vz, matVy2Vz,
+                                                  zt_x, zt_y, zt_z,
+                                                  lam3d, mu3d, matVx2Vz, matVy2Vz,
                                                   nk2,siz_line,siz_slice,
                                                   fdx_inn_len, fdx_inn_indx, fdx_inn_coef,
                                                   fdy_inn_len, fdy_inn_indx, fdy_inn_coef,
@@ -1675,7 +1674,9 @@ sv_eliso1st_curv_macdrp_rhs_cfspml(
   }
 }
 
-// considering timg free surface in cfs-pml
+// considering timg free surface in cfs-pml: conflict with main cfspml, need to revise
+//  in the future if required
+/*
 void
 sv_eliso1st_curv_macdrp_rhs_cfspml_timg_z2(
     float *restrict  Txx, float *restrict  Tyy, float *restrict  Tzz,
@@ -1945,6 +1946,7 @@ sv_eliso1st_curv_macdrp_rhs_cfspml_timg_z2(
     } // if x or y dim
   } // face
 }
+*/
 
 // considering velocity free surface condition in cfs-pml
 void
@@ -1952,10 +1954,8 @@ sv_eliso1st_curv_macdrp_rhs_cfspml_vfree_z2(
     float *restrict  Vx , float *restrict  Vy , float *restrict  Vz ,
     float *restrict hTxx, float *restrict hTyy, float *restrict hTzz,
     float *restrict hTxz, float *restrict hTyz, float *restrict hTxy,
-    float *restrict xi_x, float *restrict xi_y, float *restrict xi_z,
-    float *restrict et_x, float *restrict et_y, float *restrict et_z,
     float *restrict zt_x, float *restrict zt_y, float *restrict zt_z,
-    float *restrict lam3d, float *restrict mu3d, float *restrict slw3d,
+    float *restrict lam3d, float *restrict mu3d,
     float *restrict matVx2Vz, float *restrict matVy2Vz,
     int nk2, size_t siz_line, size_t siz_slice,
     int fdx_len, int *restrict fdx_indx, float *restrict fdx_coef,
@@ -1980,8 +1980,7 @@ sv_eliso1st_curv_macdrp_rhs_cfspml_vfree_z2(
   int lfdy_shift[fdy_len];
 
   // val on point
-  float lam,mu,lam2mu,slw;
-  float xix,xiy,xiz,etx,ety,etz,ztx,zty,ztz;
+  float lam,mu,lam2mu;
 
   // local
   int i,j,k;
@@ -2060,14 +2059,13 @@ sv_eliso1st_curv_macdrp_rhs_cfspml_vfree_z2(
           coef_B = ptr_coef_B[abs_i];
 
           // metric
-          xix = xi_x[iptr];
-          xiy = xi_y[iptr];
-          xiz = xi_z[iptr];
+          float ztx = zt_x[iptr];
+          float zty = zt_y[iptr];
+          float ztz = zt_z[iptr];
 
           // medium
           lam = lam3d[iptr];
           mu  =  mu3d[iptr];
-          slw = slw3d[iptr];
           lam2mu = lam + 2.0 * mu;
 
           // Vx derivatives
@@ -2114,22 +2112,39 @@ sv_eliso1st_curv_macdrp_rhs_cfspml_vfree_z2(
                        ztz*Dx_DzVy + zty*Dx_DzVz
                       );
 
+          //// make corr to Hooke's equatoin
+          //hTxx[iptr] += (coef_B - 1.0) * hTxx_rhs - coef_B * pml_Txx[iptr_a];
+          //hTyy[iptr] += (coef_B - 1.0) * hTyy_rhs - coef_B * pml_Tyy[iptr_a];
+          //hTzz[iptr] += (coef_B - 1.0) * hTzz_rhs - coef_B * pml_Tzz[iptr_a];
+          //hTxz[iptr] += (coef_B - 1.0) * hTxz_rhs - coef_B * pml_Txz[iptr_a];
+          //hTyz[iptr] += (coef_B - 1.0) * hTyz_rhs - coef_B * pml_Tyz[iptr_a];
+          //hTxy[iptr] += (coef_B - 1.0) * hTxy_rhs - coef_B * pml_Txy[iptr_a];
+
+          //// aux var
+          ////   a1 = alpha + d / beta, dealt in abs_set_cfspml
+          //pml_hTxx[iptr_a] = coef_D * hTxx_rhs - coef_A * pml_Txx[iptr_a];
+          //pml_hTyy[iptr_a] = coef_D * hTyy_rhs - coef_A * pml_Tyy[iptr_a];
+          //pml_hTzz[iptr_a] = coef_D * hTzz_rhs - coef_A * pml_Tzz[iptr_a];
+          //pml_hTxz[iptr_a] = coef_D * hTxz_rhs - coef_A * pml_Txz[iptr_a];
+          //pml_hTyz[iptr_a] = coef_D * hTyz_rhs - coef_A * pml_Tyz[iptr_a];
+          //pml_hTxy[iptr_a] = coef_D * hTxy_rhs - coef_A * pml_Txy[iptr_a];
+
           // make corr to Hooke's equatoin
-          hTxx[iptr] += (coef_B - 1.0) * hTxx_rhs - coef_B * pml_Txx[iptr_a];
-          hTyy[iptr] += (coef_B - 1.0) * hTyy_rhs - coef_B * pml_Tyy[iptr_a];
-          hTzz[iptr] += (coef_B - 1.0) * hTzz_rhs - coef_B * pml_Tzz[iptr_a];
-          hTxz[iptr] += (coef_B - 1.0) * hTxz_rhs - coef_B * pml_Txz[iptr_a];
-          hTyz[iptr] += (coef_B - 1.0) * hTyz_rhs - coef_B * pml_Tyz[iptr_a];
-          hTxy[iptr] += (coef_B - 1.0) * hTxy_rhs - coef_B * pml_Txy[iptr_a];
+          hTxx[iptr] += (coef_B - 1.0) * hTxx_rhs;
+          hTyy[iptr] += (coef_B - 1.0) * hTyy_rhs;
+          hTzz[iptr] += (coef_B - 1.0) * hTzz_rhs;
+          hTxz[iptr] += (coef_B - 1.0) * hTxz_rhs;
+          hTyz[iptr] += (coef_B - 1.0) * hTyz_rhs;
+          hTxy[iptr] += (coef_B - 1.0) * hTxy_rhs;
 
           // aux var
           //   a1 = alpha + d / beta, dealt in abs_set_cfspml
-          pml_hTxx[iptr_a] = coef_D * hTxx_rhs - coef_A * pml_Txx[iptr_a];
-          pml_hTyy[iptr_a] = coef_D * hTyy_rhs - coef_A * pml_Tyy[iptr_a];
-          pml_hTzz[iptr_a] = coef_D * hTzz_rhs - coef_A * pml_Tzz[iptr_a];
-          pml_hTxz[iptr_a] = coef_D * hTxz_rhs - coef_A * pml_Txz[iptr_a];
-          pml_hTyz[iptr_a] = coef_D * hTyz_rhs - coef_A * pml_Tyz[iptr_a];
-          pml_hTxy[iptr_a] = coef_D * hTxy_rhs - coef_A * pml_Txy[iptr_a];
+          pml_hTxx[iptr_a] += coef_D * hTxx_rhs;
+          pml_hTyy[iptr_a] += coef_D * hTyy_rhs;
+          pml_hTzz[iptr_a] += coef_D * hTzz_rhs;
+          pml_hTxz[iptr_a] += coef_D * hTxz_rhs;
+          pml_hTyz[iptr_a] += coef_D * hTyz_rhs;
+          pml_hTxy[iptr_a] += coef_D * hTxy_rhs;
 
           // incr index
           iptr   += 1;
@@ -2160,14 +2175,13 @@ sv_eliso1st_curv_macdrp_rhs_cfspml_vfree_z2(
         for (i=abs_ni1; i<=abs_ni2; i++)
         {
           // metric
-          etx = et_x[iptr];
-          ety = et_y[iptr];
-          etz = et_z[iptr];
+          float ztx = zt_x[iptr];
+          float zty = zt_y[iptr];
+          float ztz = zt_z[iptr];
 
           // medium
           lam = lam3d[iptr];
           mu  =  mu3d[iptr];
-          slw = slw3d[iptr];
           lam2mu = lam + 2.0 * mu;
 
           // Vx derivatives
@@ -2213,22 +2227,39 @@ sv_eliso1st_curv_macdrp_rhs_cfspml_vfree_z2(
                        ztz*Dy_DzVy + zty*Dy_DzVz
                     );
 
+          //// make corr to Hooke's equatoin
+          //hTxx[iptr] += (coef_B - 1.0) * hTxx_rhs - coef_B * pml_Txx[iptr_a];
+          //hTyy[iptr] += (coef_B - 1.0) * hTyy_rhs - coef_B * pml_Tyy[iptr_a];
+          //hTzz[iptr] += (coef_B - 1.0) * hTzz_rhs - coef_B * pml_Tzz[iptr_a];
+          //hTxz[iptr] += (coef_B - 1.0) * hTxz_rhs - coef_B * pml_Txz[iptr_a];
+          //hTyz[iptr] += (coef_B - 1.0) * hTyz_rhs - coef_B * pml_Tyz[iptr_a];
+          //hTxy[iptr] += (coef_B - 1.0) * hTxy_rhs - coef_B * pml_Txy[iptr_a];
+
+          //// aux var
+          ////   a1 = alpha + d / beta, dealt in abs_set_cfspml
+          //pml_hTxx[iptr_a] = coef_D * hTxx_rhs - coef_A * pml_Txx[iptr_a];
+          //pml_hTyy[iptr_a] = coef_D * hTyy_rhs - coef_A * pml_Tyy[iptr_a];
+          //pml_hTzz[iptr_a] = coef_D * hTzz_rhs - coef_A * pml_Tzz[iptr_a];
+          //pml_hTxz[iptr_a] = coef_D * hTxz_rhs - coef_A * pml_Txz[iptr_a];
+          //pml_hTyz[iptr_a] = coef_D * hTyz_rhs - coef_A * pml_Tyz[iptr_a];
+          //pml_hTxy[iptr_a] = coef_D * hTxy_rhs - coef_A * pml_Txy[iptr_a];
+
           // make corr to Hooke's equatoin
-          hTxx[iptr] += (coef_B - 1.0) * hTxx_rhs - coef_B * pml_Txx[iptr_a];
-          hTyy[iptr] += (coef_B - 1.0) * hTyy_rhs - coef_B * pml_Tyy[iptr_a];
-          hTzz[iptr] += (coef_B - 1.0) * hTzz_rhs - coef_B * pml_Tzz[iptr_a];
-          hTxz[iptr] += (coef_B - 1.0) * hTxz_rhs - coef_B * pml_Txz[iptr_a];
-          hTyz[iptr] += (coef_B - 1.0) * hTyz_rhs - coef_B * pml_Tyz[iptr_a];
-          hTxy[iptr] += (coef_B - 1.0) * hTxy_rhs - coef_B * pml_Txy[iptr_a];
+          hTxx[iptr] += (coef_B - 1.0) * hTxx_rhs;
+          hTyy[iptr] += (coef_B - 1.0) * hTyy_rhs;
+          hTzz[iptr] += (coef_B - 1.0) * hTzz_rhs;
+          hTxz[iptr] += (coef_B - 1.0) * hTxz_rhs;
+          hTyz[iptr] += (coef_B - 1.0) * hTyz_rhs;
+          hTxy[iptr] += (coef_B - 1.0) * hTxy_rhs;
 
           // aux var
           //   a1 = alpha + d / beta, dealt in abs_set_cfspml
-          pml_hTxx[iptr_a] = coef_D * hTxx_rhs - coef_A * pml_Txx[iptr_a];
-          pml_hTyy[iptr_a] = coef_D * hTyy_rhs - coef_A * pml_Tyy[iptr_a];
-          pml_hTzz[iptr_a] = coef_D * hTzz_rhs - coef_A * pml_Tzz[iptr_a];
-          pml_hTxz[iptr_a] = coef_D * hTxz_rhs - coef_A * pml_Txz[iptr_a];
-          pml_hTyz[iptr_a] = coef_D * hTyz_rhs - coef_A * pml_Tyz[iptr_a];
-          pml_hTxy[iptr_a] = coef_D * hTxy_rhs - coef_A * pml_Txy[iptr_a];
+          pml_hTxx[iptr_a] += coef_D * hTxx_rhs;
+          pml_hTyy[iptr_a] += coef_D * hTyy_rhs;
+          pml_hTzz[iptr_a] += coef_D * hTzz_rhs;
+          pml_hTxz[iptr_a] += coef_D * hTxz_rhs;
+          pml_hTyz[iptr_a] += coef_D * hTyz_rhs;
+          pml_hTxy[iptr_a] += coef_D * hTxy_rhs;
 
           // incr index
           iptr   += 1;
