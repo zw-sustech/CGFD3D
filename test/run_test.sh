@@ -74,7 +74,7 @@ cat << ieof > $parfile
 
   "medium_by_import" : 0,
 
-  "#boundary_condition" : [
+  "boundary_condition" : [
       "cfspml",
       "cfspml",
       "cfspml",
@@ -83,7 +83,7 @@ cat << ieof > $parfile
       "free"
   ],
 
-  "boundary_condition" : [
+  "#boundary_condition" : [
       "none",
       "none",
       "none",
@@ -94,7 +94,7 @@ cat << ieof > $parfile
 
   "cfspml" : {
       "number_of_layers" : [
-        10,10,10,10,10,0
+        5,5,5,5,5,0
       ],
       "alpha_max" : [
         0.0,0.0,0.0,0.0,0.0,0.0

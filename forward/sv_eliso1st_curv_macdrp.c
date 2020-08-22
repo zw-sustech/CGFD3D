@@ -569,19 +569,19 @@ sv_eliso1st_curv_macdrp_onestage(
     if (boundary_itype[5] == FD_BOUNDARY_TYPE_FREE)
     {
       // cfs-pml modified for timg
-      sv_eliso1st_curv_macdrp_rhs_cfspml_timg_z2(Txx,Tyy,Tzz,Txz,Tyz,Txy,hVx,hVy,hVz,
-                                                 xi_x, xi_y, xi_z,
-                                                 et_x, et_y, et_z, zt_x, zt_y, zt_z,
-                                                 jac3d, slw3d, nk2, siz_line,siz_slice,
-                                                 fdx_inn_len, fdx_inn_indx, fdx_inn_coef,
-                                                 fdy_inn_len, fdy_inn_indx, fdy_inn_coef,
-                                                 fdz_inn_len, fdz_inn_indx, fdz_inn_coef,
-                                                 boundary_itype, abs_num_of_layers, abs_indx,
-                                                 abs_coefs_facepos0, abs_coefs,
-                                                 abs_vars_volsiz, abs_vars_facepos0,
-                                                 abs_vars_cur, abs_vars_rhs,
-                                                 myid, verbose);
-      
+      //sv_eliso1st_curv_macdrp_rhs_cfspml_timg_z2(Txx,Tyy,Tzz,Txz,Tyz,Txy,hVx,hVy,hVz,
+      //                                           xi_x, xi_y, xi_z,
+      //                                           et_x, et_y, et_z, zt_x, zt_y, zt_z,
+      //                                           jac3d, slw3d, nk2, siz_line,siz_slice,
+      //                                           fdx_inn_len, fdx_inn_indx, fdx_inn_coef,
+      //                                           fdy_inn_len, fdy_inn_indx, fdy_inn_coef,
+      //                                           fdz_inn_len, fdz_inn_indx, fdz_inn_coef,
+      //                                           boundary_itype, abs_num_of_layers, abs_indx,
+      //                                           abs_coefs_facepos0, abs_coefs,
+      //                                           abs_vars_volsiz, abs_vars_facepos0,
+      //                                           abs_vars_cur, abs_vars_rhs,
+      //                                           myid, verbose);
+      //
       // cfs-pml modified for vfree; vlow at points below surface doesn't affect pml
       sv_eliso1st_curv_macdrp_rhs_cfspml_vfree_z2(Vx,Vy,Vz,hTxx,hTyy,hTzz,hTxz,hTyz,hTxy,
                                                   xi_x, xi_y, xi_z,
@@ -1712,7 +1712,6 @@ sv_eliso1st_curv_macdrp_rhs_cfspml_timg_z2(
   
   // val on point
   float slw, slwjac;
-  float xix,xiy,xiz,etx,ety,etz,ztx,zty,ztz;
 
   // local
   float DxCx, DyCy;
@@ -1744,6 +1743,8 @@ sv_eliso1st_curv_macdrp_rhs_cfspml_timg_z2(
   int k_min = nk2 - fdz_indx[fdz_len-1];
 
   // loop x/y face
+  //for (int iface=0; iface<2; iface++)
+  //for (int iface=3; iface<4; iface++)
   for (int iface=0; iface<4; iface++)
   {
     // skip to next face if not cfspml
@@ -1758,7 +1759,7 @@ sv_eliso1st_curv_macdrp_rhs_cfspml_timg_z2(
     int abs_nk2 = abs_indx[iface*FD_NDIM_2+5];
 
     // max of two values
-    abs_nk1 = (k_min > abs_nk1 ) ? k_min : abs_nk1;
+    int abs_nk1_kmin = (k_min > abs_nk1 ) ? k_min : abs_nk1;
 
     // get coef for this face
     float *restrict ptr_coef_A = abs_coefs + abs_coefs_facepos0[iface];
@@ -1778,8 +1779,8 @@ sv_eliso1st_curv_macdrp_rhs_cfspml_timg_z2(
     // for each dim
     if (iface < 2) // x direction
     {
-      iptr_a = 0;
-      for (int k=abs_nk1; k<=abs_nk2; k++)
+      iptr_a = (abs_nk1_kmin-abs_nk1) * (abs_nj2-abs_nj1+1) * (abs_ni2-abs_ni1+1);
+      for (int k=abs_nk1_kmin; k<=abs_nk2; k++)
       {
         iptr_k = k * siz_slice;
         for (int j=abs_nj1; j<=abs_nj2; j++)
@@ -1793,11 +1794,6 @@ sv_eliso1st_curv_macdrp_rhs_cfspml_timg_z2(
             coef_D = ptr_coef_D[abs_i];
             coef_A = ptr_coef_A[abs_i];
             coef_B = ptr_coef_B[abs_i];
-
-            // metric
-            xix = xi_x[iptr];
-            xiy = xi_y[iptr];
-            xiz = xi_z[iptr];
 
             // slowness and jac
             slwjac = slw3d[iptr] / jac3d[iptr];
@@ -1866,8 +1862,8 @@ sv_eliso1st_curv_macdrp_rhs_cfspml_timg_z2(
     }
     else // y direction
     {
-      iptr_a = 0;
-      for (int k=abs_nk1; k<=abs_nk2; k++)
+      iptr_a = (abs_nk1_kmin-abs_nk1) * (abs_nj2-abs_nj1+1) * (abs_ni2-abs_ni1+1);
+      for (int k=abs_nk1_kmin; k<=abs_nk2; k++)
       {
         iptr_k = k * siz_slice;
         for (int j=abs_nj1; j<=abs_nj2; j++)
@@ -1883,11 +1879,6 @@ sv_eliso1st_curv_macdrp_rhs_cfspml_timg_z2(
 
           for (int i=abs_ni1; i<=abs_ni2; i++)
           {
-            // metric
-            etx = et_x[iptr];
-            ety = et_y[iptr];
-            etz = et_z[iptr];
-
             // slowness and jac
             slwjac = slw3d[iptr] / jac3d[iptr];
 
@@ -2049,13 +2040,12 @@ sv_eliso1st_curv_macdrp_rhs_cfspml_vfree_z2(
     // for each dim
     if (iface < 2) // x direction
     {
-      iptr_a = 0;
-
       if (nk2 > abs_nk2) continue;
 
       // set k to free surface
       k = nk2;
       iptr_k = k * siz_slice;
+      iptr_a = (k-abs_nk1) * (abs_nj2-abs_nj1+1) * (abs_ni2-abs_ni1+1);
 
       for (j=abs_nj1; j<=abs_nj2; j++)
       {
@@ -2088,7 +2078,7 @@ sv_eliso1st_curv_macdrp_rhs_cfspml_vfree_z2(
           M_FD_SHIFT(DxVz, Vz, iptr, fdx_len, lfdx_shift, lfdx_coef, n_fd);
 
           // zeta derivatives
-          int ij = i + j * siz_line;
+          int ij = (i + j * siz_line)*9;
           Dx_DzVx = matVx2Vz[ij+3*0+0] * DxVx
                   + matVx2Vz[ij+3*0+1] * DxVy
                   + matVx2Vz[ij+3*0+2] * DxVz;
@@ -2102,29 +2092,26 @@ sv_eliso1st_curv_macdrp_rhs_cfspml_vfree_z2(
                   + matVx2Vz[ij+3*2+2] * DxVz;
 
           // keep xi derivative terms, including free surface convered
-          hTxx_rhs =    lam2mu * ( xix*DxVx + ztx*Dx_DzVx);
-                      + lam    * ( xiy*DxVy + zty*Dx_DzVy
-                                  +xiz*DxVz + ztz*Dx_DzVz);
+          hTxx_rhs =    lam2mu * (            ztx*Dx_DzVx);
+                      + lam    * (            zty*Dx_DzVy
+                                  +           ztz*Dx_DzVz);
 
-          hTyy_rhs =   lam2mu * ( xiy*DxVy + zty*Dx_DzVy)
-                      +lam    * ( xix*DxVx + ztx*Dx_DzVx
-                                 +xiz*DxVz + ztz*Dx_DzVz);
+          hTyy_rhs =   lam2mu * (            zty*Dx_DzVy)
+                      +lam    * (            ztx*Dx_DzVx
+                                            +ztz*Dx_DzVz);
 
-          hTzz_rhs =   lam2mu * ( xiz*DxVz + ztz*Dx_DzVz)
-                      +lam    * ( xix*DxVx + ztx*Dx_DzVx
-                                 +xiy*DxVy + zty*Dx_DzVy);
+          hTzz_rhs =   lam2mu * (            ztz*Dx_DzVz)
+                      +lam    * (            ztx*Dx_DzVx
+                                            +zty*Dx_DzVy);
 
           hTxy_rhs = mu *(
-                       xiy*DxVx + xix*DxVy
-                      +zty*Dx_DzVx + ztx*Dx_DzVy
+                       zty*Dx_DzVx + ztx*Dx_DzVy
                       );
           hTxz_rhs = mu *(
-                       xiz*DxVx + xix*DxVz
-                      +ztz*Dx_DzVx + ztx*Dx_DzVz
+                       ztz*Dx_DzVx + ztx*Dx_DzVz
                       );
           hTyz_rhs = mu *(
-                       xiz*DxVy + xiy*DxVz
-                      +ztz*Dx_DzVy + zty*Dx_DzVz
+                       ztz*Dx_DzVy + zty*Dx_DzVz
                       );
 
           // make corr to Hooke's equatoin
@@ -2152,13 +2139,12 @@ sv_eliso1st_curv_macdrp_rhs_cfspml_vfree_z2(
     }
     else // y direction
     {
-      iptr_a = 0;
-
       if (nk2 > abs_nk2) continue;
 
       // set k to free surface
       k = nk2;
       iptr_k = k * siz_slice;
+      iptr_a = (k-abs_nk1) * (abs_nj2-abs_nj1+1) * (abs_ni2-abs_ni1+1);
 
       for (j=abs_nj1; j<=abs_nj2; j++)
       {
@@ -2192,7 +2178,7 @@ sv_eliso1st_curv_macdrp_rhs_cfspml_vfree_z2(
           M_FD_SHIFT(DyVz, Vz, iptr, fdy_len, lfdy_shift, lfdy_coef, n_fd);
 
           // zeta derivatives
-          int ij = i + j * siz_line;
+          int ij = (i + j * siz_line)*9;
           Dy_DzVx = matVy2Vz[ij+3*0+0] * DyVx
                   + matVy2Vz[ij+3*0+1] * DyVy
                   + matVy2Vz[ij+3*0+2] * DyVz;
@@ -2205,29 +2191,26 @@ sv_eliso1st_curv_macdrp_rhs_cfspml_vfree_z2(
                   + matVy2Vz[ij+3*2+1] * DyVy
                   + matVy2Vz[ij+3*2+2] * DyVz;
 
-          hTxx_rhs =    lam2mu * (  etx*DyVx + ztx*Dy_DzVx);
-                      + lam    * (  ety*DyVy + zty*Dy_DzVy
-                                  + etz*DyVz + ztz*Dy_DzVz);
+          hTxx_rhs =    lam2mu * (             ztx*Dy_DzVx);
+                      + lam    * (             zty*Dy_DzVy
+                                              +ztz*Dy_DzVz);
 
-          hTyy_rhs =   lam2mu * (  ety*DyVy + zty*Dy_DzVy)
-                      +lam    * (  etx*DyVx + ztx*Dy_DzVx
-                                 + etz*DyVz + ztz*Dy_DzVz);
+          hTyy_rhs =   lam2mu * (             zty*Dy_DzVy)
+                      +lam    * (             ztx*Dy_DzVx
+                                             +ztz*Dy_DzVz);
 
-          hTzz_rhs =   lam2mu * (  etz*DyVz + ztz*Dy_DzVz)
-                      +lam    * (+ etx*DyVx + ztx*Dy_DzVx
-                                 + ety*DyVy + zty*Dy_DzVy);
+          hTzz_rhs =   lam2mu * (             ztz*Dy_DzVz)
+                      +lam    * (             ztx*Dy_DzVx
+                                             +zty*Dy_DzVy);
 
           hTxy_rhs = mu *(
-                       ety*DyVx + etx*DyVy
-                      +zty*Dy_DzVx + ztx*Dy_DzVy
+                       zty*Dy_DzVx + ztx*Dy_DzVy
                       );
           hTxz_rhs = mu *(
-                       etz*DyVx + etx*DyVz
-                      +ztz*Dy_DzVx + ztx*Dy_DzVz
+                       ztz*Dy_DzVx + ztx*Dy_DzVz
                       );
           hTyz_rhs = mu *(
-                       etz*DyVy + ety*DyVz
-                      +ztz*Dy_DzVy + zty*Dy_DzVz
+                       ztz*Dy_DzVy + zty*Dy_DzVz
                     );
 
           // make corr to Hooke's equatoin
