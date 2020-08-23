@@ -52,6 +52,10 @@ sv_eliso1st_curv_macdrp_allstep(
     float dt, int nt_total, float t0,
     // mpi
     int myid, int *myid2, MPI_Comm comm,
+    float *restrict sbuff,
+    float *restrict rbuff,
+    MPI_Request *s_reqs,
+    MPI_Request *r_reqs,
     int qc_check_nan_num_of_step,
     const int verbose, // used for fprint qc
     char *name,

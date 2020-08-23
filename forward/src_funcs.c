@@ -145,12 +145,15 @@ src_gen_test_gauss(
   int nmoment = 1;
 
   int siz_ext = 7 * 7 * 7;
-  int si = 52;
+  int si = 42;
   int sj = 22;
   int sk = 58;
-  float sx_inc = -0.3;
-  float sy_inc = 0.4;
-  float sz_inc = 0.2;
+  float sx_inc = 0.0;
+  float sy_inc = 0.0;
+  float sz_inc = 0.0;
+  //float sx_inc = -0.3;
+  //float sy_inc = 0.4;
+  //float sz_inc = 0.2;
 
   // info
   int *moment_info = (int *)fdlib_mem_calloc_1d_int(nmoment*M_SRC_INFO_NVAL, 1, "src_gen_test");
@@ -200,9 +203,9 @@ src_gen_test_gauss(
   cal_norm_delt3d(moment_ext_coef, sx_inc, sy_inc, sz_inc, 1.5, 1.5, 1.5, 3);
 
   size_t iptr_s = 0;
-  for (int k=sk-3; k<sk+3; k++) {
-    for (int j=sj-3; j<sj+3; j++) {
-      for (int i=si-3; i<si+3; i++) {
+  for (int k=sk-3; k<=sk+3; k++) {
+    for (int j=sj-3; j<=sj+3; j++) {
+      for (int i=si-3; i<=si+3; i++) {
         int iptr = i + j * siz_line + k * siz_slice;
         moment_ext_indx[iptr_s] = iptr;
         iptr_s++;

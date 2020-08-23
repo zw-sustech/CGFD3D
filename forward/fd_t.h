@@ -266,37 +266,26 @@ struct fd_blk_t
   // dir
   char output_dir[FD_MAX_STRLEN];
 
-/*
-    //
-    // connection to other blk or mpi thread
-    //
-    size_t size_of_buff;
-    int *inn_bdry_blk_id; // blk id
-    size_t *inn_bdry_blk_indx_pair; // this blk indx to bdry_blk indx
+  // mpi mesg
+  int    myid2[2];
+  int    neighid[4];
+  float *sbuff;
+  float *rbuff;
+  MPI_Comm    topocomm;
+  MPI_Request r_reqs[4];
+  MPI_Request s_reqs[4];
 
-    int out_mpi_num_of_neig; //
-    int    *out_mpi_neig_ids; //
-    size_t *out_mpi_neig_buff_size; //
-    int *out_mpi_neigh_blk_ids; // mpi id and blk id
-    size_t *out_bdry_blk;
-*/
+  //int *inn_bdry_blk_id; // blk id
+  //size_t *inn_bdry_blk_indx_pair; // this blk indx to bdry_blk indx
+  //int out_mpi_num_of_neig; //
+  //int    *out_mpi_neig_ids; //
+  //size_t *out_mpi_neig_buff_size; //
+  //int *out_mpi_neigh_blk_ids; // mpi id and blk id
+  //size_t *out_bdry_blk;
 
-
-    // mem usage
-    size_t number_of_float;
-    size_t number_of_btye;
-};
-
-
-/*******************************************************************************
- * mpi info for each process
- ******************************************************************************/
-
-struct fd_mpi_t
-{
-  int myid2[2];
-  int neighid[FD_NDIM_2];
-  MPI_Comm topocomm;
+  // mem usage
+  size_t number_of_float;
+  size_t number_of_btye;
 };
 
 /*******************************************************************************
@@ -321,12 +310,8 @@ fd_blk_init(struct fd_blk_t *blk,
             int fdy_nghosts,
             int fdz_nghosts,
             int number_of_levels, // depends on time scheme, for rk4 = 4
-            int *myid2,
-            int *neighid,
+            MPI_Comm comm, 
             const int myid, const int verbose);
-
-void
-fd_mpi_create_topo(struct fd_mpi_t *fdmpi, int myid, MPI_Comm comm, int nprocx, int nprocy);
 
 void
 fd_blk_set_snapshot(struct fd_blk_t *blk,
@@ -338,5 +323,25 @@ fd_blk_set_snapshot(struct fd_blk_t *blk,
                     int *snapshot_time_start,
                     int *snapshot_time_count,
                     int *snapshot_time_stride);
+
+void
+fd_blk_init_mpi_mesg(struct fd_blk_t *blk,
+                     int fdx_nghosts,
+                     int fdy_nghosts);
+
+void
+fd_blk_pack_mesg(float *restrict w_cur,float *restrict sbuff,
+                 int num_of_vars,
+                 int ni1, int ni2, int nj1, int nj2, int nk1, int nk2,
+                 size_t siz_line, size_t siz_slice, size_t siz_volume,
+                 int   fdx_nghosts,
+                 int   fdy_nghosts);
+
+void
+fd_blk_unpack_mesg(float *restrict rbuff,float *restrict w_cur,
+                 int num_of_vars,
+                 int ni1, int ni2, int nj1, int nj2, int nk1, int nk2,
+                 int nx, int ny,
+                 size_t siz_line, size_t siz_slice, size_t siz_volume);
 
 #endif

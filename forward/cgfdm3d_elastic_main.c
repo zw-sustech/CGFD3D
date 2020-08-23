@@ -90,16 +90,6 @@ int main(int argc, char** argv)
   float   dt = par->size_of_time_step;
   int     nt_total = par->number_of_time_steps+1;
 
-  // create mpi topo
-  //  todo: unqual partition between nodes
-  struct fd_mpi_t *fdmpi = (struct fd_mpi_t *) malloc(sizeof(struct fd_mpi_t));
-
-  fd_mpi_create_topo(fdmpi,
-                     myid,
-                     comm,
-                     par->number_of_mpiprocs_x,
-                     par->number_of_mpiprocs_y);
-
   // alloc
   struct fd_t *fd = (struct fd_t  *) malloc(sizeof(struct fd_t ));
 
@@ -131,8 +121,7 @@ int main(int argc, char** argv)
               fd->fdy_nghosts,
               fd->fdz_nghosts,
               fd->num_rk_stages,
-              fdmpi->myid2,
-              fdmpi->neighid,
+              comm,
               myid, verbose);
 
 //-------------------------------------------------------------------------------
@@ -210,7 +199,7 @@ int main(int argc, char** argv)
 
   // output
   //if (par->grid_output_to_file==1) {
-      io_build_fname(blk->output_dir,"coord",".nc",fdmpi->myid2,ou_file);
+      io_build_fname(blk->output_dir,"coord",".nc",blk->myid2,ou_file);
       io_var3d_export_nc(ou_file,
                          blk->c3d,
                          blk->c3d_pos,
@@ -250,7 +239,7 @@ int main(int argc, char** argv)
 
     //if (par->metric_output_to_file==1) {
         if (myid==0) fprintf(stdout,"export metric to file ...\n"); 
-        io_build_fname(blk->output_dir,"metric",".nc",fdmpi->myid2,ou_file);
+        io_build_fname(blk->output_dir,"metric",".nc",blk->myid2,ou_file);
         io_var3d_export_nc(ou_file,
                            blk->g3d,
                            blk->g3d_pos,
@@ -383,6 +372,11 @@ int main(int argc, char** argv)
                      &blk->moment_ext_indx,
                      &blk->moment_ext_coef,
                      verbose);
+
+  // manually del source except 0
+  //if (myid!=0) {
+  //  blk->num_of_moment = 0;
+  //}
   
   /*
   if (par->source_output_to_file==1)
@@ -468,6 +462,15 @@ int main(int argc, char** argv)
   }
 
 //-------------------------------------------------------------------------------
+//-- setup mesg
+//-------------------------------------------------------------------------------
+
+  if (myid==0 && verbose>0) fprintf(stdout,"init mesg ...\n"); 
+  fd_blk_init_mpi_mesg(blk,
+                       fd->fdx_nghosts,
+                       fd->fdy_nghosts);
+
+//-------------------------------------------------------------------------------
 //-- slover
 //-------------------------------------------------------------------------------
 
@@ -521,7 +524,8 @@ int main(int argc, char** argv)
                                   fd->pair_fdy_all_info, fd->pair_fdy_all_indx, fd->pair_fdy_all_coef,
                                   fd->pair_fdz_all_info, fd->pair_fdz_all_indx, fd->pair_fdz_all_coef,
                                   dt,nt_total,t0,
-                                  myid, fdmpi->myid2, comm,
+                                  myid, blk->myid2, comm,
+                                  blk->sbuff, blk->rbuff, blk->s_reqs, blk->r_reqs,
                                   par->check_nan_every_nummber_of_steps,
                                   verbose,
                                   blk->name,

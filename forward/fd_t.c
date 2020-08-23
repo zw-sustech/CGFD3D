@@ -281,14 +281,36 @@ fd_blk_init(struct fd_blk_t *blk,
             int fdy_nghosts,
             int fdz_nghosts,
             int number_of_levels, // depends on time scheme, for rk4 = 4
-            int *myid2,
-            int *neighid,
+            MPI_Comm comm, 
             const int myid, const int verbose)
 {
   int boundary_itype[FD_NDIM_2];
 
   // set name
   sprintf(blk->name, "%s", name);
+
+  //
+  // mpi topo
+  //
+
+  int pdims[2]={number_of_mpiprocs_x,number_of_mpiprocs_y};
+  int periods[2] = {0,0};
+
+  // create Cartesian topology
+  MPI_Cart_create(comm, 2, pdims, periods, 0, &blk->topocomm);
+
+  // get my local x,y coordinates
+  MPI_Cart_coords(blk->topocomm, myid, 2, blk->myid2);
+
+  // neighour
+  MPI_Cart_shift(blk->topocomm, 0, 1, &(blk->neighid[0]), &(blk->neighid[1]));
+  MPI_Cart_shift(blk->topocomm, 1, 1, &(blk->neighid[2]), &(blk->neighid[3]));
+
+  int myid2[]   = { blk->myid2[0], blk->myid2[1] };
+  int neighid[] = { blk->neighid[0], 
+                    blk->neighid[1], 
+                    blk->neighid[2], 
+                    blk->neighid[3] };
 
   //
   // set boundary itype
@@ -628,23 +650,6 @@ fd_blk_print(struct fd_blk_t *blk)
 */
 
 void
-fd_mpi_create_topo(struct fd_mpi_t *fdmpi, int myid, MPI_Comm comm, int nprocx, int nprocy)
-{
-  int pdims[2]={nprocx,nprocy};
-  int periods[2] = {0,0};
-
-  // create Cartesian topology
-  MPI_Cart_create(comm, 2, pdims, periods, 0, &fdmpi->topocomm);
-
-  // get my local x,y coordinates
-  MPI_Cart_coords(fdmpi->topocomm, myid, 2, fdmpi->myid2);
-
-  // neighour
-  MPI_Cart_shift(fdmpi->topocomm, 0, 1, &(fdmpi->neighid[0]), &(fdmpi->neighid[1]));
-  MPI_Cart_shift(fdmpi->topocomm, 1, 1, &(fdmpi->neighid[2]), &(fdmpi->neighid[3]));
-}
-
-void
 fd_blk_set_snapshot(struct fd_blk_t *blk,
                     int  fd_nghosts,
                     int  number_of_snapshot,
@@ -688,3 +693,290 @@ fd_blk_set_snapshot(struct fd_blk_t *blk,
     blk->snap_time_indx[n*3+2] = snapshot_time_stride[n];
   }
 }
+
+void
+fd_blk_init_mpi_mesg(struct fd_blk_t *blk,
+                     int fdx_nghosts,
+                     int fdy_nghosts)
+{
+  int ni = blk->ni;
+  int nj = blk->nj;
+  int nk = blk->nk;
+
+  // mpi mesg
+  size_t siz_x = (nj * nk * fdx_nghosts) * blk->w3d_num_of_vars;
+  size_t siz_y = (ni * nk * fdy_nghosts) * blk->w3d_num_of_vars;
+
+  size_t siz_buff =(  ni * nk * fdy_nghosts * 2
+                    + nj * nk * fdx_nghosts * 2) * blk->w3d_num_of_vars;
+  blk->sbuff = (float *) fdlib_mem_malloc_1d(siz_buff * sizeof(MPI_FLOAT),"alloc sbuff");
+  blk->rbuff = (float *) fdlib_mem_malloc_1d(siz_buff * sizeof(MPI_FLOAT),"alloc rbuff");
+  for (size_t iptr=0; iptr < siz_buff; iptr++) {
+    blk->rbuff[iptr] = 0.0;
+  }
+
+  float *sbuff_x1 = blk->sbuff;
+  float *sbuff_x2 = sbuff_x1 + siz_x;
+  float *sbuff_y1 = sbuff_x2 + siz_x;
+  float *sbuff_y2 = sbuff_y1 + siz_y;
+
+  int tag[4] = { 11, 12, 21, 22 };
+
+  // send
+  MPI_Send_init(sbuff_x1, siz_x, MPI_FLOAT, blk->neighid[0], tag[0], blk->topocomm, &(blk->s_reqs[0]));
+  MPI_Send_init(sbuff_x2, siz_x, MPI_FLOAT, blk->neighid[1], tag[1], blk->topocomm, &(blk->s_reqs[1]));
+  MPI_Send_init(sbuff_y1, siz_y, MPI_FLOAT, blk->neighid[2], tag[2], blk->topocomm, &(blk->s_reqs[2]));
+  MPI_Send_init(sbuff_y2, siz_y, MPI_FLOAT, blk->neighid[3], tag[3], blk->topocomm, &(blk->s_reqs[3]));
+
+  float *rbuff_x1 = blk->rbuff;
+  float *rbuff_x2 = rbuff_x1 + siz_x;
+  float *rbuff_y1 = rbuff_x2 + siz_x;
+  float *rbuff_y2 = rbuff_y1 + siz_y;
+
+  // recv
+  MPI_Recv_init(rbuff_x1, siz_x, MPI_FLOAT, blk->neighid[0], tag[1], blk->topocomm, &(blk->r_reqs[0]));
+  MPI_Recv_init(rbuff_x2, siz_x, MPI_FLOAT, blk->neighid[1], tag[0], blk->topocomm, &(blk->r_reqs[1]));
+  MPI_Recv_init(rbuff_y1, siz_y, MPI_FLOAT, blk->neighid[2], tag[3], blk->topocomm, &(blk->r_reqs[2]));
+  MPI_Recv_init(rbuff_y2, siz_y, MPI_FLOAT, blk->neighid[3], tag[2], blk->topocomm, &(blk->r_reqs[3]));
+}
+
+//- for future: consider different left/right length
+//void
+//fd_blk_pack_mesg(float *restrict w_cur,
+//                 int num_of_vars,
+//                 int ni1, int ni2, int nj1, int nj2, int nk1, int nk2,
+//                 size_t siz_line, size_t siz_slice, size_t siz_volume,
+//                 int   *fdx_info,
+//                 int   *fdy_info,
+//                 int   *fdz_info,
+//                 float *restrict buff)
+//{
+//  int npt_to_x1 = fdx_info[FD_INFO_LENGTH_RIGTH];
+//  int npt_to_x2 = fdx_info[FD_INFO_LENGTH_LEFT ];
+//
+//  size_t iptr_b = 0;
+//
+//  for (int ivar=0; ivar<num_of_vars; ivar++)
+//  {
+//    size_t iptr_var = ivar * siz_volume;
+//
+//    // x1
+//    for (int k=nk1; k<=nk2; k++)
+//    {
+//      size_t iptr_k = iptr_var + k * siz_slice;
+//
+//      for (int j=nj1; j<=nj2; j++)
+//      {
+//        size_t iptr_j = iptr_k + j * siz_line;
+//
+//        for (int i=ni1; i<ni1+npt_to_x1; i++)
+//        {
+//          buff[iptr_b] = w_cur[iptr_j + i];
+//          iptr_b++;
+//        }
+//      }
+//    } 
+//
+//    // y1y2
+//
+//  } // ivar
+//}
+
+void
+fd_blk_pack_mesg(float *restrict w_cur,float *restrict sbuff,
+                 int num_of_vars,
+                 int ni1, int ni2, int nj1, int nj2, int nk1, int nk2,
+                 size_t siz_line, size_t siz_slice, size_t siz_volume,
+                 int   fdx_nghosts,
+                 int   fdy_nghosts)
+{
+  size_t iptr_b = 0;
+
+  // x1
+  for (int ivar=0; ivar<num_of_vars; ivar++)
+  {
+    size_t iptr_var = ivar * siz_volume;
+
+    for (int k=nk1; k<=nk2; k++)
+    {
+      size_t iptr_k = iptr_var + k * siz_slice;
+
+      for (int j=nj1; j<=nj2; j++)
+      {
+        size_t iptr_j = iptr_k + j * siz_line;
+
+        for (int i=ni1; i<ni1+fdx_nghosts; i++)
+        {
+          sbuff[iptr_b] = w_cur[iptr_j + i];
+          iptr_b++;
+        }
+      }
+    }
+  }
+
+  // x2
+  for (int ivar=0; ivar<num_of_vars; ivar++)
+  {
+    size_t iptr_var = ivar * siz_volume;
+
+    for (int k=nk1; k<=nk2; k++)
+    {
+      size_t iptr_k = iptr_var + k * siz_slice;
+
+      for (int j=nj1; j<=nj2; j++)
+      {
+        size_t iptr_j = iptr_k + j * siz_line;
+
+        for (int i=ni2-fdx_nghosts+1; i<=ni2; i++)
+        {
+          sbuff[iptr_b] = w_cur[iptr_j + i];
+          iptr_b++;
+        }
+      }
+    }
+  }
+
+  // y1
+  for (int ivar=0; ivar<num_of_vars; ivar++)
+  {
+    size_t iptr_var = ivar * siz_volume;
+
+    for (int k=nk1; k<=nk2; k++)
+    {
+      size_t iptr_k = iptr_var + k * siz_slice;
+
+      for (int j=nj1; j<nj1+fdy_nghosts; j++)
+      {
+        size_t iptr_j = iptr_k + j * siz_line;
+
+        for (int i=ni1; i<=ni2; i++)
+        {
+          sbuff[iptr_b] = w_cur[iptr_j + i];
+          iptr_b++;
+        }
+      }
+    }
+  }
+
+  // y2
+  for (int ivar=0; ivar<num_of_vars; ivar++)
+  {
+    size_t iptr_var = ivar * siz_volume;
+
+    for (int k=nk1; k<=nk2; k++)
+    {
+      size_t iptr_k = iptr_var + k * siz_slice;
+
+      for (int j=nj2-fdy_nghosts+1; j<=nj2; j++)
+      {
+        size_t iptr_j = iptr_k + j * siz_line;
+
+        for (int i=ni1; i<=ni2; i++)
+        {
+          sbuff[iptr_b] = w_cur[iptr_j + i];
+          iptr_b++;
+        }
+      }
+    }
+  } // ivar
+
+}
+
+void
+fd_blk_unpack_mesg(float *restrict rbuff,float *restrict w_cur,
+                 int num_of_vars,
+                 int ni1, int ni2, int nj1, int nj2, int nk1, int nk2,
+                 int nx, int ny,
+                 size_t siz_line, size_t siz_slice, size_t siz_volume)
+{
+  size_t iptr_b = 0;
+
+  // x1
+  for (int ivar=0; ivar<num_of_vars; ivar++)
+  {
+    size_t iptr_var = ivar * siz_volume;
+
+    for (int k=nk1; k<=nk2; k++)
+    {
+      size_t iptr_k = iptr_var + k * siz_slice;
+
+      for (int j=nj1; j<=nj2; j++)
+      {
+        size_t iptr_j = iptr_k + j * siz_line;
+
+        for (int i=0; i<ni1; i++)
+        {
+          w_cur[iptr_j + i] = rbuff[iptr_b];
+          iptr_b++;
+        }
+      }
+    }
+  }
+
+  // x2
+  for (int ivar=0; ivar<num_of_vars; ivar++)
+  {
+    size_t iptr_var = ivar * siz_volume;
+
+    for (int k=nk1; k<=nk2; k++)
+    {
+      size_t iptr_k = iptr_var + k * siz_slice;
+
+      for (int j=nj1; j<=nj2; j++)
+      {
+        size_t iptr_j = iptr_k + j * siz_line;
+
+        for (int i=ni2+1; i<nx; i++)
+        {
+          w_cur[iptr_j + i] = rbuff[iptr_b];
+          iptr_b++;
+        }
+      }
+    }
+  }
+
+  // y1
+  for (int ivar=0; ivar<num_of_vars; ivar++)
+  {
+    size_t iptr_var = ivar * siz_volume;
+
+    for (int k=nk1; k<=nk2; k++)
+    {
+      size_t iptr_k = iptr_var + k * siz_slice;
+
+      for (int j=0; j<nj1; j++)
+      {
+        size_t iptr_j = iptr_k + j * siz_line;
+
+        for (int i=ni1; i<=ni2; i++)
+        {
+          w_cur[iptr_j + i] = rbuff[iptr_b];
+          iptr_b++;
+        }
+      }
+    }
+  }
+
+  // y2
+  for (int ivar=0; ivar<num_of_vars; ivar++)
+  {
+    size_t iptr_var = ivar * siz_volume;
+
+    for (int k=nk1; k<=nk2; k++)
+    {
+      size_t iptr_k = iptr_var + k * siz_slice;
+
+      for (int j=nj2+1; j<ny; j++)
+      {
+        size_t iptr_j = iptr_k + j * siz_line;
+
+        for (int i=ni1; i<=ni2; i++)
+        {
+          w_cur[iptr_j + i] = rbuff[iptr_b];
+          iptr_b++;
+        }
+      }
+    }
+  } // ivar
+}
+
