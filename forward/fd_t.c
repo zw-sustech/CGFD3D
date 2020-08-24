@@ -704,14 +704,14 @@ fd_blk_init_mpi_mesg(struct fd_blk_t *blk,
   int nk = blk->nk;
 
   // mpi mesg
-  size_t siz_x = (nj * nk * fdx_nghosts) * blk->w3d_num_of_vars;
-  size_t siz_y = (ni * nk * fdy_nghosts) * blk->w3d_num_of_vars;
+  int siz_x = (nj * nk * fdx_nghosts) * blk->w3d_num_of_vars;
+  int siz_y = (ni * nk * fdy_nghosts) * blk->w3d_num_of_vars;
 
-  size_t siz_buff =(  ni * nk * fdy_nghosts * 2
+  int siz_buff =(  ni * nk * fdy_nghosts * 2
                     + nj * nk * fdx_nghosts * 2) * blk->w3d_num_of_vars;
   blk->sbuff = (float *) fdlib_mem_malloc_1d(siz_buff * sizeof(MPI_FLOAT),"alloc sbuff");
   blk->rbuff = (float *) fdlib_mem_malloc_1d(siz_buff * sizeof(MPI_FLOAT),"alloc rbuff");
-  for (size_t iptr=0; iptr < siz_buff; iptr++) {
+  for (int iptr=0; iptr < siz_buff; iptr++) {
     blk->rbuff[iptr] = 0.0;
   }
 
