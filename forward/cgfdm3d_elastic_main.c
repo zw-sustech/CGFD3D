@@ -374,9 +374,9 @@ int main(int argc, char** argv)
                      verbose);
 
   // manually del source except 0
-  //if (myid!=0) {
-  //  blk->num_of_moment = 0;
-  //}
+  if (myid!=0) {
+    blk->num_of_moment = 0;
+  }
   
   /*
   if (par->source_output_to_file==1)
@@ -538,6 +538,8 @@ int main(int argc, char** argv)
 //-------------------------------------------------------------------------------
 //-- postprocess
 //-------------------------------------------------------------------------------
+
+  MPI_Finalize();
 
   return 0;
 }
