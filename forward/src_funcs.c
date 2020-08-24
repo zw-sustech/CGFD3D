@@ -147,7 +147,8 @@ src_gen_test_gauss(
   int siz_ext = 7 * 7 * 7;
   int si = 42;
   int sj = 22;
-  int sk = 58;
+  int sk = 33;
+  //int sk = 58; // for free surface
   float sx_inc = 0.0;
   float sy_inc = 0.0;
   float sz_inc = 0.0;
