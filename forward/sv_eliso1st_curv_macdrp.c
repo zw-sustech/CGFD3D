@@ -168,18 +168,18 @@ sv_eliso1st_curv_macdrp_allstep(
         abs_vars_cur = abs_vars_pre;
       }
 
-      // recv mesg
-      if (it>0 || istage>0) {
-        MPI_Waitall(num_of_r_reqs, r_reqs, MPI_STATUS_IGNORE);
+      //// recv mesg
+      //if (it>0 || istage>0) {
+      //  MPI_Waitall(num_of_r_reqs, r_reqs, MPI_STATUS_IGNORE);
 
-        fd_blk_unpack_mesg(rbuff, w_cur, w3d_num_of_vars,
-                           ni1,ni2,nj1,nj2,nk1,nk2,nx,ny,
-                           siz_line,siz_slice,siz_volume);
+      //  fd_blk_unpack_mesg(rbuff, w_cur, w3d_num_of_vars,
+      //                     ni1,ni2,nj1,nj2,nk1,nk2,nx,ny,
+      //                     siz_line,siz_slice,siz_volume);
 
-        MPI_Startall(num_of_r_reqs, r_reqs);
+      //  MPI_Startall(num_of_r_reqs, r_reqs);
 
-        MPI_Waitall(num_of_s_reqs, s_reqs, MPI_STATUS_IGNORE);
-      }
+      //  MPI_Waitall(num_of_s_reqs, s_reqs, MPI_STATUS_IGNORE);
+      //}
 
       // stf value for cur stage
       src_get_stage_stf(num_of_force,
@@ -343,6 +343,21 @@ sv_eliso1st_curv_macdrp_allstep(
           }
         }
       }
+
+      // recv mesg
+      MPI_Waitall(num_of_r_reqs, r_reqs, MPI_STATUS_IGNORE);
+      if (istage != num_rk_stages-1) {
+        fd_blk_unpack_mesg(rbuff, w_tmp, w3d_num_of_vars,
+                           ni1,ni2,nj1,nj2,nk1,nk2,nx,ny,
+                           siz_line,siz_slice,siz_volume);
+      } else {
+        fd_blk_unpack_mesg(rbuff, w_end, w3d_num_of_vars,
+                           ni1,ni2,nj1,nj2,nk1,nk2,nx,ny,
+                           siz_line,siz_slice,siz_volume);
+      }
+
+      MPI_Startall(num_of_r_reqs, r_reqs);
+      MPI_Waitall(num_of_s_reqs, s_reqs, MPI_STATUS_IGNORE);
     } // RK stages
 
     // QC
@@ -916,7 +931,7 @@ sv_eliso1st_curv_macdrp_rhs_timg_z2(
 
       size_t iptr = iptr_j + ni1;
 
-      for (size_t i=ni1; i<ni2; i++)
+      for (size_t i=ni1; i<=ni2; i++)
       {
           // metric
           xix = xi_x[iptr];
