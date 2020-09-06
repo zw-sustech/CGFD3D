@@ -108,7 +108,6 @@ int main(int argc, char** argv)
   if (myid==0 && verbose>0) fprintf(stdout,"set slocal/global grid parameters ...\n"); 
 
   fd_blk_init(blk,
-              par->grid_name,
               par->number_of_total_grid_points_x,
               par->number_of_total_grid_points_y,
               par->number_of_total_grid_points_z,
@@ -159,18 +158,24 @@ int main(int argc, char** argv)
   }
   */
   // if cartesian coord
-  if (par->coord_by_cartesian==1)
+  if (strcmp(par->input_grid_type, "cartesian")==0)
   {
-      gd_curv_gen_cart(blk->c3d, blk->siz_volume,
-                       blk->nx,
-                       par->cartesian_grid_dx,
-                       par->cartesian_grid_x0 + (blk->gni1 - fd->fdx_nghosts) * par->cartesian_grid_dx,
-                       blk->ny,
-                       par->cartesian_grid_dy,
-                       par->cartesian_grid_y0 + (blk->gnj1 - fd->fdy_nghosts) * par->cartesian_grid_dy,
-                       blk->nz,
-                       par->cartesian_grid_dz,
-                       par->cartesian_grid_z0 + (blk->gnk1 - fd->fdz_nghosts) * par->cartesian_grid_dz);
+    float x0 = par->cartesian_grid_origin[0];
+    float y0 = par->cartesian_grid_origin[1];
+    float z0 = par->cartesian_grid_origin[2];
+    float dx = par->cartesian_grid_stepsize[0];
+    float dy = par->cartesian_grid_stepsize[1];
+    float dz = par->cartesian_grid_stepsize[2];
+    gd_curv_gen_cart(blk->c3d, blk->siz_volume,
+                     blk->nx,
+                     dx,
+                     x0 + (blk->gni1 - fd->fdx_nghosts) * dx,
+                     blk->ny,
+                     dy,
+                     y0 + (blk->gnj1 - fd->fdy_nghosts) * dy,
+                     blk->nz,
+                     dz,
+                     z0 + (blk->gnk1 - fd->fdz_nghosts) * dz);
   }
   /*
   // if vmap coord
@@ -212,7 +217,7 @@ int main(int argc, char** argv)
   //}
 
   // cal metrics and output for QC
-  if (par->metric_by_import==0)
+  if (strcmp(par->input_metric_type, "calculate")==0)
   {
     if (myid==0 && verbose>0) fprintf(stdout,"calculate metrics ...\n"); 
 
@@ -267,7 +272,7 @@ int main(int argc, char** argv)
                       &blk->m3d_pos,
                       &blk->m3d_name);
   
-  if (par->medium_by_import==1)
+  if (strcmp(par->input_medium_type, "grid")==0)
   {
     //md_el_iso_import(blk->m3d, blk->nx, blk->ny, blk->nz, 
     //              myid3[0],myid3[1],myid3[2]);
@@ -391,20 +396,42 @@ int main(int argc, char** argv)
 
   if (myid==0 && verbose>0) fprintf(stdout,"setup output info ...\n"); 
   
-  // receiver
+  // receiver: need to do
+  fd_blk_set_sta(blk);
   
   // inline
+  fd_blk_set_inline(blk,
+                    fd->fdx_nghosts,
+                    nt_total,
+                    par->number_of_receiver_line,
+                    par->receiver_line_index_start,
+                    par->receiver_line_index_incre,
+                    par->receiver_line_count,
+                    par->receiver_line_name);
+  
+  // slice
+  fd_blk_set_slice(blk,
+                   fd->fdx_nghosts,
+                   par->number_of_slice_x,
+                   par->number_of_slice_y,
+                   par->number_of_slice_z,
+                   par->slice_x_index,
+                   par->slice_y_index,
+                   par->slice_z_index);
   
   // snapshot
   fd_blk_set_snapshot(blk,
                       fd->fdx_nghosts,
                       par->number_of_snapshot,
+                      par->snapshot_name,
                       par->snapshot_index_start,
                       par->snapshot_index_count,
-                      par->snapshot_index_stride,
+                      par->snapshot_index_incre,
                       par->snapshot_time_start,
-                      par->snapshot_time_count,
-                      par->snapshot_time_stride);
+                      par->snapshot_time_incre,
+                      par->snapshot_save_velocity,
+                      par->snapshot_save_stress,
+                      par->snapshot_save_strain);
 
 //-------------------------------------------------------------------------------
 //-- allocate main var
@@ -435,7 +462,7 @@ int main(int argc, char** argv)
     abs_set_cfspml(par->cfspml_alpha_max,
                    par->cfspml_beta_max,
                    par->cfspml_velocity,
-                   par->cartesian_grid_dx,
+                   par->cartesian_grid_stepsize[0],
                    blk->ni1,
                    blk->ni2,
                    blk->nj1,
@@ -469,6 +496,13 @@ int main(int argc, char** argv)
   fd_blk_init_mpi_mesg(blk,
                        fd->fdx_nghosts,
                        fd->fdy_nghosts);
+
+//-------------------------------------------------------------------------------
+//-- qc
+//-------------------------------------------------------------------------------
+  
+  fd_print(fd);
+  fd_blk_print(blk);
 
 //-------------------------------------------------------------------------------
 //-- slover
@@ -514,8 +548,14 @@ int main(int argc, char** argv)
                                   blk->num_of_force, blk->force_info, blk->force_vec_stf,
                                   blk->num_of_moment, blk->moment_info, blk->moment_ten_rate,
                                   blk->moment_ext_indx,blk->moment_ext_coef,
-                                  blk->num_of_sta, blk->sta_loc_point, blk->sta_seismo,
-                                  blk->num_of_snap, blk->snap_grid_indx, blk->snap_time_indx,
+                                  blk->num_of_sta, blk->sta_loc_point,blk->sta_loc_dxyz,blk->sta_seismo,
+                                  blk->num_of_point, blk->point_loc_point,blk->point_seismo,
+                                  blk->num_of_slice_x, blk->slice_x_indx,blk->slice_x_fname,
+                                  blk->num_of_slice_y, blk->slice_y_indx,blk->slice_y_fname,
+                                  blk->num_of_slice_z, blk->slice_z_indx,blk->slice_z_fname,
+                                  blk->num_of_snap, blk->snap_info, blk->snap_fname,
+                                  blk->output_fname_part,
+                                  blk->output_dir,
                                   fd->num_rk_stages, fd->rk_a, fd->rk_b,
                                   fd->num_of_pairs,
                                   fd->fdx_max_half_len,fd->fdy_max_half_len,
@@ -527,9 +567,8 @@ int main(int argc, char** argv)
                                   myid, blk->myid2, comm,
                                   blk->sbuff, blk->rbuff, blk->s_reqs, blk->r_reqs,
                                   par->check_nan_every_nummber_of_steps,
-                                  verbose,
-                                  blk->name,
-                                  blk->output_dir);
+                                  par->output_all,
+                                  verbose);
   
   time_t t_end = time(NULL);
   

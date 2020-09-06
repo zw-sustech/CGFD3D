@@ -102,7 +102,7 @@ par_read_from_str(const char *str, struct par_t *par)
   }
 
   cJSON *item;
-  cJSON *subitem, *snapitem;
+  cJSON *subitem, *snapitem, *lineitem;
 
   if (item = cJSON_GetObjectItem(root, "number_of_total_grid_points_x")) {
     par->number_of_total_grid_points_x = item->valueint;
@@ -131,36 +131,6 @@ par_read_from_str(const char *str, struct par_t *par)
   par->time_start = 0.0;
   par->time_end   = par->time_start + par->number_of_time_steps * par->size_of_time_step;
   //int     nt_total = (int) ((par->time_end - par->time_start) / dt+0.5);
-
-  // grid
-  if (item = cJSON_GetObjectItem(root, "coord_by_cartesian")) {
-    par->coord_by_cartesian = item->valueint;
-  }
-  if (item = cJSON_GetObjectItem(root, "cartesian_grid_x0")) {
-    par->cartesian_grid_x0 = item->valuedouble;
-  }
-  if (item = cJSON_GetObjectItem(root, "cartesian_grid_y0")) {
-    par->cartesian_grid_y0 = item->valuedouble;
-  }
-  if (item = cJSON_GetObjectItem(root, "cartesian_grid_z0")) {
-    par->cartesian_grid_z0 = item->valuedouble;
-  }
-  if (item = cJSON_GetObjectItem(root, "cartesian_grid_dx")) {
-    par->cartesian_grid_dx = item->valuedouble;
-  }
-  if (item = cJSON_GetObjectItem(root, "cartesian_grid_dy")) {
-    par->cartesian_grid_dy = item->valuedouble;
-  }
-  if (item = cJSON_GetObjectItem(root, "cartesian_grid_dz")) {
-    par->cartesian_grid_dz = item->valuedouble;
-  }
-  if (item = cJSON_GetObjectItem(root, "metric_by_import")) {
-    par->metric_by_import = item->valueint;
-  }
-
-  if (item = cJSON_GetObjectItem(root, "medium_by_import")) {
-    par->medium_by_import = item->valueint;
-  }
 
   // boundary
   if (item = cJSON_GetObjectItem(root, "boundary_condition"))
@@ -200,7 +170,141 @@ par_read_from_str(const char *str, struct par_t *par)
     }
   }
 
-  // io
+  //-- grid
+  if (item = cJSON_GetObjectItem(root, "input_grid_type")) {
+    sprintf(par->input_grid_type, "%s", item->valuestring);
+  }
+  //  if cartesian grid
+  if (strcmp(par->input_grid_type, "cartesian")==0)
+  {
+    if (item = cJSON_GetObjectItem(root, "cartesian_grid_origin")) {
+      for (int i = 0; i < FD_NDIM; i++) {
+        par->cartesian_grid_origin[i] = cJSON_GetArrayItem(item, i)->valuedouble;
+      }
+    }
+    if (item = cJSON_GetObjectItem(root, "cartesian_grid_stepsize")) {
+      for (int i = 0; i < FD_NDIM; i++) {
+        par->cartesian_grid_stepsize[i] = cJSON_GetArrayItem(item, i)->valuedouble;
+      }
+    }
+  }
+  //  if vmap
+  if (strcmp(par->input_grid_type, "vmap")==0)
+  {
+    if (item = cJSON_GetObjectItem(root, "input_vmap_file")) {
+        sprintf(par->input_grid_file,"%s",item->valuestring);
+    }
+  }
+
+  //-- metric
+  if (item = cJSON_GetObjectItem(root, "input_metric_type")) {
+    sprintf(par->input_metric_type, "%s", item->valuestring);
+  }
+  //if (strcmp(par->input_metric_type, "calculate")==0)
+  //{
+  //  par->input_metric_itype = ;
+  //}
+
+  //-- medium
+  if (item = cJSON_GetObjectItem(root, "input_medium_type")) {
+    sprintf(par->input_medium_type, "%s", item->valuestring);
+  }
+  //if (strcmp(par->input_medium_type, "grid")==0)
+  //{
+  //  par->input_medium_itype = ;
+  //}
+
+  //-- source
+  if (item = cJSON_GetObjectItem(root, "input_source_file")) {
+    sprintf(par->input_source_file, "%s", item->valuestring);
+  }
+
+  //-- receiver
+  if (item = cJSON_GetObjectItem(root, "input_receiver_file")) {
+    sprintf(par->input_receiver_file, "%s", item->valuestring);
+  }
+
+  //-- receiver line
+  if (item = cJSON_GetObjectItem(root, "receiver_line"))
+  {
+    par->number_of_receiver_line = cJSON_GetArraySize(item);
+    par->receiver_line_index_start  = (int *)malloc(par->number_of_receiver_line*sizeof(int)*FD_NDIM);
+    par->receiver_line_index_incre  = (int *)malloc(par->number_of_receiver_line*sizeof(int)*FD_NDIM);
+    par->receiver_line_count  = (int *)malloc(par->number_of_receiver_line*sizeof(int));
+    //par->receiver_line_time_interval  = (int *)malloc(par->number_of_receiver_line*sizeof(int));
+    par->receiver_line_name = (char **)malloc(par->number_of_receiver_line*sizeof(char*));
+    for (int n=0; n<par->number_of_receiver_line; n++) {
+      par->receiver_line_name[n] = (char *)malloc(PAR_MAX_STRLEN*sizeof(char));
+    }
+    // each line
+    for (int i=0; i < cJSON_GetArraySize(item) ; i++)
+    {
+      lineitem = cJSON_GetArrayItem(item, i);
+
+      if (subitem = cJSON_GetObjectItem(lineitem, "name"))
+      {
+        sprintf(par->receiver_line_name[i],"%s",subitem->valuestring);
+      }
+
+      if (subitem = cJSON_GetObjectItem(lineitem, "grid_index_start"))
+      {
+        for (int j = 0; j < FD_NDIM; j++) {
+          par->receiver_line_index_start[i*FD_NDIM+j] = cJSON_GetArrayItem(subitem, j)->valueint;
+        }
+      }
+
+      if (subitem = cJSON_GetObjectItem(lineitem, "grid_index_incre"))
+      {
+        for (int j = 0; j < FD_NDIM; j++) {
+          par->receiver_line_index_incre[i*FD_NDIM+j] = cJSON_GetArrayItem(subitem, j)->valueint;
+        }
+      }
+
+      if (subitem = cJSON_GetObjectItem(lineitem, "grid_index_count"))
+      {
+         par->receiver_line_count[i] = subitem->valueint;
+      }
+
+      //if (subitem = cJSON_GetObjectItem(lineitem, "t_index_interval"))
+      //{
+      //   par->receiver_line_tinterval[i] = cJSON_GetArrayItem(subitem, j)->valueint;
+      //}
+    }
+  }
+
+  // slice
+  if (item = cJSON_GetObjectItem(root, "slice"))
+  {
+    if (subitem = cJSON_GetObjectItem(item, "x_index"))
+    {
+      par->number_of_slice_x = cJSON_GetArraySize(subitem);
+      par->slice_x_index  = (int *)malloc(par->number_of_slice_x*sizeof(int));
+      for (int i=0; i < par->number_of_slice_x ; i++)
+      {
+        par->slice_x_index[i] = cJSON_GetArrayItem(subitem, i)->valueint;
+      }
+    }
+    if (subitem = cJSON_GetObjectItem(item, "y_index"))
+    {
+      par->number_of_slice_y = cJSON_GetArraySize(subitem);
+      par->slice_y_index  = (int *)malloc(par->number_of_slice_y*sizeof(int));
+      for (int i=0; i < par->number_of_slice_y ; i++)
+      {
+        par->slice_y_index[i] = cJSON_GetArrayItem(subitem, i)->valueint;
+      }
+    }
+    if (subitem = cJSON_GetObjectItem(item, "z_index"))
+    {
+      par->number_of_slice_z = cJSON_GetArraySize(subitem);
+      par->slice_z_index  = (int *)malloc(par->number_of_slice_z*sizeof(int));
+      for (int i=0; i < par->number_of_slice_z ; i++)
+      {
+        par->slice_z_index[i] = cJSON_GetArrayItem(subitem, i)->valueint;
+      }
+    }
+  }
+
+  // snapshot
   if (item = cJSON_GetObjectItem(root, "snapshot"))
   {
     par->number_of_snapshot = cJSON_GetArraySize(item);
@@ -212,10 +316,12 @@ par_read_from_str(const char *str, struct par_t *par)
     //  fflush(stdout);
     //}
     par->snapshot_index_count  = (int *)malloc(par->number_of_snapshot*sizeof(int)*FD_NDIM);
-    par->snapshot_index_stride = (int *)malloc(par->number_of_snapshot*sizeof(int)*FD_NDIM);
+    par->snapshot_index_incre = (int *)malloc(par->number_of_snapshot*sizeof(int)*FD_NDIM);
     par->snapshot_time_start  = (int *)malloc(par->number_of_snapshot*sizeof(int));
-    par->snapshot_time_count  = (int *)malloc(par->number_of_snapshot*sizeof(int));
-    par->snapshot_time_stride = (int *)malloc(par->number_of_snapshot*sizeof(int));
+    par->snapshot_time_incre = (int *)malloc(par->number_of_snapshot*sizeof(int));
+    par->snapshot_save_velocity = (int *)malloc(par->number_of_snapshot*sizeof(int));
+    par->snapshot_save_stress  = (int *)malloc(par->number_of_snapshot*sizeof(int));
+    par->snapshot_save_strain = (int *)malloc(par->number_of_snapshot*sizeof(int));
     // name of snapshot
     par->snapshot_name = (char **)malloc(par->number_of_snapshot*sizeof(char*));
     for (int n=0; n<par->number_of_snapshot; n++) {
@@ -246,92 +352,49 @@ par_read_from_str(const char *str, struct par_t *par)
         }
       }
 
-      if (subitem = cJSON_GetObjectItem(snapitem, "grid_index_stride"))
+      if (subitem = cJSON_GetObjectItem(snapitem, "grid_index_incre"))
       {
         for (int j = 0; j < FD_NDIM; j++) {
-          par->snapshot_index_stride[i*FD_NDIM+j] = cJSON_GetArrayItem(subitem, j)->valueint;
+          par->snapshot_index_incre[i*FD_NDIM+j] = cJSON_GetArrayItem(subitem, j)->valueint;
         }
       }
 
-      if (subitem = cJSON_GetObjectItem(snapitem, "time_step_start_count_stride"))
-      {
-        par->snapshot_time_start[i]  = cJSON_GetArrayItem(subitem, 0)->valueint;
-        par->snapshot_time_count[i]  = cJSON_GetArrayItem(subitem, 1)->valueint;
-        par->snapshot_time_stride[i] = cJSON_GetArrayItem(subitem, 2)->valueint;
+      if (subitem = cJSON_GetObjectItem(snapitem, "time_index_start")) {
+        par->snapshot_time_start[i]  = subitem->valueint;
+      }
+      if (subitem = cJSON_GetObjectItem(snapitem, "time_index_incre")) {
+        par->snapshot_time_incre[i]  = subitem->valueint;
+      }
+      if (subitem = cJSON_GetObjectItem(snapitem, "save_velocity")) {
+        par->snapshot_save_velocity[i]  = subitem->valueint;
+      }
+      if (subitem = cJSON_GetObjectItem(snapitem, "save_stress")) {
+        par->snapshot_save_stress[i]  = subitem->valueint;
+      }
+      if (subitem = cJSON_GetObjectItem(snapitem, "save_strain")) {
+        par->snapshot_save_strain[i] = subitem->valueint;
       }
     }
   }
 
+  //-- output dir
   if (item = cJSON_GetObjectItem(root, "output_dir")) {
       sprintf(par->output_dir,"%s",item->valuestring);
   }
 
-  if (item = cJSON_GetObjectItem(root, "grid_name")) {
-      sprintf(par->grid_name,"%s",item->valuestring);
+  //-- misc
+  if (item = cJSON_GetObjectItem(root, "check_nan_every_nummber_of_steps")) {
+      par->check_nan_every_nummber_of_steps = item->valueint;
+  }
+  if (item = cJSON_GetObjectItem(root, "output_all")) {
+      par->output_all = item->valueint;
   }
 
-  /*
-  // pml
-  if (item = cJSON_GetObjectItem(root, "abs_num_of_layers"))
-  {
-    for (int i = 0; i < FD_NDIM_2; i++) {
-      par->abs_num_of_layers[i] = cJSON_GetArrayItem(item, i)->valueint;
-    }
-  }
-  if (item = cJSON_GetObjectItem(root, "cfspml_alpha_max"))
-  {
-    for (int i = 0; i < FD_NDIM_2; i++) {
-      par->cfspml_alpha_max[i] = cJSON_GetArrayItem(item, i)->valuedouble;
-    }
-  }
-  if (item = cJSON_GetObjectItem(root, "cfspml_beta_max"))
-  {
-    for (int i = 0; i < FD_NDIM_2; i++) {
-      par->cfspml_beta_max[i] = cJSON_GetArrayItem(item, i)->valuedouble;
-    }
-  }
-  if (item = cJSON_GetObjectItem(root, "cfspml_velocity"))
-  {
-    for (int i = 0; i < FD_NDIM_2; i++) {
-      par->cfspml_velocity[i] = cJSON_GetArrayItem(item, i)->valuedouble;
-    }
-  }
-  */
-
-  /*
-  if (item = cJSON_GetObjectItem(root, "OUT"))
-      memcpy(OUT, item->valuestring, strlen(item->valuestring));
-
-  if ( item = cJSON_GetObjectItem(root, "NUM_INTER") ) {
-      par->nx = item->valueint;
-  } else {
-      error_exit("no nx in par file");
-  }
-  NX    = cJSON_GetObjectItem(root, "NX")->valueint;
-  TMAX  = cJSON_GetObjectItem(root, "TMAX")->valuedouble;
-  DT    = cJSON_GetObjectItem(root, "DT")->valuedouble;
-  if(p = cJSON_GetObjectItem(root, "OUT" )) {
-    strcpy(OUT, p->valuestring);
-  }
-  */
+  //if (item = cJSON_GetObjectItem(root, "grid_name")) {
+  //    sprintf(par->grid_name,"%s",item->valuestring);
+  //}
 
   cJSON_Delete(root);
-
-  //mkpath(OUT, 0700);
-  //mkpath(OUT_DIR, 0700);
-
-  //printf("---------------------------------------------\n");
-  //printf("TSKP  : %d\n", TSKP);
-  //printf("TMAX  : %f\n", TMAX);
-  //printf("DT  : %f\n", DT);
-  //printf("DH  : %f\n", DH);
-  //printf("NX  : %d\n", NX);
-  //printf("NY  : %d\n", NY);
-  //printf("NZ  : %d\n", NZ);
-  //printf("PX  : %d\n", PX);
-  //printf("PY  : %d\n", PY);
-  //printf("PZ  : %d\n", PZ);
-  //printf("---------------------------------------------\n");
 
   // set values to default ones if no input
 
@@ -373,80 +436,6 @@ par_print(struct par_t *par)
   fprintf(stdout, " number_of_time_steps = %-10d\n", par->number_of_time_steps);
 
   fprintf(stdout, "-------------------------------------------------------\n");
-  fprintf(stdout, "--> GRID INFO:\n");
-  fprintf(stdout, "-------------------------------------------------------\n");
-  fprintf(stdout, " number_of_total_grid_points_x = %-10d\n", par->number_of_total_grid_points_x);
-  fprintf(stdout, " number_of_total_grid_points_y = %-10d\n", par->number_of_total_grid_points_y);
-  fprintf(stdout, " number_of_total_grid_points_z = %-10d\n", par->number_of_total_grid_points_z);
-  fprintf(stdout, " coord_by_cartesian = %-10d\n", par->coord_by_cartesian);
-
-  fprintf(stdout, " cartesian_grid_x0 = %10.4e\n", par->cartesian_grid_x0);
-  fprintf(stdout, " cartesian_grid_y0 = %10.4e\n", par->cartesian_grid_y0);
-  fprintf(stdout, " cartesian_grid_z0 = %10.4e\n", par->cartesian_grid_z0);
-  fprintf(stdout, " cartesian_grid_dx = %10.4e\n", par->cartesian_grid_dx);
-  fprintf(stdout, " cartesian_grid_dy = %10.4e\n", par->cartesian_grid_dy);
-  fprintf(stdout, " cartesian_grid_dz = %10.4e\n", par->cartesian_grid_dz);
-
-
-  /*
-  fprintf(stdout, "\n");
-  fprintf(stdout, "-------------------------------------------------------\n");
-  fprintf(stdout, "--> media info.\n");
-  fprintf(stdout, "-------------------------------------------------------\n");
-  if (PSV->media_type == MEDIA_TYPE_LAYER)
-  {
-      strcpy(str, "layer");
-  }
-  else if (PSV->media_type == MEDIA_TYPE_GRID)
-  {
-      strcpy(str, "grid");
-  }
-  fprintf(stdout, " media_type = %s\n", str);
-  if(PSV->media_type == MEDIA_TYPE_GRID)
-  {
-      fprintf(stdout, "\n --> the media filename is:\n");
-      fprintf(stdout, " velp_file  = %s\n", PSV->fnm_velp);
-      fprintf(stdout, " vels_file  = %s\n", PSV->fnm_vels);
-      fprintf(stdout, " rho_file   = %s\n", PSV->fnm_rho);
-  }
-  fprintf(stdout, "\n");
-  fprintf(stdout, "-------------------------------------------------------\n");
-  fprintf(stdout, "--> source info.\n");
-  fprintf(stdout, "-------------------------------------------------------\n");
-  fprintf(stdout, " number_of_force  = %d\n", PSV->number_of_force);
-  if(PSV->number_of_force > 0)
-  {
-      fprintf(stdout, " force_source           x           z     x_shift     z_shift           i           k:\n");
-      for(n=0; n<PSV->number_of_force; n++)
-      {
-          indx = 2*n;
-          fprintf(stdout, "         %04d  %10.4e  %10.4e  %10.4e  %10.4e  %10d  %10d\n", n+1, 
-                  PSV->force_coord[indx], PSV->force_coord[indx+1],
-                  PSV->force_shift[indx], PSV->force_shift[indx+1],
-                  PSV->force_indx [indx], PSV->force_indx [indx+1]);
-      }
-      fprintf(stdout, "\n");
-  }
-
-  fprintf(stdout, "\n");
-  fprintf(stdout, " number_of_moment = %d\n", PSV->number_of_moment);
-  if(PSV->number_of_moment > 0)
-  {
-      fprintf(stdout, " moment_source          x           z     x_shift     z_shift           i           k:\n");
-      for(n=0; n<PSV->number_of_moment; n++)
-      {
-          indx = 2*n;
-          fprintf(stdout, "         %04d  %10.4e  %10.4e  %10.4e  %10.4e  %10d  %10d\n", n+1, 
-                  PSV->moment_coord[indx], PSV->moment_coord[indx+1],
-                  PSV->moment_shift[indx], PSV->moment_shift[indx+1],
-                  PSV->moment_indx [indx], PSV->moment_indx [indx+1]);
-      }
-      fprintf(stdout, "\n");
-  }
-  */
-
-  fprintf(stdout, "\n");
-  fprintf(stdout, "-------------------------------------------------------\n");
   fprintf(stdout, "--> boundary layer information.\n");
   fprintf(stdout, "-------------------------------------------------------\n");
   fprintf(stdout, " boundary_condition  = %10s%10s%10s%10s%10s%10s\n", 
@@ -485,22 +474,96 @@ par_print(struct par_t *par)
           par->cfspml_beta_max[4],
           par->cfspml_beta_max[5]);
   fprintf(stdout, "\n");
-  
+
+  fprintf(stdout, "-------------------------------------------------------\n");
+  fprintf(stdout, "--> GRID INFO:\n");
+  fprintf(stdout, "-------------------------------------------------------\n");
+  fprintf(stdout, " number_of_total_grid_points_x = %-10d\n", par->number_of_total_grid_points_x);
+  fprintf(stdout, " number_of_total_grid_points_y = %-10d\n", par->number_of_total_grid_points_y);
+  fprintf(stdout, " number_of_total_grid_points_z = %-10d\n", par->number_of_total_grid_points_z);
+
+  fprintf(stdout, " input_grid_type = %s\n", par->input_grid_type);
+  if (strcmp(par->input_grid_type, "cartesian")==0) {
+    fprintf(stdout, " cartesian_grid_x0 = %10.4e\n", par->cartesian_grid_origin[0]);
+    fprintf(stdout, " cartesian_grid_y0 = %10.4e\n", par->cartesian_grid_origin[1]);
+    fprintf(stdout, " cartesian_grid_z0 = %10.4e\n", par->cartesian_grid_origin[2]);
+    fprintf(stdout, " cartesian_grid_dx = %10.4e\n", par->cartesian_grid_stepsize[0]);
+    fprintf(stdout, " cartesian_grid_dy = %10.4e\n", par->cartesian_grid_stepsize[1]);
+    fprintf(stdout, " cartesian_grid_dz = %10.4e\n", par->cartesian_grid_stepsize[2]);
+  }
+
+  fprintf(stdout, " input_metric_type = %s\n", par->input_metric_type);
+
+  fprintf(stdout, "-------------------------------------------------------\n");
+  fprintf(stdout, "--> media info.\n");
+  fprintf(stdout, "-------------------------------------------------------\n");
+  fprintf(stdout, " input_medium_type = %s\n", par->input_medium_type);
+
+  //fprintf(stdout, "\n --> the media filename is:\n");
+  //fprintf(stdout, " velp_file  = %s\n", PSV->fnm_velp);
+  //fprintf(stdout, " vels_file  = %s\n", PSV->fnm_vels);
+  //fprintf(stdout, " rho_file   = %s\n", PSV->fnm_rho);
+
+  fprintf(stdout, "-------------------------------------------------------\n");
+  fprintf(stdout, "--> source info.\n");
+  fprintf(stdout, "-------------------------------------------------------\n");
+  fprintf(stdout, " input_source_file = %s\n", par->input_source_file);
+
   fprintf(stdout, "\n");
   fprintf(stdout, "-------------------------------------------------------\n");
   fprintf(stdout, "--> output information.\n");
   fprintf(stdout, "-------------------------------------------------------\n");
   fprintf(stdout, "--> output_dir = %s\n", par->output_dir);
 
-  fprintf(stdout, "--> snapshot information.\n");
+  fprintf(stdout, "--> individual recivers:\n");
+  fprintf(stdout, " input_receiver_file = %s\n", par->input_receiver_file);
 
+  fprintf(stdout, "--> recivers lines:\n");
+  fprintf(stdout, "number_of_receiver_line=%d\n", par->number_of_receiver_line);
+  if (par->number_of_receiver_line > 0)
+  {
+    fprintf(stdout, "#  name  i0  j0  k0   di  dj   dk  count\n");
+    for(int n=0; n<par->number_of_receiver_line; n++)
+    {
+       fprintf(stdout, "%6d %s %6d %6d %6d %6d %6d %6d %6d\n",
+           n,
+           par->receiver_line_name[n],
+           par->receiver_line_index_start[n*3+0],
+           par->receiver_line_index_start[n*3+1],
+           par->receiver_line_index_start[n*3+2],
+           par->receiver_line_index_incre[n*3+0],
+           par->receiver_line_index_incre[n*3+1],
+           par->receiver_line_index_incre[n*3+2],
+           par->receiver_line_count[n]);
+    }
+  }
+
+  fprintf(stdout, "--> slice:\n");
+  fprintf(stdout, "number_of_slice_x=%d: ", par->number_of_slice_x);
+  for(int n=0; n<par->number_of_slice_x; n++)
+  {
+     fprintf(stdout, "%6d", par->slice_x_index[n]);
+  }
+  fprintf(stdout, "\nnumber_of_slice_y=%d: ", par->number_of_slice_y);
+  for(int n=0; n<par->number_of_slice_y; n++)
+  {
+     fprintf(stdout, "%6d", par->slice_y_index[n]);
+  }
+  fprintf(stdout, "\nnumber_of_slice_z=%d: ", par->number_of_slice_z);
+  for(int n=0; n<par->number_of_slice_z; n++)
+  {
+     fprintf(stdout, "%6d", par->slice_z_index[n]);
+  }
+  fprintf(stdout, "\n");
+
+  fprintf(stdout, "--> snapshot information.\n");
   fprintf(stdout, "number_of_snapshot=%d\n", par->number_of_snapshot);
   if (par->number_of_snapshot > 0)
   {
-      fprintf(stdout, "#   i0  j0  k0  ni  nj  nk  di  dj   dk  it0  nt  dit\n");
+      fprintf(stdout, "#  name  i0  j0  k0  ni  nj  nk  di  dj   dk  it0  nt  dit\n");
       for(int n=0; n<par->number_of_snapshot; n++)
       {
-         fprintf(stdout, "%6d %s %6d %6d %6d %6d %6d %6d %6d %6d %6d %6d %6d %6d\n",
+         fprintf(stdout, "%6d %s %6d %6d %6d %6d %6d %6d %6d %6d %6d %6d %6d\n",
              n,
              par->snapshot_name[n],
              par->snapshot_index_start[n*3+0],
@@ -509,14 +572,17 @@ par_print(struct par_t *par)
              par->snapshot_index_count[n*3+0],
              par->snapshot_index_count[n*3+1],
              par->snapshot_index_count[n*3+2],
-             par->snapshot_index_stride[n*3+0],
-             par->snapshot_index_stride[n*3+1],
-             par->snapshot_index_stride[n*3+2],
+             par->snapshot_index_incre[n*3+0],
+             par->snapshot_index_incre[n*3+1],
+             par->snapshot_index_incre[n*3+2],
              par->snapshot_time_start[n],
-             par->snapshot_time_count[n],
-             par->snapshot_time_stride[n]);
+             par->snapshot_time_incre[n]);
       }
   }
+
+  fprintf(stdout, "--> qc parameters:\n");
+  fprintf(stdout, "check_nan_every_nummber_of_steps=%d\n", par->check_nan_every_nummber_of_steps);
+  fprintf(stdout, "output_all=%d\n", par->output_all);
 
   /*
   fprintf(stdout, "\n");

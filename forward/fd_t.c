@@ -268,7 +268,6 @@ fd_set_macdrp(struct fd_t *fd)
 //
 void
 fd_blk_init(struct fd_blk_t *blk,
-            char *name,
             int number_of_total_grid_points_x,
             int number_of_total_grid_points_y,
             int number_of_total_grid_points_z,
@@ -287,7 +286,7 @@ fd_blk_init(struct fd_blk_t *blk,
   int boundary_itype[FD_NDIM_2];
 
   // set name
-  sprintf(blk->name, "%s", name);
+  //sprintf(blk->name, "%s", name);
 
   //
   // mpi topo
@@ -311,6 +310,9 @@ fd_blk_init(struct fd_blk_t *blk,
                     blk->neighid[1], 
                     blk->neighid[2], 
                     blk->neighid[3] };
+
+  // output name
+  sprintf(blk->output_fname_part,"px%d_py%d", myid2[0],myid2[1]);
 
   //
   // set boundary itype
@@ -450,6 +452,11 @@ fd_blk_init(struct fd_blk_t *blk,
 
   blk->nk1 = fdz_nghosts;
   blk->nk2 = blk->nk1 + nk - 1;
+
+  // global index end
+  blk->gni2 = blk->gni1 + blk->ni - 1;
+  blk->gnj2 = blk->gnj1 + blk->nj - 1;
+  blk->gnk2 = blk->gnk1 + blk->nk - 1;
   
   // x dimention varies first
   blk->siz_line   = nx; 
@@ -467,231 +474,281 @@ fd_blk_init(struct fd_blk_t *blk,
   //fflush(stdout);
 }
 
-/*
-void
-fd_blk_print(struct fd_blk_t *blk)
-{    
-  fprintf(stdout, "-------------------------------------------------------\n");
-  //fprintf(stdout, "--> ESTIMATE MEMORY INFO.\n");
-  //fprintf(stdout, "-------------------------------------------------------\n");
-  //fprintf(stdout, "total memory size Byte: %20.5f  B\n", PSV->total_memory_size_Byte);
-  //fprintf(stdout, "total memory size KB  : %20.5f KB\n", PSV->total_memory_size_KB  );
-  //fprintf(stdout, "total memory size MB  : %20.5f MB\n", PSV->total_memory_size_MB  );
-  //fprintf(stdout, "total memory size GB  : %20.5f GB\n", PSV->total_memory_size_GB  );
-  //fprintf(stdout, "\n");
-  //fprintf(stdout, "-------------------------------------------------------\n");
-  //fprintf(stdout, "--> FOLDER AND FILE INFO.\n");
-  //fprintf(stdout, "-------------------------------------------------------\n");
-  //fprintf(stdout, "   OutFolderName: %s\n", OutFolderName);
-  //fprintf(stdout, "       EventName: %s\n", OutPrefix);
-  //fprintf(stdout, "     LogFilename: %s\n", LogFilename);
-  //fprintf(stdout, " StationFilename: %s\n", StationFilename);
-  //fprintf(stdout, "  SourceFilename: %s\n", SourceFilename);
-  //fprintf(stdout, "   MediaFilename: %s\n", MediaFilename);
-  //fprintf(stdout, "\n");
-  fprintf(stdout, "-------------------------------------------------------\n");
-  fprintf(stdout, "--> GRID INFO.\n");
-  fprintf(stdout, "-------------------------------------------------------\n");
-  fprintf(stdout, " ni    = %-10d\n", PSV->ni);
-  fprintf(stdout, " nk    = %-10d\n", PSV->nk);
-  fprintf(stdout, " nx    = %-10d\n", PSV->nx);
-  fprintf(stdout, " nz    = %-10d\n", PSV->nz);
-  fprintf(stdout, " ni1   = %-10d\n", PSV->ni1);
-  fprintf(stdout, " ni2   = %-10d\n", PSV->ni2);
-  fprintf(stdout, " nk1   = %-10d\n", PSV->nk1);
-  fprintf(stdout, " nk2   = %-10d\n", PSV->nk2);
-  fprintf(stdout, " LenFD = %-10d\n", PSV->LenFD);
-  fprintf(stdout, " nt    = %-10d\n", PSV->nt);
-  fprintf(stdout, " stept = %10.4e\n", PSV->stept);
-  fprintf(stdout, " maxdt = %10.4e\n", PSV->maxdt);
-  fprintf(stdout, " steph = %10.4e\n", PSV->steph);
-  fprintf(stdout, " x0    = %10.4e\n", PSV->x0);
-  fprintf(stdout, " x1    = %10.4e\n", PSV->x1);
-  fprintf(stdout, " z0    = %10.4e\n", PSV->z0);
-  fprintf(stdout, " z1    = %10.4e\n", PSV->z1);
-  fprintf(stdout, "\n");
-  fprintf(stdout, "-------------------------------------------------------\n");
-  fprintf(stdout, "--> media info.\n");
-  fprintf(stdout, "-------------------------------------------------------\n");
-  if (PSV->media_type == MEDIA_TYPE_LAYER)
-  {
-      strcpy(str, "layer");
-  }
-  else if (PSV->media_type == MEDIA_TYPE_GRID)
-  {
-      strcpy(str, "grid");
-  }
-  fprintf(stdout, " media_type = %s\n", str);
-  if(PSV->media_type == MEDIA_TYPE_GRID)
-  {
-      fprintf(stdout, "\n --> the media filename is:\n");
-      fprintf(stdout, " velp_file  = %s\n", PSV->fnm_velp);
-      fprintf(stdout, " vels_file  = %s\n", PSV->fnm_vels);
-      fprintf(stdout, " rho_file   = %s\n", PSV->fnm_rho);
-  }
-  fprintf(stdout, "\n");
-  fprintf(stdout, "-------------------------------------------------------\n");
-  fprintf(stdout, "--> source info.\n");
-  fprintf(stdout, "-------------------------------------------------------\n");
-  fprintf(stdout, " number_of_force  = %d\n", PSV->number_of_force);
-  if(PSV->number_of_force > 0)
-  {
-      fprintf(stdout, " force_source           x           z     x_shift     z_shift           i           k:\n");
-      for(n=0; n<PSV->number_of_force; n++)
-      {
-          indx = 2*n;
-          fprintf(stdout, "         %04d  %10.4e  %10.4e  %10.4e  %10.4e  %10d  %10d\n", n+1, 
-                  PSV->force_coord[indx], PSV->force_coord[indx+1],
-                  PSV->force_shift[indx], PSV->force_shift[indx+1],
-                  PSV->force_indx [indx], PSV->force_indx [indx+1]);
-      }
-      fprintf(stdout, "\n");
-  }
-
-  fprintf(stdout, "\n");
-  fprintf(stdout, " number_of_moment = %d\n", PSV->number_of_moment);
-  if(PSV->number_of_moment > 0)
-  {
-      fprintf(stdout, " moment_source          x           z     x_shift     z_shift           i           k:\n");
-      for(n=0; n<PSV->number_of_moment; n++)
-      {
-          indx = 2*n;
-          fprintf(stdout, "         %04d  %10.4e  %10.4e  %10.4e  %10.4e  %10d  %10d\n", n+1, 
-                  PSV->moment_coord[indx], PSV->moment_coord[indx+1],
-                  PSV->moment_shift[indx], PSV->moment_shift[indx+1],
-                  PSV->moment_indx [indx], PSV->moment_indx [indx+1]);
-      }
-      fprintf(stdout, "\n");
-  }
-
-  fprintf(stdout, "\n");
-  fprintf(stdout, "-------------------------------------------------------\n");
-  fprintf(stdout, "--> boundary layer information.\n");
-  fprintf(stdout, "-------------------------------------------------------\n");
-  ierr = boundary_id2type(type1, PSV->boundary_type[0], errorMsg);
-  ierr = boundary_id2type(type2, PSV->boundary_type[1], errorMsg);
-  ierr = boundary_id2type(type3, PSV->boundary_type[2], errorMsg);
-  ierr = boundary_id2type(type4, PSV->boundary_type[3], errorMsg);
-  fprintf(stdout, " boundary_type         = %10s%10s%10s%10s\n", 
-          type1, type2, type3, type4);
-  fprintf(stdout, " boundary_layer_number = %10d%10d%10d%10d\n", 
-          PSV->boundary_layer_number[0], PSV->boundary_layer_number[1], 
-          PSV->boundary_layer_number[2], PSV->boundary_layer_number[3]);
-  fprintf(stdout, "\n");
-  fprintf(stdout, " absorb_velocity       = %10.2f%10.2f%10.2f%10.2f\n", 
-          PSV->absorb_velocity[0], PSV->absorb_velocity[1], PSV->absorb_velocity[2], 
-          PSV->absorb_velocity[3]);
-  fprintf(stdout, "\n");
-  fprintf(stdout, " CFS_alpha_max         = %10.2f%10.2f%10.2f%10.2f\n", 
-          PSV->CFS_alpha_max[0], PSV->CFS_alpha_max[1], PSV->CFS_alpha_max[2], 
-          PSV->CFS_alpha_max[3]);
-  fprintf(stdout, " CFS_beta_max          = %10.2f%10.2f%10.2f%10.2f\n", 
-          PSV->CFS_beta_max[0], PSV->CFS_beta_max[1], PSV->CFS_beta_max[2], 
-          PSV->CFS_beta_max[3]);
-  
-  fprintf(stdout, "\n");
-  fprintf(stdout, "-------------------------------------------------------\n");
-  fprintf(stdout, "--> output information.\n");
-  fprintf(stdout, "-------------------------------------------------------\n");
-  fprintf(stdout, "--> snapshot information.\n");
-  if (PSV->number_of_snapshot > 0)
-  {
-      fprintf(stdout, "number_of_snapshot=%d\n", PSV->number_of_snapshot);
-      fprintf(stdout, "#   x0    z0    nx    nz    dx    dz    dt     tdim_max    component\n");
-      for(n=0; n<PSV->number_of_snapshot; n++)
-      {
-          indx = 10*n;
-          componentV = ' ';
-          componentT = ' ';
-
-          if(PSV->snapshot_information[indx+8] == 1) {
-              componentV = 'V';
-          }
-
-          if(PSV->snapshot_information[indx+9] == 1) {
-              componentT = 'T';
-          }
-
-          for(i=0; i<7; i++)
-          {
-              fprintf(stdout, "%6d", PSV->snapshot_information[indx+i]);
-          }
-
-          fprintf(stdout, "%12d", PSV->snapshot_information[indx+7]);
-          fprintf(stdout, "         %c%c\n", componentV, componentT);
-      }
-  }
-
-  fprintf(stdout, "\n");
-  fprintf(stdout, "--> station information.\n");
-  fprintf(stdout, " number_of_station  = %4d\n", PSV->number_of_station);
-  fprintf(stdout, " seismo_format_sac  = %4d\n", PSV->seismo_format_sac );
-  fprintf(stdout, " seismo_format_segy = %4d\n", PSV->seismo_format_segy);
-  fprintf(stdout, " SeismoPrefix = %s\n", SeismoPrefix);
-  fprintf(stdout, "\n");
-
-  if(PSV->number_of_station > 0)
-  {
-      //fprintf(stdout, " station_indx:\n");
-      fprintf(stdout, " stations             x           z           i           k:\n");
-  }
-
-  for(n=0; n<PSV->number_of_station; n++)
-  {
-      indx = 2*n;
-      fprintf(stdout, "       %04d  %10.4e  %10.4e  %10d  %10d\n", n+1, 
-              PSV->station_coord[indx], PSV->station_coord[indx+1],
-              PSV->station_indx [indx], PSV->station_indx [indx+1]);
-  }
-  fprintf(stdout, "\n");
-
-  return;
-}
-*/
 
 void
 fd_blk_set_snapshot(struct fd_blk_t *blk,
                     int  fd_nghosts,
                     int  number_of_snapshot,
+                    char **snapshot_name,
                     int *snapshot_index_start,
                     int *snapshot_index_count,
-                    int *snapshot_index_stride,
+                    int *snapshot_index_incre,
                     int *snapshot_time_start,
-                    int *snapshot_time_count,
-                    int *snapshot_time_stride)
+                    int *snapshot_time_incre,
+                    int *snapshot_save_velocity,
+                    int *snapshot_save_stress,
+                    int *snapshot_save_strain)
 {
-  blk->num_of_snap = number_of_snapshot;
+  if (number_of_snapshot>0) {
+    blk->snap_fname = (char **) fdlib_mem_malloc_2l_char(number_of_snapshot,FD_MAX_STRLEN,"snap_fname");
+    blk->snap_info = (int *) malloc(number_of_snapshot * FD_SNAP_INFO_SIZE * sizeof(int));
+  }
 
-  blk->snap_grid_indx = (int *) malloc(number_of_snapshot * FD_NDIM*3 * sizeof(int));
-  blk->snap_time_indx = (int *) malloc(number_of_snapshot * 3 * sizeof(int));
+  // init
+  blk->num_of_snap = 0;
 
   for (int n=0; n < number_of_snapshot; n++)
   {
-    // start
-    blk->snap_grid_indx[n*FD_NDIM*3+0] = snapshot_index_start[n*FD_NDIM+0] + fd_nghosts;
-    blk->snap_grid_indx[n*FD_NDIM*3+1] = snapshot_index_start[n*FD_NDIM+1] + fd_nghosts;
-    blk->snap_grid_indx[n*FD_NDIM*3+2] = snapshot_index_start[n*FD_NDIM+2] + fd_nghosts;
+    int iptr0 = n*FD_NDIM;
 
-    // count, convert -1 to num
-    for (int i=0; i < FD_NDIM; i++)
+    // scan output k-index in this proc
+    int gk1 = -1; int ngk =  0;
+    for (int n3=0; n3<snapshot_index_count[iptr0+2]; n3++)
     {
-      blk->snap_grid_indx[n*FD_NDIM*3+3+i] = snapshot_index_count[n*FD_NDIM+i];
-      //if (snapshot_index_count[n*FD_NDIM+i]==-1) {
-      //  blk->snap_grid_indx[n*FD_NDIM*3+3] = blk->ni
-      //}
+      int gk = snapshot_index_start[iptr0+2] + n3 * snapshot_index_incre[iptr0+2];
+      if (gk >= blk->gnk1 && gk <= blk->gnk2) {
+        if (gk1 == -1) gk1 = gk;
+        ngk++;
+      }
+      if (gk > blk->gnk2) break; // no need to larger k
     }
 
-    // stride
-    for (int i=0; i < FD_NDIM; i++)
+    // scan output j-index in this proc
+    int gj1 = -1; int ngj =  0;
+    for (int n2=0; n2<snapshot_index_count[iptr0+1]; n2++)
     {
-      blk->snap_grid_indx[n*FD_NDIM*3+6+i] = snapshot_index_stride[n*FD_NDIM+i];
+      int gj = snapshot_index_start[iptr0+1] + n2 * snapshot_index_incre[iptr0+1];
+      if (gj >= blk->gnj1 && gj <= blk->gnj2) {
+        if (gj1 == -1) gj1 = gj;
+        ngj++;
+      }
+      if (gj > blk->gnj2) break;
     }
-    
-    // time
-    blk->snap_time_indx[n*3+0] = snapshot_time_start[n];
-    blk->snap_time_indx[n*3+1] = snapshot_time_count[n];
-    blk->snap_time_indx[n*3+2] = snapshot_time_stride[n];
+
+    // scan output i-index in this proc
+    int gi1 = -1; int ngi =  0;
+    for (int n1=0; n1<snapshot_index_count[iptr0+0]; n1++)
+    {
+      int gi = snapshot_index_start[iptr0+0] + n1 * snapshot_index_incre[iptr0+0];
+      if (gi >= blk->gni1 && gi <= blk->gni2) {
+        if (gi1 == -1) gi1 = gi;
+        ngi++;
+      }
+      if (gi > blk->gni2) break;
+    }
+
+    // if in this proc
+    if (ngi>0 && ngj>0 & ngk>0)
+    {
+      int isnap = blk->num_of_snap;
+
+      blk->snap_info[isnap*FD_SNAP_INFO_SIZE + FD_SNAP_INFO_I1]  = gi1 - blk->gni1 + fd_nghosts;
+      blk->snap_info[isnap*FD_SNAP_INFO_SIZE + FD_SNAP_INFO_J1]  = gj1 - blk->gnj1 + fd_nghosts;
+      blk->snap_info[isnap*FD_SNAP_INFO_SIZE + FD_SNAP_INFO_K1]  = gk1 - blk->gnk1 + fd_nghosts;
+      blk->snap_info[isnap*FD_SNAP_INFO_SIZE + FD_SNAP_INFO_NI]  = ngi;
+      blk->snap_info[isnap*FD_SNAP_INFO_SIZE + FD_SNAP_INFO_NJ]  = ngj;
+      blk->snap_info[isnap*FD_SNAP_INFO_SIZE + FD_SNAP_INFO_NK]  = ngk;
+      blk->snap_info[isnap*FD_SNAP_INFO_SIZE + FD_SNAP_INFO_DI]  = snapshot_index_incre[iptr0+0];
+      blk->snap_info[isnap*FD_SNAP_INFO_SIZE + FD_SNAP_INFO_DJ]  = snapshot_index_incre[iptr0+1];
+      blk->snap_info[isnap*FD_SNAP_INFO_SIZE + FD_SNAP_INFO_DK]  = snapshot_index_incre[iptr0+2];
+
+      blk->snap_info[isnap*FD_SNAP_INFO_SIZE + FD_SNAP_INFO_IT1]  = snapshot_time_start[n];
+      blk->snap_info[isnap*FD_SNAP_INFO_SIZE + FD_SNAP_INFO_DIT]  = snapshot_time_incre[n];
+
+      blk->snap_info[isnap*FD_SNAP_INFO_SIZE + FD_SNAP_INFO_VEL   ]  = snapshot_save_velocity[n];
+      blk->snap_info[isnap*FD_SNAP_INFO_SIZE + FD_SNAP_INFO_STRESS]  = snapshot_save_stress[n];
+      blk->snap_info[isnap*FD_SNAP_INFO_SIZE + FD_SNAP_INFO_STRAIN]  = snapshot_save_strain[n];
+
+      sprintf(blk->snap_fname[isnap],"%s/%s_%s.nc",blk->output_dir,
+                                                   snapshot_name[n],
+                                                   blk->output_fname_part);
+
+      blk->num_of_snap += 1;
+    }
   }
+}
+
+void
+fd_blk_set_slice(struct fd_blk_t *blk,
+                 int  fd_nghosts,
+                 int  number_of_slice_x,
+                 int  number_of_slice_y,
+                 int  number_of_slice_z,
+                 int *slice_x_index,
+                 int *slice_y_index,
+                 int *slice_z_index)
+{
+  if (number_of_slice_x>0) {
+    blk->slice_x_fname = (char **) fdlib_mem_malloc_2l_char(number_of_slice_x,
+                                                            FD_MAX_STRLEN,
+                                                            "slice_x_fname");
+    blk->slice_x_indx = (int *) malloc(number_of_slice_x * sizeof(int));
+  }
+  if (number_of_slice_x>0) {
+    blk->slice_y_fname = (char **) fdlib_mem_malloc_2l_char(number_of_slice_y,
+                                                            FD_MAX_STRLEN,
+                                                            "slice_y_fname");
+    blk->slice_y_indx = (int *) malloc(number_of_slice_y * sizeof(int));
+  }
+  if (number_of_slice_x>0) {
+    blk->slice_z_fname = (char **) fdlib_mem_malloc_2l_char(number_of_slice_z,
+                                                            FD_MAX_STRLEN,
+                                                            "slice_z_fname");
+    blk->slice_z_indx = (int *) malloc(number_of_slice_z * sizeof(int));
+  }
+
+  // init
+  blk->num_of_slice_x = 0;
+  blk->num_of_slice_y = 0;
+  blk->num_of_slice_z = 0;
+
+  // x slice
+  for (int n=0; n < number_of_slice_x; n++)
+  {
+    int gi = slice_x_index[n];
+    if (gi >= blk->gni1 && gi <= blk->gni2)
+    {
+      int islc = blk->num_of_slice_x;
+
+      blk->slice_x_indx[islc]  = gi - blk->gni1 + fd_nghosts;
+      sprintf(blk->slice_x_fname[islc],"%s/slicex_i%d_%s.nc", blk->output_dir,gi,blk->output_fname_part);
+
+      blk->num_of_slice_x += 1;
+    }
+  }
+
+  // y slice
+  for (int n=0; n < number_of_slice_y; n++)
+  {
+    int gj = slice_y_index[n];
+    if (gj >= blk->gnj1 && gj <= blk->gnj2)
+    {
+      int islc = blk->num_of_slice_y;
+
+      blk->slice_y_indx[islc]  = gj - blk->gnj1 + fd_nghosts;
+      sprintf(blk->slice_y_fname[islc],"%s/slicey_j%d_%s.nc", blk->output_dir,gj,blk->output_fname_part);
+
+      blk->num_of_slice_y += 1;
+    }
+  }
+
+  // z slice
+  for (int n=0; n < number_of_slice_z; n++)
+  {
+    int gk = slice_z_index[n];
+    if (gk >= blk->gnk1 && gk <= blk->gnk2)
+    {
+      int islc = blk->num_of_slice_z;
+
+      blk->slice_z_indx[islc]  = gk - blk->gnk1 + fd_nghosts;
+      sprintf(blk->slice_z_fname[islc],"%s/slicez_k%d_%s.nc", blk->output_dir,gk,blk->output_fname_part);
+
+      blk->num_of_slice_z += 1;
+    }
+  }
+}
+
+void
+fd_blk_set_inline(struct fd_blk_t *blk,
+                  int  fd_nghosts,
+                  int  nt_total,
+                  int  number_of_receiver_line,
+                  int *receiver_line_index_start,
+                  int *receiver_line_index_incre,
+                  int *receiver_line_count,
+                  char **receiver_line_name)
+{
+
+  // init
+  blk->num_of_inline = 0;
+  blk->num_of_point  = 0;
+
+  // first run for count
+  for (int n=0; n < number_of_receiver_line; n++)
+  {
+    int is_here = 0;
+    for (int ipt=0; ipt<receiver_line_count[n]; ipt++)
+    {
+      int gi = receiver_line_index_start[n*FD_NDIM+0] + ipt * receiver_line_index_incre[n*FD_NDIM  ];
+      int gj = receiver_line_index_start[n*FD_NDIM+1] + ipt * receiver_line_index_incre[n*FD_NDIM+1];
+      int gk = receiver_line_index_start[n*FD_NDIM+2] + ipt * receiver_line_index_incre[n*FD_NDIM+2];
+      if ( gi >= blk->gni1 && gi <= blk->gni2 &&
+           gj >= blk->gnj1 && gj <= blk->gnj2 &&
+           gk >= blk->gnk1 && gk <= blk->gnk2 )
+      {
+        blk->num_of_point += 1;
+        is_here = 1;
+      }
+    }
+    if (is_here==1) blk->num_of_inline+=1;
+  }
+
+  // alloc
+  if (blk->num_of_inline>0)
+  {
+    blk->inline_fname = (char **) fdlib_mem_malloc_2l_char(blk->num_of_inline,
+                                                           FD_MAX_STRLEN,
+                                                           "inline_fname");
+    blk->inline_pos = (int *) malloc(blk->num_of_inline * sizeof(int));
+    blk->inline_num = (int *) malloc(blk->num_of_inline * sizeof(int));
+  }
+  if (blk->num_of_point>0)
+  {
+    blk->point_loc_point = (int *) malloc(blk->num_of_point * FD_NDIM * sizeof(int));
+    blk->point_seismo = (float *) fdlib_mem_malloc_1d(
+                                    blk->num_of_point * blk->w3d_num_of_vars * nt_total * sizeof(float),
+                                    "point_seismo");
+  }
+
+  // second run for value
+  int num_all = 0; int nline=0;
+  for (int n=0; n < number_of_receiver_line; n++)
+  {
+    int num_this_line = 0;
+    for (int ipt=0; ipt<receiver_line_count[n]; ipt++)
+    {
+      int gi = receiver_line_index_start[n*FD_NDIM+0] + ipt * receiver_line_index_incre[n*FD_NDIM  ];
+      int gj = receiver_line_index_start[n*FD_NDIM+1] + ipt * receiver_line_index_incre[n*FD_NDIM+1];
+      int gk = receiver_line_index_start[n*FD_NDIM+2] + ipt * receiver_line_index_incre[n*FD_NDIM+2];
+      if ( gi >= blk->gni1 && gi <= blk->gni2 &&
+           gj >= blk->gnj1 && gj <= blk->gnj2 &&
+           gk >= blk->gnk1 && gk <= blk->gnk2 )
+      {
+        int gi = receiver_line_index_start[n*FD_NDIM+0] + ipt * receiver_line_index_incre[n*FD_NDIM+0];
+        int gj = receiver_line_index_start[n*FD_NDIM+1] + ipt * receiver_line_index_incre[n*FD_NDIM+1];
+        int gk = receiver_line_index_start[n*FD_NDIM+2] + ipt * receiver_line_index_incre[n*FD_NDIM+2];
+
+        blk->point_loc_point[num_all*FD_NDIM+0] = gi - blk->gni1 + fd_nghosts;
+        blk->point_loc_point[num_all*FD_NDIM+1] = gj - blk->gnj1 + fd_nghosts;
+        blk->point_loc_point[num_all*FD_NDIM+2] = gk - blk->gnk1 + fd_nghosts;
+
+        num_all += 1;
+        num_this_line += 1;
+      }
+    }
+    if (num_this_line>0)
+    {
+      blk->inline_num[nline] = num_this_line;
+      if (nline>0) {
+        blk->inline_pos[nline] = blk->inline_pos[nline-1] + blk->inline_num[nline-1];
+      } else {
+        blk->inline_pos[nline] = 0;
+      }
+
+      sprintf(blk->inline_fname[nline],"%s/%s_%s.nc", blk->output_dir,
+                                                      receiver_line_name[n],
+                                                      blk->output_fname_part);
+
+      nline++;
+    }
+  }
+}
+
+void
+fd_blk_set_sta(struct fd_blk_t *blk)
+{
+  // init
+  blk->num_of_sta = 0;
 }
 
 void
@@ -980,3 +1037,230 @@ fd_blk_unpack_mesg(float *restrict rbuff,float *restrict w_cur,
   } // ivar
 }
 
+void
+fd_print(struct fd_t *fd)
+{    
+  fprintf(stdout, "\n-------------------------------------------------------\n");
+  fprintf(stdout, "print fd scheme info:\n");
+  fprintf(stdout, "-------------------------------------------------------\n\n");
+
+  fprintf(stdout, " num_rk_stages = %d\n", fd->num_rk_stages);
+
+  fprintf(stdout, "  rk_a = ");
+  for (int i=0; i<fd->num_rk_stages-1; i++) {
+    fprintf(stdout, " %e", fd->rk_a[i]);
+  }
+  fprintf(stdout, "\n");
+
+  fprintf(stdout, "  rk_b = ");
+  for (int i=0; i<fd->num_rk_stages; i++) {
+    fprintf(stdout, " %e", fd->rk_b[i]);
+  }
+  fprintf(stdout, "\n");
+
+  fprintf(stdout, " fd_len = %d\n", fd->fd_len);
+  fprintf(stdout, " fd_half_len = %d\n", fd->fd_half_len);
+  fprintf(stdout, " fd_nghosts = %d\n", fd->fd_nghosts);
+  fprintf(stdout, "  fd_indx = ");
+  for (int i=0; i<fd->fd_len; i++) {
+    fprintf(stdout, " %d", fd->fd_indx[i]);
+  }
+  fprintf(stdout, "\n");
+  fprintf(stdout, "  fd_coef = ");
+  for (int i=0; i<fd->fd_len; i++) {
+    fprintf(stdout, " %e", fd->fd_coef[i]);
+  }
+  fprintf(stdout, "\n");
+
+  fprintf(stdout, " fdx_max_len = %d\n", fd->fdx_max_len);
+  // rest
+
+}
+
+void
+fd_blk_print(struct fd_blk_t *blk)
+{    
+
+  fprintf(stdout, "\n-------------------------------------------------------\n");
+  fprintf(stdout, "print blk %s:\n", blk->name);
+  fprintf(stdout, "-------------------------------------------------------\n\n");
+  //fprintf(stdout, "-------------------------------------------------------\n");
+  //fprintf(stdout, "--> ESTIMATE MEMORY INFO.\n");
+  //fprintf(stdout, "-------------------------------------------------------\n");
+  //fprintf(stdout, "total memory size Byte: %20.5f  B\n", PSV->total_memory_size_Byte);
+  //fprintf(stdout, "total memory size KB  : %20.5f KB\n", PSV->total_memory_size_KB  );
+  //fprintf(stdout, "total memory size MB  : %20.5f MB\n", PSV->total_memory_size_MB  );
+  //fprintf(stdout, "total memory size GB  : %20.5f GB\n", PSV->total_memory_size_GB  );
+  //fprintf(stdout, "\n");
+  //fprintf(stdout, "-------------------------------------------------------\n");
+  //fprintf(stdout, "--> FOLDER AND FILE INFO.\n");
+  //fprintf(stdout, "-------------------------------------------------------\n");
+  //fprintf(stdout, "   OutFolderName: %s\n", OutFolderName);
+  //fprintf(stdout, "       EventName: %s\n", OutPrefix);
+  //fprintf(stdout, "     LogFilename: %s\n", LogFilename);
+  //fprintf(stdout, " StationFilename: %s\n", StationFilename);
+  //fprintf(stdout, "  SourceFilename: %s\n", SourceFilename);
+  //fprintf(stdout, "   MediaFilename: %s\n", MediaFilename);
+  //fprintf(stdout, "\n");
+
+  fprintf(stdout, "-------------------------------------------------------\n");
+  fprintf(stdout, "--> grid info:\n");
+  fprintf(stdout, "-------------------------------------------------------\n");
+  fprintf(stdout, " nx    = %-10d\n", blk->nx);
+  fprintf(stdout, " ny    = %-10d\n", blk->ny);
+  fprintf(stdout, " nz    = %-10d\n", blk->nz);
+  fprintf(stdout, " ni    = %-10d\n", blk->ni);
+  fprintf(stdout, " nj    = %-10d\n", blk->nj);
+  fprintf(stdout, " nk    = %-10d\n", blk->nk);
+
+  fprintf(stdout, " ni1   = %-10d\n", blk->ni1);
+  fprintf(stdout, " ni2   = %-10d\n", blk->ni2);
+  fprintf(stdout, " nj1   = %-10d\n", blk->nj1);
+  fprintf(stdout, " nj2   = %-10d\n", blk->nj2);
+  fprintf(stdout, " nk1   = %-10d\n", blk->nk1);
+  fprintf(stdout, " nk2   = %-10d\n", blk->nk2);
+
+  fprintf(stdout, " gni1   = %-10d\n", blk->gni1);
+  fprintf(stdout, " gni2   = %-10d\n", blk->gni2);
+  fprintf(stdout, " gnj1   = %-10d\n", blk->gnj1);
+  fprintf(stdout, " gnj2   = %-10d\n", blk->gnj2);
+  fprintf(stdout, " gnk1   = %-10d\n", blk->gnk1);
+  fprintf(stdout, " gnk2   = %-10d\n", blk->gnk2);
+
+  //fprintf(stdout, "-------------------------------------------------------\n");
+  //fprintf(stdout, "--> media info.\n");
+  //fprintf(stdout, "-------------------------------------------------------\n");
+  //if (blk->media_type == MEDIA_TYPE_LAYER)
+  //{
+  //    strcpy(str, "layer");
+  //}
+  //else if (blk->media_type == MEDIA_TYPE_GRID)
+  //{
+  //    strcpy(str, "grid");
+  //}
+  //fprintf(stdout, " media_type = %s\n", str);
+  //if(blk->media_type == MEDIA_TYPE_GRID)
+  //{
+  //    fprintf(stdout, "\n --> the media filename is:\n");
+  //    fprintf(stdout, " velp_file  = %s\n", blk->fnm_velp);
+  //    fprintf(stdout, " vels_file  = %s\n", blk->fnm_vels);
+  //    fprintf(stdout, " rho_file   = %s\n", blk->fnm_rho);
+  //}
+  //fprintf(stdout, "\n");
+  //fprintf(stdout, "-------------------------------------------------------\n");
+  //fprintf(stdout, "--> source info.\n");
+  //fprintf(stdout, "-------------------------------------------------------\n");
+  //fprintf(stdout, " number_of_force  = %d\n", blk->number_of_force);
+  //if(blk->number_of_force > 0)
+  //{
+  //    fprintf(stdout, " force_source           x           z     x_shift     z_shift           i           k:\n");
+  //    for(n=0; n<blk->number_of_force; n++)
+  //    {
+  //        indx = 2*n;
+  //        fprintf(stdout, "         %04d  %10.4e  %10.4e  %10.4e  %10.4e  %10d  %10d\n", n+1, 
+  //                blk->force_coord[indx], blk->force_coord[indx+1],
+  //                blk->force_shift[indx], blk->force_shift[indx+1],
+  //                blk->force_indx [indx], blk->force_indx [indx+1]);
+  //    }
+  //    fprintf(stdout, "\n");
+  //}
+
+  //fprintf(stdout, "\n");
+  //fprintf(stdout, " number_of_moment = %d\n", blk->number_of_moment);
+  //if(blk->number_of_moment > 0)
+  //{
+  //    fprintf(stdout, " moment_source          x           z     x_shift     z_shift           i           k:\n");
+  //    for(n=0; n<blk->number_of_moment; n++)
+  //    {
+  //        indx = 2*n;
+  //        fprintf(stdout, "         %04d  %10.4e  %10.4e  %10.4e  %10.4e  %10d  %10d\n", n+1, 
+  //                blk->moment_coord[indx], blk->moment_coord[indx+1],
+  //                blk->moment_shift[indx], blk->moment_shift[indx+1],
+  //                blk->moment_indx [indx], blk->moment_indx [indx+1]);
+  //    }
+  //    fprintf(stdout, "\n");
+  //}
+
+  //fprintf(stdout, "-------------------------------------------------------\n");
+  //fprintf(stdout, "--> boundary layer information:\n");
+  //fprintf(stdout, "-------------------------------------------------------\n");
+  //ierr = boundary_id2type(type1, blk->boundary_type[0], errorMsg);
+  //ierr = boundary_id2type(type2, blk->boundary_type[1], errorMsg);
+  //ierr = boundary_id2type(type3, blk->boundary_type[2], errorMsg);
+  //ierr = boundary_id2type(type4, blk->boundary_type[3], errorMsg);
+  //fprintf(stdout, " boundary_type         = %10s%10s%10s%10s\n", 
+  //        type1, type2, type3, type4);
+  //fprintf(stdout, " boundary_layer_number = %10d%10d%10d%10d\n", 
+  //        blk->boundary_layer_number[0], blk->boundary_layer_number[1], 
+  //        blk->boundary_layer_number[2], blk->boundary_layer_number[3]);
+  //fprintf(stdout, "\n");
+  //fprintf(stdout, " absorb_velocity       = %10.2f%10.2f%10.2f%10.2f\n", 
+  //        blk->absorb_velocity[0], blk->absorb_velocity[1], blk->absorb_velocity[2], 
+  //        blk->absorb_velocity[3]);
+  //fprintf(stdout, "\n");
+  //fprintf(stdout, " CFS_alpha_max         = %10.2f%10.2f%10.2f%10.2f\n", 
+  //        blk->CFS_alpha_max[0], blk->CFS_alpha_max[1], blk->CFS_alpha_max[2], 
+  //        blk->CFS_alpha_max[3]);
+  //fprintf(stdout, " CFS_beta_max          = %10.2f%10.2f%10.2f%10.2f\n", 
+  //        blk->CFS_beta_max[0], blk->CFS_beta_max[1], blk->CFS_beta_max[2], 
+  //        blk->CFS_beta_max[3]);
+  
+  fprintf(stdout, "-------------------------------------------------------\n");
+  fprintf(stdout, "--> output information:\n");
+  fprintf(stdout, "-------------------------------------------------------\n");
+
+  fprintf(stdout, "--> num_of_slice_x = %d\n", blk->num_of_slice_x);
+  for (int n=0; n<blk->num_of_slice_x; n++)
+  {
+    fprintf(stdout, "  #%d, i=%d, fname=%s\n", n, blk->slice_x_indx[n],blk->slice_x_fname[n]);
+  }
+  fprintf(stdout, "--> num_of_slice_y = %d\n", blk->num_of_slice_y);
+  for (int n=0; n<blk->num_of_slice_y; n++)
+  {
+    fprintf(stdout, "  #%d, j=%d, fname=%s\n", n, blk->slice_y_indx[n],blk->slice_y_fname[n]);
+  }
+  fprintf(stdout, "--> num_of_slice_z = %d\n", blk->num_of_slice_z);
+  for (int n=0; n<blk->num_of_slice_z; n++)
+  {
+    fprintf(stdout, "  #%d, k=%d, fname=%s\n", n, blk->slice_z_indx[n],blk->slice_z_fname[n]);
+  }
+
+  fprintf(stdout, "--> num_of_snap = %d\n", blk->num_of_snap);
+  fprintf(stdout, "#   i0 j0 k0 ni nj nk di dj dk it0 dit vel stress strain\n");
+  for (int n=0; n<blk->num_of_snap; n++)
+  {
+    int iptr = n * FD_SNAP_INFO_SIZE;
+
+    fprintf(stdout, " %d", n);
+    for (int i=0; i<FD_SNAP_INFO_SIZE; i++)
+    {
+      fprintf(stdout, " %d", blk->snap_info[iptr+i]);
+    }
+    fprintf(stdout, "\n");
+  }
+
+  //fprintf(stdout, "\n");
+  //fprintf(stdout, "--> station information.\n");
+  //fprintf(stdout, " number_of_station  = %4d\n", blk->number_of_station);
+  //fprintf(stdout, " seismo_format_sac  = %4d\n", blk->seismo_format_sac );
+  //fprintf(stdout, " seismo_format_segy = %4d\n", blk->seismo_format_segy);
+  //fprintf(stdout, " SeismoPrefix = %s\n", SeismoPrefix);
+  //fprintf(stdout, "\n");
+
+  //if(blk->number_of_station > 0)
+  //{
+  //    //fprintf(stdout, " station_indx:\n");
+  //    fprintf(stdout, " stations             x           z           i           k:\n");
+  //}
+
+  //for(n=0; n<blk->number_of_station; n++)
+  //{
+  //    indx = 2*n;
+  //    fprintf(stdout, "       %04d  %10.4e  %10.4e  %10d  %10d\n", n+1, 
+  //            blk->station_coord[indx], blk->station_coord[indx+1],
+  //            blk->station_indx [indx], blk->station_indx [indx+1]);
+  //}
+  //fprintf(stdout, "\n");
+
+  return;
+}

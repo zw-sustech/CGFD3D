@@ -39,8 +39,14 @@ sv_eliso1st_curv_macdrp_allstep(
     int   *restrict moment_ext_indx,
     float *restrict moment_ext_coef,
     // io
-    int num_of_sta, int *restrict sta_loc_point, float *restrict sta_seismo,
-    int num_of_snap, int *restrict snap_grid_indx, int *restrict snap_time_indx,
+    int num_of_sta, int *restrict sta_loc_indx, float *restrict sta_loc_dxyz, float *restrict sta_seismo,
+    int num_of_point, int *restrict point_loc_indx, float *restrict point_seismo,
+    int num_of_slice_x, int *restrict slice_x_indx, char **restrict slice_x_fname,
+    int num_of_slice_y, int *restrict slice_y_indx, char **restrict slice_y_fname,
+    int num_of_slice_z, int *restrict slice_z_indx, char **restrict slice_z_fname,
+    int num_of_snap, int *restrict snap_info, char **snap_fname,
+    char *ou_fname_thisid,
+    char *out_dir,
     // scheme
     int num_rk_stages, float *rk_a, float *rk_b, int num_of_pairs, 
     int fdx_max_half_len, int fdy_max_half_len,
@@ -57,9 +63,8 @@ sv_eliso1st_curv_macdrp_allstep(
     MPI_Request *s_reqs,
     MPI_Request *r_reqs,
     int qc_check_nan_num_of_step,
-    const int verbose, // used for fprint qc
-    char *name,
-    char *out_dir);
+    const int output_all, // qc all var
+    const int verbose);
 
 void
 sv_eliso1st_curv_macdrp_onestage(
@@ -251,5 +256,19 @@ sv_eliso1st_curv_macdrp_vel_dxy2dz(
     float **restrict p_matVy2Vz,
     const int myid, const int verbose);
 
+void
+sv_eliso1st_curv_macdrp_snap_buff(float *restrict var,
+                                  size_t siz_line,
+                                  size_t siz_slice,
+                                  int starti,
+                                  int counti,
+                                  int increi,
+                                  int startj,
+                                  int countj,
+                                  int increj,
+                                  int startk,
+                                  int countk,
+                                  int increk,
+                                  float *restrict buff);
 
 #endif

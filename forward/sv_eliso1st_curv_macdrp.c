@@ -22,6 +22,11 @@
 #include "io_funcs.h"
 #include "sv_eliso1st_curv_macdrp.h"
 
+//#define M_NCERR(ierr) {fprintf(stderr,"sv_ nc error: %s\n", nc_strerror(ierr)); exit(1);}
+#ifndef M_NCERR
+#define M_NCERR {fprintf(stderr,"sv_ nc error\n"); exit(1);}
+#endif
+
 //#define SV_ELISO1ST_CURV_MACDRP_DEBUG
 
 //#ifdef SV_ELISO1ST_CURV_MACDRP_DEBUG
@@ -70,8 +75,14 @@ sv_eliso1st_curv_macdrp_allstep(
     int   *restrict moment_ext_indx,
     float *restrict moment_ext_coef,
     // io
-    int num_of_sta, int *restrict sta_loc_point, float *restrict sta_seismo,
-    int num_of_snap, int *restrict snap_grid_indx, int *restrict snap_time_indx,
+    int num_of_sta, int *restrict sta_loc_indx, float *restrict sta_loc_dxyz, float *restrict sta_seismo,
+    int num_of_point, int *restrict point_loc_indx, float *restrict point_seismo,
+    int num_of_slice_x, int *restrict slice_x_indx, char **restrict slice_x_fname,
+    int num_of_slice_y, int *restrict slice_y_indx, char **restrict slice_y_fname,
+    int num_of_slice_z, int *restrict slice_z_indx, char **restrict slice_z_fname,
+    int num_of_snap, int *restrict snap_info, char **snap_fname,
+    char *output_fname_part,
+    char *output_dir,
     // scheme
     int num_rk_stages, float *rk_a, float *rk_b,
     int num_of_pairs, 
@@ -89,9 +100,8 @@ sv_eliso1st_curv_macdrp_allstep(
     MPI_Request *s_reqs,
     MPI_Request *r_reqs,
     int qc_check_nan_num_of_step,
-    const int verbose, // used for fprint qc
-    char *name,
-    char *output_dir)
+    const int output_all, // qc all var
+    const int verbose)
 {
   // local allocated array
   float *force_vec_value  = NULL;  // num_of_force * 3
@@ -115,6 +125,25 @@ sv_eliso1st_curv_macdrp_allstep(
   float t_cur;
 
   size_t w3d_size_per_level = WF_EL_1ST_NVAR * siz_volume;
+
+  // io nc
+  int ncid_slx[num_of_slice_x];
+  int varid_slx[w3d_num_of_vars];
+
+  int ncid_sly[num_of_slice_y];
+  int varid_sly[w3d_num_of_vars];
+
+  int ncid_slz[num_of_slice_z];
+  int varid_slz[w3d_num_of_vars];
+
+  int ncid_snap[num_of_snap];
+  int varid_snap_vel[num_of_snap*FD_NDIM];
+  int varid_snap_T[num_of_snap*FD_NDIM_2];
+  int varid_snap_E[num_of_snap*FD_NDIM_2];
+  int snap_cur_it[num_of_snap];
+  for (int n=0; n<num_of_snap; n++) {
+    snap_cur_it[n] = 0;
+  }
 
   // only x/y mpi
   int num_of_r_reqs = 4;
@@ -141,6 +170,107 @@ sv_eliso1st_curv_macdrp_allstep(
   abs_vars_tmp = abs_vars + abs_vars_size_per_level * 1;
   abs_vars_rhs = abs_vars + abs_vars_size_per_level * 2;
   abs_vars_end = abs_vars + abs_vars_size_per_level * 3;
+
+  // create slice and snapshot nc
+  for (int n=0; n<num_of_slice_x; n++)
+  {
+    int dimid[3];
+    if (nc_create(slice_x_fname[n], NC_CLOBBER, &ncid_slx[n])) M_NCERR;
+    if (nc_def_dim(ncid_slx[n], "time", nt_total, &dimid[0])) M_NCERR;
+    if (nc_def_dim(ncid_slx[n], "zeta", nk      , &dimid[1])) M_NCERR;
+    if (nc_def_dim(ncid_slx[n], "eta" , nj      , &dimid[2])) M_NCERR;
+    for (int ivar=0; ivar<w3d_num_of_vars; ivar++) {
+      if (nc_def_var(ncid_slx[n], w3d_name[ivar], NC_FLOAT, 3, dimid, &varid_slx[ivar])) M_NCERR;
+    }
+    if (nc_enddef(ncid_slx[n])) M_NCERR;
+  }
+  for (int n=0; n<num_of_slice_y; n++) {
+    //int sli_id = slice_y_info[n*2+0];
+    int dimid[3];
+    if (nc_create(slice_y_fname[n], NC_CLOBBER, &ncid_sly[n])) M_NCERR;
+    if (nc_def_dim(ncid_sly[n], "time", nt_total, &dimid[0])) M_NCERR;
+    if (nc_def_dim(ncid_sly[n], "zeta", nk      , &dimid[1])) M_NCERR;
+    if (nc_def_dim(ncid_sly[n], "xi" , ni      , &dimid[2])) M_NCERR;
+    for (int ivar=0; ivar<w3d_num_of_vars; ivar++) {
+      if (nc_def_var(ncid_sly[n], w3d_name[ivar], NC_FLOAT, 3, dimid, &varid_sly[ivar])) M_NCERR;
+    }
+    if (nc_enddef(ncid_sly[n])) M_NCERR;
+  }
+  for (int n=0; n<num_of_slice_z; n++) {
+    //int sli_id = slice_z_info[n*2+0];
+    int dimid[3];
+    if (nc_create(slice_z_fname[n], NC_CLOBBER, &ncid_slz[n])) M_NCERR;
+    if (nc_def_dim(ncid_slz[n], "time", nt_total, &dimid[0])) M_NCERR;
+    if (nc_def_dim(ncid_slz[n], "eta", nj      , &dimid[1])) M_NCERR;
+    if (nc_def_dim(ncid_slz[n], "xi" , ni      , &dimid[2])) M_NCERR;
+    for (int ivar=0; ivar<w3d_num_of_vars; ivar++) {
+      if (nc_def_var(ncid_slz[n], w3d_name[ivar], NC_FLOAT, 3, dimid, &varid_slz[ivar])) M_NCERR;
+    }
+    if (nc_enddef(ncid_slz[n])) M_NCERR;
+  }
+  // snapshot
+  for (int n=0; n<num_of_snap; n++)
+  {
+    int dimid[4];
+    int *cur_snap_info = snap_info + n * (FD_NDIM * 3 + 2 + w3d_num_of_vars);
+    int snap_i1  = cur_snap_info[FD_SNAP_INFO_I1];
+    int snap_j1  = cur_snap_info[FD_SNAP_INFO_J1];
+    int snap_k1  = cur_snap_info[FD_SNAP_INFO_K1];
+    int snap_ni  = cur_snap_info[FD_SNAP_INFO_NI];
+    int snap_nj  = cur_snap_info[FD_SNAP_INFO_NJ];
+    int snap_nk  = cur_snap_info[FD_SNAP_INFO_NK];
+    int snap_di  = cur_snap_info[FD_SNAP_INFO_DI];
+    int snap_dj  = cur_snap_info[FD_SNAP_INFO_DJ];
+    int snap_dk  = cur_snap_info[FD_SNAP_INFO_DK];
+
+    int snap_it1 = cur_snap_info[FD_SNAP_INFO_IT1];
+    int snap_dit = cur_snap_info[FD_SNAP_INFO_DIT];
+    int snap_nt_total = (nt_total - snap_it1) / snap_dit;
+    int snap_out_V = cur_snap_info[FD_SNAP_INFO_VEL];
+    int snap_out_T = cur_snap_info[FD_SNAP_INFO_STRESS];
+    int snap_out_E = cur_snap_info[FD_SNAP_INFO_STRAIN];
+
+    if (nc_create(snap_fname[n], NC_CLOBBER, &ncid_snap[n])) M_NCERR;
+    if (nc_def_dim(ncid_snap[n], "time", snap_nt_total, &dimid[0])) M_NCERR;
+    if (nc_def_dim(ncid_snap[n], "zeta", snap_nk      , &dimid[1])) M_NCERR;
+    if (nc_def_dim(ncid_snap[n], "eta" , snap_nj      , &dimid[2])) M_NCERR;
+    if (nc_def_dim(ncid_snap[n], "xi" , snap_ni      , &dimid[3])) M_NCERR;
+    if (snap_out_V==1) {
+       if (nc_def_var(ncid_snap[n],"Vx",NC_FLOAT,4,dimid,&varid_snap_vel[n*FD_NDIM+0])) M_NCERR;
+       if (nc_def_var(ncid_snap[n],"Vy",NC_FLOAT,4,dimid,&varid_snap_vel[n*FD_NDIM+1])) M_NCERR;
+       if (nc_def_var(ncid_snap[n],"Vz",NC_FLOAT,4,dimid,&varid_snap_vel[n*FD_NDIM+2])) M_NCERR;
+    }
+    if (snap_out_T==1) {
+       if (nc_def_var(ncid_snap[n],"Txx",NC_FLOAT,4,dimid,&varid_snap_T[n*FD_NDIM_2+0])) M_NCERR;
+       if (nc_def_var(ncid_snap[n],"Tyy",NC_FLOAT,4,dimid,&varid_snap_T[n*FD_NDIM_2+1])) M_NCERR;
+       if (nc_def_var(ncid_snap[n],"Tzz",NC_FLOAT,4,dimid,&varid_snap_T[n*FD_NDIM_2+2])) M_NCERR;
+       if (nc_def_var(ncid_snap[n],"Txz",NC_FLOAT,4,dimid,&varid_snap_T[n*FD_NDIM_2+3])) M_NCERR;
+       if (nc_def_var(ncid_snap[n],"Tyz",NC_FLOAT,4,dimid,&varid_snap_T[n*FD_NDIM_2+4])) M_NCERR;
+       if (nc_def_var(ncid_snap[n],"Txy",NC_FLOAT,4,dimid,&varid_snap_T[n*FD_NDIM_2+5])) M_NCERR;
+    }
+    if (snap_out_E==1) {
+       if (nc_def_var(ncid_snap[n],"Exx",NC_FLOAT,4,dimid,&varid_snap_E[n*FD_NDIM_2+0])) M_NCERR;
+       if (nc_def_var(ncid_snap[n],"Eyy",NC_FLOAT,4,dimid,&varid_snap_E[n*FD_NDIM_2+1])) M_NCERR;
+       if (nc_def_var(ncid_snap[n],"Ezz",NC_FLOAT,4,dimid,&varid_snap_E[n*FD_NDIM_2+2])) M_NCERR;
+       if (nc_def_var(ncid_snap[n],"Exz",NC_FLOAT,4,dimid,&varid_snap_E[n*FD_NDIM_2+3])) M_NCERR;
+       if (nc_def_var(ncid_snap[n],"Eyz",NC_FLOAT,4,dimid,&varid_snap_E[n*FD_NDIM_2+4])) M_NCERR;
+       if (nc_def_var(ncid_snap[n],"Exy",NC_FLOAT,4,dimid,&varid_snap_E[n*FD_NDIM_2+5])) M_NCERR;
+    }
+    if (nc_enddef(ncid_snap[n])) M_NCERR;
+
+    //sv_eliso1st_curv_macdrp_snap_create_nc(snap_fname[n],
+    //                                       snap_nt_totle,
+    //                                       snap_ni,
+    //                                       snap_nj,
+    //                                       snap_nk,
+    //                                       snap_out_vel,
+    //                                       snap_out_stress,
+    //                                       snap_out_strain,
+    //                                       ncid_snap+n,
+    //                                       varid_snap_V+n*FD_NDIM,
+    //                                       varid_snap_T+n*FD_NDIM_2,
+    //                                       varid_snap_E+n*FD_NDIM_2);
+  }
 
   //
   // time loop
@@ -367,28 +497,201 @@ sv_eliso1st_curv_macdrp_allstep(
     }
 
     // save results
-    //io_seismo_keep();
-    for (int n=0; n<num_of_snap; n++)
+    //-- sta by interp
+    for (int n=0; n<num_of_sta; n++)
     {
-      int snap_it1 = snap_time_indx[n*3+0];
-      int snap_it_total = snap_time_indx[n*3+1];
-      int snap_dit = snap_time_indx[n*3+2];
-      int snap_it_mod = (it - snap_it1) % snap_dit;
-      int snap_it_num = (it - snap_it1) / snap_dit;
-
-      if (it>=snap_it1 && snap_it_num<=snap_it_total && snap_it_mod==0)
-      {
-        //sprintf(ou_file,"%s/%s_snapshot_%03d_Vz_it%d.bin", output_dir,name,n,it);
-        sprintf(ou_file,"%s/%s_snapshot_%d_Vz_it%d.bin", output_dir,name,n,it);
-        io_snapshot_export(ou_file,
-                           wf_el_1st_getptr_Vz(w_end, siz_volume),
-                           nx,ny,nz,
-                           snap_grid_indx,
-                           verbose);
+      int iptr = sta_loc_indx[0] + sta_loc_indx[1] * siz_line + sta_loc_indx[2] * siz_slice;
+      // need to implement interp, now just take value
+      for (int ivar=0; ivar<w3d_num_of_vars; ivar++) {
+        int iptr_sta = (n * w3d_num_of_vars + ivar) * nt_total + it;
+        sta_seismo[iptr_sta] = w_end[ivar*siz_volume + iptr];
       }
     }
+    //-- point values
+    for (int n=0; n<num_of_point; n++)
+    {
+      int iptr = point_loc_indx[0] + point_loc_indx[1] * siz_line + point_loc_indx[2] * siz_slice;
+      for (int ivar=0; ivar<w3d_num_of_vars; ivar++) {
+        int iptr_point = (n * w3d_num_of_vars + ivar) * nt_total + it;
+        point_seismo[iptr_point] = w_end[ivar*siz_volume + iptr];
+      }
+    }
+    //-- slice x, use w_rhs as buff
+    int max_used_rhs = 0;
+    for (int n=0; n<num_of_slice_x; n++) {
+      size_t startp[] = { it, 0, 0 };
+      size_t countp[] = { 1, nk, nj};
+      for (int ivar=0; ivar<w3d_num_of_vars; ivar++) {
+        int iptr_var = w3d_pos[ivar];
+        int iptr_slice = 0;
+        for (int k=nk1; k<=nk2; k++) {
+          for (int j=nj1; j<=nj2; j++) {
+            int i = slice_x_indx[n];
+            int iptr = i + j * siz_line + k * siz_slice + iptr_var;
+            w_rhs[iptr_slice] = w_end[iptr];
+            iptr_slice++;
+          }
+        }
+        nc_put_vara_float(ncid_slx[n],varid_slx[ivar],startp,countp,w_rhs);
+        max_used_rhs = (iptr_slice > max_used_rhs) ? iptr_slice : max_used_rhs;
+      }
+    }
+    // slice y
+    for (int n=0; n<num_of_slice_y; n++) {
+      size_t startp[] = { it, 0, 0 };
+      size_t countp[] = { 1, nk, ni};
+      for (int ivar=0; ivar<w3d_num_of_vars; ivar++) {
+        int iptr_var = w3d_pos[ivar];
+        int iptr_slice = 0;
+        for (int k=nk1; k<=nk2; k++) {
+          int j = slice_y_indx[n];
+          for (int i=ni1; i<=ni2; i++) {
+            int iptr = i + j * siz_line + k * siz_slice + iptr_var;
+            w_rhs[iptr_slice] = w_end[iptr];
+            iptr_slice++;
+          }
+        }
+        nc_put_vara_float(ncid_sly[n],varid_sly[ivar],startp,countp,w_rhs);
+        max_used_rhs = (iptr_slice > max_used_rhs) ? iptr_slice : max_used_rhs;
+      }
+    }
+    // slice z
+    for (int n=0; n<num_of_slice_z; n++) {
+      size_t startp[] = { it, 0, 0 };
+      size_t countp[] = { 1, nj, ni};
+      for (int ivar=0; ivar<w3d_num_of_vars; ivar++) {
+        int iptr_var = w3d_pos[ivar];
+        int k = slice_z_indx[n];
+        int iptr_slice = 0;
+        for (int j=nj1; j<=nj2; j++) {
+          for (int i=ni1; i<=ni2; i++) {
+            int iptr = i + j * siz_line + k * siz_slice + iptr_var;
+            w_rhs[iptr_slice] = w_end[iptr];
+            iptr_slice++;
+          }
+        }
+        nc_put_vara_float(ncid_slz[n],varid_slz[ivar],startp,countp,w_rhs);
+        max_used_rhs = (iptr_slice > max_used_rhs) ? iptr_slice : max_used_rhs;
+      }
+    }
+    // snapshot
+    for (int n=0; n<num_of_snap; n++)
+    {
+      int *cur_snap_info = snap_info + n * FD_SNAP_INFO_SIZE;
+      int snap_i1  = cur_snap_info[FD_SNAP_INFO_I1];
+      int snap_j1  = cur_snap_info[FD_SNAP_INFO_J1];
+      int snap_k1  = cur_snap_info[FD_SNAP_INFO_K1];
+      int snap_ni  = cur_snap_info[FD_SNAP_INFO_NI];
+      int snap_nj  = cur_snap_info[FD_SNAP_INFO_NJ];
+      int snap_nk  = cur_snap_info[FD_SNAP_INFO_NK];
+      int snap_di  = cur_snap_info[FD_SNAP_INFO_DI];
+      int snap_dj  = cur_snap_info[FD_SNAP_INFO_DJ];
+      int snap_dk  = cur_snap_info[FD_SNAP_INFO_DK];
+
+      int snap_it1 = cur_snap_info[FD_SNAP_INFO_IT1];
+      int snap_dit = cur_snap_info[FD_SNAP_INFO_DIT];
+      int snap_it_mod = (it - snap_it1) % snap_dit;
+      int snap_it_num = (it - snap_it1) / snap_dit;
+      int snap_nt_total = (nt_total - snap_it1) / snap_dit;
+      int snap_out_V = cur_snap_info[FD_SNAP_INFO_VEL];
+      int snap_out_T = cur_snap_info[FD_SNAP_INFO_STRESS];
+      int snap_out_E = cur_snap_info[FD_SNAP_INFO_STRAIN];
+
+      int snap_max_num = snap_ni * snap_nj * snap_nk;
+
+      if (it>=snap_it1 && snap_it_num<=snap_nt_total && snap_it_mod==0)
+      {
+        size_t startp[] = { snap_cur_it[n], 0, 0, 0 };
+        size_t countp[] = { 1, snap_nk, snap_nj, snap_ni };
+        // vel
+        if (snap_out_V==1)
+        {
+          sv_eliso1st_curv_macdrp_snap_buff(w_end+WF_EL_1ST_SEQ_Vx*siz_volume,
+                siz_line,siz_slice,snap_i1,snap_ni,snap_di,snap_j1,snap_nj,
+                snap_dj,snap_k1,snap_nk,snap_dk,w_rhs);
+          nc_put_vara_float(ncid_snap[n],varid_snap_vel[n*FD_NDIM+0],startp,countp,w_rhs);
+
+          sv_eliso1st_curv_macdrp_snap_buff(w_end+WF_EL_1ST_SEQ_Vy*siz_volume,
+                siz_line,siz_slice,snap_i1,snap_ni,snap_di,snap_j1,snap_nj,
+                snap_dj,snap_k1,snap_nk,snap_dk,w_rhs);
+          nc_put_vara_float(ncid_snap[n],varid_snap_vel[n*FD_NDIM+1],startp,countp,w_rhs);
+
+          sv_eliso1st_curv_macdrp_snap_buff(w_end+WF_EL_1ST_SEQ_Vz*siz_volume,
+                siz_line,siz_slice,snap_i1,snap_ni,snap_di,snap_j1,snap_nj,
+                snap_dj,snap_k1,snap_nk,snap_dk,w_rhs);
+          nc_put_vara_float(ncid_snap[n],varid_snap_vel[n*FD_NDIM+2],startp,countp,w_rhs);
+        }
+        if (snap_out_T==1)
+        {
+          sv_eliso1st_curv_macdrp_snap_buff(w_end+WF_EL_1ST_SEQ_Txx*siz_volume,
+                siz_line,siz_slice,snap_i1,snap_ni,snap_di,snap_j1,snap_nj,
+                snap_dj,snap_k1,snap_nk,snap_dk,w_rhs);
+          nc_put_vara_float(ncid_snap[n],varid_snap_T[n*FD_NDIM_2+0],startp,countp,w_rhs);
+
+          sv_eliso1st_curv_macdrp_snap_buff(w_end+WF_EL_1ST_SEQ_Tyy*siz_volume,
+                siz_line,siz_slice,snap_i1,snap_ni,snap_di,snap_j1,snap_nj,
+                snap_dj,snap_k1,snap_nk,snap_dk,w_rhs);
+          nc_put_vara_float(ncid_snap[n],varid_snap_T[n*FD_NDIM_2+1],startp,countp,w_rhs);
+          
+          sv_eliso1st_curv_macdrp_snap_buff(w_end+WF_EL_1ST_SEQ_Tzz*siz_volume,
+                siz_line,siz_slice,snap_i1,snap_ni,snap_di,snap_j1,snap_nj,
+                snap_dj,snap_k1,snap_nk,snap_dk,w_rhs);
+          nc_put_vara_float(ncid_snap[n],varid_snap_T[n*FD_NDIM_2+2],startp,countp,w_rhs);
+          
+          sv_eliso1st_curv_macdrp_snap_buff(w_end+WF_EL_1ST_SEQ_Txz*siz_volume,
+                siz_line,siz_slice,snap_i1,snap_ni,snap_di,snap_j1,snap_nj,
+                snap_dj,snap_k1,snap_nk,snap_dk,w_rhs);
+          nc_put_vara_float(ncid_snap[n],varid_snap_T[n*FD_NDIM_2+3],startp,countp,w_rhs);
+
+          sv_eliso1st_curv_macdrp_snap_buff(w_end+WF_EL_1ST_SEQ_Tyz*siz_volume,
+                siz_line,siz_slice,snap_i1,snap_ni,snap_di,snap_j1,snap_nj,
+                snap_dj,snap_k1,snap_nk,snap_dk,w_rhs);
+          nc_put_vara_float(ncid_snap[n],varid_snap_T[n*FD_NDIM_2+4],startp,countp,w_rhs);
+
+          sv_eliso1st_curv_macdrp_snap_buff(w_end+WF_EL_1ST_SEQ_Txy*siz_volume,
+                siz_line,siz_slice,snap_i1,snap_ni,snap_di,snap_j1,snap_nj,
+                snap_dj,snap_k1,snap_nk,snap_dk,w_rhs);
+          nc_put_vara_float(ncid_snap[n],varid_snap_T[n*FD_NDIM_2+5],startp,countp,w_rhs);
+        }
+        if (snap_out_E==1)
+        {
+          // need to implement
+        }
+        //for (int ivar=0; ivar<w3d_num_of_vars; ivar++)
+        //{
+        //  if (snap_save_cmp[n*w3d_num_of_vars+ivar]==1)
+        //  {
+        //    int iptr_var = w3d_pos[ivar];
+        //    int iptr_snap=0;
+        //    for (int n3=0; n3<snap_nk; n3++)
+        //    {
+        //      int k = cur_snap_info[2] + n3 * cur_snap_info[8];
+        //      for (int n2=0; n2<snap_nj; n2++)
+        //      {
+        //        int j = cur_snap_info[1] + n2 * cur_snap_info[7];
+        //        for (int n1=0; n1<snap_ni; n1++)
+        //        {
+        //          int i = cur_snap_info[0] + n1 * cur_snap_info[6];
+        //          int iptr = i + j * siz_line + k * siz_slice + iptr_var;
+        //          w_rhs[iptr_snap] = w_end[iptr];
+        //          iptr_snap++;
+        //        }
+        //      }
+        //    }
+        //    size_t startp[] = { snap_cur_it[n], 0, 0, 0 };
+        //    size_t countp[] = { 1, snap_nk, snap_nj, snap_ni };
+        //    nc_put_vara_float(ncid_snap[n],varid_snap[n*w3d_num_of_vars+ivar],startp,countp,w_rhs);
+        //  }
+        //}
+        max_used_rhs = (snap_max_num > max_used_rhs) ? snap_max_num : max_used_rhs;
+        snap_cur_it[n] += 1;
+      }
+    }
+    // zero temp used w_rsh
+    for (int i=0; i<max_used_rhs; i++) w_rhs[i]=0.0;
 
     // debug output
+    if (output_all==1) {
         io_build_fname_time(output_dir,"w3d",".nc",myid2,it,ou_file);
         io_var3d_export_nc(ou_file,
                            w_end,
@@ -399,6 +702,7 @@ sv_eliso1st_curv_macdrp_allstep(
                            nx,
                            ny,
                            nz);
+    }
 
     // swap w_pre and w_end, avoid copying
     w_cur = w_pre; w_pre = w_end; w_end = w_cur;
@@ -409,6 +713,21 @@ sv_eliso1st_curv_macdrp_allstep(
   // postproc
   if (force_vec_value ) free(force_vec_value );
   if (moment_ten_value) free(moment_ten_value);
+
+  // close nc
+  for (int n=0; n<num_of_slice_x; n++) {
+    nc_close(ncid_slx[n]);
+  }
+  for (int n=0; n<num_of_slice_y; n++) {
+    nc_close(ncid_sly[n]);
+  }
+  for (int n=0; n<num_of_slice_z; n++) {
+    nc_close(ncid_slz[n]);
+  }
+  for (int n=0; n<num_of_snap; n++)
+  {
+    nc_close(ncid_snap[n]);
+  }
 }
 
 /*******************************************************************************
@@ -2746,3 +3065,100 @@ sv_eliso1st_curv_macdrp_vel_dxy2dz(
   *p_matVx2Vz = matVx2Vz;
   *p_matVy2Vz = matVy2Vz;
 }
+
+void
+sv_eliso1st_curv_macdrp_snap_buff(float *restrict var,
+                                  size_t siz_line,
+                                  size_t siz_slice,
+                                  int starti,
+                                  int counti,
+                                  int increi,
+                                  int startj,
+                                  int countj,
+                                  int increj,
+                                  int startk,
+                                  int countk,
+                                  int increk,
+                                  float *restrict buff)
+{
+  int iptr_snap=0;
+  for (int n3=0; n3<countk; n3++)
+  {
+    int k = startk + n3 * increk;
+    for (int n2=0; n2<countj; n2++)
+    {
+      int j = startj + n2 * increj;
+      for (int n1=0; n1<counti; n1++)
+      {
+        int i = starti + n1 * increi;
+        int iptr = i + j * siz_line + k * siz_slice;
+        buff[iptr_snap] = var[iptr];
+        iptr_snap++;
+      }
+    }
+  }
+}
+
+void
+sv_eliso1st_curv_macdrp_snap_buff_strain(float *restrict var,
+                                  size_t siz_line,
+                                  size_t siz_slice,
+                                  int starti,
+                                  int counti,
+                                  int increi,
+                                  int startj,
+                                  int countj,
+                                  int increj,
+                                  int startk,
+                                  int countk,
+                                  int increk,
+                                  float *restrict buff)
+{
+  int iptr_snap=0;
+  for (int n3=0; n3<countk; n3++)
+  {
+    int k = startk + n3 * increk;
+    for (int n2=0; n2<countj; n2++)
+    {
+      int j = startj + n2 * increj;
+      for (int n1=0; n1<counti; n1++)
+      {
+        int i = starti + n1 * increi;
+        int iptr = i + j * siz_line + k * siz_slice;
+        buff[iptr_snap] = var[iptr];
+        iptr_snap++;
+      }
+    }
+  }
+}
+
+//void
+//sv_eliso1st_curv_macdrp_snap_create_nc(char *ou_file,
+//                                       int   snap_nt_total,
+//                                       int   snap_ni,
+//                                       int   snap_nj,
+//                                       int   snap_nk,
+//                                       int   snap_out_vel,
+//                                       int   snap_out_stress,
+//                                       int   snap_out_strain,
+//                                       int  *ncid,
+//                                       int  *varid_V,
+//                                       int  *varid_T,
+//                                       int  *varid_E)
+//{
+//    int dimid[4];
+//    //sprintf(ou_file,"%s/%s_%s.nc", output_dir,snap_name[n],output_fname_part);
+//
+//    int snap_ni  = cur_snap_info[FD_NDIM  ];
+//    int snap_nj  = cur_snap_info[FD_NDIM+1];
+//    int snap_nk  = cur_snap_info[FD_NDIM+2];
+//    int snap_it1 = cur_snap_info[FD_NDIM*3+0];
+//    int snap_dit = cur_snap_info[FD_NDIM*3+1];
+//    int snap_nt_total = (nt_total - snap_it1) / snap_it;
+//    int snap_out_vel    = cur_snap_info[FD_NDIM*3+2+0];
+//    int snap_out_stress = cur_snap_info[FD_NDIM*3+2+1];
+//    int snap_out_strain = cur_snap_info[FD_NDIM*3+2+2];
+//
+//    //if (strcmp(strrchr(snap_fname[n],'.'),".nc")==0) 
+//
+//}

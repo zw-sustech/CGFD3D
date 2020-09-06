@@ -24,6 +24,27 @@
 #define FD_BOUNDARY_TYPE_MPML   4
 #define FD_BOUNDARY_TYPE_DPML   5
 
+// slice info
+#define FD_SLICE_INFO_ID   0
+#define FD_SLICE_INFO_INDX 0
+
+// snap info
+#define FD_SNAP_INFO_I1 0
+#define FD_SNAP_INFO_J1 1
+#define FD_SNAP_INFO_K1 2
+#define FD_SNAP_INFO_NI 3
+#define FD_SNAP_INFO_NJ 4
+#define FD_SNAP_INFO_NK 5
+#define FD_SNAP_INFO_DI 6
+#define FD_SNAP_INFO_DJ 7
+#define FD_SNAP_INFO_DK 8
+#define FD_SNAP_INFO_IT1 9
+#define FD_SNAP_INFO_DIT 10
+#define FD_SNAP_INFO_VEL 11
+#define FD_SNAP_INFO_STRESS 12
+#define FD_SNAP_INFO_STRAIN 13
+#define FD_SNAP_INFO_SIZE 14
+
 // macro for fd opterators
 
 // use siz_shift to find adjacent point of the stentil for 3d var
@@ -164,6 +185,7 @@ struct fd_blk_t
   int nx, ny, nz;
   int ni1, ni2, nj1, nj2, nk1, nk2, ni, nj, nk;
   int gni1, gnj1, gnk1; // global index
+  int gni2, gnj2, gnk2; // global index
   
   // size of a single var
   size_t siz_line;
@@ -257,14 +279,36 @@ struct fd_blk_t
   // io
   int     num_of_sta;
   int    *sta_loc_point;
+  float  *sta_loc_dxyz;
   float  *sta_seismo;
+
+  int     num_of_point;  // for saving in solver
+  int    *point_loc_point;
+  float  *point_seismo;
+  int     num_of_inline; // for writing to file
+  char  **inline_fname;
+  int    *inline_pos;
+  int    *inline_num;
+
+  int     num_of_slice_x;
+  int*    slice_x_indx;
+  char  **slice_x_fname;
+
+  int     num_of_slice_y;
+  int*    slice_y_indx;
+  char  **slice_y_fname;
+
+  int     num_of_slice_z;
+  int*    slice_z_indx;
+  char  **slice_z_fname;
   
   int     num_of_snap;
-  int    *snap_grid_indx;
-  int    *snap_time_indx;
+  int    *snap_info;
+  char  **snap_fname;
   
-  // dir
+  // fname and dir
   char output_dir[FD_MAX_STRLEN];
+  char output_fname_part[FD_MAX_STRLEN];
 
   // mpi mesg
   int    myid2[2];
@@ -275,13 +319,18 @@ struct fd_blk_t
   MPI_Request r_reqs[4];
   MPI_Request s_reqs[4];
 
-  //int *inn_bdry_blk_id; // blk id
-  //size_t *inn_bdry_blk_indx_pair; // this blk indx to bdry_blk indx
-  //int out_mpi_num_of_neig; //
-  //int    *out_mpi_neig_ids; //
-  //size_t *out_mpi_neig_buff_size; //
-  //int *out_mpi_neigh_blk_ids; // mpi id and blk id
-  //size_t *out_bdry_blk;
+  // exchange between blocks
+  // point-to-point values
+  int num_of_conn_points;
+  int *conn_this_indx;
+  int *conn_out_blk;
+  int *conn_out_indx;
+  // interp point
+  int num_of_interp_points;
+  int *interp_this_indx;
+  int *interp_out_blk;
+  int *interp_out_indx;
+  float *interp_out_dxyz;
 
   // mem usage
   size_t number_of_float;
@@ -297,7 +346,6 @@ fd_set_macdrp(struct fd_t *fd);
 
 void
 fd_blk_init(struct fd_blk_t *blk,
-            char *name,
             int number_of_total_grid_points_x,
             int number_of_total_grid_points_y,
             int number_of_total_grid_points_z,
@@ -317,12 +365,38 @@ void
 fd_blk_set_snapshot(struct fd_blk_t *blk,
                     int  fd_nghosts,
                     int  number_of_snapshot,
+                    char **snapshot_name,
                     int *snapshot_index_start,
                     int *snapshot_index_count,
-                    int *snapshot_index_stride,
+                    int *snapshot_index_incre,
                     int *snapshot_time_start,
-                    int *snapshot_time_count,
-                    int *snapshot_time_stride);
+                    int *snapshot_time_incre,
+                    int *snapshot_save_velocity,
+                    int *snapshot_save_stress,
+                    int *snapshot_save_strain);
+
+void
+fd_blk_set_slice(struct fd_blk_t *blk,
+                 int  fd_nghosts,
+                 int  number_of_slice_x,
+                 int  number_of_slice_y,
+                 int  number_of_slice_z,
+                 int *slice_x_index,
+                 int *slice_y_index,
+                 int *slice_z_index);
+
+void
+fd_blk_set_inline(struct fd_blk_t *blk,
+                  int  fd_nghosts,
+                  int  nt_total,
+                  int  number_of_receiver_line,
+                  int *receiver_line_index_start,
+                  int *receiver_line_index_incre,
+                  int *receiver_line_count,
+                  char **receiver_line_name);
+
+void
+fd_blk_set_sta(struct fd_blk_t *blk);
 
 void
 fd_blk_init_mpi_mesg(struct fd_blk_t *blk,
@@ -343,5 +417,11 @@ fd_blk_unpack_mesg(float *restrict rbuff,float *restrict w_cur,
                  int ni1, int ni2, int nj1, int nj2, int nk1, int nk2,
                  int nx, int ny,
                  size_t siz_line, size_t siz_slice, size_t siz_volume);
+
+void
+fd_print(struct fd_t *fd);
+
+void
+fd_blk_print(struct fd_blk_t *blk);
 
 #endif
