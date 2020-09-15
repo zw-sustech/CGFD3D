@@ -502,36 +502,45 @@ fd_blk_set_snapshot(struct fd_blk_t *blk,
     int iptr0 = n*FD_NDIM;
 
     // scan output k-index in this proc
-    int gk1 = -1; int ngk =  0;
+    int gk1 = -1; int ngk =  0; int k_in_nc = 0;
     for (int n3=0; n3<snapshot_index_count[iptr0+2]; n3++)
     {
       int gk = snapshot_index_start[iptr0+2] + n3 * snapshot_index_incre[iptr0+2];
       if (gk >= blk->gnk1 && gk <= blk->gnk2) {
-        if (gk1 == -1) gk1 = gk;
+        if (gk1 == -1) {
+          gk1 = gk;
+          k_in_nc = n3;
+        }
         ngk++;
       }
       if (gk > blk->gnk2) break; // no need to larger k
     }
 
     // scan output j-index in this proc
-    int gj1 = -1; int ngj =  0;
+    int gj1 = -1; int ngj =  0; int j_in_nc = 0;
     for (int n2=0; n2<snapshot_index_count[iptr0+1]; n2++)
     {
       int gj = snapshot_index_start[iptr0+1] + n2 * snapshot_index_incre[iptr0+1];
       if (gj >= blk->gnj1 && gj <= blk->gnj2) {
-        if (gj1 == -1) gj1 = gj;
+        if (gj1 == -1) {
+          gj1 = gj;
+          j_in_nc = n2;
+        }
         ngj++;
       }
       if (gj > blk->gnj2) break;
     }
 
     // scan output i-index in this proc
-    int gi1 = -1; int ngi =  0;
+    int gi1 = -1; int ngi =  0; int i_in_nc = 0;
     for (int n1=0; n1<snapshot_index_count[iptr0+0]; n1++)
     {
       int gi = snapshot_index_start[iptr0+0] + n1 * snapshot_index_incre[iptr0+0];
       if (gi >= blk->gni1 && gi <= blk->gni2) {
-        if (gi1 == -1) gi1 = gi;
+        if (gi1 == -1) {
+          gi1 = gi;
+          i_in_nc = n1;
+        }
         ngi++;
       }
       if (gi > blk->gni2) break;
@@ -541,23 +550,28 @@ fd_blk_set_snapshot(struct fd_blk_t *blk,
     if (ngi>0 && ngj>0 & ngk>0)
     {
       int isnap = blk->num_of_snap;
+      int iptr = isnap*FD_SNAP_INFO_SIZE;
 
-      blk->snap_info[isnap*FD_SNAP_INFO_SIZE + FD_SNAP_INFO_I1]  = gi1 - blk->gni1 + fd_nghosts;
-      blk->snap_info[isnap*FD_SNAP_INFO_SIZE + FD_SNAP_INFO_J1]  = gj1 - blk->gnj1 + fd_nghosts;
-      blk->snap_info[isnap*FD_SNAP_INFO_SIZE + FD_SNAP_INFO_K1]  = gk1 - blk->gnk1 + fd_nghosts;
-      blk->snap_info[isnap*FD_SNAP_INFO_SIZE + FD_SNAP_INFO_NI]  = ngi;
-      blk->snap_info[isnap*FD_SNAP_INFO_SIZE + FD_SNAP_INFO_NJ]  = ngj;
-      blk->snap_info[isnap*FD_SNAP_INFO_SIZE + FD_SNAP_INFO_NK]  = ngk;
-      blk->snap_info[isnap*FD_SNAP_INFO_SIZE + FD_SNAP_INFO_DI]  = snapshot_index_incre[iptr0+0];
-      blk->snap_info[isnap*FD_SNAP_INFO_SIZE + FD_SNAP_INFO_DJ]  = snapshot_index_incre[iptr0+1];
-      blk->snap_info[isnap*FD_SNAP_INFO_SIZE + FD_SNAP_INFO_DK]  = snapshot_index_incre[iptr0+2];
+      blk->snap_info[iptr + FD_SNAP_INFO_I1]  = gi1 - blk->gni1 + fd_nghosts;
+      blk->snap_info[iptr + FD_SNAP_INFO_J1]  = gj1 - blk->gnj1 + fd_nghosts;
+      blk->snap_info[iptr + FD_SNAP_INFO_K1]  = gk1 - blk->gnk1 + fd_nghosts;
+      blk->snap_info[iptr + FD_SNAP_INFO_NI]  = ngi;
+      blk->snap_info[iptr + FD_SNAP_INFO_NJ]  = ngj;
+      blk->snap_info[iptr + FD_SNAP_INFO_NK]  = ngk;
+      blk->snap_info[iptr + FD_SNAP_INFO_DI]  = snapshot_index_incre[iptr0+0];
+      blk->snap_info[iptr + FD_SNAP_INFO_DJ]  = snapshot_index_incre[iptr0+1];
+      blk->snap_info[iptr + FD_SNAP_INFO_DK]  = snapshot_index_incre[iptr0+2];
 
-      blk->snap_info[isnap*FD_SNAP_INFO_SIZE + FD_SNAP_INFO_IT1]  = snapshot_time_start[n];
-      blk->snap_info[isnap*FD_SNAP_INFO_SIZE + FD_SNAP_INFO_DIT]  = snapshot_time_incre[n];
+      blk->snap_info[iptr + FD_SNAP_INFO_IT1]  = snapshot_time_start[n];
+      blk->snap_info[iptr + FD_SNAP_INFO_DIT]  = snapshot_time_incre[n];
 
-      blk->snap_info[isnap*FD_SNAP_INFO_SIZE + FD_SNAP_INFO_VEL   ]  = snapshot_save_velocity[n];
-      blk->snap_info[isnap*FD_SNAP_INFO_SIZE + FD_SNAP_INFO_STRESS]  = snapshot_save_stress[n];
-      blk->snap_info[isnap*FD_SNAP_INFO_SIZE + FD_SNAP_INFO_STRAIN]  = snapshot_save_strain[n];
+      blk->snap_info[iptr + FD_SNAP_INFO_VEL   ]  = snapshot_save_velocity[n];
+      blk->snap_info[iptr + FD_SNAP_INFO_STRESS]  = snapshot_save_stress[n];
+      blk->snap_info[iptr + FD_SNAP_INFO_STRAIN]  = snapshot_save_strain[n];
+
+      blk->snap_info[iptr + FD_SNAP_INFO_GI1]  = i_in_nc;
+      blk->snap_info[iptr + FD_SNAP_INFO_GJ1]  = j_in_nc;
+      blk->snap_info[iptr + FD_SNAP_INFO_GK1]  = k_in_nc;
 
       sprintf(blk->snap_fname[isnap],"%s/%s_%s.nc",blk->output_dir,
                                                    snapshot_name[n],
@@ -1226,7 +1240,7 @@ fd_blk_print(struct fd_blk_t *blk)
   }
 
   fprintf(stdout, "--> num_of_snap = %d\n", blk->num_of_snap);
-  fprintf(stdout, "#   i0 j0 k0 ni nj nk di dj dk it0 dit vel stress strain\n");
+  fprintf(stdout, "#   i0 j0 k0 ni nj nk di dj dk it0 dit vel stress strain gi1 gj1 gk1\n");
   for (int n=0; n<blk->num_of_snap; n++)
   {
     int iptr = n * FD_SNAP_INFO_SIZE;

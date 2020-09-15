@@ -212,7 +212,7 @@ sv_eliso1st_curv_macdrp_allstep(
   for (int n=0; n<num_of_snap; n++)
   {
     int dimid[4];
-    int *cur_snap_info = snap_info + n * (FD_NDIM * 3 + 2 + w3d_num_of_vars);
+    int *cur_snap_info = snap_info + n * FD_SNAP_INFO_SIZE;
     int snap_i1  = cur_snap_info[FD_SNAP_INFO_I1];
     int snap_j1  = cur_snap_info[FD_SNAP_INFO_J1];
     int snap_k1  = cur_snap_info[FD_SNAP_INFO_K1];
@@ -256,6 +256,11 @@ sv_eliso1st_curv_macdrp_allstep(
        if (nc_def_var(ncid_snap[n],"Eyz",NC_FLOAT,4,dimid,&varid_snap_E[n*FD_NDIM_2+4])) M_NCERR;
        if (nc_def_var(ncid_snap[n],"Exy",NC_FLOAT,4,dimid,&varid_snap_E[n*FD_NDIM_2+5])) M_NCERR;
     }
+    // attribute
+    int g_start[] = { cur_snap_info[FD_SNAP_INFO_GI1],
+                      cur_snap_info[FD_SNAP_INFO_GJ1],
+                      cur_snap_info[FD_SNAP_INFO_GK1] };
+    nc_put_att_int(ncid_snap[n],NC_GLOBAL,"index_in_snapshot",NC_INT,FD_NDIM,g_start);
     if (nc_enddef(ncid_snap[n])) M_NCERR;
 
     //sv_eliso1st_curv_macdrp_snap_create_nc(snap_fname[n],

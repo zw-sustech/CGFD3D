@@ -43,7 +43,10 @@
 #define FD_SNAP_INFO_VEL 11
 #define FD_SNAP_INFO_STRESS 12
 #define FD_SNAP_INFO_STRAIN 13
-#define FD_SNAP_INFO_SIZE 14
+#define FD_SNAP_INFO_GI1 14
+#define FD_SNAP_INFO_GJ1 15
+#define FD_SNAP_INFO_GK1 16
+#define FD_SNAP_INFO_SIZE 17
 
 // macro for fd opterators
 
