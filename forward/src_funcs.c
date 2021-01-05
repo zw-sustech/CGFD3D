@@ -69,16 +69,16 @@ src_gen_test(
 
   int nforce = 0;
   
-  int nmoment = 1;
+  int nmoment = 0;
   int *moment_info = (int *)fdlib_mem_calloc_1d_int(nmoment*M_SRC_INFO_NVAL, 1, "src_gen_test");
 
-  moment_info[M_SRC_INFO_SEQ_SI   ] = 52; //si
-  moment_info[M_SRC_INFO_SEQ_SJ   ] = 22; //sj
+//  moment_info[M_SRC_INFO_SEQ_SI   ] = 52; //si
+ // moment_info[M_SRC_INFO_SEQ_SJ   ] = 22; //sj
+ // moment_info[M_SRC_INFO_SEQ_SK   ] = 22; //sk
+  moment_info[M_SRC_INFO_SEQ_SJ   ] = 52; //sj
   moment_info[M_SRC_INFO_SEQ_SK   ] = 58; //sk
-  //moment_info[M_SRC_INFO_SEQ_SJ   ] = 52; //sj
-  //moment_info[M_SRC_INFO_SEQ_SK   ] = 58; //sk
 
-  //moment_info[M_SRC_INFO_SEQ_SK   ] = 32; //sk
+  moment_info[M_SRC_INFO_SEQ_SK   ] = 32; //sk
   moment_info[M_SRC_INFO_SEQ_POS  ] = 0;
   moment_info[M_SRC_INFO_SEQ_ITBEG] = 0;
   moment_info[M_SRC_INFO_SEQ_ITEND] = (int) (stf_dur / dt);
@@ -145,9 +145,9 @@ src_gen_test_gauss(
   int nmoment = 1;
 
   int siz_ext = 7 * 7 * 7;
-  int si = 42;
-  int sj = 22;
-  int sk = 33;
+  int si = 55;
+  int sj = 55;
+  int sk = 32;
   //int sk = 58; // for free surface
   float sx_inc = 0.0;
   float sy_inc = 0.0;

@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/bas
 
 #set -x
 set -e
@@ -10,22 +10,29 @@ date
 #export FI_PROVIDER=tcp
 #MPIDIR=/share/apps/intel-2019.3/mpich-3.3
 
-#-- system related dir
-MPIDIR=/share/apps/gnu-4.8.5/mpich-3.3
+#-- sever related dir
+MPIDIR=/export/apps/gnu-4.8.5/mpich-3.3
+#EXEC_MATLAB=/export/apps/Matlab/R2015b/bin/matlab2015
 
-#-- program related dir
-EXEC_DIR=/home/zhangw/code/zwlab/CGFD3D-elastic
+#-- user related dir
+EXEC_DIR=/export/home/wangyh/CGFD3D-elastic
 EXEC_WAVE=$EXEC_DIR/cgfdm3d_elastic_mpi
 
-#-- conf
-proj_dir=/export/home/zhangw/work/cgfd_io
+#-- project related dir
+proj_dir=/export/home/wangyh/CGFD3D-elastic/project
 
-par_file=${proj_dir}/test.json
-output_dir=${proj_dir}/output
+export proj_dir
 
-#-- create dir
-mkdir -p $proj_dir
+output_dir=$proj_dir/output
 mkdir -p $output_dir
+
+#EXEC_Plot_Script=./hill3d_plot.sh
+
+#-- conf file names
+par_file=${proj_dir}/test.json
+
+#-- create prj dir
+mkdir -p $proj_dir
 
 #----------------------------------------------------------------------
 #-- create hostlist for mpirun
@@ -43,8 +50,8 @@ cat << ieof > $par_file
   "number_of_total_grid_points_y" : 100,
   "number_of_total_grid_points_z" : 60,
 
-  "number_of_mpiprocs_x" : 1,
-  "number_of_mpiprocs_y" : 1,
+  "number_of_mpiprocs_x" : 3,
+  "number_of_mpiprocs_y" : 3,
 
   "size_of_time_step" : 0.01,
   "number_of_time_steps" : 500,
@@ -128,8 +135,8 @@ cat << ieof > $par_file
   "snapshot" : [
     {
       "name" : "volume_vel",
-      "grid_index_start" : [  0, 0,  49 ],
-      "grid_index_count" : [ 100,100, 1 ],
+      "grid_index_start" : [  0, 0,  0 ],
+      "grid_index_count" : [ 100,100, 50 ],
       "grid_index_incre" : [  1, 1, 1 ],
       "time_index_start" : 0,
       "time_index_incre" : 1,
@@ -140,7 +147,7 @@ cat << ieof > $par_file
   ],
 
   "check_nan_every_nummber_of_steps" : 0,
-  "output_all" : 1,
+  "output_all" : 0,
 
   "output_dir" : "$output_dir"
 }
@@ -214,3 +221,4 @@ date
 #date
 
 # vim:ft=conf:ts=4:sw=4:nu:et:ai:
+

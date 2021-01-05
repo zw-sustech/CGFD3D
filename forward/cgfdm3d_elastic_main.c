@@ -350,18 +350,18 @@ int main(int argc, char** argv)
 
   //src_read_file(par->src_fname, myid);
   //src_locate_extend();
-  //src_gen_test(t0,
-  //             dt,
-  //             nt_total,
-  //             fd->num_rk_stages,
-  //             &blk->num_of_force,
-  //             &blk->force_info,
-  //             &blk->force_vec_stf,
-  //             &blk->num_of_moment,
-  //             &blk->moment_info,
-  //             &blk->moment_ten_rate,
-  //             verbose);
-
+  /*src_gen_test(t0,
+               dt,
+               nt_total,
+               fd->num_rk_stages,
+               &blk->num_of_force,
+               &blk->force_info,
+               &blk->force_vec_stf,
+               &blk->num_of_moment,
+               &blk->moment_info,
+               &blk->moment_ten_rate,
+               verbose);
+*/
   src_gen_test_gauss(blk->siz_line,
                      blk->siz_slice,
                      t0,
@@ -379,7 +379,7 @@ int main(int argc, char** argv)
                      verbose);
 
   // manually del source except 0
-  if (myid!=0) {
+  if (myid!=4) {
     blk->num_of_moment = 0;
   }
   

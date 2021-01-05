@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/bas
 
 #set -x
 set -e
@@ -11,15 +11,16 @@ date
 #MPIDIR=/share/apps/intel-2019.3/mpich-3.3
 
 #-- sever related dir
-MPIDIR=/share/apps/gnu-4.8.5/mpich-3.3
-EXEC_MATLAB=/share/apps/Matlab/R2015b/bin/matlab2015
+MPIDIR=/export/apps/gnu-4.8.5/mpich-3.3
+EXEC_MATLAB=/export/apps/Matlab/R2015b/bin/matlab2015
 
 #-- user related dir
-EXEC_DIR=/home/zhangw/code/zwlab/CGFD3D-elastic
+EXEC_DIR=/export/home/wangyh/CGFD3D-elastic
 EXEC_WAVE=$EXEC_DIR/cgfdm3d_elastic_mpi
 
 #-- project related dir
-PROJDIR=/export/home/zhangw/work/cgfd_mpi
+PROJDIR=/export/home/wangyh/CGFD3D-elastic/project
+
 export PROJDIR
 
 output_dir=$PROJDIR/output
@@ -52,15 +53,15 @@ ieof
 cat << ieof > $parfile
 {
   "grid_name" : "blk_1",
-  "number_of_total_grid_points_x" : 100,
-  "number_of_total_grid_points_y" : 100,
+  "number_of_total_grid_points_x" : 60,
+  "number_of_total_grid_points_y" : 60,
   "number_of_total_grid_points_z" : 60,
 
-  "number_of_mpiprocs_x" : 2,
+  "number_of_mpiprocs_x" : 1,
   "number_of_mpiprocs_y" : 1,
 
   "size_of_time_step" : 0.01,
-  "number_of_time_steps" : 1500,
+  "number_of_time_steps" : 150,
 
   "coord_by_cartesian" : 1,
   "cartesian_grid_x0" : 0.0,
@@ -106,6 +107,29 @@ cat << ieof > $parfile
         3000.0, 3000.0, 3000.0, 3000.0, 3000.0, 3000.0
       ]
   },
+
+    "slice" : {
+          "x_index" : [ 19, 49, 59 ],
+          "y_index" : [ 19, 50, 60 ],
+          "z_index" : [ 19, 59 ]
+           },
+
+
+    "#receiver_line" : [
+        {
+          "name" : "line_x_1",
+          "grid_index_start"    : [  0, 49, 59 ],
+          "grid_index_incre"    : [  1,  0,  0 ],
+          "count"    : 100
+        },
+        {
+          "name" : "line_y_1",
+          "grid_index_start"    : [ 19, 49, 59 ],
+          "grid_index_incre"    : [  0,  1,  0 ],
+          "count"    : 20
+         } 
+        ],
+
   "#snapshot" : [
     {
       "name" : "snap_sz",
@@ -130,7 +154,9 @@ cat << ieof > $parfile
     }
   ],
 
-  "output_dir" : "$output_dir"
+  "output_dir" : "$output_dir",
+  "#check_nan_every_nummber_of_steps" : 0,
+  "#output_all" : 0 
 }
 ieof
 
@@ -465,7 +491,7 @@ fi # Run_Sim_Only
 
 #-- get np
 #NUMPROCS=`grep ^num_threads_per_dim ${MAINCONF} | sed 's/=/ /g' | awk '{print $2 * $3 * $4}'`
-NUMPROCS=2
+NUMPROCS=1
 
 cat << ieof > ${PROJDIR}/cgfd_sim.sh
 #!/bin/bash
