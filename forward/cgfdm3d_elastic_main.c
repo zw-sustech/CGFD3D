@@ -158,25 +158,41 @@ int main(int argc, char** argv)
   }
   */
   // if cartesian coord
+  // if (strcmp(par->input_grid_type, "cartesian")==0)
+  // {
+  //   float x0 = par->cartesian_grid_origin[0];
+  //   float y0 = par->cartesian_grid_origin[1];
+  //   float z0 = par->cartesian_grid_origin[2];
+  //   float dx = par->cartesian_grid_stepsize[0];
+  //   float dy = par->cartesian_grid_stepsize[1];
+  //   float dz = par->cartesian_grid_stepsize[2];
+  //   gd_curv_gen_cart(blk->c3d, blk->siz_volume,
+  //                    blk->nx,
+  //                    dx,
+  //                    x0 + (blk->gni1 - fd->fdx_nghosts) * dx,
+  //                    blk->ny,
+  //                    dy,
+  //                    y0 + (blk->gnj1 - fd->fdy_nghosts) * dy,
+  //                    blk->nz,
+  //                    dz,
+  //                    z0 + (blk->gnk1 - fd->fdz_nghosts) * dz);
+  // }
+
+  
   if (strcmp(par->input_grid_type, "cartesian")==0)
   {
-    float x0 = par->cartesian_grid_origin[0];
-    float y0 = par->cartesian_grid_origin[1];
-    float z0 = par->cartesian_grid_origin[2];
-    float dx = par->cartesian_grid_stepsize[0];
-    float dy = par->cartesian_grid_stepsize[1];
-    float dz = par->cartesian_grid_stepsize[2];
-    gd_curv_gen_cart(blk->c3d, blk->siz_volume,
-                     blk->nx,
-                     dx,
-                     x0 + (blk->gni1 - fd->fdx_nghosts) * dx,
-                     blk->ny,
-                     dy,
-                     y0 + (blk->gnj1 - fd->fdy_nghosts) * dy,
-                     blk->nz,
-                     dz,
-                     z0 + (blk->gnk1 - fd->fdz_nghosts) * dz);
+    int VmapSpacingIsequal[] = { 1, 0, 1 }; // 1:The grid spacing is equal; 0: Is not.
+    int NCellPerlay[] = { 25, 15, 20 };
+    int nLayers = 3;
+    gd_curv_gen_layer(blk->c3d, nLayers,
+                      NCellPerlay, VmapSpacingIsequal,
+                      blk->nx, blk->ni, blk->gni1, fd->fdx_nghosts, par->number_of_total_grid_points_x,
+                      blk->ny, blk->nj, blk->gnj1, fd->fdy_nghosts, par->number_of_total_grid_points_y,
+                      blk->nz, blk->nk, blk->gnk1, fd->fdz_nghosts, par->number_of_total_grid_points_z);
   }
+
+
+
   /*
   // if vmap coord
   if (par->coord_by_vmap==1)
