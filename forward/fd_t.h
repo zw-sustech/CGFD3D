@@ -57,6 +57,20 @@
        deriv += fd_coef[n] * var[iptr + fd_shift[n]]; \
    }
 
+#define M_FD_SHIFT_PTR(deriv, var_ptr, fd_length, fd_shift, fd_coef, n) \
+  deriv = 0.0;                                                        \
+  for (n = 0; n < fd_length; n++)                                     \
+  {                                                                   \
+    deriv += fd_coef[n] * *(var_ptr + fd_shift[n]);                    \
+  }
+
+#define M_FD_SHIFT_PTR_UNLOOP5(deriv, var_ptr, fd_length, fd_shift, fd_coef, n) \
+  deriv =  fd_coef[0] * *(var_ptr + fd_shift[0])                    \
+          +fd_coef[1] * *(var_ptr + fd_shift[1])                    \
+          +fd_coef[2] * *(var_ptr + fd_shift[2])                    \
+          +fd_coef[3] * *(var_ptr + fd_shift[3])                    \
+          +fd_coef[4] * *(var_ptr + fd_shift[4]);
+
 // assume var has the same size as fd_coef, ordered one by one, thus no index needed
 #define M_FD_NOINDX(deriv, var, fd_length, fd_coef, n) \
    deriv = 0.0; \
