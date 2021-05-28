@@ -185,6 +185,8 @@ sv_eliso1st_curv_macdrp_allstep(
     // attribute: index info for plot
     nc_put_att_int(ncid_slx[n],NC_GLOBAL,"i_index_with_ghosts_in_this_thread",
                    NC_INT,1,slice_x_indx+n);
+    nc_put_att_int(ncid_slx[n],NC_GLOBAL,"coords_of_mpi_topo",
+                   NC_INT,2,myid2);
     // end def
     if (nc_enddef(ncid_slx[n])) M_NCERR;
   }
@@ -201,6 +203,8 @@ sv_eliso1st_curv_macdrp_allstep(
     // attribute: index info for plot
     nc_put_att_int(ncid_sly[n],NC_GLOBAL,"j_index_with_ghosts_in_this_thread",
                    NC_INT,1,slice_y_indx+n);
+    nc_put_att_int(ncid_sly[n],NC_GLOBAL,"coords_of_mpi_topo",
+                   NC_INT,2,myid2);
     // end def
     if (nc_enddef(ncid_sly[n])) M_NCERR;
   }
@@ -217,6 +221,8 @@ sv_eliso1st_curv_macdrp_allstep(
     // attribute: index info for plot
     nc_put_att_int(ncid_slz[n],NC_GLOBAL,"k_index_with_ghosts_in_this_thread",
                    NC_INT,1,slice_z_indx+n);
+    nc_put_att_int(ncid_slz[n],NC_GLOBAL,"coords_of_mpi_topo",
+                   NC_INT,2,myid2);
     // end def
     if (nc_enddef(ncid_slz[n])) M_NCERR;
   }
@@ -280,6 +286,8 @@ sv_eliso1st_curv_macdrp_allstep(
 
     nc_put_att_int(ncid_snap[n],NC_GLOBAL,"index_stride_in_this_thread",
                    NC_INT,FD_NDIM,cur_snap_info+FD_SNAP_INFO_DI);
+    nc_put_att_int(ncid_snap[n],NC_GLOBAL,"coords_of_mpi_topo",
+                   NC_INT,2,myid2);
 
     if (nc_enddef(ncid_snap[n])) M_NCERR;
 
