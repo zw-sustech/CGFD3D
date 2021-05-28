@@ -17,7 +17,7 @@ io_build_fname_time(char *out_dir,
                     char *ou_fname);
 
 void
-io_snapshot_export(char *fname,
+io_snapshot_export_binary(char *fname,
                    float *restrict var,
                    int nx,
                    int ny,
