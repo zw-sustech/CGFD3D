@@ -177,8 +177,8 @@ sv_eliso1st_curv_macdrp_allstep(
     int dimid[3];
     if (nc_create(slice_x_fname[n], NC_CLOBBER, &ncid_slx[n])) M_NCERR;
     if (nc_def_dim(ncid_slx[n], "time", NC_UNLIMITED, &dimid[0])) M_NCERR;
-    if (nc_def_dim(ncid_slx[n], "zeta", nk      , &dimid[1])) M_NCERR;
-    if (nc_def_dim(ncid_slx[n], "eta" , nj      , &dimid[2])) M_NCERR;
+    if (nc_def_dim(ncid_slx[n], "k", nk      , &dimid[1])) M_NCERR;
+    if (nc_def_dim(ncid_slx[n], "j" , nj      , &dimid[2])) M_NCERR;
     for (int ivar=0; ivar<w3d_num_of_vars; ivar++) {
       if (nc_def_var(ncid_slx[n], w3d_name[ivar], NC_FLOAT, 3, dimid, &varid_slx[ivar])) M_NCERR;
     }
@@ -193,8 +193,8 @@ sv_eliso1st_curv_macdrp_allstep(
     int dimid[3];
     if (nc_create(slice_y_fname[n], NC_CLOBBER, &ncid_sly[n])) M_NCERR;
     if (nc_def_dim(ncid_sly[n], "time", NC_UNLIMITED, &dimid[0])) M_NCERR;
-    if (nc_def_dim(ncid_sly[n], "zeta", nk      , &dimid[1])) M_NCERR;
-    if (nc_def_dim(ncid_sly[n], "xi" , ni      , &dimid[2])) M_NCERR;
+    if (nc_def_dim(ncid_sly[n], "k", nk      , &dimid[1])) M_NCERR;
+    if (nc_def_dim(ncid_sly[n], "i" , ni      , &dimid[2])) M_NCERR;
     for (int ivar=0; ivar<w3d_num_of_vars; ivar++) {
       if (nc_def_var(ncid_sly[n], w3d_name[ivar], NC_FLOAT, 3, dimid, &varid_sly[ivar])) M_NCERR;
     }
@@ -209,8 +209,8 @@ sv_eliso1st_curv_macdrp_allstep(
     int dimid[3];
     if (nc_create(slice_z_fname[n], NC_CLOBBER, &ncid_slz[n])) M_NCERR;
     if (nc_def_dim(ncid_slz[n], "time", NC_UNLIMITED, &dimid[0])) M_NCERR;
-    if (nc_def_dim(ncid_slz[n], "eta", nj      , &dimid[1])) M_NCERR;
-    if (nc_def_dim(ncid_slz[n], "xi" , ni      , &dimid[2])) M_NCERR;
+    if (nc_def_dim(ncid_slz[n], "j", nj      , &dimid[1])) M_NCERR;
+    if (nc_def_dim(ncid_slz[n], "i" , ni      , &dimid[2])) M_NCERR;
     for (int ivar=0; ivar<w3d_num_of_vars; ivar++) {
       if (nc_def_var(ncid_slz[n], w3d_name[ivar], NC_FLOAT, 3, dimid, &varid_slz[ivar])) M_NCERR;
     }
@@ -244,9 +244,9 @@ sv_eliso1st_curv_macdrp_allstep(
 
     if (nc_create(snap_fname[n], NC_CLOBBER, &ncid_snap[n])) M_NCERR;
     if (nc_def_dim(ncid_snap[n], "time", NC_UNLIMITED, &dimid[0])) M_NCERR;
-    if (nc_def_dim(ncid_snap[n], "zeta", snap_nk     , &dimid[1])) M_NCERR;
-    if (nc_def_dim(ncid_snap[n], "eta" , snap_nj     , &dimid[2])) M_NCERR;
-    if (nc_def_dim(ncid_snap[n], "xi" , snap_ni      , &dimid[3])) M_NCERR;
+    if (nc_def_dim(ncid_snap[n], "k", snap_nk     , &dimid[1])) M_NCERR;
+    if (nc_def_dim(ncid_snap[n], "j" , snap_nj     , &dimid[2])) M_NCERR;
+    if (nc_def_dim(ncid_snap[n], "i" , snap_ni      , &dimid[3])) M_NCERR;
     if (snap_out_V==1) {
        if (nc_def_var(ncid_snap[n],"Vx",NC_FLOAT,4,dimid,&varid_snap_vel[n*FD_NDIM+0])) M_NCERR;
        if (nc_def_var(ncid_snap[n],"Vy",NC_FLOAT,4,dimid,&varid_snap_vel[n*FD_NDIM+1])) M_NCERR;
