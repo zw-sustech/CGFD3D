@@ -72,14 +72,14 @@ md_el_iso_init_vars(
 //
 void
 md_el_iso_import(float *restrict m3d, size_t *restrict m3d_pos, char **restrict m3d_name,
-        int number_of_vars, size_t siz_volume, char *in_dir, int *myid3)
+        int number_of_vars, size_t siz_volume, char *in_dir, char *fname_coords)
 {
   char in_file[FD_MAX_STRLEN];
   
   int ncid, varid;
   
   // construct file name
-  sprintf(in_file, "%s/media_mpi%02d%02d%02d.nc", in_dir, myid3[0], myid3[1], myid3[2]);
+  sprintf(in_file, "%s/media_%s.nc", in_dir, fname_coords);
   
   // read in nc
   int ierr = nc_open(in_file, NC_NOWRITE, &ncid);
@@ -100,6 +100,59 @@ md_el_iso_import(float *restrict m3d, size_t *restrict m3d_pos, char **restrict 
         fprintf(stderr,"nc error: %s\n", nc_strerror(ierr));
         exit(-1);
       }
+  }
+  
+  // close file
+  ierr = nc_close(ncid);
+  if (ierr != NC_NOERR){
+    fprintf(stderr,"nc error: %s\n", nc_strerror(ierr));
+    exit(-1);
+  }
+}
+
+void
+md_el_iso_export(float  *restrict m3d,
+                 size_t *restrict m3d_pos,
+                 char  **restrict m3d_name,
+                 int number_of_vars,
+                 int  nx,
+                 int  ny,
+                 int  nz,
+                 char *fname_coords,
+                 char *output_dir)
+{
+  // construct file name
+  char ou_file[FD_MAX_STRLEN];
+  sprintf(ou_file, "%s/media_%s.nc", output_dir, fname_coords);
+  
+  // read in nc
+  int ncid;
+  int varid[number_of_vars];
+  int dimid[FD_NDIM];
+
+  int ierr = nc_create(ou_file, NC_CLOBBER, &ncid);
+  if (ierr != NC_NOERR){
+    fprintf(stderr,"creat coord nc error: %s\n", nc_strerror(ierr));
+    exit(-1);
+  }
+
+  // define dimension
+  ierr = nc_def_dim(ncid, "i"  , nx, &dimid[2]);
+  ierr = nc_def_dim(ncid, "j" , ny, &dimid[1]);
+  ierr = nc_def_dim(ncid, "k", nz, &dimid[0]);
+
+  // define vars
+  for (int ivar=0; ivar<number_of_vars; ivar++) {
+    ierr = nc_def_var(ncid, m3d_name[ivar], NC_FLOAT, FD_NDIM, dimid, &varid[ivar]);
+  }
+
+  // end def
+  ierr = nc_enddef(ncid);
+
+  // add vars
+  for (int ivar=0; ivar<number_of_vars; ivar++) {
+    float *ptr = m3d + m3d_pos[ivar];
+    ierr = nc_put_var_float(ncid, varid[ivar],ptr);
   }
   
   // close file

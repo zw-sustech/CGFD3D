@@ -15,7 +15,18 @@ md_el_iso_init_vars(
 
 void
 md_el_iso_import(float *restrict m3d, size_t *restrict m3d_pos, char **restrict m3d_name,
-        int number_of_vars, size_t siz_volume, char *in_dir, int *myid3);
+        int number_of_vars, size_t siz_volume, char *in_dir, char *fname_coords);
+
+void
+md_el_iso_export(float  *restrict m3d,
+                 size_t *restrict m3d_pos,
+                 char  **restrict m3d_name,
+                 int number_of_vars,
+                 int  nx,
+                 int  ny,
+                 int  nz,
+                 char *fname_coords,
+                 char *output_dir);
 
 void
 md_el_iso_gen_test(

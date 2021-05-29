@@ -315,6 +315,16 @@ int main(int argc, char** argv)
     }
     */
   }
+
+     md_el_iso_export(blk->m3d,
+                      blk->m3d_pos,
+                      blk->m3d_name,
+                      blk->m3d_num_of_vars,
+                      blk->nx,
+                      blk->ny,
+                      blk->nz,
+                      blk->output_fname_part,
+                      blk->media_dir);
   
   // convert rho to 1 / rho to reduce number of arithmetic cal
   md_el_iso_rho_to_slow(blk->m3d, blk->siz_volume);
