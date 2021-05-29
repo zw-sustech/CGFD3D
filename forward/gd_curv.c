@@ -433,11 +433,11 @@ gd_curv_gen_cart(
 //
 void
 gd_curv_metric_import(float *restrict g3d, size_t *restrict g3d_pos, char **restrict g3d_name,
-        int number_of_vars, size_t siz_volume, char *in_dir, int *myid2)
+        int number_of_vars, size_t siz_volume, char *in_dir, char *fname_coords)
 {
   // construct file name
   char in_file[FD_MAX_STRLEN];
-  sprintf(in_file, "%s/metric_mpi%02d%02d00.nc", in_dir, myid2[0], myid2[1]);
+  sprintf(in_file, "%s/metric_%s.nc", in_dir, fname_coords);
   
   // read in nc
   int ncid, varid;
@@ -471,11 +471,11 @@ gd_curv_metric_import(float *restrict g3d, size_t *restrict g3d_pos, char **rest
 
 void
 gd_curv_coord_import(float *restrict g3d, size_t *restrict g3d_pos, char **restrict g3d_name,
-        int number_of_vars, size_t siz_volume, char *in_dir, int *myid2)
+        int number_of_vars, size_t siz_volume, char *in_dir, char *fname_coords)
 {
   // construct file name
   char in_file[FD_MAX_STRLEN];
-  sprintf(in_file, "%s/coord_mpi%02d%02d00.nc", in_dir, myid2[0], myid2[1]);
+  sprintf(in_file, "%s/coord_%s.nc", in_dir, fname_coords);
   
   // read in nc
   int ncid, varid;
@@ -515,12 +515,12 @@ gd_curv_coord_export(float  *restrict c3d,
                      int  nx,
                      int  ny,
                      int  nz,
-                     int *myid2,
+                     char *fname_coords,
                      char *output_dir)
 {
   // construct file name
   char ou_file[FD_MAX_STRLEN];
-  sprintf(ou_file, "%s/coord_mpi%02d%02d00.nc", output_dir, myid2[0], myid2[1]);
+  sprintf(ou_file, "%s/coord_%s.nc", output_dir, fname_coords);
   
   // read in nc
   int ncid;
@@ -568,12 +568,12 @@ gd_curv_metric_export(float  *restrict g3d,
                       int  nx,
                       int  ny,
                       int  nz,
-                      int *myid2,
+                      char *fname_coords,
                       char *output_dir)
 {
   // construct file name
   char ou_file[FD_MAX_STRLEN];
-  sprintf(ou_file, "%s/metric_mpi%02d%02d00.nc", output_dir, myid2[0], myid2[1]);
+  sprintf(ou_file, "%s/metric_%s.nc", output_dir, fname_coords);
   
   // read in nc
   int ncid;

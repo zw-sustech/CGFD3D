@@ -37,11 +37,11 @@ gd_curv_init_g3d(
 
 void
 gd_curv_metric_import(float *restrict g3d, size_t *restrict g3d_pos, char **restrict g3d_name,
-        int number_of_vars, size_t siz_volume, char *in_dir, int *myid2);
+        int number_of_vars, size_t siz_volume, char *in_dir, char *fname_coords);
 
 void
 gd_curv_coord_import(float *restrict g3d, size_t *restrict g3d_pos, char **restrict g3d_name,
-        int number_of_vars, size_t siz_volume, char *in_dir, int *myid2);
+        int number_of_vars, size_t siz_volume, char *in_dir, char *fname_coords);
 
 void
 gd_curv_cal_metric(
@@ -68,7 +68,7 @@ gd_curv_metric_export(float  *restrict g3d,
                       int  nx,
                       int  ny,
                       int  nz,
-                      int *myid2,
+                      char *fname_coords,
                       char *output_dir);
 
 void
@@ -79,7 +79,7 @@ gd_curv_coord_export(float  *restrict c3d,
                      int  nx,
                      int  ny,
                      int  nz,
-                     int *myid2,
+                     char *fname_coords,
                      char *output_dir);
 
 int gd_grid_z_interp(int xi, int yi, float* z3d, float* zlayer3d, int* NCellPerlay,
