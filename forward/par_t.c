@@ -336,7 +336,7 @@ par_read_from_str(const char *str, struct par_t *par)
   //
 
   par->source_input_itype = PAR_SOURCE_CODE;
-  if (item = cJSON_GetObjectItem(root, "sourc_input")) {
+  if (item = cJSON_GetObjectItem(root, "source_input")) {
     if (subitem = cJSON_GetObjectItem(item, "code_generate")) {
         par->source_input_itype = PAR_SOURCE_CODE;
     }

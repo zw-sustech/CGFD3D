@@ -130,7 +130,7 @@ cat << ieof > $par_file
 
   "source_input" : {
       "code_generate" : 1,
-      "in_source_file" : "$PROJDIR/test/forceandmoment.fdsrc"
+      "#in_source_file" : "$PROJDIR/test/forceandmoment.fdsrc"
   },
   "is_export_source" : 1,
   "source_export_dir"  : "$SOURCE_DIR",
