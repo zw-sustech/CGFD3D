@@ -18,7 +18,7 @@ EXEC_DIR=/home/zhangw/code/zwlab/CGFD3D-elastic
 EXEC_WAVE=$EXEC_DIR/cgfdm3d_elastic_mpi
 
 #-- conf
-PROJDIR=/export/home/zhangw/work/cgfd_opt/10_ijk
+PROJDIR=/export/home/zhangw/work/cgfd_opt/13_bdrynew
 par_file=${PROJDIR}/test.json
 output_dir=${PROJDIR}/output
 grid_dir=${PROJDIR}/output
@@ -52,38 +52,49 @@ cat << ieof > $par_file
   "size_of_time_step" : 0.01,
   "number_of_time_steps" : 500,
 
-  "boundary_condition" : {
-      "x_left"   : "cfspml",
-      "x_right"  : "cfspml",
-      "y_front"  : "cfspml",
-      "y_back"   : "cfspml",
-      "z_bottom" : "cfspml",
-      "z_top"    : "free"
-  },
-
-  "#boundary_condition" : [
-      "none",
-      "none",
-      "none",
-      "none",
-      "none",
-      "free"
-  ],
-
-  "cfspml" : {
-      "number_of_layers" : [
-        5,5,5,5,5,0
-      ],
-      "alpha_max" : [
-        0.0,0.0,0.0,0.0,0.0,0.0
-      ],
-      "beta_max" : [
-        1.0,1.0,1.0,1.0,1.0,1.0
-      ],
-      "pml_velocity" : [
-        3000.0, 3000.0, 3000.0, 3000.0, 3000.0, 3000.0
-      ]
-  },
+  "boundary_x_left" : {
+      "cfspml" : {
+          "number_of_layers" : 5,
+          "alpha_max" : 3.14,
+          "beta_max" : 2.0,
+          "ref_vel"  : 3000.0
+          }
+      },
+  "boundary_x_right" : {
+      "cfspml" : {
+          "number_of_layers" : 5,
+          "alpha_max" : 3.14,
+          "beta_max" : 2.0,
+          "ref_vel"  : 3000.0
+          }
+      },
+  "boundary_y_front" : {
+      "cfspml" : {
+          "number_of_layers" : 5,
+          "alpha_max" : 3.14,
+          "beta_max" : 2.0,
+          "ref_vel"  : 3000.0
+          }
+      },
+  "boundary_y_back" : {
+      "cfspml" : {
+          "number_of_layers" : 5,
+          "alpha_max" : 3.14,
+          "beta_max" : 2.0,
+          "ref_vel"  : 3000.0
+          }
+      },
+  "boundary_z_bottom" : {
+      "cfspml" : {
+          "number_of_layers" : 5,
+          "alpha_max" : 3.14,
+          "beta_max" : 2.0,
+          "ref_vel"  : 3000.0
+          }
+      },
+  "boundary_z_top" : {
+      "free" : "timg"
+      },
 
   "#-- input_grid_type" : "vmap cartesian grid import",
   "input_grid_type" : "cartesian",

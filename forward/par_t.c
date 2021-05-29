@@ -8,7 +8,6 @@
 #include <string.h>
 #include <mpi.h>
 
-#include "cJSON.h"
 #include "par_t.h"
 
 /*
@@ -102,8 +101,9 @@ par_read_from_str(const char *str, struct par_t *par)
   }
 
   cJSON *item;
-  cJSON *subitem, *snapitem, *lineitem;
+  cJSON *subitem, *thirditem, *snapitem, *lineitem;
 
+  // no default values
   if (item = cJSON_GetObjectItem(root, "number_of_total_grid_points_x")) {
     par->number_of_total_grid_points_x = item->valueint;
   }
@@ -114,6 +114,10 @@ par_read_from_str(const char *str, struct par_t *par)
     par->number_of_total_grid_points_z = item->valueint;
   }
 
+  // default mpi threads
+  par->number_of_mpiprocs_x = 1;
+  par->number_of_mpiprocs_y = 1;
+
   if (item = cJSON_GetObjectItem(root, "number_of_mpiprocs_x")) {
     par->number_of_mpiprocs_x = item->valueint;
   }
@@ -121,72 +125,168 @@ par_read_from_str(const char *str, struct par_t *par)
     par->number_of_mpiprocs_y = item->valueint;
   }
 
+  // set default values to negative
+  par->size_of_time_step = -1.0;
+  par->number_of_time_steps = -1;
+  par->length_of_time_window_in_second = -1.0;
+
   if (item = cJSON_GetObjectItem(root, "size_of_time_step")) {
     par->size_of_time_step = item->valuedouble;
   }
   if (item = cJSON_GetObjectItem(root, "number_of_time_steps")) {
     par->number_of_time_steps = item->valueint;
   }
+  if (item = cJSON_GetObjectItem(root, "length_of_time_window_in_second")) {
+    par->length_of_time_window_in_second = item->valuedouble;
+  }
+  if (par->size_of_time_step > 0.0 && par->number_of_time_steps > 0) {
+    par->length_of_time_window_in_second = par->size_of_time_step *
+                                           par->number_of_time_steps;
+  } else {
+    fprintf(stderr,"Error: size_of_time_step=%f, number_of_time_steps=%d\n",
+           par->size_of_time_step, par->number_of_time_steps);
+    fprintf(stderr,"       auto estimate time step has not been implemented\n");
+  }
 
   par->time_start = 0.0;
-  par->time_end   = par->time_start + par->number_of_time_steps * par->size_of_time_step;
+  par->time_end   = par->time_start + 
+          par->number_of_time_steps * par->size_of_time_step;
   //int     nt_total = (int) ((par->time_end - par->time_start) / dt+0.5);
 
-  // boundary
-  if (item = cJSON_GetObjectItem(root, "boundary_condition"))
+  // cfspml default values
+  for (int i = 0; i < FD_NDIM_2; i++) {
+    par->abs_num_of_layers[i] = 0;
+  }
+  // x1 boundary, no default yet
+  if (item = cJSON_GetObjectItem(root, "boundary_x_left"))
   {
-    //int array_size = cJSON_GetArraySize(item);
-    //for (int i = 0; i < FD_NDIM_2; i++) {
-    //  sprintf(par->boundary_type_name[i], "%s",cJSON_GetArrayItem(item, i)->valuestring);
-    //}
-    if (subitem = cJSON_GetObjectItem(item, "x_left")) {
-       sprintf(par->boundary_type_name[0], "%s", subitem->valuestring);
+    if (subitem = cJSON_GetObjectItem(item, "cfspml")) {
+       sprintf(par->boundary_type_name[0], "%s", "cfspml");
+       par_read_json_cfspml(subitem,
+                            par->abs_num_of_layers+0,
+                            par->cfspml_alpha_max +0,
+                            par->cfspml_beta_max  +0,
+                            par->cfspml_velocity  +0);
     }
-    if (subitem = cJSON_GetObjectItem(item, "x_right")) {
-       sprintf(par->boundary_type_name[1], "%s", subitem->valuestring);
+  }
+  // x2 boundary, no default yet
+  if (item = cJSON_GetObjectItem(root, "boundary_x_right"))
+  {
+    if (subitem = cJSON_GetObjectItem(item, "cfspml")) {
+       sprintf(par->boundary_type_name[1], "%s", "cfspml");
+       par_read_json_cfspml(subitem,
+                            par->abs_num_of_layers+1,
+                            par->cfspml_alpha_max +1,
+                            par->cfspml_beta_max  +1,
+                            par->cfspml_velocity  +1);
     }
-    if (subitem = cJSON_GetObjectItem(item, "y_front")) {
-       sprintf(par->boundary_type_name[2], "%s", subitem->valuestring);
+  }
+  // y1 boundary, no default yet
+  if (item = cJSON_GetObjectItem(root, "boundary_y_front"))
+  {
+    if (subitem = cJSON_GetObjectItem(item, "cfspml")) {
+       sprintf(par->boundary_type_name[2], "%s", "cfspml");
+       par_read_json_cfspml(subitem,
+                            par->abs_num_of_layers+2,
+                            par->cfspml_alpha_max +2,
+                            par->cfspml_beta_max  +2,
+                            par->cfspml_velocity  +2);
     }
-    if (subitem = cJSON_GetObjectItem(item, "y_back")) {
-       sprintf(par->boundary_type_name[3], "%s", subitem->valuestring);
+  }
+  // y2 boundary, no default yet
+  if (item = cJSON_GetObjectItem(root, "boundary_y_back"))
+  {
+    if (subitem = cJSON_GetObjectItem(item, "cfspml")) {
+       sprintf(par->boundary_type_name[3], "%s", "cfspml");
+       par_read_json_cfspml(subitem,
+                            par->abs_num_of_layers+3,
+                            par->cfspml_alpha_max +3,
+                            par->cfspml_beta_max  +3,
+                            par->cfspml_velocity  +3);
     }
-    if (subitem = cJSON_GetObjectItem(item, "z_bottom")) {
-       sprintf(par->boundary_type_name[4], "%s", subitem->valuestring);
+  }
+  // z1 boundary, no default yet
+  if (item = cJSON_GetObjectItem(root, "boundary_z_bottom"))
+  {
+    if (subitem = cJSON_GetObjectItem(item, "cfspml")) {
+       sprintf(par->boundary_type_name[4], "%s", "cfspml");
+       par_read_json_cfspml(subitem,
+                            par->abs_num_of_layers+4,
+                            par->cfspml_alpha_max +4,
+                            par->cfspml_beta_max  +4,
+                            par->cfspml_velocity  +4);
     }
-    if (subitem = cJSON_GetObjectItem(item, "z_top")) {
-       sprintf(par->boundary_type_name[5], "%s", subitem->valuestring);
+  }
+  // z2 boundary, no default yet
+  if (item = cJSON_GetObjectItem(root, "boundary_z_top"))
+  {
+    if (subitem = cJSON_GetObjectItem(item, "cfspml")) {
+       sprintf(par->boundary_type_name[5], "%s", "cfspml");
+       par_read_json_cfspml(subitem,
+                            par->abs_num_of_layers+5,
+                            par->cfspml_alpha_max +5,
+                            par->cfspml_beta_max  +5,
+                            par->cfspml_velocity  +5);
+    }
+    if (subitem = cJSON_GetObjectItem(item, "free")) {
+       sprintf(par->boundary_type_name[5], "%s", "free");
     }
   }
 
-  // cfs-pml
-  if (item = cJSON_GetObjectItem(root, "cfspml"))
-  {
-    if (subitem = cJSON_GetObjectItem(item, "number_of_layers"))
-    {
-      for (int i = 0; i < FD_NDIM_2; i++) {
-        par->abs_num_of_layers[i] = cJSON_GetArrayItem(subitem, i)->valueint;
-      }
-    }
-    if (subitem = cJSON_GetObjectItem(item, "alpha_max"))
-    {
-      for (int i = 0; i < FD_NDIM_2; i++) {
-        par->cfspml_alpha_max[i] = cJSON_GetArrayItem(subitem, i)->valuedouble;
-      }
-    }
-    if (subitem = cJSON_GetObjectItem(item, "beta_max"))
-    {
-      for (int i = 0; i < FD_NDIM_2; i++) {
-        par->cfspml_beta_max[i] = cJSON_GetArrayItem(subitem, i)->valuedouble;
-      }
-    }
-    if (subitem = cJSON_GetObjectItem(item, "pml_velocity"))
-    {
-      for (int i = 0; i < FD_NDIM_2; i++) {
-        par->cfspml_velocity[i] = cJSON_GetArrayItem(subitem, i)->valuedouble;
-      }
-    }
-  }
+  // old implementation, replaced by above seperated boundary setting
+  //if (item = cJSON_GetObjectItem(root, "boundary_condition"))
+  //{
+  //  //int array_size = cJSON_GetArraySize(item);
+  //  //for (int i = 0; i < FD_NDIM_2; i++) {
+  //  //  sprintf(par->boundary_type_name[i], "%s",cJSON_GetArrayItem(item, i)->valuestring);
+  //  //}
+  //  if (subitem = cJSON_GetObjectItem(item, "x_left")) {
+  //     sprintf(par->boundary_type_name[0], "%s", subitem->valuestring);
+  //  }
+  //  if (subitem = cJSON_GetObjectItem(item, "x_right")) {
+  //     sprintf(par->boundary_type_name[1], "%s", subitem->valuestring);
+  //  }
+  //  if (subitem = cJSON_GetObjectItem(item, "y_front")) {
+  //     sprintf(par->boundary_type_name[2], "%s", subitem->valuestring);
+  //  }
+  //  if (subitem = cJSON_GetObjectItem(item, "y_back")) {
+  //     sprintf(par->boundary_type_name[3], "%s", subitem->valuestring);
+  //  }
+  //  if (subitem = cJSON_GetObjectItem(item, "z_bottom")) {
+  //     sprintf(par->boundary_type_name[4], "%s", subitem->valuestring);
+  //  }
+  //  if (subitem = cJSON_GetObjectItem(item, "z_top")) {
+  //     sprintf(par->boundary_type_name[5], "%s", subitem->valuestring);
+  //  }
+  //}
+  //// cfs-pml, default not implement yet
+  //if (item = cJSON_GetObjectItem(root, "cfspml"))
+  //{
+  //  if (subitem = cJSON_GetObjectItem(item, "number_of_layers"))
+  //  {
+  //    for (int i = 0; i < FD_NDIM_2; i++) {
+  //      par->abs_num_of_layers[i] = cJSON_GetArrayItem(subitem, i)->valueint;
+  //    }
+  //  }
+  //  if (subitem = cJSON_GetObjectItem(item, "alpha_max"))
+  //  {
+  //    for (int i = 0; i < FD_NDIM_2; i++) {
+  //      par->cfspml_alpha_max[i] = cJSON_GetArrayItem(subitem, i)->valuedouble;
+  //    }
+  //  }
+  //  if (subitem = cJSON_GetObjectItem(item, "beta_max"))
+  //  {
+  //    for (int i = 0; i < FD_NDIM_2; i++) {
+  //      par->cfspml_beta_max[i] = cJSON_GetArrayItem(subitem, i)->valuedouble;
+  //    }
+  //  }
+  //  if (subitem = cJSON_GetObjectItem(item, "pml_velocity"))
+  //  {
+  //    for (int i = 0; i < FD_NDIM_2; i++) {
+  //      par->cfspml_velocity[i] = cJSON_GetArrayItem(subitem, i)->valuedouble;
+  //    }
+  //  }
+  //}
 
   //-- grid
   if (item = cJSON_GetObjectItem(root, "input_grid_type")) {
@@ -423,6 +523,33 @@ par_read_from_str(const char *str, struct par_t *par)
   // set values to default ones if no input
 
   return;
+}
+
+/*
+ * funcs to read cfspml para from json str
+ */
+void 
+par_read_json_cfspml(cJSON *item,
+      int *nlay, float *amax, float *bmax, float *vel)
+{
+  cJSON *subitem;
+
+  if (subitem = cJSON_GetObjectItem(item, "number_of_layers"))
+  {
+    *nlay = subitem->valueint;
+  }
+  if (subitem = cJSON_GetObjectItem(item, "alpha_max"))
+  {
+    *amax = subitem->valuedouble;
+  }
+  if (subitem = cJSON_GetObjectItem(item, "beta_max"))
+  {
+    *bmax = subitem->valuedouble;
+  }
+  if (subitem = cJSON_GetObjectItem(item, "ref_vel"))
+  {
+    *vel = subitem->valuedouble;
+  }
 }
 
 void

@@ -5,6 +5,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "cJSON.h"
 #include "fd_t.h"
 #include "par_t.h"
 
@@ -34,6 +35,7 @@ struct par_t{
   int   time_end_index;
   float time_start;
   float time_end  ;
+  float length_of_time_window_in_second;
 
   // for each block
   //char grid_name[PAR_MAX_STRLEN];
@@ -64,17 +66,22 @@ struct par_t{
   float cartesian_grid_origin[FD_NDIM];
   float cartesian_grid_stepsize[FD_NDIM];
 
+  int is_export_grid;
+
   // metric
   char input_metric_type[PAR_TYPE_STRLEN];
   int  metric_by_import;
+  int is_export_metric;
 
   // medium
   char input_medium_type[PAR_TYPE_STRLEN];
   int medium_by_import;
   //char input_medium_file[PAR_MAX_STRLEN];
+  int is_export_media;
 
   // source
   char input_source_file[PAR_MAX_STRLEN];
+  int is_export_source;
 
   // output
   // receiver
@@ -119,6 +126,10 @@ par_read_from_file(char *par_fname, int myid, MPI_Comm comm, struct par_t *par, 
 
 void 
 par_read_from_str(const char *str, struct par_t *par);
+
+void 
+par_read_json_cfspml(cJSON *item,
+      int *nlay, float *amax, float *bmax, float *vel);
 
 void
 par_print(struct par_t *par);
