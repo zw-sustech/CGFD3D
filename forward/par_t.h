@@ -12,17 +12,31 @@
 #define PAR_MAX_STRLEN 1000
 #define PAR_TYPE_STRLEN 50
 
+#define PAR_GRID_IMPORT       1
+#define PAR_GRID_CARTESIAN    2
+#define PAR_GRID_LAYER_INTERP 3
+
+#define PAR_METRIC_CALCULATE 1
+#define PAR_METRIC_IMPORT    2
+
+#define PAR_MEDIA_IMPORT 1
+#define PAR_MEDIA_CODE   2
+#define PAR_MEDIA_3LAY   3
+#define PAR_MEDIA_3GRD   4
+
+#define PAR_SOURCE_CODE   1
+#define PAR_SOURCE_FILE   2
+
 struct par_t{
 
   //-- dirs and file name
   //char project_dir  [PAR_MAX_STRLEN];
   char output_dir   [PAR_MAX_STRLEN];
-  char grid_dir     [PAR_MAX_STRLEN];
-  //char metric_dir   [PAR_MAX_STRLEN];
+  char out_grid_dir     [PAR_MAX_STRLEN];
   char media_dir    [PAR_MAX_STRLEN];
   //char source_dir   [PAR_MAX_STRLEN];
   //char station_dir  [PAR_MAX_STRLEN];
-  char log_file_name[PAR_MAX_STRLEN];
+  //char log_file_name[PAR_MAX_STRLEN];
 
   // MPI
   int number_of_mpiprocs_x;
@@ -55,33 +69,36 @@ struct par_t{
   float cfspml_velocity[FD_NDIM_2];
 
   // grid
-  char input_grid_type[PAR_TYPE_STRLEN];
-  char input_grid_file[PAR_MAX_STRLEN];
+  int grid_generation_itype;
+  int is_export_grid;
 
-  int  coord_by_import;
-  int  coord_by_cartesian;
-  int  coord_by_vmap;
-  int  coord_by_refine;
+  char grid_export_dir[PAR_MAX_STRLEN];
+  char grid_import_dir[PAR_MAX_STRLEN];
 
   float cartesian_grid_origin[FD_NDIM];
   float cartesian_grid_stepsize[FD_NDIM];
 
-  int is_export_grid;
+  char in_grid_layer_file[PAR_MAX_STRLEN];
+  int  grid_layer_interp_factor[FD_NDIM];
 
   // metric
-  char input_metric_type[PAR_TYPE_STRLEN];
-  int  metric_by_import;
+  int metric_method_itype;
   int is_export_metric;
+  char metric_export_dir[PAR_MAX_STRLEN];
+  char metric_import_dir[PAR_MAX_STRLEN];
 
   // medium
-  char input_medium_type[PAR_TYPE_STRLEN];
-  int medium_by_import;
-  //char input_medium_file[PAR_MAX_STRLEN];
+  int media_input_itype;
   int is_export_media;
+  char media_export_dir[PAR_MAX_STRLEN];
+  char media_import_dir[PAR_MAX_STRLEN];
+  char media_input_file[PAR_MAX_STRLEN];
 
   // source
-  char input_source_file[PAR_MAX_STRLEN];
+  int source_input_itype;
+  char source_input_file[PAR_MAX_STRLEN];
   int is_export_source;
+  char source_export_dir[PAR_MAX_STRLEN];
 
   // output
   // receiver

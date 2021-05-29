@@ -116,8 +116,8 @@ int main(int argc, char** argv)
               par->boundary_type_name,
               par->abs_num_of_layers,
               par->output_dir,
-              par->grid_dir,
-              par->media_dir,
+              par->grid_export_dir,
+              par->media_export_dir,
               fd->fdx_nghosts,
               fd->fdy_nghosts,
               fd->fdz_nghosts,
@@ -145,137 +145,120 @@ int main(int argc, char** argv)
                    &blk->g3d_pos,
                    &blk->g3d_name);
 
-  // if import coord and metric
-  /*
-  if (par->coord_by_import==1)
+  switch (par->grid_generation_itype)
   {
-      if (myid==0) fprintf(stdout,"import grid vars ...\n"); 
+    case PAR_GRID_CARTESIAN :
+        if (myid==0) fprintf(stdout,"generate cartesian grid in code ...\n"); 
+        float x0 = par->cartesian_grid_origin[0];
+        float y0 = par->cartesian_grid_origin[1];
+        float z0 = par->cartesian_grid_origin[2];
+        float dx = par->cartesian_grid_stepsize[0];
+        float dy = par->cartesian_grid_stepsize[1];
+        float dz = par->cartesian_grid_stepsize[2];
+        gd_curv_gen_cart(blk->c3d, blk->siz_volume,
+                         blk->nx,
+                         dx,
+                         x0 + (blk->gni1 - fd->fdx_nghosts) * dx,
+                         blk->ny,
+                         dy,
+                         y0 + (blk->gnj1 - fd->fdy_nghosts) * dy,
+                         blk->nz,
+                         dz,
+                         z0 + (blk->gnk1 - fd->fdz_nghosts) * dz);
+        break;
 
-      gd_curv_import(blk->g3d, blk->g3d_pos, blk->g3d_name,
-              blk->g3d_num_of_vars, blk->siz_volume, par->in_metric_dir, myid3);
+    case PAR_GRID_IMPORT :
+        if (myid==0) fprintf(stdout,"import grid vars ...\n"); 
+        if (myid==0) fprintf(stdout,"   not implemented yet\n"); 
+        //gd_curv_import(blk->g3d, blk->g3d_pos, blk->g3d_name,
+        //        blk->g3d_num_of_vars, blk->siz_volume, par->in_metric_dir, myid3);
+        //gd_curv_topoall_import(blk->g3d, blk->nx, blk->ny, blk->nz, 
+        //          myid3[0],myid3[1],myid3[2]);
+        break;
 
-      gd_curv_topoall_import(blk->g3d, blk->nx, blk->ny, blk->nz, 
-                  myid3[0],myid3[1],myid3[2]);
+    case PAR_GRID_LAYER_INTERP :
+        if (myid==0) fprintf(stdout,"gerate grid using layer interp ...\n"); 
+        if (myid==0) fprintf(stdout,"   not implemented yet\n"); 
+
+        int VmapSpacingIsequal[] = { 1, 0, 1 }; // 1:The grid spacing is equal; 0: Is not.
+        int NCellPerlay[] = { 25, 15, 20 };
+        int nLayers = 3;
+        gd_curv_gen_layer(blk->c3d, nLayers,
+                          NCellPerlay, VmapSpacingIsequal,
+                          blk->nx, blk->ni, blk->gni1, fd->fdx_nghosts, par->number_of_total_grid_points_x,
+                          blk->ny, blk->nj, blk->gnj1, fd->fdy_nghosts, par->number_of_total_grid_points_y,
+                          blk->nz, blk->nk, blk->gnk1, fd->fdz_nghosts, par->number_of_total_grid_points_z);
+
+        break;
 
   }
-  */
-  // if cartesian coord
-  // if (strcmp(par->input_grid_type, "cartesian")==0)
-  // {
-  //   float x0 = par->cartesian_grid_origin[0];
-  //   float y0 = par->cartesian_grid_origin[1];
-  //   float z0 = par->cartesian_grid_origin[2];
-  //   float dx = par->cartesian_grid_stepsize[0];
-  //   float dy = par->cartesian_grid_stepsize[1];
-  //   float dz = par->cartesian_grid_stepsize[2];
-  //   gd_curv_gen_cart(blk->c3d, blk->siz_volume,
-  //                    blk->nx,
-  //                    dx,
-  //                    x0 + (blk->gni1 - fd->fdx_nghosts) * dx,
-  //                    blk->ny,
-  //                    dy,
-  //                    y0 + (blk->gnj1 - fd->fdy_nghosts) * dy,
-  //                    blk->nz,
-  //                    dz,
-  //                    z0 + (blk->gnk1 - fd->fdz_nghosts) * dz);
-  // }
-
-  
-  if (strcmp(par->input_grid_type, "cartesian")==0)
-  {
-    int VmapSpacingIsequal[] = { 1, 0, 1 }; // 1:The grid spacing is equal; 0: Is not.
-    int NCellPerlay[] = { 25, 15, 20 };
-    int nLayers = 3;
-    gd_curv_gen_layer(blk->c3d, nLayers,
-                      NCellPerlay, VmapSpacingIsequal,
-                      blk->nx, blk->ni, blk->gni1, fd->fdx_nghosts, par->number_of_total_grid_points_x,
-                      blk->ny, blk->nj, blk->gnj1, fd->fdy_nghosts, par->number_of_total_grid_points_y,
-                      blk->nz, blk->nk, blk->gnk1, fd->fdz_nghosts, par->number_of_total_grid_points_z);
-  }
-
-
-
-  /*
-  // if vmap coord
-  if (par->coord_by_vmap==1)
-  {
-      ierr = gd_curv_gen_vmap(blk->g3d, blk->nx, blk->ny, blk->nz,
-              );
-  }
-  // if refine coord
-  if (par->coord_by_refine==1)
-  {
-      grid_coarse = gd_curv_read_coarse(par->grid_in_file, par%grid_dz_taper_length);
-
-      ierr = gd_curv_interp_corse(grid_corse, blk->g3d,
-                  );
-
-      gd_curv_coarse_free(grid_coarse);
-  }
-  else
-  {
-  }
-  */
 
   // generate topo over all the domain
   //ierr = gd_curv_topoall_generate();
 
   // output
-  //if (par->grid_output_to_file==1)
-  //{
-     gd_curv_coord_export(blk->c3d,
-                          blk->c3d_pos,
-                          blk->c3d_name,
-                          blk->c3d_num_of_vars,
+  if (par->is_export_grid==1)
+  {
+    if (myid==0) fprintf(stdout,"export coord to file ...\n"); 
+    gd_curv_coord_export(blk->c3d,
+                         blk->c3d_pos,
+                         blk->c3d_name,
+                         blk->c3d_num_of_vars,
+                         blk->nx,
+                         blk->ny,
+                         blk->nz,
+                         blk->output_fname_part,
+                         blk->grid_export_dir);
+  }
+
+  // cal metrics and output for QC
+  
+  switch (par->metric_method_itype)
+  {
+    case PAR_METRIC_CALCULATE :
+        if (myid==0 && verbose>0) fprintf(stdout,"calculate metrics ...\n"); 
+
+        gd_curv_cal_metric(blk->c3d,
+                           blk->g3d,
+                           blk->ni1,
+                           blk->ni2,
+                           blk->nj1,
+                           blk->nj2,
+                           blk->nk1,
+                           blk->nk2,
+                           blk->nx,
+                           blk->ny,
+                           blk->nz,
+                           blk->siz_line,
+                           blk->siz_slice,
+                           blk->siz_volume,
+                           fd->fd_len,
+                           fd->fd_indx,
+                           fd->fd_coef);
+
+        //if (myid==0) fprintf(stdout,"exchange metrics ...\n"); 
+        //gd_curv_exchange_metric();
+
+        break;
+
+    case PAR_METRIC_IMPORT :
+        if (myid==0) fprintf(stdout,"import descreted medium file ...\n"); 
+        if (myid==0) fprintf(stdout,"   not implemented yet\n"); 
+        break;
+  }
+
+  if (par->is_export_metric==1)
+  {
+    if (myid==0) fprintf(stdout,"export metric to file ...\n"); 
+    gd_curv_metric_export(blk->g3d,
+                          blk->g3d_pos,
+                          blk->g3d_name,
+                          blk->g3d_num_of_vars,
                           blk->nx,
                           blk->ny,
                           blk->nz,
                           blk->output_fname_part,
-                          blk->grid_dir);
-  //}
-
-  // cal metrics and output for QC
-  if (strcmp(par->input_metric_type, "calculate")==0)
-  {
-    if (myid==0 && verbose>0) fprintf(stdout,"calculate metrics ...\n"); 
-
-    gd_curv_cal_metric(blk->c3d,
-                       blk->g3d,
-                       blk->ni1,
-                       blk->ni2,
-                       blk->nj1,
-                       blk->nj2,
-                       blk->nk1,
-                       blk->nk2,
-                       blk->nx,
-                       blk->ny,
-                       blk->nz,
-                       blk->siz_line,
-                       blk->siz_slice,
-                       blk->siz_volume,
-                       fd->fd_len,
-                       fd->fd_indx,
-                       fd->fd_coef);
-
-    //if (myid==0) fprintf(stdout,"exchange metrics ...\n"); 
-    //gd_curv_exchange_metric();
-
-    //if (par->metric_output_to_file==1)
-    //{
-        if (myid==0) fprintf(stdout,"export metric to file ...\n"); 
-        gd_curv_metric_export(blk->g3d,
-                              blk->g3d_pos,
-                              blk->g3d_name,
-                              blk->g3d_num_of_vars,
-                              blk->nx,
-                              blk->ny,
-                              blk->nz,
-                              blk->output_fname_part,
-                              blk->grid_dir);
-    //}
-  }
-  else // import metric
-  {
+                          blk->grid_export_dir);
   }
 
 //-------------------------------------------------------------------------------
@@ -290,33 +273,48 @@ int main(int argc, char** argv)
                       &blk->m3d_pos,
                       &blk->m3d_name);
   
-  if (strcmp(par->input_medium_type, "grid")==0)
+  // read or discrete velocity model
+  switch (par->media_input_itype)
   {
-    //md_el_iso_import(blk->m3d, blk->nx, blk->ny, blk->nz, 
-    //              myid3[0],myid3[1],myid3[2]);
+    case PAR_MEDIA_CODE :
+        if (myid==0) fprintf(stdout,"generate medium in code ...\n"); 
+        md_el_iso_gen_test(blk->m3d,
+                           blk->c3d+GD_CURV_SEQ_X3D * blk->siz_volume,
+                           blk->c3d+GD_CURV_SEQ_Y3D * blk->siz_volume,
+                           blk->c3d+GD_CURV_SEQ_Z3D * blk->siz_volume,
+                           blk->nx,
+                           blk->ny,
+                           blk->nz,
+                           blk->siz_line,
+                           blk->siz_slice,
+                           blk->siz_volume);
+        break;
+
+    case PAR_MEDIA_IMPORT :
+        if (myid==0) fprintf(stdout,"import descreted medium file ...\n"); 
+        if (myid==0) fprintf(stdout,"   not implemented yet\n"); 
+        //md_el_iso_import(blk->m3d, blk->nx, blk->ny, blk->nz, 
+        //              myid3[0],myid3[1],myid3[2]);
+        break;
+
+    case PAR_MEDIA_3LAY :
+        if (myid==0) fprintf(stdout,"read and descrete 3lay medium file ...\n"); 
+        if (myid==0) fprintf(stdout,"   not implemented yet\n"); 
+
+        break;
+
+    case PAR_MEDIA_3GRD :
+        if (myid==0) fprintf(stdout,"read and descrete 3grd medium file ...\n"); 
+        if (myid==0) fprintf(stdout,"   not implemented yet\n"); 
+        break;
+
   }
-  else
+
+  if (par->is_export_media==1)
   {
-    md_el_iso_gen_test(blk->m3d,
-                       blk->c3d+GD_CURV_SEQ_X3D * blk->siz_volume,
-                       blk->c3d+GD_CURV_SEQ_Y3D * blk->siz_volume,
-                       blk->c3d+GD_CURV_SEQ_Z3D * blk->siz_volume,
-                       blk->nx,
-                       blk->ny,
-                       blk->nz,
-                       blk->siz_line,
-                       blk->siz_slice,
-                       blk->siz_volume);
+    if (myid==0) fprintf(stdout,"export discrete medium to file ...\n"); 
 
-    /*
-    if (par->medium_output_to_file==1) {
-      if (myid==0) fprintf(stdout,"export discrete medium to file ...\n"); 
-      md_el_iso_export();
-    }
-    */
-  }
-
-     md_el_iso_export(blk->m3d,
+    md_el_iso_export(blk->m3d,
                       blk->m3d_pos,
                       blk->m3d_name,
                       blk->m3d_num_of_vars,
@@ -324,7 +322,8 @@ int main(int argc, char** argv)
                       blk->ny,
                       blk->nz,
                       blk->output_fname_part,
-                      blk->media_dir);
+                      blk->media_export_dir);
+  }
   
   // convert rho to 1 / rho to reduce number of arithmetic cal
   md_el_iso_rho_to_slow(blk->m3d, blk->siz_volume);
@@ -375,44 +374,37 @@ int main(int argc, char** argv)
 //-------------------------------------------------------------------------------
 //-- source import or locate on fly
 //-------------------------------------------------------------------------------
-
-  //src_read_file(par->src_fname, myid);
-  //src_locate_extend();
-  /*src_gen_test(t0,
-               dt,
-               nt_total,
-               fd->num_rk_stages,
-               &blk->num_of_force,
-               &blk->force_info,
-               &blk->force_vec_stf,
-               &blk->num_of_moment,
-               &blk->moment_info,
-               &blk->moment_ten_rate,
-               verbose);
-*/
-  src_gen_test_gauss(blk->siz_line,
-                     blk->siz_slice,
-                     t0,
-                     dt,
-                     nt_total,
-                     fd->num_rk_stages,
-                     &blk->num_of_force,
-                     &blk->force_info,
-                     &blk->force_vec_stf,
-                     &blk->num_of_moment,
-                     &blk->moment_info,
-                     &blk->moment_ten_rate,
-                     &blk->moment_ext_indx,
-                     &blk->moment_ext_coef,
-                     verbose);
-
-  // manually del source except 0
-  if (myid!=4) {
-    blk->num_of_moment = 0;
-  }
   
+  // read or gen source
+  switch (par->source_input_itype)
+  {
+    case PAR_SOURCE_CODE :
+        if (myid==0) fprintf(stdout,"generate source in code ...\n"); 
+        src_gen_test_gauss(blk->siz_line,
+                           blk->siz_slice,
+                           t0,
+                           dt,
+                           nt_total,
+                           fd->num_rk_stages,
+                           &blk->num_of_force,
+                           &blk->force_info,
+                           &blk->force_vec_stf,
+                           &blk->num_of_moment,
+                           &blk->moment_info,
+                           &blk->moment_ten_rate,
+                           &blk->moment_ext_indx,
+                           &blk->moment_ext_coef,
+                           verbose);
+        break;
+
+    case PAR_SOURCE_FILE :
+        if (myid==0) fprintf(stdout,"read source file ...\n"); 
+        if (myid==0) fprintf(stdout,"   not implemented yet\n"); 
+        break;
+  }
+
   /*
-  if (par->source_output_to_file==1)
+  if (par->is_export_source==1)
   {
       ierr = src_export();
   }

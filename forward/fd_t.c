@@ -276,8 +276,8 @@ fd_blk_init(struct fd_blk_t *blk,
             char **boundary_type_name,
             int *abs_num_of_layers,
             char *output_dir,
-            char *grid_dir,
-            char *media_dir,
+            char *grid_export_dir,
+            char *media_export_dir,
             int fdx_nghosts,
             int fdy_nghosts,
             int fdz_nghosts,
@@ -470,8 +470,8 @@ fd_blk_init(struct fd_blk_t *blk,
 
   // output
   sprintf(blk->output_dir, "%s", output_dir);
-  sprintf(blk->grid_dir, "%s", grid_dir);
-  sprintf(blk->media_dir, "%s", media_dir);
+  sprintf(blk->grid_export_dir, "%s", grid_export_dir);
+  sprintf(blk->media_export_dir, "%s", media_export_dir);
 
   //fprintf(stdout,"in output_dir=%s\n",output_dir);
   //fprintf(stdout,"blk output_dir=%s\n",blk->output_dir);

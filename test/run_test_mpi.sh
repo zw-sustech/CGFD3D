@@ -45,7 +45,6 @@ ieof
 #----------------------------------------------------------------------
 cat << ieof > $par_file
 {
-  "grid_name" : "blk_1",
   "number_of_total_grid_points_x" : 200,
   "number_of_total_grid_points_y" : 200,
   "number_of_total_grid_points_z" : 60,
@@ -100,27 +99,45 @@ cat << ieof > $par_file
       "free" : "timg"
       },
 
-  "#-- input_grid_type" : "vmap cartesian grid import",
-  "input_grid_type" : "cartesian",
-  "cartesian_grid_origin"   : [ 0.0, 0.0, -6000.0 ],
-  "cartesian_grid_stepsize" : [ 100.0, 100.0, 100.0 ],
-  "#input_vmap_file" : "test.vmap",
+  "grid_generation_method" : {
+      "#import" : "$GRID_DIR",
+      "cartesian" : {
+        "origin"  : [0.0, 0.0, -6000.0 ],
+        "inteval" : [ 100.0, 100.0, 100.0 ]
+      },
+      "#layer_interp" : {
+        "in_grid_layer_file" : "$PROJDIR/test/grid_layer.gdlay",
+        "refine_factor" : [ 2, 2, 2 ]
+      }
+  },
+  "is_export_grid" : 1,
+  "grid_export_dir"   : "$GRID_DIR",
 
-  "#-- input_metric_type" : "calculate grid import",
-  "input_metric_type" : "calculate",
-  "#input_metric_file" : "test.sta",
+  "metric_calculation_method" : {
+      "#import" : "$GRID_DIR",
+      "calculate" : 1
+  },
+  "is_export_metric" : 1,
 
-  "#-- input_medium_type" : "grid layer import infunc",
-  "input_medium_type" : "infunc",
-  "medium_grid_Vp_file" : "mod1_Vp.grd",
-  "medium_grid_Vs_file" : "mod1_Vs.grd",
-  "medium_grid_rho_file" : "mod1_rho.grd",
-  "medium_grid_Qp_file" : "mod1_Qp.grd",
-  "medium_grid_Qs_file" : "mod1_Qs.grd",
+  "media_input" : {
+      "#import" : "$MEDIA_DIR",
+      "code_generate" : 1,
+      "#in_3lay_file" : "$PROJDIR/test/hill3d.md3lay",
+      "#in_3grd_file" : "$PROJDIR/test/hill3d.md3grd"
+  },
+  "is_export_media" : 1,
+  "media_export_dir"  : "$MEDIA_DIR",
 
-  "input_source_file" : "test.src",
+  "source_input" : {
+      "code_generate" : 1,
+      "in_source_file" : "$PROJDIR/test/forceandmoment.fdsrc"
+  },
+  "is_export_source" : 1,
+  "source_export_dir"  : "$SOURCE_DIR",
 
-  "input_receiver_file" : "test.rcv",
+  "output_dir" : "$OUTPUT_DIR",
+
+  "receiver_file" : "surface.fdrcv",
 
   "receiver_line" : [
     {
@@ -146,7 +163,7 @@ cat << ieof > $par_file
   "snapshot" : [
     {
       "name" : "volume_vel",
-      "grid_index_start" : [ 10, 0, 0 ],
+      "grid_index_start" : [ 10, 1, 0 ],
       "grid_index_count" : [ 40,50, 50 ],
       "grid_index_incre" : [  2, 2, 1 ],
       "time_index_start" : 0,
@@ -158,11 +175,7 @@ cat << ieof > $par_file
   ],
 
   "check_nan_every_nummber_of_steps" : 0,
-  "output_all" : 0,
-
-  "grid_dir"   : "$grid_dir",
-  "media_dir"  : "$media_dir",
-  "output_dir" : "$output_dir"
+  "output_all" : 0 
 }
 ieof
 

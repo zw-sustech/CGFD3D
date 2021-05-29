@@ -91,9 +91,7 @@ par_read_from_str(const char *str, struct par_t *par)
     par->boundary_type_name[i] = (char *)malloc(10*sizeof(char));
   }
 
-  // set non-input default values
-
-  // read parameter
+  // convert str to json
   cJSON *root = cJSON_Parse(str);
   if (NULL == root) {
     printf("Error at parsing json!\n");
@@ -103,7 +101,7 @@ par_read_from_str(const char *str, struct par_t *par)
   cJSON *item;
   cJSON *subitem, *thirditem, *snapitem, *lineitem;
 
-  // no default values
+  // no default
   if (item = cJSON_GetObjectItem(root, "number_of_total_grid_points_x")) {
     par->number_of_total_grid_points_x = item->valueint;
   }
@@ -233,108 +231,132 @@ par_read_from_str(const char *str, struct par_t *par)
     }
   }
 
-  // old implementation, replaced by above seperated boundary setting
-  //if (item = cJSON_GetObjectItem(root, "boundary_condition"))
-  //{
-  //  //int array_size = cJSON_GetArraySize(item);
-  //  //for (int i = 0; i < FD_NDIM_2; i++) {
-  //  //  sprintf(par->boundary_type_name[i], "%s",cJSON_GetArrayItem(item, i)->valuestring);
-  //  //}
-  //  if (subitem = cJSON_GetObjectItem(item, "x_left")) {
-  //     sprintf(par->boundary_type_name[0], "%s", subitem->valuestring);
-  //  }
-  //  if (subitem = cJSON_GetObjectItem(item, "x_right")) {
-  //     sprintf(par->boundary_type_name[1], "%s", subitem->valuestring);
-  //  }
-  //  if (subitem = cJSON_GetObjectItem(item, "y_front")) {
-  //     sprintf(par->boundary_type_name[2], "%s", subitem->valuestring);
-  //  }
-  //  if (subitem = cJSON_GetObjectItem(item, "y_back")) {
-  //     sprintf(par->boundary_type_name[3], "%s", subitem->valuestring);
-  //  }
-  //  if (subitem = cJSON_GetObjectItem(item, "z_bottom")) {
-  //     sprintf(par->boundary_type_name[4], "%s", subitem->valuestring);
-  //  }
-  //  if (subitem = cJSON_GetObjectItem(item, "z_top")) {
-  //     sprintf(par->boundary_type_name[5], "%s", subitem->valuestring);
-  //  }
-  //}
-  //// cfs-pml, default not implement yet
-  //if (item = cJSON_GetObjectItem(root, "cfspml"))
-  //{
-  //  if (subitem = cJSON_GetObjectItem(item, "number_of_layers"))
-  //  {
-  //    for (int i = 0; i < FD_NDIM_2; i++) {
-  //      par->abs_num_of_layers[i] = cJSON_GetArrayItem(subitem, i)->valueint;
-  //    }
-  //  }
-  //  if (subitem = cJSON_GetObjectItem(item, "alpha_max"))
-  //  {
-  //    for (int i = 0; i < FD_NDIM_2; i++) {
-  //      par->cfspml_alpha_max[i] = cJSON_GetArrayItem(subitem, i)->valuedouble;
-  //    }
-  //  }
-  //  if (subitem = cJSON_GetObjectItem(item, "beta_max"))
-  //  {
-  //    for (int i = 0; i < FD_NDIM_2; i++) {
-  //      par->cfspml_beta_max[i] = cJSON_GetArrayItem(subitem, i)->valuedouble;
-  //    }
-  //  }
-  //  if (subitem = cJSON_GetObjectItem(item, "pml_velocity"))
-  //  {
-  //    for (int i = 0; i < FD_NDIM_2; i++) {
-  //      par->cfspml_velocity[i] = cJSON_GetArrayItem(subitem, i)->valuedouble;
-  //    }
-  //  }
-  //}
-
+  //
   //-- grid
-  if (item = cJSON_GetObjectItem(root, "input_grid_type")) {
-    sprintf(par->input_grid_type, "%s", item->valuestring);
-  }
-  //  if cartesian grid
-  if (strcmp(par->input_grid_type, "cartesian")==0)
-  {
-    if (item = cJSON_GetObjectItem(root, "cartesian_grid_origin")) {
-      for (int i = 0; i < FD_NDIM; i++) {
-        par->cartesian_grid_origin[i] = cJSON_GetArrayItem(item, i)->valuedouble;
-      }
+  //
+
+  // default output grid
+
+  par->grid_generation_itype = PAR_GRID_IMPORT;
+  if (item = cJSON_GetObjectItem(root, "grid_generation_method")) {
+    // import grid
+    if (subitem = cJSON_GetObjectItem(item, "import")) {
+       par->grid_generation_itype = PAR_GRID_IMPORT;
+       sprintf(par->grid_import_dir, "%s", subitem->valuestring);
     }
-    if (item = cJSON_GetObjectItem(root, "cartesian_grid_stepsize")) {
-      for (int i = 0; i < FD_NDIM; i++) {
-        par->cartesian_grid_stepsize[i] = cJSON_GetArrayItem(item, i)->valuedouble;
-      }
+    // generate cartesian grid
+    if (subitem = cJSON_GetObjectItem(item, "cartesian")) {
+       par->grid_generation_itype = PAR_GRID_CARTESIAN;
+       if (thirditem = cJSON_GetObjectItem(subitem, "origin")) {
+         for (int i = 0; i < FD_NDIM; i++) {
+           par->cartesian_grid_origin[i] = cJSON_GetArrayItem(thirditem, i)->valuedouble;
+         }
+       }
+       if (thirditem = cJSON_GetObjectItem(subitem, "inteval")) {
+         for (int i = 0; i < FD_NDIM; i++) {
+           par->cartesian_grid_stepsize[i] = cJSON_GetArrayItem(thirditem, i)->valuedouble;
+         }
+       }
     }
-  }
-  //  if vmap
-  if (strcmp(par->input_grid_type, "vmap")==0)
-  {
-    if (item = cJSON_GetObjectItem(root, "input_vmap_file")) {
-        sprintf(par->input_grid_file,"%s",item->valuestring);
+    // layer interp
+    if (subitem = cJSON_GetObjectItem(item, "layer_interp")) {
+       par->grid_generation_itype = PAR_GRID_LAYER_INTERP;
+       if (thirditem = cJSON_GetObjectItem(subitem, "in_grid_layer_file")) {
+          sprintf(par->in_grid_layer_file, "%s", thirditem->valuestring);
+       }
+       if (thirditem = cJSON_GetObjectItem(subitem, "refine_factor")) {
+         for (int i = 0; i < FD_NDIM; i++) {
+           par->grid_layer_interp_factor[i] = cJSON_GetArrayItem(thirditem, i)->valueint;
+         }
+       }
     }
   }
 
+  par->is_export_grid = 1;
+  if (item = cJSON_GetObjectItem(root, "is_export_grid")) {
+     par->is_export_grid = item->valueint;
+  }
+  if (item = cJSON_GetObjectItem(root, "grid_export_dir")) {
+      sprintf(par->grid_export_dir,"%s",item->valuestring);
+  }
+
+  //
   //-- metric
-  if (item = cJSON_GetObjectItem(root, "input_metric_type")) {
-    sprintf(par->input_metric_type, "%s", item->valuestring);
-  }
-  //if (strcmp(par->input_metric_type, "calculate")==0)
-  //{
-  //  par->input_metric_itype = ;
-  //}
+  //
 
+  par->metric_method_itype = PAR_METRIC_CALCULATE;
+  if (item = cJSON_GetObjectItem(root, "metric_calculation_method")) {
+    if (subitem = cJSON_GetObjectItem(item, "import")) {
+        par->metric_method_itype = PAR_METRIC_IMPORT;
+        sprintf(par->metric_import_dir, "%s", subitem->valuestring);
+    }
+    if (subitem = cJSON_GetObjectItem(item, "calculate")) {
+        par->metric_method_itype = PAR_METRIC_CALCULATE;
+    }
+  }
+
+  par->is_export_metric = 1;
+  if (item = cJSON_GetObjectItem(root, "is_export_metric")) {
+     par->is_export_metric = item->valueint;
+  }
+
+  //
   //-- medium
-  if (item = cJSON_GetObjectItem(root, "input_medium_type")) {
-    sprintf(par->input_medium_type, "%s", item->valuestring);
-  }
-  //if (strcmp(par->input_medium_type, "grid")==0)
-  //{
-  //  par->input_medium_itype = ;
-  //}
+  //
 
+  par->media_input_itype = PAR_MEDIA_IMPORT;
+  if (item = cJSON_GetObjectItem(root, "media_input")) {
+    if (subitem = cJSON_GetObjectItem(item, "import")) {
+        par->media_input_itype = PAR_MEDIA_IMPORT;
+        sprintf(par->media_import_dir, "%s", subitem->valuestring);
+    }
+    if (subitem = cJSON_GetObjectItem(item, "code_generate")) {
+        par->media_input_itype = PAR_MEDIA_CODE;
+    }
+    if (subitem = cJSON_GetObjectItem(item, "in_3lay_file")) {
+        par->media_input_itype = PAR_MEDIA_3LAY;
+        sprintf(par->media_input_file, "%s", subitem->valuestring);
+    }
+    if (subitem = cJSON_GetObjectItem(item, "in_3grd_file")) {
+        par->media_input_itype = PAR_MEDIA_3GRD;
+        sprintf(par->media_input_file, "%s", subitem->valuestring);
+    }
+  }
+
+  par->is_export_media = 1;
+  if (item = cJSON_GetObjectItem(root, "is_export_media")) {
+     par->is_export_media = item->valueint;
+  }
+  if (item = cJSON_GetObjectItem(root, "media_export_dir")) {
+      sprintf(par->media_export_dir,"%s",item->valuestring);
+  }
+
+  //
   //-- source
-  if (item = cJSON_GetObjectItem(root, "input_source_file")) {
-    sprintf(par->input_source_file, "%s", item->valuestring);
+  //
+
+  par->source_input_itype = PAR_SOURCE_CODE;
+  if (item = cJSON_GetObjectItem(root, "sourc_input")) {
+    if (subitem = cJSON_GetObjectItem(item, "code_generate")) {
+        par->source_input_itype = PAR_SOURCE_CODE;
+    }
+    if (subitem = cJSON_GetObjectItem(item, "in_source_file")) {
+        par->source_input_itype = PAR_SOURCE_FILE;
+        sprintf(par->source_input_file, "%s", subitem->valuestring);
+    }
+  }
+
+  par->is_export_source = 1;
+  if (item = cJSON_GetObjectItem(root, "is_export_source")) {
+     par->is_export_source = item->valueint;
+  }
+  if (item = cJSON_GetObjectItem(root, "source_export_dir")) {
+      sprintf(par->source_export_dir,"%s",item->valuestring);
+  }
+
+  //-- output dir
+  if (item = cJSON_GetObjectItem(root, "output_dir")) {
+      sprintf(par->output_dir,"%s",item->valuestring);
   }
 
   //-- receiver
@@ -495,17 +517,6 @@ par_read_from_str(const char *str, struct par_t *par)
     }
   }
 
-  //-- output dir
-  if (item = cJSON_GetObjectItem(root, "output_dir")) {
-      sprintf(par->output_dir,"%s",item->valuestring);
-  }
-  if (item = cJSON_GetObjectItem(root, "grid_dir")) {
-      sprintf(par->grid_dir,"%s",item->valuestring);
-  }
-  if (item = cJSON_GetObjectItem(root, "media_dir")) {
-      sprintf(par->media_dir,"%s",item->valuestring);
-  }
-
   //-- misc
   if (item = cJSON_GetObjectItem(root, "check_nan_every_nummber_of_steps")) {
       par->check_nan_every_nummber_of_steps = item->valueint;
@@ -629,13 +640,13 @@ par_print(struct par_t *par)
   fprintf(stdout, "-------------------------------------------------------\n");
   fprintf(stdout, "--> GRID INFO:\n");
   fprintf(stdout, "-------------------------------------------------------\n");
-  fprintf(stdout, " grid_dir = %s\n", par->grid_dir);
+  fprintf(stdout, " grid_export_dir = %s\n", par->grid_export_dir);
   fprintf(stdout, " number_of_total_grid_points_x = %-10d\n", par->number_of_total_grid_points_x);
   fprintf(stdout, " number_of_total_grid_points_y = %-10d\n", par->number_of_total_grid_points_y);
   fprintf(stdout, " number_of_total_grid_points_z = %-10d\n", par->number_of_total_grid_points_z);
 
-  fprintf(stdout, " input_grid_type = %s\n", par->input_grid_type);
-  if (strcmp(par->input_grid_type, "cartesian")==0) {
+  fprintf(stdout, " grid_generation_itype = %d\n", par->grid_generation_itype);
+  if (par->grid_generation_itype==PAR_GRID_CARTESIAN) {
     fprintf(stdout, " cartesian_grid_x0 = %10.4e\n", par->cartesian_grid_origin[0]);
     fprintf(stdout, " cartesian_grid_y0 = %10.4e\n", par->cartesian_grid_origin[1]);
     fprintf(stdout, " cartesian_grid_z0 = %10.4e\n", par->cartesian_grid_origin[2]);
@@ -644,13 +655,13 @@ par_print(struct par_t *par)
     fprintf(stdout, " cartesian_grid_dz = %10.4e\n", par->cartesian_grid_stepsize[2]);
   }
 
-  fprintf(stdout, " input_metric_type = %s\n", par->input_metric_type);
+  fprintf(stdout, " metric_method_itype = %d\n", par->metric_method_itype);
 
   fprintf(stdout, "-------------------------------------------------------\n");
   fprintf(stdout, "--> media info.\n");
   fprintf(stdout, "-------------------------------------------------------\n");
-  fprintf(stdout, " media_dir = %s\n", par->media_dir);
-  fprintf(stdout, " input_medium_type = %s\n", par->input_medium_type);
+  fprintf(stdout, " media_export_dir = %s\n", par->media_export_dir);
+  fprintf(stdout, " media_input_itype = %d\n", par->media_input_itype);
 
   //fprintf(stdout, "\n --> the media filename is:\n");
   //fprintf(stdout, " velp_file  = %s\n", PSV->fnm_velp);
@@ -660,7 +671,7 @@ par_print(struct par_t *par)
   fprintf(stdout, "-------------------------------------------------------\n");
   fprintf(stdout, "--> source info.\n");
   fprintf(stdout, "-------------------------------------------------------\n");
-  fprintf(stdout, " input_source_file = %s\n", par->input_source_file);
+  fprintf(stdout, " source_input_file = %s\n", par->source_input_file);
 
   fprintf(stdout, "\n");
   fprintf(stdout, "-------------------------------------------------------\n");

@@ -18,17 +18,18 @@ EXEC_DIR=/home/zhangw/code/zwlab/CGFD3D-elastic
 EXEC_WAVE=$EXEC_DIR/cgfdm3d_elastic_mpi
 
 #-- conf
-PROJDIR=/export/home/zhangw/work/cgfd_opt/13_bdrynew
-par_file=${PROJDIR}/test.json
-output_dir=${PROJDIR}/output
-grid_dir=${PROJDIR}/output
-media_dir=${PROJDIR}/output
+PROJDIR=/export/home/zhangw/work/cgfd_opt/14_jsonnew
+PAR_FILE=${PROJDIR}/test.json
+GRID_DIR=${PROJDIR}/output
+MEDIA_DIR=${PROJDIR}/output
+SOURCE_DIR=${PROJDIR}/output
+OUTPUT_DIR=${PROJDIR}/output
 
 #-- create dir
 mkdir -p $PROJDIR
-mkdir -p $output_dir
-mkdir -p $grid_dir
-mkdir -p $media_dir
+mkdir -p $OUTPUT_DIR
+mkdir -p $GRID_DIR
+mkdir -p $MEDIA_DIR
 
 #----------------------------------------------------------------------
 #-- create hostlist for mpirun
@@ -40,7 +41,7 @@ ieof
 #----------------------------------------------------------------------
 #-- create main conf
 #----------------------------------------------------------------------
-cat << ieof > $par_file
+cat << ieof > $PAR_FILE
 {
   "number_of_total_grid_points_x" : 100,
   "number_of_total_grid_points_y" : 100,
@@ -96,27 +97,45 @@ cat << ieof > $par_file
       "free" : "timg"
       },
 
-  "#-- input_grid_type" : "vmap cartesian grid import",
-  "input_grid_type" : "cartesian",
-  "cartesian_grid_origin"   : [ 0.0, 0.0, -6000.0 ],
-  "cartesian_grid_stepsize" : [ 100.0, 100.0, 100.0 ],
-  "#input_vmap_file" : "test.vmap",
+  "grid_generation_method" : {
+      "#import" : "$GRID_DIR",
+      "cartesian" : {
+        "origin"  : [0.0, 0.0, -6000.0 ],
+        "inteval" : [ 100.0, 100.0, 100.0 ]
+      },
+      "#layer_interp" : {
+        "in_grid_layer_file" : "$PROJDIR/test/grid_layer.gdlay",
+        "refine_factor" : [ 2, 2, 2 ]
+      }
+  },
+  "is_export_grid" : 1,
+  "grid_export_dir"   : "$GRID_DIR",
 
-  "#-- input_metric_type" : "calculate grid import",
-  "input_metric_type" : "calculate",
-  "#input_metric_file" : "test.sta",
+  "metric_calculation_method" : {
+      "#import" : "$GRID_DIR",
+      "calculate" : 1
+  },
+  "is_export_metric" : 1,
 
-  "#-- input_medium_type" : "grid layer import infunc",
-  "input_medium_type" : "infunc",
-  "medium_grid_Vp_file" : "mod1_Vp.grd",
-  "medium_grid_Vs_file" : "mod1_Vs.grd",
-  "medium_grid_rho_file" : "mod1_rho.grd",
-  "medium_grid_Qp_file" : "mod1_Qp.grd",
-  "medium_grid_Qs_file" : "mod1_Qs.grd",
+  "media_input" : {
+      "#import" : "$MEDIA_DIR",
+      "code_generate" : 1,
+      "#in_3lay_file" : "$PROJDIR/test/hill3d.md3lay",
+      "#in_3grd_file" : "$PROJDIR/test/hill3d.md3grd"
+  },
+  "is_export_media" : 1,
+  "media_export_dir"  : "$MEDIA_DIR",
 
-  "input_source_file" : "test.src",
+  "source_input" : {
+      "code_generate" : 1,
+      "in_source_file" : "$PROJDIR/test/forceandmoment.fdsrc"
+  },
+  "is_export_source" : 1,
+  "source_export_dir"  : "$SOURCE_DIR",
 
-  "input_receiver_file" : "test.rcv",
+  "output_dir" : "$OUTPUT_DIR",
+
+  "receiver_file" : "surface.fdrcv",
 
   "receiver_line" : [
     {
@@ -142,7 +161,7 @@ cat << ieof > $par_file
   "snapshot" : [
     {
       "name" : "volume_vel",
-      "grid_index_start" : [ 10, 0, 0 ],
+      "grid_index_start" : [ 10, 1, 0 ],
       "grid_index_count" : [ 40,50, 50 ],
       "grid_index_incre" : [  2, 2, 1 ],
       "time_index_start" : 0,
@@ -154,15 +173,11 @@ cat << ieof > $par_file
   ],
 
   "check_nan_every_nummber_of_steps" : 0,
-  "output_all" : 0,
-
-  "grid_dir"   : "$grid_dir",
-  "media_dir"  : "$media_dir",
-  "output_dir" : "$output_dir"
+  "output_all" : 0 
 }
 ieof
 
-echo "+ created $par_file"
+echo "+ created $PAR_FILE"
 
 #----------------------------------------------------------------------
 #-- create source list
@@ -177,8 +192,8 @@ echo "+ created $par_file"
 #
 
 #-- get np
-NUMPROCS_X=`grep number_of_mpiprocs_x ${par_file} | sed 's/:/ /g' | sed 's/,/ /g' | awk '{print $2}'`
-NUMPROCS_Y=`grep number_of_mpiprocs_y ${par_file} | sed 's/:/ /g' | sed 's/,/ /g' | awk '{print $2}'`
+NUMPROCS_X=`grep number_of_mpiprocs_x ${PAR_FILE} | sed 's/:/ /g' | sed 's/,/ /g' | awk '{print $2}'`
+NUMPROCS_Y=`grep number_of_mpiprocs_y ${PAR_FILE} | sed 's/:/ /g' | sed 's/,/ /g' | awk '{print $2}'`
 NUMPROCS=$(( NUMPROCS_X*NUMPROCS_Y ))
 echo $NUMPROCS_X $NUMPROCS_Y $NUMPROCS
 
@@ -193,7 +208,7 @@ cat ${PROJDIR}/hostlist
 #-- simulation
 printf "\nStart simualtion ...\n";
 #time $MPIDIR/bin/mpiexec -f ${PROJDIR}/hostlist -np $NUMPROCS $EXEC_DIR/fd3dpmltopo_ew $MAINCONF
-time $MPIDIR/bin/mpiexec -machinefile ${PROJDIR}/hostlist -np $NUMPROCS $EXEC_WAVE $par_file 100
+time $MPIDIR/bin/mpiexec -machinefile ${PROJDIR}/hostlist -np $NUMPROCS $EXEC_WAVE $PAR_FILE 100
 if [ $? -ne 0 ]; then
     printf "\nSimulation fail! stop!\n"
     exit 1
