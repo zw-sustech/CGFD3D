@@ -1,4 +1,4 @@
-#!/bin/bas
+#!/bin/bash
 
 #set -x
 set -e
@@ -10,34 +10,30 @@ date
 #export FI_PROVIDER=tcp
 #MPIDIR=/share/apps/intel-2019.3/mpich-3.3
 
-#-- sever related dir
-MPIDIR=/export/apps/gnu-4.8.5/mpich-3.3
-#EXEC_MATLAB=/export/apps/Matlab/R2015b/bin/matlab2015
+#-- system related dir
+MPIDIR=/share/apps/gnu-4.8.5/mpich-3.3
 
-#-- user related dir
-EXEC_DIR=/export/home/wangyh/CGFD3D-elastic
+#-- program related dir
+EXEC_DIR=/home/zhangw/code/zwlab/CGFD3D-elastic
 EXEC_WAVE=$EXEC_DIR/cgfdm3d_elastic_mpi
 
-#-- project related dir
-proj_dir=/export/home/wangyh/CGFD3D-elastic/project
+#-- conf
+PROJDIR=/export/home/zhangw/work/cgfd_opt/10_ijk
+par_file=${PROJDIR}/test.json
+output_dir=${PROJDIR}/output
+grid_dir=${PROJDIR}/output
+media_dir=${PROJDIR}/output
 
-export proj_dir
-
-output_dir=$proj_dir/output
+#-- create dir
+mkdir -p $PROJDIR
 mkdir -p $output_dir
-
-#EXEC_Plot_Script=./hill3d_plot.sh
-
-#-- conf file names
-par_file=${proj_dir}/test.json
-
-#-- create prj dir
-mkdir -p $proj_dir
+mkdir -p $grid_dir
+mkdir -p $media_dir
 
 #----------------------------------------------------------------------
 #-- create hostlist for mpirun
 #----------------------------------------------------------------------
-cat << ieof > ${proj_dir}/hostlist
+cat << ieof > ${PROJDIR}/hostlist
 server1
 ieof
 
@@ -50,20 +46,20 @@ cat << ieof > $par_file
   "number_of_total_grid_points_y" : 100,
   "number_of_total_grid_points_z" : 60,
 
-  "number_of_mpiprocs_x" : 3,
-  "number_of_mpiprocs_y" : 3,
+  "number_of_mpiprocs_x" : 1,
+  "number_of_mpiprocs_y" : 1,
 
   "size_of_time_step" : 0.01,
   "number_of_time_steps" : 500,
 
-  "boundary_condition" : [
-      "cfspml",
-      "cfspml",
-      "cfspml",
-      "cfspml",
-      "cfspml",
-      "free"
-  ],
+  "boundary_condition" : {
+      "x_left"   : "cfspml",
+      "x_right"  : "cfspml",
+      "y_front"  : "cfspml",
+      "y_back"   : "cfspml",
+      "z_bottom" : "cfspml",
+      "z_top"    : "free"
+  },
 
   "#boundary_condition" : [
       "none",
@@ -135,9 +131,9 @@ cat << ieof > $par_file
   "snapshot" : [
     {
       "name" : "volume_vel",
-      "grid_index_start" : [  0, 0,  0 ],
-      "grid_index_count" : [ 100,100, 50 ],
-      "grid_index_incre" : [  1, 1, 1 ],
+      "grid_index_start" : [ 10, 0, 0 ],
+      "grid_index_count" : [ 40,50, 50 ],
+      "grid_index_incre" : [  2, 2, 1 ],
       "time_index_start" : 0,
       "time_index_incre" : 1,
       "save_velocity" : 1,
@@ -149,6 +145,8 @@ cat << ieof > $par_file
   "check_nan_every_nummber_of_steps" : 0,
   "output_all" : 0,
 
+  "grid_dir"   : "$grid_dir",
+  "media_dir"  : "$media_dir",
   "output_dir" : "$output_dir"
 }
 ieof
@@ -158,7 +156,7 @@ echo "+ created $par_file"
 #----------------------------------------------------------------------
 #-- create source list
 #----------------------------------------------------------------------
-#cat << ieof > ${proj_dir}/source.list
+#cat << ieof > ${PROJDIR}/source.list
 #ieof
 #echo "+ created source.list"
 
@@ -174,17 +172,17 @@ NUMPROCS=$(( NUMPROCS_X*NUMPROCS_Y ))
 echo $NUMPROCS_X $NUMPROCS_Y $NUMPROCS
 
 #-- gen run script
-cat << ieof > ${proj_dir}/cgfd_sim.sh
+cat << ieof > ${PROJDIR}/cgfd_sim.sh
 #!/bin/bash
 
 set -e
 printf "\nUse $NUMPROCS CPUs on following nodes:\n"
-cat ${proj_dir}/hostlist
+cat ${PROJDIR}/hostlist
 
 #-- simulation
 printf "\nStart simualtion ...\n";
-#time $MPIDIR/bin/mpiexec -f ${proj_dir}/hostlist -np $NUMPROCS $EXEC_DIR/fd3dpmltopo_ew $MAINCONF
-time $MPIDIR/bin/mpiexec -machinefile ${proj_dir}/hostlist -np $NUMPROCS $EXEC_WAVE $par_file 100
+#time $MPIDIR/bin/mpiexec -f ${PROJDIR}/hostlist -np $NUMPROCS $EXEC_DIR/fd3dpmltopo_ew $MAINCONF
+time $MPIDIR/bin/mpiexec -machinefile ${PROJDIR}/hostlist -np $NUMPROCS $EXEC_WAVE $par_file 100
 if [ $? -ne 0 ]; then
     printf "\nSimulation fail! stop!\n"
     exit 1
@@ -192,9 +190,12 @@ fi
 
 ieof
 
+#-------------------------------------------------------------------------------
 #-- start run
-chmod 755 ${proj_dir}/cgfd_sim.sh
-${proj_dir}/cgfd_sim.sh
+#-------------------------------------------------------------------------------
+
+chmod 755 ${PROJDIR}/cgfd_sim.sh
+${PROJDIR}/cgfd_sim.sh
 if [ $? -ne 0 ]; then
     printf "\nSimulation fail! stop!\n"
     exit 1
@@ -221,4 +222,3 @@ date
 #date
 
 # vim:ft=conf:ts=4:sw=4:nu:et:ai:
-

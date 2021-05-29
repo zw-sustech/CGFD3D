@@ -68,9 +68,9 @@ gd_curv_init_c3d(
   strcpy(c3d_name[ivar],"z");
 
   // coord name
-  strcpy(coord_name[0],"xi");
-  strcpy(coord_name[1],"eta");
-  strcpy(coord_name[2],"zeta");
+  strcpy(coord_name[0],"i");
+  strcpy(coord_name[1],"j");
+  strcpy(coord_name[2],"k");
   
   // set return values
   *p_c3d = c3d;
@@ -534,9 +534,9 @@ gd_curv_coord_export(float  *restrict c3d,
   }
 
   // define dimension
-  ierr = nc_def_dim(ncid, "xi"  , nx, &dimid[2]);
-  ierr = nc_def_dim(ncid, "eta" , ny, &dimid[1]);
-  ierr = nc_def_dim(ncid, "zeta", nz, &dimid[0]);
+  ierr = nc_def_dim(ncid, "i"  , nx, &dimid[2]);
+  ierr = nc_def_dim(ncid, "j" , ny, &dimid[1]);
+  ierr = nc_def_dim(ncid, "k", nz, &dimid[0]);
 
   // define vars
   for (int ivar=0; ivar<number_of_vars; ivar++) {
@@ -587,9 +587,9 @@ gd_curv_metric_export(float  *restrict g3d,
   }
 
   // define dimension
-  ierr = nc_def_dim(ncid, "xi"  , nx, &dimid[2]);
-  ierr = nc_def_dim(ncid, "eta" , ny, &dimid[1]);
-  ierr = nc_def_dim(ncid, "zeta", nz, &dimid[0]);
+  ierr = nc_def_dim(ncid, "i"  , nx, &dimid[2]);
+  ierr = nc_def_dim(ncid, "j" , ny, &dimid[1]);
+  ierr = nc_def_dim(ncid, "k", nz, &dimid[0]);
 
   // define vars
   for (int ivar=0; ivar<number_of_vars; ivar++) {

@@ -105,7 +105,7 @@ int main(int argc, char** argv)
   struct fd_blk_t *blk = (struct fd_blk_t *) malloc(sizeof(struct fd_blk_t));
 
   // set parmeters of domain size
-  if (myid==0 && verbose>0) fprintf(stdout,"set slocal/global grid parameters ...\n"); 
+  if (myid==0 && verbose>0) fprintf(stdout,"set local/global grid parameters ...\n"); 
 
   fd_blk_init(blk,
               par->number_of_total_grid_points_x,
@@ -116,6 +116,8 @@ int main(int argc, char** argv)
               par->boundary_type_name,
               par->abs_num_of_layers,
               par->output_dir,
+              par->grid_dir,
+              par->media_dir,
               fd->fdx_nghosts,
               fd->fdy_nghosts,
               fd->fdz_nghosts,
@@ -219,17 +221,17 @@ int main(int argc, char** argv)
   //ierr = gd_curv_topoall_generate();
 
   // output
-  //if (par->grid_output_to_file==1) {
-      io_build_fname(blk->output_dir,"coord",".nc",blk->myid2,ou_file);
-      io_var3d_export_nc(ou_file,
-                         blk->c3d,
-                         blk->c3d_pos,
-                         blk->c3d_name,
-                         blk->c3d_num_of_vars,
-                         blk->coord_name,
-                         blk->nx,
-                         blk->ny,
-                         blk->nz);
+  //if (par->grid_output_to_file==1)
+  //{
+     gd_curv_coord_export(blk->c3d,
+                          blk->c3d_pos,
+                          blk->c3d_name,
+                          blk->c3d_num_of_vars,
+                          blk->nx,
+                          blk->ny,
+                          blk->nz,
+                          blk->output_fname_part,
+                          blk->grid_dir);
   //}
 
   // cal metrics and output for QC
@@ -258,18 +260,18 @@ int main(int argc, char** argv)
     //if (myid==0) fprintf(stdout,"exchange metrics ...\n"); 
     //gd_curv_exchange_metric();
 
-    //if (par->metric_output_to_file==1) {
+    //if (par->metric_output_to_file==1)
+    //{
         if (myid==0) fprintf(stdout,"export metric to file ...\n"); 
-        io_build_fname(blk->output_dir,"metric",".nc",blk->myid2,ou_file);
-        io_var3d_export_nc(ou_file,
-                           blk->g3d,
-                           blk->g3d_pos,
-                           blk->g3d_name,
-                           blk->g3d_num_of_vars,
-                           blk->coord_name,
-                           blk->nx,
-                           blk->ny,
-                           blk->nz);
+        gd_curv_metric_export(blk->g3d,
+                              blk->g3d_pos,
+                              blk->g3d_name,
+                              blk->g3d_num_of_vars,
+                              blk->nx,
+                              blk->ny,
+                              blk->nz,
+                              blk->output_fname_part,
+                              blk->grid_dir);
     //}
   }
   else // import metric

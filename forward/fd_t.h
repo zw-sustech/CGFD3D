@@ -324,8 +324,13 @@ struct fd_blk_t
   char  **snap_fname;
   
   // fname and dir
-  char output_dir[FD_MAX_STRLEN];
   char output_fname_part[FD_MAX_STRLEN];
+  // wavefield output
+  char output_dir[FD_MAX_STRLEN];
+  // seperate grid output to save grid for repeat simulation
+  char grid_dir[FD_MAX_STRLEN];
+  // seperate medium output to save medium for repeat simulation
+  char media_dir[FD_MAX_STRLEN];
 
   // mpi mesg
   int    myid2[2];
@@ -371,6 +376,8 @@ fd_blk_init(struct fd_blk_t *blk,
             char **boundary_type_name,
             int *abs_number_of_layers,
             char *output_dir,
+            char *grid_dir,
+            char *media_dir,
             int fdx_nghosts,
             int fdy_nghosts,
             int fdz_nghosts,

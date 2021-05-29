@@ -136,8 +136,26 @@ par_read_from_str(const char *str, struct par_t *par)
   if (item = cJSON_GetObjectItem(root, "boundary_condition"))
   {
     //int array_size = cJSON_GetArraySize(item);
-    for (int i = 0; i < FD_NDIM_2; i++) {
-      sprintf(par->boundary_type_name[i], "%s",cJSON_GetArrayItem(item, i)->valuestring);
+    //for (int i = 0; i < FD_NDIM_2; i++) {
+    //  sprintf(par->boundary_type_name[i], "%s",cJSON_GetArrayItem(item, i)->valuestring);
+    //}
+    if (subitem = cJSON_GetObjectItem(item, "x_left")) {
+       sprintf(par->boundary_type_name[0], "%s", subitem->valuestring);
+    }
+    if (subitem = cJSON_GetObjectItem(item, "x_right")) {
+       sprintf(par->boundary_type_name[1], "%s", subitem->valuestring);
+    }
+    if (subitem = cJSON_GetObjectItem(item, "y_front")) {
+       sprintf(par->boundary_type_name[2], "%s", subitem->valuestring);
+    }
+    if (subitem = cJSON_GetObjectItem(item, "y_back")) {
+       sprintf(par->boundary_type_name[3], "%s", subitem->valuestring);
+    }
+    if (subitem = cJSON_GetObjectItem(item, "z_bottom")) {
+       sprintf(par->boundary_type_name[4], "%s", subitem->valuestring);
+    }
+    if (subitem = cJSON_GetObjectItem(item, "z_top")) {
+       sprintf(par->boundary_type_name[5], "%s", subitem->valuestring);
     }
   }
 
@@ -381,6 +399,12 @@ par_read_from_str(const char *str, struct par_t *par)
   if (item = cJSON_GetObjectItem(root, "output_dir")) {
       sprintf(par->output_dir,"%s",item->valuestring);
   }
+  if (item = cJSON_GetObjectItem(root, "grid_dir")) {
+      sprintf(par->grid_dir,"%s",item->valuestring);
+  }
+  if (item = cJSON_GetObjectItem(root, "media_dir")) {
+      sprintf(par->media_dir,"%s",item->valuestring);
+  }
 
   //-- misc
   if (item = cJSON_GetObjectItem(root, "check_nan_every_nummber_of_steps")) {
@@ -478,6 +502,7 @@ par_print(struct par_t *par)
   fprintf(stdout, "-------------------------------------------------------\n");
   fprintf(stdout, "--> GRID INFO:\n");
   fprintf(stdout, "-------------------------------------------------------\n");
+  fprintf(stdout, " grid_dir = %s\n", par->grid_dir);
   fprintf(stdout, " number_of_total_grid_points_x = %-10d\n", par->number_of_total_grid_points_x);
   fprintf(stdout, " number_of_total_grid_points_y = %-10d\n", par->number_of_total_grid_points_y);
   fprintf(stdout, " number_of_total_grid_points_z = %-10d\n", par->number_of_total_grid_points_z);
@@ -497,6 +522,7 @@ par_print(struct par_t *par)
   fprintf(stdout, "-------------------------------------------------------\n");
   fprintf(stdout, "--> media info.\n");
   fprintf(stdout, "-------------------------------------------------------\n");
+  fprintf(stdout, " media_dir = %s\n", par->media_dir);
   fprintf(stdout, " input_medium_type = %s\n", par->input_medium_type);
 
   //fprintf(stdout, "\n --> the media filename is:\n");

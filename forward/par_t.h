@@ -16,9 +16,9 @@ struct par_t{
   //-- dirs and file name
   //char project_dir  [PAR_MAX_STRLEN];
   char output_dir   [PAR_MAX_STRLEN];
-  //char grid_dir     [PAR_MAX_STRLEN];
+  char grid_dir     [PAR_MAX_STRLEN];
   //char metric_dir   [PAR_MAX_STRLEN];
-  //char media_dir    [PAR_MAX_STRLEN];
+  char media_dir    [PAR_MAX_STRLEN];
   //char source_dir   [PAR_MAX_STRLEN];
   //char station_dir  [PAR_MAX_STRLEN];
   char log_file_name[PAR_MAX_STRLEN];
