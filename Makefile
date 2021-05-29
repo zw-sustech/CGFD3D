@@ -20,9 +20,9 @@ NETCDF :=  /share/apps/gnu-4.8.5/disable-netcdf-4.4.1
 CFLAGS := -I$(NETCDF)/include -I./lib/ -I./forward/ $(CFLAGS)
 
 #- debug
-CFLAGS   := -g $(CFLAGS)
+#CFLAGS   := -g $(CFLAGS)
 #- O3
-#CFLAGS   := -O3 $(CFLAGS)
+CFLAGS   := -O3 $(CFLAGS)
 
 #- static
 #LDFLAGS := $(NETCDF)/lib/libnetcdf.a -lm -static $(LDFLAGS)
