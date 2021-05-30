@@ -22,16 +22,16 @@ EXEC_WAVE=$EXEC_DIR/cgfdm3d_elastic_mpi
 PROJDIR=/export/home/zhangw/work/cgfd_opt/11_mpi
 export PROJDIR
 
-par_file=${PROJDIR}/test.json
-output_dir=${PROJDIR}/output
-grid_dir=${PROJDIR}/output
-media_dir=${PROJDIR}/output
+PAR_FILE=${PROJDIR}/test.json
+OUTPUT_DIR=${PROJDIR}/output
+GRID_DIR=${PROJDIR}/output
+MEDIA_DIR=${PROJDIR}/output
 
 #-- create dir
 mkdir -p $PROJDIR
-mkdir -p $output_dir
-mkdir -p $grid_dir
-mkdir -p $media_dir
+mkdir -p $OUTPUT_DIR
+mkdir -p $GRID_DIR
+mkdir -p $MEDIA_DIR
 
 #----------------------------------------------------------------------
 #-- create hostlist for mpirun
@@ -43,7 +43,7 @@ ieof
 #----------------------------------------------------------------------
 #-- create main conf
 #----------------------------------------------------------------------
-cat << ieof > $par_file
+cat << ieof > $PAR_FILE
 {
   "number_of_total_grid_points_x" : 200,
   "number_of_total_grid_points_y" : 200,
@@ -135,7 +135,7 @@ cat << ieof > $par_file
   "is_export_source" : 1,
   "source_export_dir"  : "$SOURCE_DIR",
 
-  "output_dir" : "$OUTPUT_DIR",
+  "OUTPUT_DIR" : "$OUTPUT_DIR",
 
   "receiver_file" : "surface.fdrcv",
 
@@ -179,7 +179,7 @@ cat << ieof > $par_file
 }
 ieof
 
-echo "+ created $par_file"
+echo "+ created $PAR_FILE"
 
 #----------------------------------------------------------------------
 #-- create source list
@@ -195,8 +195,8 @@ echo "+ created $par_file"
 #
 
 #-- get np
-NUMPROCS_X=`grep number_of_mpiprocs_x ${par_file} | sed 's/:/ /g' | sed 's/,/ /g' | awk '{print $2}'`
-NUMPROCS_Y=`grep number_of_mpiprocs_y ${par_file} | sed 's/:/ /g' | sed 's/,/ /g' | awk '{print $2}'`
+NUMPROCS_X=`grep number_of_mpiprocs_x ${PAR_FILE} | sed 's/:/ /g' | sed 's/,/ /g' | awk '{print $2}'`
+NUMPROCS_Y=`grep number_of_mpiprocs_y ${PAR_FILE} | sed 's/:/ /g' | sed 's/,/ /g' | awk '{print $2}'`
 NUMPROCS=$(( NUMPROCS_X*NUMPROCS_Y ))
 echo $NUMPROCS_X $NUMPROCS_Y $NUMPROCS
 
@@ -210,7 +210,7 @@ cat ${PROJDIR}/hostlist
 #-- simulation
 printf "\nStart simualtion ...\n";
 #time $MPIDIR/bin/mpiexec -f ${PROJDIR}/hostlist -np $NUMPROCS $EXEC_DIR/fd3dpmltopo_ew $MAINCONF
-time $MPIDIR/bin/mpiexec -machinefile ${PROJDIR}/hostlist -np $NUMPROCS $EXEC_WAVE $par_file 100
+time $MPIDIR/bin/mpiexec -machinefile ${PROJDIR}/hostlist -np $NUMPROCS $EXEC_WAVE $PAR_FILE 100
 if [ $? -ne 0 ]; then
     printf "\nSimulation fail! stop!\n"
     exit 1
