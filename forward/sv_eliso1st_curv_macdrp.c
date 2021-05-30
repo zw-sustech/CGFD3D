@@ -130,15 +130,19 @@ sv_eliso1st_curv_macdrp_allstep(
 
   // io nc
   int ncid_slx[num_of_slice_x];
+  int timeid_slx;
   int varid_slx[w3d_num_of_vars];
 
   int ncid_sly[num_of_slice_y];
+  int timeid_sly;
   int varid_sly[w3d_num_of_vars];
 
   int ncid_slz[num_of_slice_z];
+  int timeid_slz;
   int varid_slz[w3d_num_of_vars];
 
   int ncid_snap[num_of_snap];
+  int timeid_snap[num_of_snap];
   int varid_snap_vel[num_of_snap*FD_NDIM];
   int varid_snap_T[num_of_snap*FD_NDIM_2];
   int varid_snap_E[num_of_snap*FD_NDIM_2];
@@ -181,6 +185,9 @@ sv_eliso1st_curv_macdrp_allstep(
     if (nc_def_dim(ncid_slx[n], "time", NC_UNLIMITED, &dimid[0])) M_NCERR;
     if (nc_def_dim(ncid_slx[n], "k", nk      , &dimid[1])) M_NCERR;
     if (nc_def_dim(ncid_slx[n], "j" , nj      , &dimid[2])) M_NCERR;
+    // time var
+    if (nc_def_var(ncid_slx[n], "time", NC_FLOAT, 1, dimid+0, &timeid_slx)) M_NCERR;
+    // other vars
     for (int ivar=0; ivar<w3d_num_of_vars; ivar++) {
       if (nc_def_var(ncid_slx[n], w3d_name[ivar], NC_FLOAT, 3, dimid, &varid_slx[ivar])) M_NCERR;
     }
@@ -199,6 +206,9 @@ sv_eliso1st_curv_macdrp_allstep(
     if (nc_def_dim(ncid_sly[n], "time", NC_UNLIMITED, &dimid[0])) M_NCERR;
     if (nc_def_dim(ncid_sly[n], "k", nk      , &dimid[1])) M_NCERR;
     if (nc_def_dim(ncid_sly[n], "i" , ni      , &dimid[2])) M_NCERR;
+    // time var
+    if (nc_def_var(ncid_sly[n], "time", NC_FLOAT, 1, dimid+0, &timeid_sly)) M_NCERR;
+    // other vars
     for (int ivar=0; ivar<w3d_num_of_vars; ivar++) {
       if (nc_def_var(ncid_sly[n], w3d_name[ivar], NC_FLOAT, 3, dimid, &varid_sly[ivar])) M_NCERR;
     }
@@ -217,6 +227,9 @@ sv_eliso1st_curv_macdrp_allstep(
     if (nc_def_dim(ncid_slz[n], "time", NC_UNLIMITED, &dimid[0])) M_NCERR;
     if (nc_def_dim(ncid_slz[n], "j", nj      , &dimid[1])) M_NCERR;
     if (nc_def_dim(ncid_slz[n], "i" , ni      , &dimid[2])) M_NCERR;
+    // time var
+    if (nc_def_var(ncid_slz[n], "time", NC_FLOAT, 1, dimid+0, &timeid_slz)) M_NCERR;
+    // other vars
     for (int ivar=0; ivar<w3d_num_of_vars; ivar++) {
       if (nc_def_var(ncid_slz[n], w3d_name[ivar], NC_FLOAT, 3, dimid, &varid_slz[ivar])) M_NCERR;
     }
@@ -255,6 +268,9 @@ sv_eliso1st_curv_macdrp_allstep(
     if (nc_def_dim(ncid_snap[n], "k", snap_nk     , &dimid[1])) M_NCERR;
     if (nc_def_dim(ncid_snap[n], "j" , snap_nj     , &dimid[2])) M_NCERR;
     if (nc_def_dim(ncid_snap[n], "i" , snap_ni      , &dimid[3])) M_NCERR;
+    // time var
+    if (nc_def_var(ncid_snap[n], "time", NC_FLOAT, 1, dimid+0, &timeid_snap[n])) M_NCERR;
+    // other vars
     if (snap_out_V==1) {
        if (nc_def_var(ncid_snap[n],"Vx",NC_FLOAT,4,dimid,&varid_snap_vel[n*FD_NDIM+0])) M_NCERR;
        if (nc_def_var(ncid_snap[n],"Vy",NC_FLOAT,4,dimid,&varid_snap_vel[n*FD_NDIM+1])) M_NCERR;
@@ -557,6 +573,7 @@ sv_eliso1st_curv_macdrp_allstep(
     for (int n=0; n<num_of_slice_x; n++) {
       size_t startp[] = { it, 0, 0 };
       size_t countp[] = { 1, nk, nj};
+      size_t start_tdim = it;
       for (int ivar=0; ivar<w3d_num_of_vars; ivar++) {
         int iptr_var = w3d_pos[ivar];
         int iptr_slice = 0;
@@ -568,6 +585,7 @@ sv_eliso1st_curv_macdrp_allstep(
             iptr_slice++;
           }
         }
+        nc_put_var1_float(ncid_slx[n],timeid_slx,&start_tdim,&t_cur);
         nc_put_vara_float(ncid_slx[n],varid_slx[ivar],startp,countp,w_rhs);
         max_used_rhs = (iptr_slice > max_used_rhs) ? iptr_slice : max_used_rhs;
       }
@@ -576,6 +594,7 @@ sv_eliso1st_curv_macdrp_allstep(
     for (int n=0; n<num_of_slice_y; n++) {
       size_t startp[] = { it, 0, 0 };
       size_t countp[] = { 1, nk, ni};
+      size_t start_tdim = it;
       for (int ivar=0; ivar<w3d_num_of_vars; ivar++) {
         int iptr_var = w3d_pos[ivar];
         int iptr_slice = 0;
@@ -587,6 +606,7 @@ sv_eliso1st_curv_macdrp_allstep(
             iptr_slice++;
           }
         }
+        nc_put_var1_float(ncid_sly[n],timeid_sly,&start_tdim,&t_cur);
         nc_put_vara_float(ncid_sly[n],varid_sly[ivar],startp,countp,w_rhs);
         max_used_rhs = (iptr_slice > max_used_rhs) ? iptr_slice : max_used_rhs;
       }
@@ -595,6 +615,7 @@ sv_eliso1st_curv_macdrp_allstep(
     for (int n=0; n<num_of_slice_z; n++) {
       size_t startp[] = { it, 0, 0 };
       size_t countp[] = { 1, nj, ni};
+      size_t start_tdim = it;
       for (int ivar=0; ivar<w3d_num_of_vars; ivar++) {
         int iptr_var = w3d_pos[ivar];
         int k = slice_z_indx[n];
@@ -606,6 +627,7 @@ sv_eliso1st_curv_macdrp_allstep(
             iptr_slice++;
           }
         }
+        nc_put_var1_float(ncid_slz[n],timeid_slz,&start_tdim,&t_cur);
         nc_put_vara_float(ncid_slz[n],varid_slz[ivar],startp,countp,w_rhs);
         max_used_rhs = (iptr_slice > max_used_rhs) ? iptr_slice : max_used_rhs;
       }
@@ -639,6 +661,10 @@ sv_eliso1st_curv_macdrp_allstep(
       {
         size_t startp[] = { snap_cur_it[n], 0, 0, 0 };
         size_t countp[] = { 1, snap_nk, snap_nj, snap_ni };
+        size_t start_tdim = snap_cur_it[n];
+
+        nc_put_var1_float(ncid_snap[n],timeid_snap[n],&start_tdim,&t_cur);
+
         // vel
         if (snap_out_V==1)
         {
