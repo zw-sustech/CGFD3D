@@ -135,7 +135,7 @@ cat << ieof > $PAR_FILE
   "is_export_source" : 1,
   "source_export_dir"  : "$SOURCE_DIR",
 
-  "OUTPUT_DIR" : "$OUTPUT_DIR",
+  "output_dir" : "$OUTPUT_DIR",
 
   "receiver_file" : "surface.fdrcv",
 
