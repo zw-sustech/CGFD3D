@@ -18,7 +18,7 @@ EXEC_DIR=/home/zhangw/code/zwlab/CGFD3D-elastic
 EXEC_WAVE=$EXEC_DIR/cgfdm3d_elastic_mpi
 
 #-- conf
-PROJDIR=/export/home/zhangw/work/cgfd_opt/17_newsrc
+PROJDIR=/export/home/zhangw/work/cgfd_opt/18_tdim
 PAR_FILE=${PROJDIR}/test.json
 GRID_DIR=${PROJDIR}/output
 MEDIA_DIR=${PROJDIR}/output
@@ -161,13 +161,13 @@ cat << ieof > $PAR_FILE
       "name" : "line_x_1",
       "grid_index_start"    : [  0, 49, 59 ],
       "grid_index_incre"    : [  1,  0,  0 ],
-      "count"    : 100
+      "grid_index_count"    : 100
     },
     {
       "name" : "line_y_1",
       "grid_index_start"    : [ 19, 49, 59 ],
       "grid_index_incre"    : [  0,  1,  0 ],
-      "count"    : 20
+      "grid_index_count"    : 20
     } 
   ],
 

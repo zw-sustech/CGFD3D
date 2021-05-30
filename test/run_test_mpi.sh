@@ -163,13 +163,13 @@ cat << ieof > $PAR_FILE
       "name" : "line_x_1",
       "grid_index_start"    : [  0, 49, 59 ],
       "grid_index_incre"    : [  1,  0,  0 ],
-      "count"    : 100
+      "grid_index_count"    : 100
     },
     {
       "name" : "line_y_1",
       "grid_index_start"    : [ 19, 49, 59 ],
       "grid_index_incre"    : [  0,  1,  0 ],
-      "count"    : 20
+      "grid_index_count"    : 20
     } 
   ],
 

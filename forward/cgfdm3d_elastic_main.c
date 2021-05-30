@@ -440,6 +440,18 @@ int main(int argc, char** argv)
   */
 
 //-------------------------------------------------------------------------------
+//-- allocate main var
+//-------------------------------------------------------------------------------
+
+  if (myid==0 && verbose>0) fprintf(stdout,"allocate solver vars ...\n"); 
+  wf_el_1st_init_vars(blk->siz_volume,
+                      blk->w3d_num_of_levels,
+                      &blk->w3d_num_of_vars,
+                      &blk->w3d,
+                      &blk->w3d_pos,
+                      &blk->w3d_name);
+
+//-------------------------------------------------------------------------------
 //-- setup output, may require coord info
 //-------------------------------------------------------------------------------
 
@@ -481,18 +493,6 @@ int main(int argc, char** argv)
                       par->snapshot_save_velocity,
                       par->snapshot_save_stress,
                       par->snapshot_save_strain);
-
-//-------------------------------------------------------------------------------
-//-- allocate main var
-//-------------------------------------------------------------------------------
-
-  if (myid==0 && verbose>0) fprintf(stdout,"allocate solver vars ...\n"); 
-  wf_el_1st_init_vars(blk->siz_volume,
-                      blk->w3d_num_of_levels,
-                      &blk->w3d_num_of_vars,
-                      &blk->w3d,
-                      &blk->w3d_pos,
-                      &blk->w3d_name);
 
 //-------------------------------------------------------------------------------
 //-- absorbing boundary etc auxiliary variables
