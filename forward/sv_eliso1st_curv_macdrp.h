@@ -33,6 +33,8 @@ sv_eliso1st_curv_macdrp_allstep(
     int num_of_force,
     int *restrict force_info, // num_of_force * 6 : si,sj,sk,start_pos_in_stf,start_it, end_it
     float *restrict force_vec_stf,
+    int   *restrict force_ext_indx,
+    float *restrict force_ext_coef,
     int             num_of_moment,
     int   *restrict moment_info, // num_of_force * 6 : si,sj,sk,start_pos_in_rate,start_it, end_it
     float *restrict moment_ten_rate,
@@ -90,6 +92,8 @@ sv_eliso1st_curv_macdrp_onestage(
     int num_of_force,
     int *restrict force_loc_point,
     float *restrict force_vec_value, // only for cur stage, size: num_of_force
+    int   *restrict force_ext_indx,
+    float *restrict force_ext_coef,
     int             num_of_moment,
     int   *restrict moment_info, // num_of_force * 6 : si,sj,sk,start_pos_in_rate,start_it, end_it
     float *restrict moment_ten_rate,
@@ -239,6 +243,8 @@ sv_eliso1st_curv_macdrp_rhs_src(
     int num_of_force,
     int *restrict force_info,
     float *restrict force_vec_value,
+    int   *restrict force_ext_indx,
+    float *restrict force_ext_coef,
     int             num_of_moment,
     int   *restrict moment_info,
     float *restrict moment_ten_value, // size: num_of_moment * 6

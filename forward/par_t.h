@@ -24,8 +24,9 @@
 #define PAR_MEDIA_3LAY   3
 #define PAR_MEDIA_3GRD   4
 
-#define PAR_SOURCE_CODE   1
-#define PAR_SOURCE_FILE   2
+#define PAR_SOURCE_SINGLE_FORCE  1
+#define PAR_SOURCE_SINGLE_MOMENT 2
+#define PAR_SOURCE_FILE          3
 
 struct par_t{
 
@@ -100,6 +101,15 @@ struct par_t{
   int is_export_source;
   char source_export_dir[PAR_MAX_STRLEN];
 
+  float source_coords[FD_NDIM];
+  int   source_gridindex[FD_NDIM];
+  char  wavelet_name[PAR_MAX_STRLEN];
+  float wavelet_coefs[10]; // maximum 10 coefficients for wavelet
+  float wavelet_tstart;
+  float wavelet_tend;
+  float source_force_vector[FD_NDIM];
+  float source_moment_tensor[FD_NDIM_2];
+
   // output
   // receiver
   char input_receiver_file[PAR_MAX_STRLEN];
@@ -147,6 +157,9 @@ par_read_from_str(const char *str, struct par_t *par);
 void 
 par_read_json_cfspml(cJSON *item,
       int *nlay, float *amax, float *bmax, float *vel);
+void 
+par_read_json_source(cJSON *item, char *wavelet_type_name,float *src_coord,
+      int *grid_index, char *name, float *coefs, float *t_start, float *t_end);
 
 void
 par_print(struct par_t *par);

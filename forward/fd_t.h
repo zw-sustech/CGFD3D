@@ -98,6 +98,7 @@ struct fd_t{
   int num_rk_stages;
   float *rk_a;
   float *rk_b;
+  float *rk_rhs_time; // relative time for rhs eval
 
   //----------------------------------------------------------------------------
   // single centered scheme for all dim
@@ -201,7 +202,7 @@ struct fd_blk_t
   //
   int nx, ny, nz;
   int ni1, ni2, nj1, nj2, nk1, nk2, ni, nj, nk;
-  int gni1, gnj1, gnk1; // global index
+  int gni1, gnj1, gnk1; // global index, do not accout ghost point
   int gni2, gnj2, gnk2; // global index
   
   // size of a single var
@@ -262,6 +263,9 @@ struct fd_blk_t
   int     num_of_force;
   int    *force_info; // num_of_force * 6 : si,sj,sk,start_pos_in_stf,start_it, end_it
   float  *force_vec_stf;
+  int    *force_ext_indx;
+  float  *force_ext_coef;
+
   int     num_of_moment;
   int    *moment_info; // num_of_force * 7 : si,sj,sk,start_pos_in_rate,start_it, end_it, n_ext
   float  *moment_ten_rate; // stage, it, Mij, num

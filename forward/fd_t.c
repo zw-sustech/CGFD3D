@@ -23,6 +23,8 @@ fd_set_macdrp(struct fd_t *fd)
 
   fd->rk_a = (float *) fdlib_mem_malloc_1d(fd->num_rk_stages*sizeof(float),"fd_set_macdrp");
   fd->rk_b = (float *) fdlib_mem_malloc_1d(fd->num_rk_stages*sizeof(float),"fd_set_macdrp");
+  fd->rk_rhs_time = (float *) fdlib_mem_malloc_1d(fd->num_rk_stages*sizeof(float),
+                                                                           "fd_set_macdrp");
 
   fd->rk_a[0] = 0.5;
   fd->rk_a[1] = 0.5;
@@ -32,6 +34,12 @@ fd_set_macdrp(struct fd_t *fd)
   fd->rk_b[1] = 1.0/3.0;
   fd->rk_b[2] = 1.0/3.0;
   fd->rk_b[3] = 1.0/6.0;
+
+  // rhs side time in terms of percentage time step, useful for source stf
+  fd->rk_rhs_time[0] = 0.0;
+  fd->rk_rhs_time[1] = 0.5;
+  fd->rk_rhs_time[2] = 0.5;
+  fd->rk_rhs_time[3] = 1.0;
 
   //----------------------------------------------------------------------------
   // MacCormack-type scheme

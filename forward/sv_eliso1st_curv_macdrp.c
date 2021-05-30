@@ -69,6 +69,8 @@ sv_eliso1st_curv_macdrp_allstep(
     int num_of_force,
     int *restrict force_info, // num_of_force * 6 : si,sj,sk,start_pos_in_stf,start_it, end_it
     float *restrict force_vec_stf,
+    int   *restrict force_ext_indx,
+    float *restrict force_ext_coef,
     int             num_of_moment,
     int   *restrict moment_info, // num_of_force * 6 : si,sj,sk,start_pos_in_rate,start_it, end_it
     float *restrict moment_ten_rate,
@@ -375,6 +377,7 @@ sv_eliso1st_curv_macdrp_allstep(
                                        abs_vars_rhs,
                                        matVx2Vz, matVy2Vz,
                                        num_of_force , force_info , force_vec_value,
+                                       force_ext_indx,force_ext_coef,
                                        num_of_moment, moment_info, moment_ten_value,
                                        moment_ext_indx,moment_ext_coef,
                                        fdx_max_half_len, fdy_max_half_len,
@@ -791,6 +794,8 @@ sv_eliso1st_curv_macdrp_onestage(
     int num_of_force,
     int *restrict force_info,
     float *restrict force_vec_value, // only for cur stage, size: num_of_force
+    int   *restrict force_ext_indx,
+    float *restrict force_ext_coef,
     int             num_of_moment,
     int   *restrict moment_info, // num_of_force * 6 : si,sj,sk,start_pos_in_rate,start_it, end_it
     float *restrict moment_ten_value,
@@ -978,6 +983,7 @@ sv_eliso1st_curv_macdrp_onestage(
     sv_eliso1st_curv_macdrp_rhs_src(hVx,hVy,hVz,hTxx,hTyy,hTzz,hTxz,hTyz,hTxy,
                                     jac3d, slw3d, siz_line,siz_slice,
                                     num_of_force, force_info, force_vec_value,
+                                    force_ext_indx,force_ext_coef,
                                     num_of_moment, moment_info, moment_ten_value,
                                     moment_ext_indx,moment_ext_coef,
                                     myid, verbose);
@@ -2946,6 +2952,8 @@ sv_eliso1st_curv_macdrp_rhs_src(
     int num_of_force,
     int *restrict force_info,
     float *restrict force_vec_value,
+    int   *restrict force_ext_indx,
+    float *restrict force_ext_coef,
     int             num_of_moment,
     int   *restrict moment_info,
     float *restrict moment_ten_value, // size: num_of_moment * 6
@@ -2959,49 +2967,66 @@ sv_eliso1st_curv_macdrp_rhs_src(
   // add force
   for (int n=0; n<num_of_force; n++)
   {
-    int *ptr_force_loc = force_info + n * 6;
-    float  *ptr_force_val = force_vec_value + n * 3;
+    int    *ptr_force_info = force_info + n * M_SRC_INFO_NVAL;
+    float  *ptr_force_stf = force_vec_value + ptr_force_info[M_SRC_INFO_SEQ_POS];
 
-    si = ptr_force_loc[0];
-    sj = ptr_force_loc[1];
-    sk = ptr_force_loc[2];
+    //-- add at single point
+    //si = ptr_force_info[0];
+    //sj = ptr_force_info[1];
+    //sk = ptr_force_info[2];
 
-    iptr = si + sj * siz_line + sk * siz_slice;
+    //iptr = si + sj * siz_line + sk * siz_slice;
 
-    float V = slw3d[iptr] / jac3d[iptr];
+    //float V = slw3d[iptr] / jac3d[iptr];
 
-    hVx[iptr] += ptr_force_val[ 0 ] * V;
-    hVy[iptr] += ptr_force_val[ 1 ] * V;
-    hVz[iptr] += ptr_force_val[ 2 ] * V;
+    //hVx[iptr] += ptr_force_val[ 0 ] * V;
+    //hVy[iptr] += ptr_force_val[ 1 ] * V;
+    //hVz[iptr] += ptr_force_val[ 2 ] * V;
+
+    //-- add with smoothing
+    int n_ext_max  = ptr_force_info[M_SRC_INFO_SEQ_NEXT_MAX];
+    int n_ext_this = ptr_force_info[M_SRC_INFO_SEQ_NEXT_THIS];
+
+    int   *ptr_force_ext_indx = force_ext_indx + n * n_ext_max;
+    float *ptr_force_ext_coef = force_ext_coef + n * n_ext_max;
+    for (int i_ext=0; i_ext<n_ext_this; i_ext++)
+    {
+      iptr = ptr_force_ext_indx[i_ext];
+
+      float V = ptr_force_ext_coef[i_ext] * slw3d[iptr] / jac3d[iptr];
+      hVx[iptr] += ptr_force_stf[ 0 ] * V;
+      hVy[iptr] += ptr_force_stf[ 1 ] * V;
+      hVz[iptr] += ptr_force_stf[ 2 ] * V;
+    }
   }
 
   // add moment source
   for (int n=0; n<num_of_moment; n++)
   {
-    int    *ptr_moment_loc = moment_info + n * 6;
-    float  *ptr_moment_val = moment_ten_value + n * 6;
+    int    *ptr_moment_info = moment_info + n * M_SRC_INFO_NVAL;
+    float  *ptr_moment_mrf  = moment_ten_value + ptr_moment_info[M_SRC_INFO_SEQ_POS];
 
-    //si = ptr_moment_loc[0];
-    //sj = ptr_moment_loc[1];
-    //sk = ptr_moment_loc[2];
+    //si = ptr_moment_info[0];
+    //sj = ptr_moment_info[1];
+    //sk = ptr_moment_info[2];
     //iptr = si + sj * siz_line + sk * siz_slice;
 
-    int n_ext = ptr_moment_loc[M_SRC_INFO_SEQ_NEXT];
-    int *ptr_moment_ext_indx = moment_ext_indx + n * n_ext;
-    float *ptr_moment_ext_coef = moment_ext_coef + n * n_ext;
-    for (int i_ext=0; i_ext<n_ext; i_ext++)
+    int n_ext_max  = ptr_moment_info[M_SRC_INFO_SEQ_NEXT_MAX];
+    int n_ext_this = ptr_moment_info[M_SRC_INFO_SEQ_NEXT_THIS];
+
+    int   *ptr_moment_ext_indx = moment_ext_indx + n * n_ext_max;
+    float *ptr_moment_ext_coef = moment_ext_coef + n * n_ext_max;
+    for (int i_ext=0; i_ext<n_ext_this; i_ext++)
     {
       iptr = ptr_moment_ext_indx[i_ext];
-      if (iptr >= 0)
-      {
-        float rjac = ptr_moment_ext_coef[i_ext] / jac3d[iptr];
-        hTxx[iptr] -= ptr_moment_val[ 0 ] * rjac;
-        hTyy[iptr] -= ptr_moment_val[ 1 ] * rjac;
-        hTzz[iptr] -= ptr_moment_val[ 2 ] * rjac;
-        hTxz[iptr] -= ptr_moment_val[ 3 ] * rjac;
-        hTyz[iptr] -= ptr_moment_val[ 4 ] * rjac;
-        hTxy[iptr] -= ptr_moment_val[ 5 ] * rjac;
-      }
+
+      float rjac = ptr_moment_ext_coef[i_ext] / jac3d[iptr];
+      hTxx[iptr] -= ptr_moment_mrf[ 0 ] * rjac;
+      hTyy[iptr] -= ptr_moment_mrf[ 1 ] * rjac;
+      hTzz[iptr] -= ptr_moment_mrf[ 2 ] * rjac;
+      hTxz[iptr] -= ptr_moment_mrf[ 3 ] * rjac;
+      hTyz[iptr] -= ptr_moment_mrf[ 4 ] * rjac;
+      hTxy[iptr] -= ptr_moment_mrf[ 5 ] * rjac;
     }
   }
 }

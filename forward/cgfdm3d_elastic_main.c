@@ -376,31 +376,60 @@ int main(int argc, char** argv)
 //-------------------------------------------------------------------------------
   
   // read or gen source
-  switch (par->source_input_itype)
+  if (par->source_input_itype == PAR_SOURCE_FILE)
   {
-    case PAR_SOURCE_CODE :
-        if (myid==0) fprintf(stdout,"generate source in code ...\n"); 
-        src_gen_test_gauss(blk->siz_line,
-                           blk->siz_slice,
-                           t0,
-                           dt,
-                           nt_total,
-                           fd->num_rk_stages,
-                           &blk->num_of_force,
-                           &blk->force_info,
-                           &blk->force_vec_stf,
-                           &blk->num_of_moment,
-                           &blk->moment_info,
-                           &blk->moment_ten_rate,
-                           &blk->moment_ext_indx,
-                           &blk->moment_ext_coef,
-                           verbose);
-        break;
+    if (myid==0) fprintf(stdout,"read source file ...\n"); 
+    if (myid==0) fprintf(stdout,"   not implemented yet\n"); 
+  }
+  else
+  {
+    if (myid==0) fprintf(stdout,"set single point source term in code ...\n"); 
 
-    case PAR_SOURCE_FILE :
-        if (myid==0) fprintf(stdout,"read source file ...\n"); 
-        if (myid==0) fprintf(stdout,"   not implemented yet\n"); 
-        break;
+    // default
+    blk->num_of_force=0; blk->num_of_moment=0;
+    if (par->source_input_itype == PAR_SOURCE_SINGLE_FORCE)  blk->num_of_force=1;
+    if (par->source_input_itype == PAR_SOURCE_SINGLE_MOMENT) blk->num_of_moment=1;
+
+    // set inner vars
+    src_gen_single_point_gauss(blk->siz_line,
+                               blk->siz_slice,
+                               t0,
+                               dt,
+                               fd->num_rk_stages,
+                               fd->rk_rhs_time,
+                               blk->gni1,
+                               blk->gni2,
+                               blk->gnj1,
+                               blk->gnj2,
+                               blk->gnk1,
+                               blk->gnk2,
+                               blk->ni1,
+                               blk->ni2,
+                               blk->nj1,
+                               blk->nj2,
+                               blk->nk1,
+                               blk->nk2,
+                               fd->fd_half_len,
+                               fd->fd_nghosts,
+                               par->source_gridindex,
+                               par->source_coords,
+                               par->source_force_vector,
+                               par->source_moment_tensor,
+                               par->wavelet_name,
+                               par->wavelet_coefs,
+                               par->wavelet_tstart,
+                               par->wavelet_tend,
+                               &blk->num_of_force,
+                               &blk->force_info,
+                               &blk->force_vec_stf,
+                               &blk->force_ext_indx,
+                               &blk->force_ext_coef,
+                               &blk->num_of_moment,
+                               &blk->moment_info,
+                               &blk->moment_ten_rate,
+                               &blk->moment_ext_indx,
+                               &blk->moment_ext_coef,
+                               verbose);
   }
 
   /*
@@ -566,6 +595,7 @@ int main(int argc, char** argv)
                                   blk->abs_vars_volsiz, blk->abs_vars_facepos0, blk->abs_vars,
                                   blk->matVx2Vz, blk->matVy2Vz,
                                   blk->num_of_force, blk->force_info, blk->force_vec_stf,
+                                  blk->force_ext_indx,blk->force_ext_coef,
                                   blk->num_of_moment, blk->moment_info, blk->moment_ten_rate,
                                   blk->moment_ext_indx,blk->moment_ext_coef,
                                   blk->num_of_sta, blk->sta_loc_point,blk->sta_loc_dxyz,blk->sta_seismo,

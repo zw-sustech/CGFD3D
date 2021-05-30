@@ -18,7 +18,7 @@ EXEC_DIR=/home/zhangw/code/zwlab/CGFD3D-elastic
 EXEC_WAVE=$EXEC_DIR/cgfdm3d_elastic_mpi
 
 #-- conf
-PROJDIR=/export/home/zhangw/work/cgfd_opt/14_jsonnew
+PROJDIR=/export/home/zhangw/work/cgfd_opt/17_newsrc
 PAR_FILE=${PROJDIR}/test.json
 GRID_DIR=${PROJDIR}/output
 MEDIA_DIR=${PROJDIR}/output
@@ -127,7 +127,26 @@ cat << ieof > $PAR_FILE
   "media_export_dir"  : "$MEDIA_DIR",
 
   "source_input" : {
-      "code_generate" : 1,
+      "single_force" : {
+         "location_by_grid_index" : [ 40, 40, 50 ],
+         "#location_by_coords" : [ 4000, 4000, -500 ],
+         "source_time_functon" : "ricker",
+         "ricker_center_frequency" : 2.0,
+         "ricker_peak_time" : 0.5,
+         "start_time" : 0.0,
+         "end_time"   : 1.0,
+         "force_vector" : [ 0, 0, 0]
+      },
+      "#single_moment" : {
+         "location_by_grid_index" : [ 40, 40, 50 ],
+         "#location_by_coords" : [ 4000, 4000, -500 ],
+         "moment_rate_functon" : "ricker",
+         "ricker_center_frequency" : 2.0,
+         "ricker_peak_time" : 0.5,
+         "start_time" : 0.0,
+         "end_time"   : 1.0,
+         "moment_tensor" : [ 1e9, 1e9, 1e9, 0, 0, 0]
+      },
       "#in_source_file" : "$PROJDIR/test/forceandmoment.fdsrc"
   },
   "is_export_source" : 1,

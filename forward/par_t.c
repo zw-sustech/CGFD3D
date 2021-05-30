@@ -335,12 +335,42 @@ par_read_from_str(const char *str, struct par_t *par)
   //-- source
   //
 
-  par->source_input_itype = PAR_SOURCE_CODE;
+  // default: grid index to negative for determine grid or loc
+
+  for (int i = 0; i < FD_NDIM; i++) par->source_gridindex[i] = -1;
+  
+  par->source_input_itype = PAR_SOURCE_SINGLE_FORCE;
   if (item = cJSON_GetObjectItem(root, "source_input")) {
-    if (subitem = cJSON_GetObjectItem(item, "code_generate")) {
-        par->source_input_itype = PAR_SOURCE_CODE;
+    if (subitem = cJSON_GetObjectItem(item, "single_force"))
+    {
+       par->source_input_itype = PAR_SOURCE_SINGLE_FORCE;
+       if (thirditem = cJSON_GetObjectItem(subitem, "force_vector")) {
+         for (int i = 0; i < FD_NDIM; i++) {
+           par->source_force_vector[i] = cJSON_GetArrayItem(thirditem, i)->valuedouble;
+         }
+       }
+       par_read_json_source(subitem,"source_time_functon",
+                par->source_coords, par->source_gridindex,
+                par->wavelet_name, par->wavelet_coefs,
+                &(par->wavelet_tstart), &(par->wavelet_tend));
     }
-    if (subitem = cJSON_GetObjectItem(item, "in_source_file")) {
+
+    if (subitem = cJSON_GetObjectItem(item, "single_moment"))
+    {
+       par->source_input_itype = PAR_SOURCE_SINGLE_MOMENT;
+       if (thirditem = cJSON_GetObjectItem(subitem, "moment_tensor")) {
+         for (int i = 0; i < FD_NDIM_2; i++) {
+           par->source_moment_tensor[i] = cJSON_GetArrayItem(thirditem, i)->valuedouble;
+         }
+       }
+       par_read_json_source(subitem,"moment_rate_functon",
+                par->source_coords, par->source_gridindex,
+                par->wavelet_name, par->wavelet_coefs,
+                &(par->wavelet_tstart), &(par->wavelet_tend));
+    }
+
+    if (subitem = cJSON_GetObjectItem(item, "in_source_file"))
+    {
         par->source_input_itype = PAR_SOURCE_FILE;
         sprintf(par->source_input_file, "%s", subitem->valuestring);
     }
@@ -563,6 +593,68 @@ par_read_json_cfspml(cJSON *item,
   }
 }
 
+/*
+ * funcs to read index/wavelet para from json str
+ */
+void 
+par_read_json_source(cJSON *item, char *wavelet_type_name,float *src_coord,
+      int *grid_index, char *name, float *coefs, float *t_start, float *t_end)
+{
+  cJSON *subitem;
+
+  // if coordinate
+  if (subitem = cJSON_GetObjectItem(item, "location_by_coords")) {
+    for (int i = 0; i < FD_NDIM; i++) {
+      src_coord[i] = cJSON_GetArrayItem(subitem, i)->valuedouble;
+    }
+  }
+
+  // if grid index
+  if (subitem = cJSON_GetObjectItem(item, "location_by_grid_index")) {
+    for (int i = 0; i < FD_NDIM; i++) {
+      grid_index[i] = cJSON_GetArrayItem(subitem, i)->valueint;
+    }
+  }
+
+  // stf acts from start time
+  if (subitem = cJSON_GetObjectItem(item, "start_time")) {
+     *t_start = subitem->valuedouble;
+  }
+  // stf ends at end time
+  if (subitem = cJSON_GetObjectItem(item, "end_time")) {
+     *t_end = subitem->valuedouble;
+  }
+
+  // name
+  if (subitem = cJSON_GetObjectItem(item, wavelet_type_name))
+  {
+    sprintf(name,"%s",subitem->valuestring);
+  }
+
+  // coefs
+
+  // ricker
+  if (strcmp(name, "ricker")==0) {
+    if (subitem = cJSON_GetObjectItem(item, "ricker_center_frequency")) {
+      coefs[0] = subitem->valuedouble;
+    }
+    if (subitem = cJSON_GetObjectItem(item, "ricker_peak_time")) {
+      coefs[1] = subitem->valuedouble;
+    }
+  }
+
+  // gaussian
+  if (strcmp(name, "gaussian")==0) {
+    if (subitem = cJSON_GetObjectItem(item, "gaussian_rms_width")) {
+      coefs[0] = subitem->valuedouble;
+    }
+    if (subitem = cJSON_GetObjectItem(item, "gaussian_peak_time"))
+    {
+      coefs[1] = subitem->valuedouble;
+    }
+  }
+}
+
 void
 par_print(struct par_t *par)
 {    
@@ -671,7 +763,52 @@ par_print(struct par_t *par)
   fprintf(stdout, "-------------------------------------------------------\n");
   fprintf(stdout, "--> source info.\n");
   fprintf(stdout, "-------------------------------------------------------\n");
-  fprintf(stdout, " source_input_file = %s\n", par->source_input_file);
+  fprintf(stdout, " source_input_itype = %d\n", par->source_input_itype);
+  switch (par->source_input_itype)
+  {
+    case PAR_SOURCE_SINGLE_FORCE :
+      fprintf(stdout, " source_input_type = %s\n", "single_force");
+      // grid index negative means to use coord
+      if (par->source_gridindex[0] < 0) {
+        fprintf(stdout, " source location = [%f, %f, %f]\n", 
+            par->source_coords[0], par->source_coords[1], par->source_coords[2]);
+      } else {
+        fprintf(stdout, " source index = [%d, %d, %d]\n", 
+            par->source_gridindex[0], par->source_gridindex[1], par->source_gridindex[2]);
+      }
+      fprintf(stdout, " source_time_functon = %s\n", par->wavelet_name);
+      fprintf(stdout, " first two coefs = %f, %f\n", par->wavelet_coefs[0], par->wavelet_coefs[1]);
+      fprintf(stdout, " start and end time = %f, %f\n", par->wavelet_tstart,par->wavelet_tend);
+      fprintf(stdout, " force vector = [%f, %f, %f]\n", par->source_force_vector[0],
+          par->source_force_vector[1], par->source_force_vector[2]);
+      break;
+
+    case PAR_SOURCE_SINGLE_MOMENT :
+      fprintf(stdout, " source_input_type = %s\n", "single_moment");
+      if (par->source_gridindex[0] < 0) {
+        fprintf(stdout, " source location = [%f, %f, %f]\n", 
+            par->source_coords[0], par->source_coords[1], par->source_coords[2]);
+      } else {
+        fprintf(stdout, " source index = [%d, %d, %d]\n", 
+            par->source_gridindex[0], par->source_gridindex[1], par->source_gridindex[2]);
+      }
+      fprintf(stdout, " moment_rate_functon = %s\n", par->wavelet_name);
+      fprintf(stdout, " first two coefs = %f, %f\n", par->wavelet_coefs[0], par->wavelet_coefs[1]);
+      fprintf(stdout, " start and end time = %f, %f\n", par->wavelet_tstart,par->wavelet_tend);
+      fprintf(stdout, " moment tensor = [%f, %f, %f, %f, %f, %f]\n",
+          par->source_moment_tensor[0],
+          par->source_moment_tensor[1],
+          par->source_moment_tensor[2],
+          par->source_moment_tensor[3],
+          par->source_moment_tensor[4],
+          par->source_moment_tensor[5]);
+      break;
+
+    case PAR_SOURCE_FILE :
+      fprintf(stdout, " source_input_type = %s\n", "in_source_file");
+      fprintf(stdout, " in_source_file = %s\n", par->source_input_file);
+      break;
+  }
 
   fprintf(stdout, "\n");
   fprintf(stdout, "-------------------------------------------------------\n");

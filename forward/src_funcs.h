@@ -8,11 +8,14 @@
 #define M_SRC_INFO_SEQ_SI 0
 #define M_SRC_INFO_SEQ_SJ 1
 #define M_SRC_INFO_SEQ_SK 2
+// position in stf or mvf vector for this source
 #define M_SRC_INFO_SEQ_POS 3
 #define M_SRC_INFO_SEQ_ITBEG 4
 #define M_SRC_INFO_SEQ_ITEND 5
-#define M_SRC_INFO_SEQ_NEXT 6
-#define M_SRC_INFO_NVAL 7
+#define M_SRC_INFO_SEQ_NEXT_MAX 6
+#define M_SRC_INFO_SEQ_NEXT_THIS 7
+
+#define M_SRC_INFO_NVAL 8
 
 // cal force_vec_stf/moment_ten_rate 1d index for icmp,it,istage
 //  with respect to the start pointer of this source point
@@ -20,36 +23,46 @@
   ((icmp) * (nt) * (num_stage) + (it) * (num_stage) + (istage))
 
 void
-src_gen_test(
-    float t0,
-    float dt,
-    int   nt_total,
-    int   num_of_stages,
-    int  *num_of_force,
-    int  **restrict p_force_info,
-    float  **restrict p_force_vec_stf,
-    int  *num_of_moment,
-    int  **restrict p_moment_info,
-    float  **restrict p_moment_ten_rate,
-    int verbose);
-
-void
-src_gen_test_gauss(
-    size_t siz_line,
-    size_t siz_slice,
-    float t0,
-    float dt,
-    int   nt_total,
-    int   num_of_stages,
-    int  *num_of_force,
-    int **restrict p_force_info,
-    float  **restrict p_force_vec_stf,
-    int  *num_of_moment,
-    int **restrict p_moment_info,
-    float  **restrict p_moment_ten_rate,
-    int **restrict p_moment_ext_indx,
-    float  **restrict p_moment_ext_coef,
-    int verbose);
+src_gen_single_point_gauss(size_t siz_line,
+                           size_t siz_slice,
+                           float t0,
+                           float dt,
+                           int   num_of_stages,
+                           float *rk_stage_time,
+                           int   glob_phys_ix1, // gloabl start index along x this thread
+                           int   glob_phys_ix2, // gloabl end index along x
+                           int   glob_phys_iy1,
+                           int   glob_phys_iy2,
+                           int   glob_phys_iz1,
+                           int   glob_phys_iz2,
+                           int   ni1,
+                           int   ni2,
+                           int   nj1,
+                           int   nj2,
+                           int   nk1,
+                           int   nk2,
+                           int   npoint_half_ext,
+                           int   npoint_ghosts,
+                           int   *source_gridindex,
+                           float *source_coords,
+                           float *force_vector,
+                           float *moment_tensor,
+                           char  *wavelet_name,
+                           float *wavelet_coefs,
+                           float wavelet_tstart,
+                           float wavelet_tend,
+                           // following output
+                           int  *num_of_force, // inout: if force source, if in this thread
+                           int **restrict p_force_info,
+                           float  **restrict p_force_vec_stf,
+                           int    **restrict p_force_ext_indx,
+                           float  **restrict p_force_ext_coef,
+                           int  *num_of_moment, // inout: if moment source, if in this thread
+                           int    **restrict p_moment_info,
+                           float  **restrict p_moment_ten_rate,
+                           int    **restrict p_moment_ext_indx,
+                           float  **restrict p_moment_ext_coef,
+                           int verbose);
 
 float 
 fun_ricker(float t, float fc, float t0);
