@@ -125,6 +125,7 @@ sv_eliso1st_curv_macdrp_allstep(
 
   int   ipair, istage;
   float t_cur;
+  float t_next; // time after this loop for nc output
 
   size_t w3d_size_per_level = WF_EL_1ST_NVAR * siz_volume;
 
@@ -329,6 +330,7 @@ sv_eliso1st_curv_macdrp_allstep(
   for (int it=0; it<nt_total; it++)
   {
     t_cur = it * dt + t0;
+    t_next = t_cur +dt;
 
     if (myid==0 && verbose>10) fprintf(stdout,"-> it=%d, t=\%f\n", it, t_cur);
 
@@ -585,7 +587,7 @@ sv_eliso1st_curv_macdrp_allstep(
             iptr_slice++;
           }
         }
-        nc_put_var1_float(ncid_slx[n],timeid_slx,&start_tdim,&t_cur);
+        nc_put_var1_float(ncid_slx[n],timeid_slx,&start_tdim,&t_next);
         nc_put_vara_float(ncid_slx[n],varid_slx[ivar],startp,countp,w_rhs);
         max_used_rhs = (iptr_slice > max_used_rhs) ? iptr_slice : max_used_rhs;
       }
@@ -606,7 +608,7 @@ sv_eliso1st_curv_macdrp_allstep(
             iptr_slice++;
           }
         }
-        nc_put_var1_float(ncid_sly[n],timeid_sly,&start_tdim,&t_cur);
+        nc_put_var1_float(ncid_sly[n],timeid_sly,&start_tdim,&t_next);
         nc_put_vara_float(ncid_sly[n],varid_sly[ivar],startp,countp,w_rhs);
         max_used_rhs = (iptr_slice > max_used_rhs) ? iptr_slice : max_used_rhs;
       }
@@ -627,7 +629,7 @@ sv_eliso1st_curv_macdrp_allstep(
             iptr_slice++;
           }
         }
-        nc_put_var1_float(ncid_slz[n],timeid_slz,&start_tdim,&t_cur);
+        nc_put_var1_float(ncid_slz[n],timeid_slz,&start_tdim,&t_next);
         nc_put_vara_float(ncid_slz[n],varid_slz[ivar],startp,countp,w_rhs);
         max_used_rhs = (iptr_slice > max_used_rhs) ? iptr_slice : max_used_rhs;
       }
@@ -663,7 +665,7 @@ sv_eliso1st_curv_macdrp_allstep(
         size_t countp[] = { 1, snap_nk, snap_nj, snap_ni };
         size_t start_tdim = snap_cur_it[n];
 
-        nc_put_var1_float(ncid_snap[n],timeid_snap[n],&start_tdim,&t_cur);
+        nc_put_var1_float(ncid_snap[n],timeid_snap[n],&start_tdim,&t_next);
 
         // vel
         if (snap_out_V==1)
