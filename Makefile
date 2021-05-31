@@ -13,8 +13,11 @@
 # compiler
 #-------------------------------------------------------------------------------
 
-CC     :=  /share/apps/gnu-4.8.5/mpich-3.3/bin/mpicc
-NETCDF :=  /share/apps/gnu-4.8.5/disable-netcdf-4.4.1
+#CC     :=  /share/apps/gnu-4.8.5/mpich-3.3/bin/mpicc
+#NETCDF :=  /share/apps/gnu-4.8.5/disable-netcdf-4.4.1
+
+CC     := /home/zang/Software/GCC/mpich-3.3.2-gnu/bin/mpicc
+NETCDF := /home/zang/Software/GCC/disable-netcdf-c-4.4.1
 
 #-- 
 CFLAGS := -I$(NETCDF)/include -I./lib/ -I./forward/ $(CFLAGS)
@@ -41,7 +44,7 @@ LDFLAGS := -lm $(LDFLAGS) $(NETCDF)/lib/libnetcdf.a
 
 cgfdm3d_elastic_mpi: \
 		cJSON.o fdlib_mem.o fdlib_math.o  \
-		fd_t.o par_t.o \
+		fd_t.o par_t.o interp.o\
 		gd_curv.o md_el_iso.o wf_el_1st.o \
 		abs_funcs.o src_funcs.o io_funcs.o \
 		sv_eliso1st_curv_macdrp.o \
@@ -57,6 +60,8 @@ fdlib_math.o: lib/fdlib_math.c
 fd_t.o: forward/fd_t.c
 	${CC} -c -o $@ $(CFLAGS) $<
 par_t.o: forward/par_t.c
+	${CC} -c -o $@ $(CFLAGS) $<
+interp.o: forward/interp.c
 	${CC} -c -o $@ $(CFLAGS) $<
 gd_curv.o: forward/gd_curv.c
 	${CC} -c -o $@ $(CFLAGS) $<
