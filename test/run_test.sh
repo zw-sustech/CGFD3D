@@ -135,7 +135,7 @@ cat << ieof > $PAR_FILE
          "ricker_peak_time" : 0.5,
          "start_time" : 0.0,
          "end_time"   : 1.0,
-         "force_vector" : [ 0, 0, 0]
+         "force_vector" : [ 0, 0, 1e16]
       },
       "#single_moment" : {
          "location_by_grid_index" : [ 40, 40, 50 ],
