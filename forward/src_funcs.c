@@ -438,3 +438,43 @@ src_get_stage_stf(
   //}
 
 }
+
+
+void 
+angle2moment(float strike, float dip, float rake, float* source_moment_tensor)
+{
+  float strike_pi,dip_pi,rake_pi; 
+  float M11,M22,M33,M12,M13,M23;
+
+  dip_pi    = dip    / 180.0 * PI; 
+  strike_pi = strike / 180.0 * PI;
+  rake_pi   = rake   / 180.0 * PI;
+
+ // in Aki and Richard's
+  M11 = - (  sin(dip_pi) * cos(rake_pi) * sin(2.0*strike_pi) 
+           + sin(2.0*dip_pi) * sin(rake_pi) * sin(strike_pi) * sin(strike_pi) );
+ 
+  M22 =  sin(dip_pi) * cos(rake_pi) * sin(2.0 * strike_pi)     
+        -sin(2.0*dip_pi) * sin(rake_pi) * cos(strike_pi) * cos(strike_pi) ;
+
+  M33 = - ( M11 + M22 );
+
+  M12 =   sin(dip_pi) * cos(rake_pi) * cos(2.0 * strike_pi)     
+        + 0.5 * sin(2.0 * dip_pi) * sin(rake_pi) * sin(2.0 * strike_pi) ;
+
+  M13 = - (  cos(dip_pi) * cos(rake_pi) * cos(strike_pi)  
+           + cos(2.0 * dip_pi) * sin(rake_pi) * sin(strike_pi) ) ;
+
+  M23 = - (  cos(dip_pi) * cos(rake_pi) * sin(strike_pi) 
+           - cos(2.0*dip_pi) * sin(rake_pi) * cos(strike_pi) );
+ 
+  source_moment_tensor[0] = M11 ; 
+  source_moment_tensor[1] = M22 ;   
+  source_moment_tensor[2] = M33 ;
+  source_moment_tensor[3] = M12 ;  
+  source_moment_tensor[4] = M12 ;
+  source_moment_tensor[5] = M23 ;  
+ 
+}
+
+

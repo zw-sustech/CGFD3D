@@ -86,4 +86,8 @@ src_get_stage_stf(
     float *restrict moment_ten_value,
     const int myid, const int verbose);
 
+void 
+angle2moment(float strike, float dip, float rake, float* source_moment_tensor);
+
+
 #endif
