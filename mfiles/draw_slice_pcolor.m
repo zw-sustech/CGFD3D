@@ -57,10 +57,13 @@ for nlayer=ns:nt:ne
         for jp=0:nproj-1
             
             % snapshot data
-            slicenm=dir([output_dir,'/','slicex_i',num2str(sliceid),'_px*_py',num2str(jp),'.nc']).name;
+            slicestruct=dir([output_dir,'/','slicex_i',num2str(sliceid),'_px*_py',num2str(jp),'.nc']);
+            slicenm=slicestruct.name;
             slicenm=[output_dir,'/',slicenm];
-            pnj=nc_getdiminfo(slicenm,'j').Length;
-            pnk=nc_getdiminfo(slicenm,'k').Length;
+            pnjstruct=nc_getdiminfo(slicenm,'j');
+            pnj=pnjstruct.Length;
+            pnkstruct=nc_getdiminfo(slicenm,'k');
+            pnk=pnkstruct.Length;
             if jp==0
                 V=squeeze(nc_varget(slicenm,varnm,[nlayer-1,0,0],[1,pnk,pnj],[1,1,1]));
             else
@@ -70,13 +73,16 @@ for nlayer=ns:nt:ne
             t=nc_varget(slicenm,'time',[nlayer-1],[1]);
             
             % coordinate data
-            slicenm=dir([output_dir,'/','slicex_i',num2str(sliceid),'_px*_py',num2str(jp),'.nc']).name;
+            slicestruct=dir([output_dir,'/','slicex_i',num2str(sliceid),'_px*_py',num2str(jp),'.nc']);
+            slicenm=slicestruct.name;
             ip=str2num(slicenm( strfind(slicenm,'px')+2 : strfind(slicenm,'_py')-1 ));
             slicenm=[output_dir,'/',slicenm];
             coordnm=['coord','_px',num2str(ip),'_py',num2str(jp),'.nc'];
             coordnm=[output_dir,'/',coordnm];
             idwithghost=double(nc_attget(slicenm,nc_global,'i_index_with_ghosts_in_this_thread'));
-            ghostp=(nc_getdiminfo(coordnm,'k').Length-nc_getdiminfo(slicenm,'k').Length)/2;
+            coorddimstruct=nc_getdiminfo(coordnm,'k');
+            slicedimstruct=nc_getdiminfo(slicenm,'k');
+            ghostp=(coorddimstruct.Length-slicedimstruct.Length)/2;
             if jp==0
                 X=squeeze(nc_varget(coordnm,'x',[ghostp,ghostp,idwithghost],[pnk,pnj,1],[1,1,1]));
                 Y=squeeze(nc_varget(coordnm,'y',[ghostp,ghostp,idwithghost],[pnk,pnj,1],[1,1,1]));
@@ -110,10 +116,13 @@ for nlayer=ns:nt:ne
         for ip=0:nproi-1
             
             % snapshot data
-            slicenm=dir([output_dir,'/','slicey_j',num2str(sliceid),'_px',num2str(ip),'_py*.nc']).name;
+            slicestruct=dir([output_dir,'/','slicey_j',num2str(sliceid),'_px',num2str(ip),'_py*.nc']);
+            slicenm=slicestruct.name;
             slicenm=[output_dir,'/',slicenm];
-            pni=nc_getdiminfo(slicenm,'i').Length;
-            pnk=nc_getdiminfo(slicenm,'k').Length;
+            pnistruct=nc_getdiminfo(slicenm,'i');
+            pni=pnistruct.Length;
+            pnkstruct=nc_getdiminfo(slicenm,'k');
+            pnk=pnkstruct.Length;
             if ip==0
                 V=squeeze(nc_varget(slicenm,varnm,[nlayer-1,0,0],[1,pnk,pni],[1,1,1]));
             else
@@ -123,13 +132,16 @@ for nlayer=ns:nt:ne
             t=nc_varget(slicenm,'time',[nlayer-1],[1]);
             
             % coordinate data
-            slicenm=dir([output_dir,'/','slicey_j',num2str(sliceid),'_px',num2str(ip),'_py*.nc']).name;
+            slicestruct=dir([output_dir,'/','slicey_j',num2str(sliceid),'_px',num2str(ip),'_py*.nc']);
+            slicenm=slicestruct.name;
             jp=str2num(slicenm( strfind(slicenm,'py')+2 : strfind(slicenm,'.nc')-1 ));
             slicenm=[output_dir,'/',slicenm];
             coordnm=['coord','_px',num2str(ip),'_py',num2str(jp),'.nc'];
             coordnm=[output_dir,'/',coordnm];
             idwithghost=double(nc_attget(slicenm,nc_global,'j_index_with_ghosts_in_this_thread'));
-            ghostp=(nc_getdiminfo(coordnm,'i').Length-nc_getdiminfo(slicenm,'i').Length)/2;
+            coorddimstruct=nc_getdiminfo(coordnm,'i');
+            slicedimstruct=nc_getdiminfo(slicenm,'i');
+            ghostp=(coorddimstruct.Length-slicedimstruct.Length)/2;
             if ip==0
                 X=squeeze(nc_varget(coordnm,'x',[ghostp,idwithghost,ghostp],[pnk,1,pni],[1,1,1]));
                 Y=squeeze(nc_varget(coordnm,'y',[ghostp,idwithghost,ghostp],[pnk,1,pni],[1,1,1]));
@@ -165,8 +177,10 @@ for nlayer=ns:nt:ne
                 
                 % snapshot data
                 slicenm=[output_dir,'/','slicez_k',num2str(sliceid),'_px',num2str(ip),'_py',num2str(jp),'.nc'];
-                pni=nc_getdiminfo(slicenm,'i').Length;
-                pnj=nc_getdiminfo(slicenm,'j').Length;
+                pnistruct=nc_getdiminfo(slicenm,'i');
+                pni=pnistruct.Length;
+                pnjstruct=nc_getdiminfo(slicenm,'j');
+                pnj=pnjstruct.Length;
                 if ip==0
                     VV=squeeze(nc_varget(slicenm,varnm,[nlayer-1,0,0],[1,pnj,pni],[1,1,1]));
                 else
@@ -179,7 +193,9 @@ for nlayer=ns:nt:ne
                 coordnm=['coord','_px',num2str(ip),'_py',num2str(jp),'.nc'];
                 coordnm=[output_dir,'/',coordnm];
                 idwithghost=double(nc_attget(slicenm,nc_global,'k_index_with_ghosts_in_this_thread'));
-                ghostp=(nc_getdiminfo(coordnm,'j').Length-nc_getdiminfo(slicenm,'j').Length)/2;
+                coorddimstruct=nc_getdiminfo(coordnm,'j');
+                slicedimstruct=nc_getdiminfo(slicenm,'j');
+                ghostp=(coorddimstruct.Length-slicedimstruct.Length)/2;
                 if ip==0
                     XX=squeeze(nc_varget(coordnm,'x',[idwithghost,ghostp,ghostp],[1,pnj,pni],[1,1,1]));
                     YY=squeeze(nc_varget(coordnm,'y',[idwithghost,ghostp,ghostp],[1,pnj,pni],[1,1,1]));
@@ -242,7 +258,7 @@ for nlayer=ns:nt:ne
     
     titlestr=['Snapshot of ' varnm ' at ' ...
               '{\fontsize{12}{\bf ' ...
-              num2str((t),'%07.3f') ...
+              num2str((t),'%7.3f') ...
               '}}s'];
     title(titlestr);
     
