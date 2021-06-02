@@ -91,6 +91,7 @@ struct par_t{
   // medium
   int media_input_itype;
   int is_export_media;
+  char equivalent_medium_method[PAR_MAX_STRLEN]; // For layer2model
   char media_export_dir[PAR_MAX_STRLEN];
   char media_import_dir[PAR_MAX_STRLEN];
   char media_input_file[PAR_MAX_STRLEN];
