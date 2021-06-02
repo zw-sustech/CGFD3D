@@ -7,7 +7,7 @@
 #  and spacing between points which must be constant.
 # Note: The given medium area must be larger than the calculation area
 # NX   NY   MIN_X  MIN_Y  SPACING_X  SPACING_Y 
-  21   21    0.0    0.0   400.0       400.0
+  21   21    -800.0    -800.0   600.0       600.0
 
 # For every point (x,y), we have to input
 # x times y: altitude; vp, grad_vp; vs, grad_vs; rho, grad_rho;

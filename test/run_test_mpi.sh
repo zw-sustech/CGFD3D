@@ -45,15 +45,15 @@ ieof
 #----------------------------------------------------------------------
 cat << ieof > $PAR_FILE
 {
-  "number_of_total_grid_points_x" : 200,
-  "number_of_total_grid_points_y" : 200,
+  "number_of_total_grid_points_x" : 100,
+  "number_of_total_grid_points_y" : 100,
   "number_of_total_grid_points_z" : 60,
 
   "number_of_mpiprocs_x" : 2,
   "number_of_mpiprocs_y" : 2,
 
   "size_of_time_step" : 0.01,
-  "number_of_time_steps" : 500,
+  "number_of_time_steps" : 50,
 
   "boundary_x_left" : {
       "cfspml" : {
@@ -102,7 +102,7 @@ cat << ieof > $PAR_FILE
   "grid_generation_method" : {
       "#import" : "$GRID_DIR",
       "cartesian" : {
-        "origin"  : [0.0, 0.0, -6000.0 ],
+        "origin"  : [0.0, 0.0, -6600.0 ],
         "inteval" : [ 100.0, 100.0, 100.0 ]
       },
       "#layer_interp" : {
@@ -121,8 +121,9 @@ cat << ieof > $PAR_FILE
 
   "media_input" : {
       "#import" : "$MEDIA_DIR",
-      "code_generate" : 1,
-      "#in_3lay_file" : "$PROJDIR/test/hill3d.md3lay",
+      "#code_generate" : 1,
+      "in_3lay_file" : "$PROJDIR/test/hill3d.md3lay",
+      "equivalent_medium_method" : "har",
       "#in_3grd_file" : "$PROJDIR/test/hill3d.md3grd"
   },
   "is_export_media" : 1,
