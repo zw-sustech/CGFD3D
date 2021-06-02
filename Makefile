@@ -14,19 +14,22 @@
 #-------------------------------------------------------------------------------
 
 CC     :=  /share/apps/gnu-4.8.5/mpich-3.3/bin/mpicc
+CXX    :=  /share/apps/gnu-4.8.5/mpich-3.3/bin/mpicxx
 NETCDF :=  /share/apps/gnu-4.8.5/disable-netcdf-4.4.1
 
+
 #-- 
-CFLAGS := -I$(NETCDF)/include -I./lib/ -I./forward/ $(CFLAGS)
+CFLAGS := -I$(NETCDF)/include -I./lib/ -I./forward/ -I./ModPre3D/ $(CFLAGS)
 
 #- debug
 #CFLAGS   := -g $(CFLAGS)
 #- O3
 CFLAGS   := -O3 $(CFLAGS)
+CPPFLAGS := -O2 --std=c++11 $(CPPFLAGS)
 
 #- static
 #LDFLAGS := $(NETCDF)/lib/libnetcdf.a -lm -static $(LDFLAGS)
-LDFLAGS := -lm $(LDFLAGS) $(NETCDF)/lib/libnetcdf.a
+LDFLAGS := -lm  $(LDFLAGS) $(NETCDF)/lib/libnetcdf.a
 #- dynamic
 #LDFLAGS := -L$(NETCDF)/lib -lnetcdf -lm $(LDFLAGS)
 
@@ -42,12 +45,25 @@ LDFLAGS := -lm $(LDFLAGS) $(NETCDF)/lib/libnetcdf.a
 cgfdm3d_elastic_mpi: \
 		cJSON.o fdlib_mem.o fdlib_math.o  \
 		fd_t.o par_t.o \
+		pre_layer2model.o \
+		pre_geometry3d.o \
+	    pre_interpolation.o \
+		pre_read_interface_file.o \
 		gd_curv.o md_el_iso.o wf_el_1st.o \
 		abs_funcs.o src_funcs.o io_funcs.o \
 		sv_eliso1st_curv_macdrp.o \
 		cgfdm3d_elastic_main.o
-	$(CC) -o $@ $^ $(LDFLAGS)
+	$(CXX) -o $@ $^ $(LDFLAGS)
 
+
+pre_geometry3d.o: ModPre3D/pre_geometry3d.cpp 
+	${CXX} -c -o $@ $(CPPFLAGS) $<
+pre_layer2model.o: ModPre3D/pre_layer2model.cpp
+	${CXX} -c -o $@ $(CPPFLAGS) $<
+pre_interpolation.o: ModPre3D/pre_interpolation.cpp
+	${CXX} -c -o $@ $(CPPFLAGS) $<
+pre_read_interface_file.o: ModPre3D/pre_read_interface_file.cpp
+	${CXX} -c -o $@ $(CPPFLAGS) $<
 cJSON.o: lib/cJSON.c
 	${CC} -c -o $@ $(CFLAGS) $<
 fdlib_mem.o: lib/fdlib_mem.c
