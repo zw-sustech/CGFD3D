@@ -46,39 +46,39 @@ wf_el_1st_init_vars(
   // set values
   int ivar = WF_EL_1ST_SEQ_Vx;
   w3d_pos[ivar] = ivar * siz_volume;
-  strcpy(w3d_name[ivar],"Vx");
+  sprintf(w3d_name[ivar],"%s","Vx");
 
   ivar = WF_EL_1ST_SEQ_Vy;
   w3d_pos[ivar] = ivar * siz_volume;
-  strcpy(w3d_name[ivar],"Vy");
+  sprintf(w3d_name[ivar],"%s","Vy");
 
   ivar = WF_EL_1ST_SEQ_Vz;
   w3d_pos[ivar] = ivar * siz_volume;
-  strcpy(w3d_name[ivar],"Vz");
+  sprintf(w3d_name[ivar],"%s","Vz");
 
   ivar = WF_EL_1ST_SEQ_Txx;
   w3d_pos[ivar] = ivar * siz_volume;
-  strcpy(w3d_name[ivar],"Txx");
+  sprintf(w3d_name[ivar],"%s","Txx");
 
   ivar = WF_EL_1ST_SEQ_Tyy;
   w3d_pos[ivar] = ivar * siz_volume;
-  strcpy(w3d_name[ivar],"Tyy");
+  sprintf(w3d_name[ivar],"%s","Tyy");
 
   ivar = WF_EL_1ST_SEQ_Tzz;
   w3d_pos[ivar] = ivar * siz_volume;
-  strcpy(w3d_name[ivar],"Tzz");
+  sprintf(w3d_name[ivar],"%s","Tzz");
 
   ivar = WF_EL_1ST_SEQ_Txz;
   w3d_pos[ivar] = ivar * siz_volume;
-  strcpy(w3d_name[ivar],"Txz");
+  sprintf(w3d_name[ivar],"%s","Txz");
 
   ivar = WF_EL_1ST_SEQ_Tyz;
   w3d_pos[ivar] = ivar * siz_volume;
-  strcpy(w3d_name[ivar],"Tyz");
+  sprintf(w3d_name[ivar],"%s","Tyz");
 
   ivar = WF_EL_1ST_SEQ_Txy;
   w3d_pos[ivar] = ivar * siz_volume;
-  strcpy(w3d_name[ivar],"Txy");
+  sprintf(w3d_name[ivar],"%s","Txy");
 
   // set return values
   *number_of_vars = num_wave_vars;

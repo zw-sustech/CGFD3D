@@ -50,15 +50,15 @@ md_el_iso_init_vars(
   // init
   int ivar = MD_EL_ISO_SEQ_RHO;
   m3d_pos[ivar] = ivar * siz_volume;
-  strcpy(m3d_name[ivar],"rho");
+  sprintf(m3d_name[ivar],"%s","rho");
 
   ivar = MD_EL_ISO_SEQ_LAMBDA;
   m3d_pos[ivar] = ivar * siz_volume;
-  strcpy(m3d_name[ivar],"lamda");
+  sprintf(m3d_name[ivar],"%s","lamda");
 
   ivar = MD_EL_ISO_SEQ_MU;
   m3d_pos[ivar] = ivar * siz_volume;
-  strcpy(m3d_name[ivar],"mu");
+  sprintf(m3d_name[ivar],"%s","mu");
 
   // set return values
   *p_m3d = m3d;
