@@ -520,9 +520,9 @@ angle2moment(float strike, float dip, float rake, float* source_moment_tensor)
 
 /*struct CubicPt {
 
-float xcoord; 
-float ycoord; 
-float zcoord;
+float coordx; 
+float coordy; 
+float coordz;
 
 int xindx; 
 int yindx;
@@ -535,23 +535,26 @@ int zindx;
  *
  *
  */
-void
+struct CubicPt *
 LocaSrc(float sx, float sy, float sz,
         int ni1, int ni2, int nj1, int nj2, int nk1, int nk2,
         size_t siz_line, size_t siz_slice, size_t siz_volume, 
         float *restrict c3d,
         size_t *restrict c3d_pos,
-        struct 
-        )
+        struct CubicPt *Pt)
 {
 
   int indx, NearIndx;
   float Dist = 0.0 ; 
   float DistInt = 0.0 ;
+  float NearSi, NearSj, NearSk;
+  
 
   float *restrict xcoord = c3d + c3d_pos[0];
   float *restrict ycoord = c3d + c3d_pos[1];
   float *restrict zcoord = c3d + c3d_pos[2];
+
+//  struct Cubic *Pt = (struct Cubic *)malloc(8 * sizeof(struct Cubic));
    
   /* search minimum distance  */ 
   DistInt =  (sx - xcoord[0]) * (sx - xcoord[0])
@@ -574,7 +577,7 @@ LocaSrc(float sx, float sy, float sz,
            {
              /* Keep indx for minimum distance */
              NearSi = i ;  NearSj = j ; NearSk = k ;
-             NearIndx = Indx;
+             NearIndx = indx;
            }
          }
       }
@@ -590,70 +593,142 @@ LocaSrc(float sx, float sy, float sz,
  
   if ( sx > NearPtX && sy > NearPtY && sz > NearPtZ  )
      {
-       
-
+        Pt[0].xindx = NearSi;    Pt[0].yindx = NearSj;    Pt[0].zindx = NearSk;
+        Pt[1].xindx = NearSi+1;  Pt[1].yindx = NearSj;    Pt[1].zindx = NearSk;
+        Pt[2].xindx = NearSi+1;  Pt[2].yindx = NearSj+1;  Pt[2].zindx = NearSk;
+        Pt[3].xindx = NearSi;    Pt[3].yindx = NearSj+1;  Pt[3].zindx = NearSk;
+        Pt[4].xindx = NearSi;    Pt[4].yindx = NearSj;    Pt[4].zindx = NearSk+1;
+        Pt[5].xindx = NearSi+1;  Pt[5].yindx = NearSj;    Pt[5].zindx = NearSk+1;
+        Pt[6].xindx = NearSi+1;  Pt[6].yindx = NearSj+1;  Pt[6].zindx = NearSk+1;
+        Pt[7].xindx = NearSi;    Pt[7].yindx = NearSj+1;  Pt[7].zindx = NearSk+1;
      }
   else if ( sx > NearPtX && sy > NearPtY && sz < NearPtZ)
      {
-     
+        Pt[0].xindx = NearSi;    Pt[0].yindx = NearSj;    Pt[0].zindx = NearSk;
+        Pt[1].xindx = NearSi+1;  Pt[1].yindx = NearSj;    Pt[1].zindx = NearSk;
+        Pt[2].xindx = NearSi+1;  Pt[2].yindx = NearSj+1;  Pt[2].zindx = NearSk;
+        Pt[3].xindx = NearSi;    Pt[3].yindx = NearSj+1;  Pt[3].zindx = NearSk;
+        Pt[4].xindx = NearSi;    Pt[4].yindx = NearSj;    Pt[4].zindx = NearSk-1;
+        Pt[5].xindx = NearSi+1;  Pt[5].yindx = NearSj;    Pt[5].zindx = NearSk-1;
+        Pt[6].xindx = NearSi+1;  Pt[6].yindx = NearSj+1;  Pt[6].zindx = NearSk-1;
+        Pt[7].xindx = NearSi;    Pt[7].yindx = NearSj+1;  Pt[7].zindx = NearSk-1;
      }
   else if ( sx > NearPtX && sy < NearPtY && sz > NearPtZ) 
      {
-     
+        Pt[0].xindx = NearSi;    Pt[0].yindx = NearSj;    Pt[0].zindx = NearSk;
+        Pt[1].xindx = NearSi;    Pt[1].yindx = NearSj-1;  Pt[1].zindx = NearSk;
+        Pt[2].xindx = NearSi+1;  Pt[2].yindx = NearSj-1;  Pt[2].zindx = NearSk;
+        Pt[3].xindx = NearSi+1;  Pt[3].yindx = NearSj;    Pt[3].zindx = NearSk;
+        Pt[4].xindx = NearSi;    Pt[4].yindx = NearSj;    Pt[4].zindx = NearSk+1;
+        Pt[5].xindx = NearSi;    Pt[5].yindx = NearSj-1;  Pt[5].zindx = NearSk+1;
+        Pt[6].xindx = NearSi+1;  Pt[6].yindx = NearSj-1;  Pt[6].zindx = NearSk+1;
+        Pt[7].xindx = NearSi+1;  Pt[7].yindx = NearSj;    Pt[7].zindx = NearSk+1;
      }
   else if ( sx > NearPtX && sy < NearPtY && sz < NearPtZ) 
      {
-     
+        Pt[0].xindx = NearSi;    Pt[0].yindx = NearSj;    Pt[0].zindx = NearSk;
+        Pt[1].xindx = NearSi;    Pt[1].yindx = NearSj-1;  Pt[1].zindx = NearSk;
+        Pt[2].xindx = NearSi+1;  Pt[2].yindx = NearSj-1;  Pt[2].zindx = NearSk;
+        Pt[3].xindx = NearSi+1;  Pt[3].yindx = NearSj;    Pt[3].zindx = NearSk;
+        Pt[4].xindx = NearSi;    Pt[4].yindx = NearSj;    Pt[4].zindx = NearSk-1;
+        Pt[5].xindx = NearSi;    Pt[5].yindx = NearSj-1;  Pt[5].zindx = NearSk-1;
+        Pt[6].xindx = NearSi+1;  Pt[6].yindx = NearSj-1;  Pt[6].zindx = NearSk-1;
+        Pt[7].xindx = NearSi+1;  Pt[7].yindx = NearSj;    Pt[7].zindx = NearSk-1;
      }
   else if ( sx < NearPtX && sy > NearPtY && sz > NearPtZ  )
      {
-     
+        Pt[0].xindx = NearSi;    Pt[0].yindx = NearSj;    Pt[0].zindx = NearSk;
+        Pt[1].xindx = NearSi;    Pt[1].yindx = NearSj+1;  Pt[1].zindx = NearSk;
+        Pt[2].xindx = NearSi-1;  Pt[2].yindx = NearSj+1;  Pt[2].zindx = NearSk;
+        Pt[3].xindx = NearSi-1;  Pt[3].yindx = NearSj;    Pt[3].zindx = NearSk;
+        Pt[4].xindx = NearSi;    Pt[4].yindx = NearSj;    Pt[4].zindx = NearSk+1;
+        Pt[5].xindx = NearSi;    Pt[5].yindx = NearSj+1;  Pt[5].zindx = NearSk+1;
+        Pt[6].xindx = NearSi-1;  Pt[6].yindx = NearSj+1;  Pt[6].zindx = NearSk+1;
+        Pt[7].xindx = NearSi-1;  Pt[7].yindx = NearSj;    Pt[7].zindx = NearSk+1;
      }
   else if ( sx < NearPtX && sy > NearPtY && sz < NearPtZ)
      {
-     
+        Pt[0].xindx = NearSi;    Pt[0].yindx = NearSj;    Pt[0].zindx = NearSk;
+        Pt[1].xindx = NearSi;    Pt[1].yindx = NearSj+1;  Pt[1].zindx = NearSk;
+        Pt[2].xindx = NearSi-1;  Pt[2].yindx = NearSj+1;  Pt[2].zindx = NearSk;
+        Pt[3].xindx = NearSi-1;  Pt[3].yindx = NearSj;    Pt[3].zindx = NearSk;
+        Pt[4].xindx = NearSi;    Pt[4].yindx = NearSj;    Pt[4].zindx = NearSk-1;
+        Pt[5].xindx = NearSi;    Pt[5].yindx = NearSj+1;  Pt[5].zindx = NearSk-1;
+        Pt[6].xindx = NearSi-1;  Pt[6].yindx = NearSj+1;  Pt[6].zindx = NearSk-1;
+        Pt[7].xindx = NearSi-1;  Pt[7].yindx = NearSj;    Pt[7].zindx = NearSk-1;
      }
   else if ( sx < NearPtX && sy < NearPtY && sz > NearPtZ) 
      {
-     
+        Pt[0].xindx = NearSi;    Pt[0].yindx = NearSj;    Pt[0].zindx = NearSk;
+        Pt[1].xindx = NearSi-1;  Pt[1].yindx = NearSj;    Pt[1].zindx = NearSk;
+        Pt[2].xindx = NearSi-1;  Pt[2].yindx = NearSj-1;  Pt[2].zindx = NearSk;
+        Pt[3].xindx = NearSi;    Pt[3].yindx = NearSj-1;  Pt[3].zindx = NearSk;
+        Pt[4].xindx = NearSi;    Pt[4].yindx = NearSj;    Pt[4].zindx = NearSk+1;
+        Pt[5].xindx = NearSi-1;  Pt[5].yindx = NearSj;    Pt[5].zindx = NearSk+1;
+        Pt[6].xindx = NearSi-1;  Pt[6].yindx = NearSj-1;  Pt[6].zindx = NearSk+1;
+        Pt[7].xindx = NearSi;    Pt[7].yindx = NearSj-1;  Pt[7].zindx = NearSk+1;
      }
-  else if ( sx < NearPtX && sy < NearPtY && sz < NearPtZ) 
+  else 
      {
-     
+        Pt[0].xindx = NearSi;    Pt[0].yindx = NearSj;    Pt[0].zindx = NearSk;
+        Pt[1].xindx = NearSi-1;  Pt[1].yindx = NearSj;    Pt[1].zindx = NearSk;
+        Pt[2].xindx = NearSi-1;  Pt[2].yindx = NearSj-1;  Pt[2].zindx = NearSk;
+        Pt[3].xindx = NearSi;    Pt[3].yindx = NearSj-1;  Pt[3].zindx = NearSk;
+        Pt[4].xindx = NearSi;    Pt[4].yindx = NearSj;    Pt[4].zindx = NearSk-1;
+        Pt[5].xindx = NearSi-1;  Pt[5].yindx = NearSj;    Pt[5].zindx = NearSk-1;
+        Pt[6].xindx = NearSi-1;  Pt[6].yindx = NearSj-1;  Pt[6].zindx = NearSk-1;
+        Pt[7].xindx = NearSi;    Pt[7].yindx = NearSj-1;  Pt[7].zindx = NearSk-1;
      }
 
+    for (int i=0; i<8; i++)
+    {
+      indx  =  Pt[i].xindx + Pt[i].yindx * siz_line + Pt[i].zindx * siz_slice;
+      Pt[i].coordx =  xcoord[indx]; 
+      Pt[i].coordy =  ycoord[indx]; 
+      Pt[i].coordz =  zcoord[indx]; 
+    }
+
+   return Pt;
 }
 
 
 
-/* Coordinate mapping using  Inverse Distance Weight
+/* Coor  dinate mapping using  Inverse Distance Weight
  * sx, sy, sz: physical cooedinate for source  
- * struct cubcoord : structure cubic point coordinate coordx, coordy, coordz (float)
- * struct cubindx  : structure cubic point indx       indxx,  indxy,  indxz  (int)
- *
+ * struct CubicPt : structure cubic point coordinate 
+ * struct SrcIndx : including indx (si, sj, sk) and shift(sx_inc, sy_inc, sz_inc ) for every source
  * 
  */
-float 
-CoorMap(float sx, float sy, float sz, 
-        struct cubcoord *Pcoord,
-        struct cubindx  *Pindx)
+/* Struct SrcIndx{
+ *  int si; 
+ *  int sj; 
+ *  int sk;
+ *  float sx_inc;
+ *  float sy_inc;
+ *  float sz_inc;
+ * }
+ * */
 
+struct SrcIndx 
+CoorMap(float sx, float sy, float sz, 
+        struct CubicPt  *Pt, 
+        struct SrcIndx SrcInfor)
 {
 
  float Dist[8];
  float SUM;
  float Weight[8];
  float Mapsi, Mapsj, Mapsk;
- float shift;
- int si, sj, sk; 
+// float shift;
+// int si, sj, sk; 
  
  SUM = 0.0 ;
  
  for (int i=0; i<8; i++)
   {
-   Dist[i] = sqrt ((sx - Pcoord[i].coordx) * (sx - Pcoord[i].coordx)
-                 + (sy - Pcoord[i].coordy) * (sy - Pcoord[i].coordy)
-                 + (sz - Pcoord[i].coordz) * (sz - Pcoord[i].coordz));
+   Dist[i] = sqrt ((sx - Pt[i].coordx) * (sx - Pt[i].coordx)
+                 + (sy - Pt[i].coordy) * (sy - Pt[i].coordy)
+                 + (sz - Pt[i].coordz) * (sz - Pt[i].coordz));
 
    SUM += 1.0/Dist[i]; 
   }
@@ -663,11 +738,47 @@ CoorMap(float sx, float sy, float sz,
 
    Weight[i] = 1.0 / Dist[i] / SUM ;
  
-   Mapsi += Weight[i] * Pindx[i].indxx;
-   Mapsj += Weight[i] * Pindx[i].indxy; 
-   Mapsk += Weight[i] * Pindx[i].indxz;  
+   Mapsi += Weight[i] * Pt[i].xindx;
+   Mapsj += Weight[i] * Pt[i].yindx; 
+   Mapsk += Weight[i] * Pt[i].zindx;  
   
   }
 
+  /* Locate si */
+  if ( Mapsi > Pt[0].xindx )
+    {
+      SrcInfor.si = (int)(floor(Mapsi)); 
+    } 
+  else
+    {
+      SrcInfor.si = (int)(ceil(Mapsi)); 
+    }
 
+  if ( Mapsj > Pt[0].yindx )
+    {
+      SrcInfor.sj = (int)(floor(Mapsj)); 
+    } 
+  else
+    {
+      SrcInfor.sj = (int)(ceil(Mapsj)); 
+    }
+
+  if ( Mapsk > Pt[0].zindx )
+    {
+      SrcInfor.sk = (int)(floor(Mapsk)); 
+    } 
+  else
+    {
+      SrcInfor.sk = (int)(ceil(Mapsk)); 
+    }
+
+  SrcInfor.sx_inc = Mapsi-Pt[0].xindx;
+  SrcInfor.sy_inc = Mapsj-Pt[0].yindx;
+  SrcInfor.sz_inc = Mapsk-Pt[0].zindx;
+
+
+//  Shift = sqrt( (Mapsi-Pt[0].xindx) * (Mapsi-Pt[0].xindx)
+//              + (Mapsj-Pt[0].yindx) * (Mapsj-Pt[0].yindx)
+//              + (Mapsk-Pt[0].zindx) * (Mapsk-Pt[0].zindx) );
+  return SrcInfor;
 }

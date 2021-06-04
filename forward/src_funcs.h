@@ -22,6 +22,27 @@
 #define M_SRC_IND(icmp,it,istage,nt,num_stage) \
   ((icmp) * (nt) * (num_stage) + (it) * (num_stage) + (istage))
 
+struct CubicPt 
+{
+float coordx; 
+float coordy; 
+float coordz;
+
+int xindx; 
+int yindx;
+int zindx;
+} ;
+
+struct SrcIndx
+ {
+  int si; 
+  int sj; 
+  int sk;
+  float sx_inc;
+  float sy_inc;
+  float sz_inc;
+ };
+
 void
 src_gen_single_point_gauss(size_t siz_line,
                            size_t siz_slice,
@@ -89,5 +110,18 @@ src_get_stage_stf(
 void 
 angle2moment(float strike, float dip, float rake, float* source_moment_tensor);
 
+
+struct CubicPt *
+LocaSrc(float sx, float sy, float sz,
+        int ni1, int ni2, int nj1, int nj2, int nk1, int nk2,
+        size_t siz_line, size_t siz_slice, size_t siz_volume, 
+        float *restrict c3d,
+        size_t *restrict c3d_pos,
+        struct CubicPt *Pt);
+
+struct SrcIndx 
+CoorMap(float sx, float sy, float sz, 
+        struct CubicPt  *Pt, 
+        struct SrcIndx SrcInfro);
 
 #endif
