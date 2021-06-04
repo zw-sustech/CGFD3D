@@ -20,9 +20,9 @@ NETCDF :=  /share/apps/gnu-4.8.5/disable-netcdf-4.4.1
 CFLAGS := -I$(NETCDF)/include -I./lib/ -I./forward/ $(CFLAGS)
 
 #- debug
-#CFLAGS   := -g $(CFLAGS)
+CFLAGS   := -g $(CFLAGS)
 #- O3
-CFLAGS   := -O3 $(CFLAGS)
+#CFLAGS   := -O3 $(CFLAGS)
 
 #- static
 #LDFLAGS := $(NETCDF)/lib/libnetcdf.a -lm -static $(LDFLAGS)
@@ -40,7 +40,7 @@ LDFLAGS := -lm $(LDFLAGS) $(NETCDF)/lib/libnetcdf.a
 #   $^ The names of all the prerequisites 
 
 cgfdm3d_elastic_mpi: \
-		cJSON.o fdlib_mem.o fdlib_math.o  \
+		cJSON.o sacLib.o fdlib_mem.o fdlib_math.o  \
 		fd_t.o par_t.o \
 		gd_curv.o md_el_iso.o wf_el_1st.o \
 		abs_funcs.o src_funcs.o io_funcs.o \
@@ -49,6 +49,8 @@ cgfdm3d_elastic_mpi: \
 	$(CC) -o $@ $^ $(LDFLAGS)
 
 cJSON.o: lib/cJSON.c
+	${CC} -c -o $@ $(CFLAGS) $<
+sacLib.o: lib/sacLib.c
 	${CC} -c -o $@ $(CFLAGS) $<
 fdlib_mem.o: lib/fdlib_mem.c
 	${CC} -c -o $@ $(CFLAGS) $<
