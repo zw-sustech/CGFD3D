@@ -54,7 +54,7 @@ md_el_iso_init_vars(
 
   ivar = MD_EL_ISO_SEQ_LAMBDA;
   m3d_pos[ivar] = ivar * siz_volume;
-  strcpy(m3d_name[ivar],"lamda");
+  strcpy(m3d_name[ivar],"lambda");
 
   ivar = MD_EL_ISO_SEQ_MU;
   m3d_pos[ivar] = ivar * siz_volume;
@@ -137,8 +137,8 @@ md_el_iso_export(float  *restrict m3d,
   }
 
   // define dimension
-  ierr = nc_def_dim(ncid, "i"  , nx, &dimid[2]);
-  ierr = nc_def_dim(ncid, "j" , ny, &dimid[1]);
+  ierr = nc_def_dim(ncid, "i", nx, &dimid[2]);
+  ierr = nc_def_dim(ncid, "j", ny, &dimid[1]);
   ierr = nc_def_dim(ncid, "k", nz, &dimid[0]);
 
   // define vars
