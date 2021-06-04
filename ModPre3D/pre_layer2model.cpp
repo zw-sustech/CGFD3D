@@ -64,11 +64,10 @@ void GenerateHalfGrid(
 
 }
 
-// how many different values in the vector, 
+// How many different values in the vector, 
 //  NI is the upper limitation of the v[i].
 int NumOfValues(std::vector<int> v, int NI) 
 {
-    // Use Hash Table to mark the num 
     std::vector<int> tab(NI, 0);
     int num = 0;
     for (size_t i = 0; i < v.size(); i++) {
@@ -350,25 +349,33 @@ void isotropic_har(
                              Point3( Hx[indx-1         ], Hy[indx-1         ], Hz[indx-1         ] ));
 
                     // recalculate the material value of the point
-                    lam3d[indx] = 0.0;
-                    mu3d[indx]  = 0.0;
-                    rho3d[indx] = 0.0;
+                    float vol_rho   = 0.0;
+                    float har_kappa = 0.0;
+                    float har_mu    = 0.0;
+
                     Point3 *SubGrid = MeshSubdivide(M);
 
                     int nsg = (NG+1)*(NG+1)*(NG+1);
                     for (int isg = 0; isg < nsg; isg++) {
+
                         float vp = 0.0, vs = 0.0, rho = 0.0;
                         AssignMediaPara2Point(i, j, k, SubGrid[isg],
                             NI, interfaces, vp, vs, rho);
+                        float mu =  vs*vs*rho;
+                        float lambda = vp*vp*rho - 2.0*mu;
 
-                        mu3d[indx]  +=  vs*vs*rho;
-                        lam3d[indx] +=  (vp*vp*rho - 2.0*vs*vs*rho);
-                        rho3d[indx] +=  rho;
+                        vol_rho   += rho;
+                        har_kappa += 1.0/(lambda + 2.0/3.0*mu);
+                        har_mu    += 1.0/mu;
                     }
 
-                    lam3d[indx] /= nsg;
-                    mu3d[indx]  /= nsg;
-                    rho3d[indx] /= nsg;
+                    har_mu    = nsg*1.0/har_mu;
+                    har_kappa = nsg*1.0/har_kappa;
+                    vol_rho   = vol_rho/nsg; 
+
+                    lam3d[indx] = har_kappa - 2.0/3.0*har_mu;
+                    mu3d[indx]  = har_mu;
+                    rho3d[indx] = vol_rho;
 
                     delete []SubGrid;
                 }
@@ -442,84 +449,4 @@ void pre_el_iso_layer2model(
 //            rho[i] = 0.0;
 //        }    
 //    }
-//}
-
-
-
-//int main()
-//{   
-//
-//    int eff_method = 1;
-//    int NI = 0; 
-//    Interfaces *interfaces = nullptr;
-//
-//    size_t nx = 201, ny = 201, nz = 300;
-//    float  x0 = 0.0, y0 = 0.0, z0 = -2990.0;
-//    float  dx = 10.0, dy = 10.0, dz = 10.0;
-//
-//    // x dimention varies first
-//    size_t siz_line   = nx; 
-//    size_t siz_slice  = nx * ny; 
-//    size_t siz_volume = nx * ny * nz;
-//
-//    float *Gridx = (float*) malloc(siz_volume*sizeof(float));
-//    float *Gridy = (float*) malloc(siz_volume*sizeof(float));
-//    float *Gridz = (float*) malloc(siz_volume*sizeof(float));
-//    float *lam3d = (float*) malloc(siz_volume*sizeof(float));
-//    float *mu3d  = (float*) malloc(siz_volume*sizeof(float));
-//    float *rho3d = (float*) malloc(siz_volume*sizeof(float));
-//
-//    for (size_t k = 0; k < nz; k++) {
-//        for (size_t j = 0; j < ny; j++) {
-//            for (size_t i = 0; i < nx; i++) {
-//                size_t indx =  i + j * siz_line + k * siz_slice;
-//                Gridx[indx] = x0 + i * dx;
-//                Gridz[indx] = z0 + k * dz;
-//                Gridy[indx] = y0 + j * dy;
-//            }
-//        }
-//    }
-//
-//
-//    /*Read interface file*/
-//    read_interface_file("../DATA/interfaces.lay3d", NI, &interfaces); 
-//
-//    switch(eff_method) {
-//        case MEDIA_LOC:
-//            isotropic_loc(nx, ny, nz, Gridx, Gridy, Gridz, NI,
-//                interfaces, lam3d, mu3d, rho3d);
-//            break;
-//        case MEDIA_HAR:
-//            isotropic_har(nx, ny, nz, Gridx, Gridy, Gridz, NI,
-//                interfaces, lam3d, mu3d, rho3d);
-//            break;
-//        case MEDIA_TTI:
-//            //isotropic_tti();
-//            break;
-//        default:
-//            fprintf(stderr,"\033[47;31m%s\033[0m", "Wrong effective medium parameterization method!\n");
-//            fflush(stderr);
-//            exit(1);
-//    }
-//
-//    // import
-//    FILE *fp;
-//    fp = gfopen("rho.dat","w");
-//    for (size_t i = 0; i < siz_volume; i++)
-//        fwrite(&rho3d[i],sizeof(float),1,fp);  
-//    fclose(fp);
-//
-//    for (int ni = 0; ni < NI; ni++) {
-//        delete []interfaces[ni].rho;
-//        delete []interfaces[ni].vp;
-//        delete []interfaces[ni].vs;
-//        delete []interfaces[ni].rho_grad;
-//        delete []interfaces[ni].vp_grad;
-//        delete []interfaces[ni].vs_grad;
-//    }
-//
-//    free(Gridx); free(Gridy); free(Gridz);
-//    free(lam3d); free(rho3d); free(mu3d);
-//    delete []interfaces;
-//    return 0;
 //}
