@@ -13,14 +13,14 @@ output_dir='./project/output';
 
 % which snapshot to plot
 id=1;
-subs=[20,25,50];
+subs=[1,1,45];
 subc=[-1,-1,1];
 subt=[1,1,1];
 
 % variable and time to plot
 varnm='Vz';
 ns=1;
-ne=500;
+ne=300;
 nt=50;
 
 % figure control parameters
@@ -61,7 +61,7 @@ set(gcf,'PaperPosition',[0 0 800 800]);
 % snapshot show
 for nlayer=ns:nt:ne
     
-    [v,t]=gather_snap(snapinfo,id,nlayer,varnm,'outdir',output_dir);
+    [v,t]=gather_snap(snapinfo,nlayer,varnm,'outdir',output_dir);
     
     disp([ '  draw ' num2str(nlayer) 'th time step (t=' num2str(t) ')']);
     

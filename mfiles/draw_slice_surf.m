@@ -11,8 +11,8 @@ parfnm='./project/test.json';
 output_dir='./project/output';
 
 % which slice to plot
-slicedir='x';
-sliceid=19;
+slicedir='y';
+sliceid=20;
 
 % which variable and time to plot
 varnm='Vz';

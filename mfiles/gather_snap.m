@@ -1,4 +1,4 @@
-function [V,varargout] =gather_snap(snapinfo,id,nlayer,varnm,varargin)
+function [V,varargout] =gather_snap(snapinfo,nlayer,varnm,varargin)
 
 % gather snapshot data
 % Author:   Yuanhang Huo
@@ -6,7 +6,7 @@ function [V,varargout] =gather_snap(snapinfo,id,nlayer,varnm,varargin)
 % Date:     2021.05.31
 
 %-- flags --
-nargs=nargin-4;
+nargs=nargin-3;
 n=1;
 
 while n<=nargs
