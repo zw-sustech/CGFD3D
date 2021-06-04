@@ -294,6 +294,45 @@ src_gen_single_point_gauss(size_t siz_line,
 }
 
 /*
+ * Locate 
+ */
+void 
+eighth_locate(float *location, 
+              float *vx, float *vy, float *vz, 
+              float sx_inc, int sy_inc, int sz_inc)
+{
+  float x0 = location[0];
+  float y0 = location[1];
+  float z0 = location[2];
+  
+  float x[125] ;
+  float y[125] ;
+  float z[125] ;
+ 
+
+  for( int i=0; i<5; i=i+2 )
+  {
+    for( int j=0; j<5; j=j+2) 
+    {
+     for ( int k=0; k<5; k=k+2)
+      {
+       int indx_01  = k * 25 + j * 5 + i ;
+       int indx_02  = ((int)(k / 2)) * 9 + ((int)(j / 2)) * 3 + ((int)(i / 2));
+
+       
+      
+      }
+
+    }
+
+  }
+
+
+
+}
+
+
+/*
  * 3d spatial smoothing
  */
 
@@ -472,9 +511,163 @@ angle2moment(float strike, float dip, float rake, float* source_moment_tensor)
   source_moment_tensor[1] = M22 ;   
   source_moment_tensor[2] = M33 ;
   source_moment_tensor[3] = M12 ;  
-  source_moment_tensor[4] = M12 ;
+  source_moment_tensor[4] = M13 ;
   source_moment_tensor[5] = M23 ;  
  
 }
 
+/* structure for keep vertex of cubic*/
 
+/*struct CubicPt {
+
+float xcoord; 
+float ycoord; 
+float zcoord;
+
+int xindx; 
+int yindx;
+int zindx;
+
+} ;*/
+
+
+/* search location of source
+ *
+ *
+ */
+void
+LocaSrc(float sx, float sy, float sz,
+        int ni1, int ni2, int nj1, int nj2, int nk1, int nk2,
+        size_t siz_line, size_t siz_slice, size_t siz_volume, 
+        float *restrict c3d,
+        size_t *restrict c3d_pos,
+        struct 
+        )
+{
+
+  int indx, NearIndx;
+  float Dist = 0.0 ; 
+  float DistInt = 0.0 ;
+
+  float *restrict xcoord = c3d + c3d_pos[0];
+  float *restrict ycoord = c3d + c3d_pos[1];
+  float *restrict zcoord = c3d + c3d_pos[2];
+   
+  /* search minimum distance  */ 
+  DistInt =  (sx - xcoord[0]) * (sx - xcoord[0])
+           + (sy - ycoord[0]) * (sy - ycoord[0])
+           + (sz - zcoord[0]) * (sz - zcoord[0]);
+
+  for(int k=nk1; k<nk2; k++)
+   {
+     for(int j=nj1; j<nj2; j++)
+      {
+        for(int i=ni1; i<ni2; i++)
+         {
+          indx = i + j * siz_line + k * siz_slice ;
+         
+          Dist =  (sx - xcoord[indx]) * (sx - xcoord[indx])
+                + (sy - ycoord[indx]) * (sy - ycoord[indx])
+                + (sz - zcoord[indx]) * (sz - zcoord[indx]);
+                  
+          if (Dist < DistInt)
+           {
+             /* Keep indx for minimum distance */
+             NearSi = i ;  NearSj = j ; NearSk = k ;
+             NearIndx = Indx;
+           }
+         }
+      }
+   }
+
+  float NearPtX = xcoord[NearIndx]; 
+  float NearPtY = ycoord[NearIndx]; 
+  float NearPtZ = zcoord[NearIndx]; 
+
+ /* eight situtations 
+  * Always save the nearest point at the first
+  * */ 
+ 
+  if ( sx > NearPtX && sy > NearPtY && sz > NearPtZ  )
+     {
+       
+
+     }
+  else if ( sx > NearPtX && sy > NearPtY && sz < NearPtZ)
+     {
+     
+     }
+  else if ( sx > NearPtX && sy < NearPtY && sz > NearPtZ) 
+     {
+     
+     }
+  else if ( sx > NearPtX && sy < NearPtY && sz < NearPtZ) 
+     {
+     
+     }
+  else if ( sx < NearPtX && sy > NearPtY && sz > NearPtZ  )
+     {
+     
+     }
+  else if ( sx < NearPtX && sy > NearPtY && sz < NearPtZ)
+     {
+     
+     }
+  else if ( sx < NearPtX && sy < NearPtY && sz > NearPtZ) 
+     {
+     
+     }
+  else if ( sx < NearPtX && sy < NearPtY && sz < NearPtZ) 
+     {
+     
+     }
+
+}
+
+
+
+/* Coordinate mapping using  Inverse Distance Weight
+ * sx, sy, sz: physical cooedinate for source  
+ * struct cubcoord : structure cubic point coordinate coordx, coordy, coordz (float)
+ * struct cubindx  : structure cubic point indx       indxx,  indxy,  indxz  (int)
+ *
+ * 
+ */
+float 
+CoorMap(float sx, float sy, float sz, 
+        struct cubcoord *Pcoord,
+        struct cubindx  *Pindx)
+
+{
+
+ float Dist[8];
+ float SUM;
+ float Weight[8];
+ float Mapsi, Mapsj, Mapsk;
+ float shift;
+ int si, sj, sk; 
+ 
+ SUM = 0.0 ;
+ 
+ for (int i=0; i<8; i++)
+  {
+   Dist[i] = sqrt ((sx - Pcoord[i].coordx) * (sx - Pcoord[i].coordx)
+                 + (sy - Pcoord[i].coordy) * (sy - Pcoord[i].coordy)
+                 + (sz - Pcoord[i].coordz) * (sz - Pcoord[i].coordz));
+
+   SUM += 1.0/Dist[i]; 
+  }
+
+ for (int i=0; i<8; i++)
+  {
+
+   Weight[i] = 1.0 / Dist[i] / SUM ;
+ 
+   Mapsi += Weight[i] * Pindx[i].indxx;
+   Mapsj += Weight[i] * Pindx[i].indxy; 
+   Mapsk += Weight[i] * Pindx[i].indxz;  
+  
+  }
+
+
+}
