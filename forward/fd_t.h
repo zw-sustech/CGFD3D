@@ -299,17 +299,18 @@ struct fd_blk_t
   
   // io
   int     num_of_sta;
-  int    *sta_loc_point;
-  float  *sta_loc_dxyz;
+  int    *sta_index;
+  float  *sta_shift; // relative shift in a cell ,for interp
+  float  *sta_coord; // for sac output
   float  *sta_seismo;
+  char  **sta_name;
 
   int     num_of_point;  // for saving in solver
-  int    *point_loc_point;
+  int    *point_loc_indx;
+  int    *point_line_sno; // for get name from input file
+  int    *point_line_offset; // for get index in this line
   float  *point_seismo;
-  int     num_of_inline; // for writing to file
-  char  **inline_fname;
-  int    *inline_pos;
-  int    *inline_num;
+  float  *point_coord; // for sac output
 
   int     num_of_slice_x;
   int*    slice_x_indx;
@@ -389,6 +390,8 @@ fd_blk_init(struct fd_blk_t *blk,
             MPI_Comm comm, 
             const int myid, const int verbose);
 
+void fd_blk_malloc_station(struct fd_blk_t *blk, int nt_total);
+
 void
 fd_blk_set_snapshot(struct fd_blk_t *blk,
                     int  fd_nghosts,
@@ -414,7 +417,7 @@ fd_blk_set_slice(struct fd_blk_t *blk,
                  int *slice_z_index);
 
 void
-fd_blk_set_inline(struct fd_blk_t *blk,
+fd_blk_locate_inline(struct fd_blk_t *blk,
                   int  fd_nghosts,
                   int  nt_total,
                   int  number_of_receiver_line,
@@ -422,9 +425,6 @@ fd_blk_set_inline(struct fd_blk_t *blk,
                   int *receiver_line_index_incre,
                   int *receiver_line_count,
                   char **receiver_line_name);
-
-void
-fd_blk_set_sta(struct fd_blk_t *blk);
 
 void
 fd_blk_init_mpi_mesg(struct fd_blk_t *blk,
