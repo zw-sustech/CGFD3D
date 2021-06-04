@@ -54,7 +54,7 @@ md_el_iso_init_vars(
 
   ivar = MD_EL_ISO_SEQ_LAMBDA;
   m3d_pos[ivar] = ivar * siz_volume;
-  strcpy(m3d_name[ivar],"lamda");
+  strcpy(m3d_name[ivar],"lambda");
 
   ivar = MD_EL_ISO_SEQ_MU;
   m3d_pos[ivar] = ivar * siz_volume;
