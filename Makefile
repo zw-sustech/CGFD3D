@@ -21,7 +21,7 @@ NETCDF :=  /share/apps/gnu-4.8.5/disable-netcdf-4.4.1
 CFLAGS := -I$(NETCDF)/include -I./lib/ -I./forward/ -I./media/ $(CFLAGS)
 
 #- debug
-#CFLAGS   := -g $(CFLAGS)
+CFLAGS   := -g $(CFLAGS)
 #- O3
 CFLAGS   := -O3 $(CFLAGS)
 CPPFLAGS := -O2 --std=c++11 $(CPPFLAGS)
