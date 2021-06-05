@@ -293,6 +293,516 @@ src_gen_single_point_gauss(size_t siz_line,
   *p_moment_info = moment_info;
 }
 
+
+void
+src_gen_multiple_point_gauss(size_t siz_line,
+                             size_t siz_slice,
+                             float t0,
+                             float dt,
+                             int   num_of_stages,
+                             float *rk_stage_time,
+                             int   glob_phys_ix1, // gloabl start index along x this thread
+                             int   glob_phys_ix2, // gloabl end index along x
+                             int   glob_phys_iy1,
+                             int   glob_phys_iy2,
+                             int   glob_phys_iz1,
+                             int   glob_phys_iz2,
+                             int   ni1,
+                             int   ni2,
+                             int   nj1,
+                             int   nj2,
+                             int   nk1,
+                             int   nk2,
+                             int   npoint_half_ext,
+                             int   npoint_ghosts,  
+                             char  *pfilepath,
+                             // following output
+                             int   *p_num_of_force, // force in this thread
+                             int **restrict p_force_info,
+                             float  **restrict p_force_vec_stf,
+                             int    **restrict p_force_ext_indx,
+                             float  **restrict p_force_ext_coef,
+                             int   *p_num_of_moment, // moment in this thread
+                             int    **restrict p_moment_info,
+                             float  **restrict p_moment_ten_rate,
+                             int    **restrict p_moment_ext_indx,
+                             float  **restrict p_moment_ext_coef,
+                             int verbose)
+{
+  // read source info
+  FILE* fp =NULL;
+  char str[250];
+  int num_force;
+  int num_moment;
+  float wavelet_tlen;
+  // read source numbers
+  if ((fp = fopen(pfilepath, "r"))==NULL)
+  {
+    fprintf(stdout,"fail to open");
+  }
+  fgets(str,250,fp);
+  sscanf(str,"%d %d",&num_force,&num_moment);
+  fgets(str,250,fp);
+  sscanf(str,"%f",&wavelet_tlen);
+
+  float *force_coords = NULL;
+  int   *force_sur = NULL;
+  float *force_vector = NULL;
+  float *force_wavelet_coefs = NULL;
+  float *force_eight_paras = NULL;
+  float *force_wavelet_tstart = NULL;
+  char  **force_wavelet_name = NULL;
+  float *moment_coords = NULL;
+  int   *moment_sur = NULL;
+  float *moment_tensor = NULL;
+  float *moment_wavelet_coefs = NULL;
+  float *moment_eight_paras = NULL; 
+  float *moment_wavelet_tstart = NULL;
+  char  **moment_wavelet_name = NULL;
+  char  **moment_wavelet_mechism = NULL;
+  if(num_force>0)
+  {
+    force_coords = (float *) malloc(3 * num_force * sizeof(float));
+    force_sur = (int *) malloc(num_force * sizeof(int)); // relocated_to_surface
+    force_vector = (float *) malloc(3 * num_force * sizeof(float)); // fx fy fz
+    force_wavelet_coefs = (float *) malloc(2 * num_force * sizeof(float)); // 2 paras of src function
+    force_eight_paras = (float *) malloc(8 * num_force * sizeof(float)); // rest eight paras for function
+    force_wavelet_tstart = (float *) malloc(num_force * sizeof(float));
+    force_wavelet_name = (char **) fdlib_mem_malloc_2l_char(num_force,100,"source_time_function type");
+  }
+  if(num_moment>0)
+  {
+    moment_coords = (float *) malloc(3 * num_moment * sizeof(float));
+    moment_sur = (int *) malloc(num_moment * sizeof(int)); // relocated_to_surface
+    moment_tensor = (float *) malloc(6 * num_moment * sizeof(float)); // Mxx Myy Mzz Mxz Myz Mxy
+    moment_wavelet_coefs = (float *) malloc(2 * num_moment * sizeof(float)); // 2 paras of src function
+    moment_eight_paras = (float *) malloc(8 * num_moment * sizeof(float)); // rest eight paras for function
+    moment_wavelet_tstart = (float *) malloc(num_moment * sizeof(float));
+    moment_wavelet_name = (char **) fdlib_mem_malloc_2l_char(num_moment,100,"source_time_function type");
+    moment_wavelet_mechism = (char **) fdlib_mem_malloc_2l_char(num_moment,100,"mechanism type:tensor or angle");                                         
+  }
+  // read force
+  for (int i=0;i<num_force;i++)
+  {
+    fgets(str,250,fp);
+    sscanf(str,"%f%f%f%d",&force_coords[3*i+0],&force_coords[3*i+1],&force_coords[3*i+2],&force_sur[i]);
+    
+    fgets(str,250,fp);
+    sscanf(str,"%f%f%f",&force_vector[3*i+0], &force_vector[3*i+1], &force_vector[3*i+2]);
+    
+    fgets(str,250,fp);
+    sscanf(str,"%s",force_wavelet_name[i]);
+    
+    fgets(str,250,fp);
+    sscanf(str,"%f%f",&force_wavelet_coefs[2*i+0], &force_wavelet_coefs[2*i+1]);
+    
+    fgets(str,250,fp);
+    sscanf(str,"%f%f%f%f%f%f%f%f",&force_eight_paras[8*i+0],&force_eight_paras[8*i+1],
+           &force_eight_paras[8*i+2],&force_eight_paras[8*i+3],&force_eight_paras[8*i+4],
+           &force_eight_paras[8*i+5],&force_eight_paras[8*i+6],&force_eight_paras[8*i+7]);
+    
+    fgets(str,250,fp);
+    sscanf(str,"%f",&force_wavelet_tstart[i]);
+  }
+  // read moment
+  for(int i=0;i<num_moment;i++)
+  {
+    fgets(str,250,fp);
+    sscanf(str,"%f%f%f%d",&moment_coords[3*i+0],&moment_coords[3*i+1],
+           &moment_coords[3*i+2],&moment_sur[i]);
+    
+    fgets(str,250,fp);
+    sscanf(str, "%s", moment_wavelet_mechism[i]);
+    
+    if (strcmp("mechanism_angle",moment_wavelet_mechism[i])==0)
+    {
+       float angle[6];
+       float temp_moment[6];
+       fgets(str,250,fp);
+       sscanf(str,"%f%f%f%f%f%f",&angle[0],&angle[1],&angle[2],&angle[3],&angle[4],&angle[5]);
+       // M0 = mu * D * A
+       float M0 = angle[3]*angle[4]*angle[5];    
+       angle2moment(angle[0],angle[1],angle[2],temp_moment);
+       for (int j=0;j<6;j++)
+       {
+         moment_tensor[6*i +j]=M0*temp_moment[j];
+       }
+    }else{  
+       fgets(str,250,fp);
+       sscanf(str,"%f%f%f%f%f%f",&moment_tensor[6*i +0],&moment_tensor[6*i +1],
+              &moment_tensor[6*i +2],&moment_tensor[6*i +3],&moment_tensor[6*i +4],&moment_tensor[6*i +5]);
+    }
+    fgets(str,250,fp);
+    sscanf(str,"%s",moment_wavelet_name[i]);
+    
+    fgets(str,250,fp);
+    sscanf(str,"%f%f",&moment_wavelet_coefs[2*i+0], &moment_wavelet_coefs[2*i+1]);
+    
+    fgets(str,250,fp);
+    sscanf(str,"%f%f%f%f%f%f%f%f",&moment_eight_paras[8*i+0],&moment_eight_paras[8*i+1],&moment_eight_paras[8*i+2],
+                                  &moment_eight_paras[8*i+3],&moment_eight_paras[8*i+4],&moment_eight_paras[8*i+5],
+                                  &moment_eight_paras[8*i+6],&moment_eight_paras[8*i+7]);
+    
+    fgets(str,250,fp);
+    sscanf(str,"%f",&moment_wavelet_tstart[i]);
+  }
+
+  fclose(fp);
+  // get total elem of exted src region for a single point
+  // int siz_ext = 7 * 7 * 7;
+  int siz_ext = (2*npoint_half_ext+1)*(2*npoint_half_ext+1)*(2*npoint_half_ext+1);
+ 
+  // set force
+  int nforce = 0;
+  int index_force[num_force];
+  int force_local_index[3 * num_force];
+
+  for (int i =0; i<num_force; i++)
+  {
+    int sgpi,sgpj,sgpk;
+    //locat(force_coords[3*i+0],force_coords[3*i+0],force_coords[3*i+0],sgpi,sgpj,sgpk);
+    if (i == 0)
+    {
+    sgpi = 50;
+    sgpj = 20;
+    sgpk = 60;
+    }
+    if (i == 1)
+    {
+    sgpi = 10;
+    sgpj = 40;
+    sgpk = 30;
+    } 
+    int si,sj,sk;
+    if (sgpi-npoint_half_ext <= glob_phys_ix2 && // exted left point is less than right bdry
+        sgpi+npoint_half_ext >= glob_phys_ix1 && // exted right point is larger than left bdry
+        sgpj-npoint_half_ext <= glob_phys_iy2 && 
+        sgpj+npoint_half_ext >= glob_phys_iy1 &&
+        sgpk-npoint_half_ext <= glob_phys_iz2 && 
+        sgpk+npoint_half_ext >= glob_phys_iz1)
+     {
+        // at least one extend point in this thread
+        // convert to local index
+        si = sgpi - glob_phys_ix1 + npoint_ghosts;
+        sj = sgpj - glob_phys_iy1 + npoint_ghosts;
+        sk = sgpk - glob_phys_iz1 + npoint_ghosts;
+        force_local_index[3*nforce+0] = si;
+        force_local_index[3*nforce+1] = sj;
+        force_local_index[3*nforce+2] = sk;
+        index_force[nforce] = i;
+        nforce++;
+     }
+     else
+     {  
+       // this force not in this thread
+     }
+  }
+  int *force_info = NULL;
+  float *force_vec_stf = NULL;
+  float *force_ext_coef = NULL;
+  int   *force_ext_indx = NULL;
+  int nt_force = 0;
+  // set force
+  if(nforce > 0)
+  {
+  // allocate info and return to main function
+  force_info = (int *)fdlib_mem_calloc_1d_int(nforce*M_SRC_INFO_NVAL, 1,
+                                                    "src_gen_multiple_force_point_gauss");
+  // stf
+  nt_force = (int) (wavelet_tlen  / dt) + 1;
+  force_vec_stf = (float *)fdlib_mem_calloc_1d_float(
+                   nforce*nt_force*FD_NDIM*num_of_stages,0.0,"src_gen_multiple_force_point_gauss");
+  // ext
+  force_ext_coef = (float *)malloc(nforce*siz_ext * sizeof(float));
+  force_ext_indx = (int   *)malloc(nforce*siz_ext * sizeof(int  ));
+  
+  }
+  for (int i = 0 ; i < nforce; i++)
+  {
+    // convert time to index
+    int  it_begin = (int) (force_wavelet_tstart[index_force[i]] / dt);
+    int  it_end   = it_begin + nt_force - 1;
+    float *force_wavelet_values = NULL;
+
+    // default local index and relative shift to -1 and 0
+    int si=-1; int sj=-1; int sk=-1;
+    float sx_inc = 0.0; float sy_inc = 0.0; float sz_inc = 0.0;
+
+    // if source here, cal wavelet series
+    force_wavelet_values = (float *)fdlib_mem_calloc_1d_float(
+                  nt_force*num_of_stages,0.0,"src_gen_multiple_force_point_gauss");
+  
+    
+    for (int it=it_begin; it<=it_end; it++)
+    {
+      int it_to_itbegin = (it - it_begin);
+      for (int istage=0; istage<num_of_stages; istage++)
+      {
+        
+        // t is error?
+        float t = it * dt + t0 + rk_stage_time[istage] * dt;
+        float stf_val;
+        if (strcmp(force_wavelet_name[index_force[i]], "ricker")==0) {
+          stf_val = fun_ricker(t, force_wavelet_coefs[2*index_force[i]+0], force_wavelet_coefs[2*index_force[i]+1]);
+        } else if (strcmp(force_wavelet_name[index_force[i]], "gaussian")==0) {
+          stf_val = fun_gauss(t, force_wavelet_coefs[2*index_force[i]+0], force_wavelet_coefs[2*index_force[i]+1]);
+        } else {
+          fprintf(stderr,"wavelet_name=%s\n", force_wavelet_name[index_force[i]]); 
+          fprintf(stderr,"   not implemented yet\n"); 
+          fflush(stderr);
+        }  
+        // save to vector
+        force_wavelet_values[it_to_itbegin*num_of_stages+istage] = stf_val;
+      }
+    }
+
+    // save values to inner var
+    force_info[8 * i + M_SRC_INFO_SEQ_SI   ] = force_local_index[3 * i + 0];
+    force_info[8 * i + M_SRC_INFO_SEQ_SJ   ] = force_local_index[3 * i + 1];
+    force_info[8 * i + M_SRC_INFO_SEQ_SK   ] = force_local_index[3 * i + 2];
+    force_info[8 * i + M_SRC_INFO_SEQ_POS  ] = 0 + i * nt_force*FD_NDIM*num_of_stages;
+    force_info[8 * i + M_SRC_INFO_SEQ_ITBEG] = it_begin;
+    force_info[8 * i + M_SRC_INFO_SEQ_ITEND] = it_end;
+
+    int ipos = force_info[M_SRC_INFO_SEQ_POS];
+    int it1  = force_info[M_SRC_INFO_SEQ_ITBEG];
+    int it2  = force_info[M_SRC_INFO_SEQ_ITEND];
+    float *this_vec_stf = force_vec_stf + ipos;
+
+    for (int icmp=0; icmp<FD_NDIM; icmp++)
+    {
+      for (int it=it1; it<=it2; it++)
+      {
+        int it_to_it1 = (it - it1);
+        for (int istage=0; istage<num_of_stages; istage++)
+        {
+          int iptr = M_SRC_IND(icmp,it_to_it1,istage,nt_force,num_of_stages);
+          float stf_val = force_wavelet_values[it_to_it1*num_of_stages+istage];
+          this_vec_stf[iptr] = stf_val * force_vector[icmp];
+        }
+      }
+    }
+    
+    float *this_force_ext_coef = force_ext_coef + i * siz_ext;
+    cal_norm_delt3d(this_force_ext_coef, sx_inc, sy_inc, sz_inc, 1.5, 1.5, 1.5, 3);
+
+    size_t iptr_s = 0;
+    // force_local_index si,sj,sk
+    for (int k=force_local_index[3 * i + 2]-npoint_half_ext; k<=force_local_index[3 * i + 2]+npoint_half_ext; k++)
+    {
+      if (k<nk1 || k>nk2) continue;
+
+      for (int j=force_local_index[3 * i + 1]-npoint_half_ext; j<=force_local_index[3 * i + 1]+npoint_half_ext; j++)
+      {
+      if (j<nj1 || j>nj2) continue;
+
+        for (int ii=force_local_index[3 * i + 0]-npoint_half_ext; ii<=force_local_index[3 * i + 0]+npoint_half_ext; ii++)
+        {
+          if (ii<ni1 || ii>ni2) continue;
+
+          int iptr = ii + j * siz_line + k * siz_slice;
+          force_ext_indx[iptr_s + i * siz_ext] = iptr;
+          iptr_s++;
+        }
+      }
+    }
+
+    force_info[8 * i + M_SRC_INFO_SEQ_NEXT_MAX ] = siz_ext;
+    force_info[8 * i + M_SRC_INFO_SEQ_NEXT_THIS] = iptr_s;
+  }
+    *p_num_of_force = nforce;
+    *p_force_info = force_info;
+    *p_force_vec_stf = force_vec_stf;
+    *p_force_ext_indx = force_ext_indx;
+    *p_force_ext_coef = force_ext_coef;
+  if(num_force>0)
+  {
+    free(force_coords);
+    free(force_sur);
+    free(force_vector);
+    free(force_wavelet_coefs);
+    free(force_eight_paras);
+    free(force_wavelet_tstart);
+    free(force_wavelet_name);
+  }
+
+  // set moment
+  int nmoment = 0;
+  int index_moment[num_moment];
+  int moment_local_index[3 * num_moment];
+
+  for (int i =0; i<num_moment; i++)
+  {
+    int sgpi,sgpj,sgpk;
+    //locat(force_coords[3*i+0],force_coords[3*i+0],force_coords[3*i+0],sgpi,sgpj,sgpk);
+    if (i == 0)
+    {
+    sgpi = 50;
+    sgpj = 20;
+    sgpk = 60;
+    }
+    if (i == 1)
+    {
+    sgpi = 10;
+    sgpj = 40;
+    sgpk = 30;
+    } 
+    int si,sj,sk;
+    //locat(moment_coords[3*i+0],moment_coords[3*i+0],moment_coords[3*i+0],sgpi,sgpj,sgpk);
+    if (sgpi-npoint_half_ext <= glob_phys_ix2 && // exted left point is less than right bdry
+        sgpi+npoint_half_ext >= glob_phys_ix1 && // exted right point is larger than left bdry
+        sgpj-npoint_half_ext <= glob_phys_iy2 && 
+        sgpj+npoint_half_ext >= glob_phys_iy1 &&
+        sgpk-npoint_half_ext <= glob_phys_iz2 && 
+        sgpk+npoint_half_ext >= glob_phys_iz1)
+     {
+        // at least one extend point in this thread
+        // convert to local index
+        si = sgpi - glob_phys_ix1 + npoint_ghosts;
+        sj = sgpj - glob_phys_iy1 + npoint_ghosts;
+        sk = sgpk - glob_phys_iz1 + npoint_ghosts;
+        moment_local_index[3*nmoment+0] = si;
+        moment_local_index[3*nmoment+1] = sj;
+        moment_local_index[3*nmoment+2] = sk;
+        index_moment[nmoment] = i;
+        nmoment++;
+     }
+
+     else
+     {  
+       // this moment not in this thread
+     }
+  }
+  
+   // set moment
+    int   *moment_info = NULL;
+    float *moment_ten_rate = NULL;
+    float *moment_ext_coef = NULL;
+    int   *moment_ext_indx = NULL;
+    int   nt_moment = 0;
+  if(nmoment > 0)
+  {
+    // allocate info and return to main function
+    moment_info = (int *)fdlib_mem_calloc_1d_int(nmoment*M_SRC_INFO_NVAL, 1 ,
+                                                 "src_gen_multiple_moment_point_gauss");
+    // stf
+    nt_moment = (int) ((wavelet_tlen + 0.5*dt) / dt) + 1;
+    moment_ten_rate = (float *)fdlib_mem_calloc_1d_float(
+                   nmoment*nt_moment*6*num_of_stages,0.0,"src_gen_multiple_moment_point_gauss");
+    // ext
+    moment_ext_coef = (float *)malloc(nmoment*siz_ext * sizeof(float));
+    moment_ext_indx = (int   *)malloc(nmoment*siz_ext * sizeof(int  ));
+  }
+
+  for (int i = 0 ; i < nmoment; i++)
+  {
+    // convert time to index
+    int  it_begin = (int) (moment_wavelet_tstart[index_moment[i]] / dt);
+    int  it_end   = it_begin + nt_moment - 1;
+    //int  nt_total_wavelet = nt_force;
+    float *moment_wavelet_values = NULL;
+
+    // default local index and relative shift to -1 and 0
+    int si=-1; int sj=-1; int sk=-1;
+    float sx_inc = 0.0; float sy_inc = 0.0; float sz_inc = 0.0;
+
+    // if source here, cal wavelet series
+    moment_wavelet_values = (float *)fdlib_mem_calloc_1d_float(
+                  nt_moment*num_of_stages,0.0,"src_gen_single_point_gauss");
+    
+    for (int it=it_begin; it<=it_end; it++)
+    {
+      int it_to_itbegin = (it - it_begin);
+      for (int istage=0; istage<num_of_stages; istage++)
+      {
+        
+        // t is error?
+        float t = it * dt + t0 + rk_stage_time[istage] * dt;
+        float stf_val;
+        if (strcmp(moment_wavelet_name[index_moment[i]], "ricker")==0) {
+          stf_val = fun_ricker(t, moment_wavelet_coefs[2*index_moment[i]+0], moment_wavelet_coefs[2*index_moment[i]+1]);
+        } else if (strcmp(moment_wavelet_name[index_moment[i]], "gaussian")==0) {
+          stf_val = fun_gauss(t, moment_wavelet_coefs[2*index_moment[i]+0], moment_wavelet_coefs[2*index_moment[i]+1]);
+        } else {
+		  fprintf(stderr,"wavelet_name=%s\n", moment_wavelet_name[index_moment[i]]); 
+          fprintf(stderr,"   not implemented yet\n"); 
+          fflush(stderr);
+        }
+
+        // save to vector
+        moment_wavelet_values[it_to_itbegin*num_of_stages+istage] = stf_val;
+      }
+    }
+  
+    // save values to inner var
+    moment_info[8 * i + M_SRC_INFO_SEQ_SI   ] = moment_local_index[3 * i + 0];
+    moment_info[8 * i + M_SRC_INFO_SEQ_SJ   ] = moment_local_index[3 * i + 1];
+    moment_info[8 * i + M_SRC_INFO_SEQ_SK   ] = moment_local_index[3 * i + 2];
+    moment_info[8 * i + M_SRC_INFO_SEQ_POS  ] = 0 + i*nt_moment*6*num_of_stages;
+    moment_info[8 * i + M_SRC_INFO_SEQ_ITBEG] = it_begin;
+    moment_info[8 * i + M_SRC_INFO_SEQ_ITEND] = it_end;
+
+    int ipos = moment_info[M_SRC_INFO_SEQ_POS];
+    int it1  = moment_info[M_SRC_INFO_SEQ_ITBEG];
+    int it2  = moment_info[M_SRC_INFO_SEQ_ITEND];
+    float *this_ten_rate = moment_ten_rate + ipos;
+
+    for (int icmp=0; icmp<6; icmp++)
+    {
+      for (int it=it1; it<=it2; it++)
+      {
+        int it_to_it1 = (it - it1);
+        for (int istage=0; istage<num_of_stages; istage++)
+        {
+          int iptr = M_SRC_IND(icmp,it_to_it1,istage,nt_force,num_of_stages);
+          float stf_val = moment_wavelet_values[it_to_it1*num_of_stages+istage];
+          this_ten_rate[iptr] = stf_val * moment_tensor[icmp];
+        }
+      }
+    }
+    float *this_moment_ext_conf = moment_ext_coef + i * siz_ext;
+    cal_norm_delt3d(this_moment_ext_conf, sx_inc, sy_inc, sz_inc, 1.5, 1.5, 1.5, 3);
+
+    size_t iptr_s = 0;
+    for (int k=moment_local_index[3 * i + 2]-npoint_half_ext; k<=moment_local_index[3 * i + 2]+npoint_half_ext; k++)
+    {
+      if (k<nk1 || k>nk2) continue;
+
+      for (int j=moment_local_index[3 * i + 1]-npoint_half_ext; j<=moment_local_index[3 * i + 1]+npoint_half_ext; j++)
+      {
+      if (j<nj1 || j>nj2) continue;
+
+        for (int ii=moment_local_index[3 * i + 0]-npoint_half_ext; ii<=moment_local_index[3 * i + 0]+npoint_half_ext; ii++)
+        {
+          if (ii<ni1 || ii>ni2) continue;
+
+          int iptr = ii + j * siz_line + k * siz_slice;
+          moment_ext_indx[iptr_s + i * siz_ext] = iptr;
+          iptr_s++;
+        }
+      }
+    }
+    moment_info[8 * i + M_SRC_INFO_SEQ_NEXT_MAX ] = siz_ext;
+    moment_info[8 * i + M_SRC_INFO_SEQ_NEXT_THIS] = iptr_s;
+  }
+    *p_num_of_force = nmoment;
+    *p_moment_info = moment_info;
+    *p_moment_ten_rate = moment_ten_rate;
+    *p_moment_ext_indx = moment_ext_indx;
+    *p_moment_ext_coef = moment_ext_coef;
+  if(num_moment>0)
+  {
+    free(moment_coords);
+    free(moment_sur);
+    free(moment_tensor);
+    free(moment_wavelet_coefs);
+    free(moment_eight_paras);
+    free(moment_wavelet_tstart);
+    free(moment_wavelet_name);
+    free(moment_wavelet_mechism);
+  }
+}
+
 /*
  * 3d spatial smoothing
  */
@@ -438,3 +948,41 @@ src_get_stage_stf(
   //}
 
 }
+
+void 
+angle2moment(float strike, float dip, float rake, float* source_moment_tensor)
+{
+  float strike_pi,dip_pi,rake_pi; 
+  float M11,M22,M33,M12,M13,M23;
+
+  dip_pi    = dip    / 180.0 * PI; 
+  strike_pi = strike / 180.0 * PI;
+  rake_pi   = rake   / 180.0 * PI;
+
+ // in Aki and Richard's
+  M11 = - (  sin(dip_pi) * cos(rake_pi) * sin(2.0*strike_pi) 
+           + sin(2.0*dip_pi) * sin(rake_pi) * sin(strike_pi) * sin(strike_pi) );
+ 
+  M22 =  sin(dip_pi) * cos(rake_pi) * sin(2.0 * strike_pi)     
+        -sin(2.0*dip_pi) * sin(rake_pi) * cos(strike_pi) * cos(strike_pi) ;
+
+  M33 = - ( M11 + M22 );
+
+  M12 =   sin(dip_pi) * cos(rake_pi) * cos(2.0 * strike_pi)     
+        + 0.5 * sin(2.0 * dip_pi) * sin(rake_pi) * sin(2.0 * strike_pi) ;
+
+  M13 = - (  cos(dip_pi) * cos(rake_pi) * cos(strike_pi)  
+           + cos(2.0 * dip_pi) * sin(rake_pi) * sin(strike_pi) ) ;
+
+  M23 = - (  cos(dip_pi) * cos(rake_pi) * sin(strike_pi) 
+           - cos(2.0*dip_pi) * sin(rake_pi) * cos(strike_pi) );
+ 
+  source_moment_tensor[0] = M11 ; 
+  source_moment_tensor[1] = M22 ;   
+  source_moment_tensor[2] = M33 ;
+  source_moment_tensor[3] = M12 ;  
+  source_moment_tensor[4] = M13 ;
+  source_moment_tensor[5] = M23 ;  
+ 
+}
+ 

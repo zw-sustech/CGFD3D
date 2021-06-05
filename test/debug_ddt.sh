@@ -8,10 +8,10 @@ set -x
 
 MPIDIR=/export/apps/gnu-4.8.5/mpich-3.3
 
-EXEC_DIR=/export/home/wangyh/CGFD3D-elastic
+EXEC_DIR=/export/home/lihl/CGFD3D-elastic
 EXEC_WAVE=$EXEC_DIR/cgfdm3d_elastic_mpi
 
-PROJDIR=/export/home/wangyh/CGFD3D-elastic/project
+PROJDIR=/export/home/lihl/CGFD3D-elastic/project
 
 parfile=${PROJDIR}/test.json
 

@@ -14,11 +14,11 @@ date
 MPIDIR=/share/apps/gnu-4.8.5/mpich-3.3
 
 #-- program related dir
-EXEC_DIR=/home/zhangw/code/zwlab/CGFD3D-elastic
+EXEC_DIR=/export/home/lihl/CGFD3D-elastic
 EXEC_WAVE=$EXEC_DIR/cgfdm3d_elastic_mpi
 
 #-- conf
-PROJDIR=/export/home/zhangw/work/cgfd_opt/18_tdim
+PROJDIR=/export/home/lihl/CGFD3D-elastic/project
 PAR_FILE=${PROJDIR}/test.json
 GRID_DIR=${PROJDIR}/output
 MEDIA_DIR=${PROJDIR}/output
@@ -47,8 +47,8 @@ cat << ieof > $PAR_FILE
   "number_of_total_grid_points_y" : 100,
   "number_of_total_grid_points_z" : 60,
 
-  "number_of_mpiprocs_x" : 1,
-  "number_of_mpiprocs_y" : 1,
+  "number_of_mpiprocs_x" : 2,
+  "number_of_mpiprocs_y" : 2,
 
   "size_of_time_step" : 0.01,
   "number_of_time_steps" : 500,
@@ -127,7 +127,7 @@ cat << ieof > $PAR_FILE
   "media_export_dir"  : "$MEDIA_DIR",
 
   "source_input" : {
-      "single_force" : {
+      "#single_force" : {
          "location_by_grid_index" : [ 40, 40, 50 ],
          "#location_by_coords" : [ 4000, 4000, -500 ],
          "source_time_functon" : "ricker",
@@ -147,7 +147,7 @@ cat << ieof > $PAR_FILE
          "end_time"   : 1.0,
          "moment_tensor" : [ 1e9, 1e9, 1e9, 0, 0, 0]
       },
-      "#in_source_file" : "$PROJDIR/test/forceandmoment.fdsrc"
+      "in_source_file" : "../test_sorce.anasrc"
   },
   "is_export_source" : 1,
   "source_export_dir"  : "$SOURCE_DIR",
