@@ -392,7 +392,7 @@ void isotropic_har(
 }
 
 // read interface file and medium parameterization
-void pre_el_iso_layer2model(
+void media_el_iso_layer2model(
     float *lam3d,
     float *mu3d,
     float *rho3d,

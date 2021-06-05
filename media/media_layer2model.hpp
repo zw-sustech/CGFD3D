@@ -96,7 +96,7 @@ extern "C" {
 #endif
 //#include <iostream>
 // medium parameterization
-void pre_el_iso_layer2model(
+void media_el_iso_layer2model(
     float *lam3d,
     float *mu3d,
     float *rho3d,
