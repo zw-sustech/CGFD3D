@@ -57,20 +57,20 @@ gd_curv_init_c3d(
   // set value
   int ivar = GD_CURV_SEQ_X3D;
   c3d_pos[ivar] = ivar * siz_volume;
-  strcpy(c3d_name[ivar],"x");
+  sprintf(c3d_name[ivar],"%s","x");
   
   ivar = GD_CURV_SEQ_Y3D;
   c3d_pos[ivar] = ivar * siz_volume;
-  strcpy(c3d_name[ivar],"y");
+  sprintf(c3d_name[ivar],"%s","y");
   
   ivar = GD_CURV_SEQ_Z3D;
   c3d_pos[ivar] = ivar * siz_volume;
-  strcpy(c3d_name[ivar],"z");
+  sprintf(c3d_name[ivar],"%s","z");
 
   // coord name
-  strcpy(coord_name[0],"i");
-  strcpy(coord_name[1],"j");
-  strcpy(coord_name[2],"k");
+  sprintf(coord_name[0],"%s","i");
+  sprintf(coord_name[1],"%s","j");
+  sprintf(coord_name[2],"%s","k");
   
   // set return values
   *p_c3d = c3d;
@@ -119,43 +119,43 @@ gd_curv_init_g3d(
   int ivar; 
   ivar = GD_CURV_SEQ_JAC;
   g3d_pos[ivar] = ivar * siz_volume;
-  strcpy(g3d_name[ivar],"jac");
+  sprintf(g3d_name[ivar],"%s","jac");
   
   ivar = GD_CURV_SEQ_XIX;
   g3d_pos[ivar] = ivar * siz_volume;
-  strcpy(g3d_name[ivar],"xi_x");
+  sprintf(g3d_name[ivar],"%s","xi_x");
   
   ivar = GD_CURV_SEQ_XIY;
   g3d_pos[ivar] = ivar * siz_volume;
-  strcpy(g3d_name[ivar],"xi_y");
+  sprintf(g3d_name[ivar],"%s","xi_y");
   
   ivar = GD_CURV_SEQ_XIZ;
   g3d_pos[ivar] = ivar * siz_volume;
-  strcpy(g3d_name[ivar],"xi_z");
+  sprintf(g3d_name[ivar],"%s","xi_z");
   
   ivar = GD_CURV_SEQ_ETX;
   g3d_pos[ivar] = ivar * siz_volume;
-  strcpy(g3d_name[ivar],"eta_x");
+  sprintf(g3d_name[ivar],"%s","eta_x");
   
   ivar = GD_CURV_SEQ_ETY;
   g3d_pos[ivar] = ivar * siz_volume;
-  strcpy(g3d_name[ivar],"eta_y");
+  sprintf(g3d_name[ivar],"%s","eta_y");
   
   ivar = GD_CURV_SEQ_ETZ;
   g3d_pos[ivar] = ivar * siz_volume;
-  strcpy(g3d_name[ivar],"eta_z");
+  sprintf(g3d_name[ivar],"%s","eta_z");
   
   ivar = GD_CURV_SEQ_ZTX;
   g3d_pos[ivar] = ivar * siz_volume;
-  strcpy(g3d_name[ivar],"zeta_x");
+  sprintf(g3d_name[ivar],"%s","zeta_x");
   
   ivar = GD_CURV_SEQ_ZTY;
   g3d_pos[ivar] = ivar * siz_volume;
-  strcpy(g3d_name[ivar],"zeta_y");
+  sprintf(g3d_name[ivar],"%s","zeta_y");
   
   ivar = GD_CURV_SEQ_ZTZ;
   g3d_pos[ivar] = ivar * siz_volume;
-  strcpy(g3d_name[ivar],"zeta_z");
+  sprintf(g3d_name[ivar],"%s","zeta_z");
   
   // set return values
   *p_g3d = g3d;
@@ -515,6 +515,15 @@ gd_curv_coord_export(float  *restrict c3d,
                      int  nx,
                      int  ny,
                      int  nz,
+                     int  ni1,
+                     int  nj1,
+                     int  nk1,
+                     int  ni,
+                     int  nj,
+                     int  nk,
+                     int  gni1,
+                     int  gnj1,
+                     int  gnk1,
                      char *fname_coords,
                      char *output_dir)
 {
@@ -543,6 +552,19 @@ gd_curv_coord_export(float  *restrict c3d,
     ierr = nc_def_var(ncid, c3d_name[ivar], NC_FLOAT, FD_NDIM, dimid, &varid[ivar]);
   }
 
+  // attribute: index in output snapshot, index w ghost in thread
+  int l_start[] = { ni1, nj1, nk1 };
+  nc_put_att_int(ncid,NC_GLOBAL,"local_index_of_first_physical_points",
+                   NC_INT,FD_NDIM,l_start);
+
+  int g_start[] = { gni1, gnj1, gnk1 };
+  nc_put_att_int(ncid,NC_GLOBAL,"global_index_of_first_physical_points",
+                   NC_INT,FD_NDIM,g_start);
+
+  int l_count[] = { ni, nj, nk };
+  nc_put_att_int(ncid,NC_GLOBAL,"count_of_physical_points",
+                   NC_INT,FD_NDIM,l_count);
+
   // end def
   ierr = nc_enddef(ncid);
 
@@ -568,6 +590,15 @@ gd_curv_metric_export(float  *restrict g3d,
                       int  nx,
                       int  ny,
                       int  nz,
+                      int  ni1,
+                      int  nj1,
+                      int  nk1,
+                      int  ni,
+                      int  nj,
+                      int  nk,
+                      int  gni1,
+                      int  gnj1,
+                      int  gnk1,
                       char *fname_coords,
                       char *output_dir)
 {
@@ -595,6 +626,19 @@ gd_curv_metric_export(float  *restrict g3d,
   for (int ivar=0; ivar<number_of_vars; ivar++) {
     ierr = nc_def_var(ncid, g3d_name[ivar], NC_FLOAT, FD_NDIM, dimid, &varid[ivar]);
   }
+
+  // attribute: index in output snapshot, index w ghost in thread
+  int l_start[] = { ni1, nj1, nk1 };
+  nc_put_att_int(ncid,NC_GLOBAL,"local_index_of_first_physical_points",
+                   NC_INT,FD_NDIM,l_start);
+
+  int g_start[] = { gni1, gnj1, gnk1 };
+  nc_put_att_int(ncid,NC_GLOBAL,"global_index_of_first_physical_points",
+                   NC_INT,FD_NDIM,g_start);
+
+  int l_count[] = { ni, nj, nk };
+  nc_put_att_int(ncid,NC_GLOBAL,"count_of_physical_points",
+                   NC_INT,FD_NDIM,l_count);
 
   // end def
   ierr = nc_enddef(ncid);

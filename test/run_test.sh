@@ -18,12 +18,14 @@ EXEC_DIR=/export/home/lihl/CGFD3D-elastic
 EXEC_WAVE=$EXEC_DIR/cgfdm3d_elastic_mpi
 
 #-- conf
-PROJDIR=/export/home/lihl/CGFD3D-elastic/project
+PROJDIR=/export/home/zhangw/work/cgfd_opt/19_sacout
 PAR_FILE=${PROJDIR}/test.json
 GRID_DIR=${PROJDIR}/output
 MEDIA_DIR=${PROJDIR}/output
 SOURCE_DIR=${PROJDIR}/output
 OUTPUT_DIR=${PROJDIR}/output
+#-- input file
+STATION_LIST_FILE=/home/zhangw/code/zwlab/CGFD3D-elastic/test/station_list.txt
 
 #-- create dir
 mkdir -p $PROJDIR
@@ -51,7 +53,7 @@ cat << ieof > $PAR_FILE
   "number_of_mpiprocs_y" : 2,
 
   "size_of_time_step" : 0.01,
-  "number_of_time_steps" : 500,
+  "number_of_time_steps" : 50,
 
   "boundary_x_left" : {
       "cfspml" : {
@@ -100,7 +102,7 @@ cat << ieof > $PAR_FILE
   "grid_generation_method" : {
       "#import" : "$GRID_DIR",
       "cartesian" : {
-        "origin"  : [0.0, 0.0, -6000.0 ],
+        "origin"  : [0.0, 0.0, -6600.0 ],
         "inteval" : [ 100.0, 100.0, 100.0 ]
       },
       "#layer_interp" : {
@@ -119,15 +121,17 @@ cat << ieof > $PAR_FILE
 
   "media_input" : {
       "#import" : "$MEDIA_DIR",
-      "code_generate" : 1,
-      "#in_3lay_file" : "$PROJDIR/test/hill3d.md3lay",
+      "#code_generate" : 1,
+      "in_3lay_file" : "$PROJDIR/test/hill3d.md3lay",
+      "equivalent_medium_method" : "har",
       "#in_3grd_file" : "$PROJDIR/test/hill3d.md3grd"
   },
   "is_export_media" : 1,
   "media_export_dir"  : "$MEDIA_DIR",
 
   "source_input" : {
-      "#single_force" : {
+      "single_force" : {
+         "name" : "evt_test_singel_force",
          "location_by_grid_index" : [ 40, 40, 50 ],
          "#location_by_coords" : [ 4000, 4000, -500 ],
          "source_time_functon" : "ricker",
@@ -138,6 +142,7 @@ cat << ieof > $PAR_FILE
          "force_vector" : [ 0, 0, 1e16]
       },
       "#single_moment" : {
+         "name" : "evt_test_singel_moment",
          "location_by_grid_index" : [ 40, 40, 50 ],
          "#location_by_coords" : [ 4000, 4000, -500 ],
          "moment_rate_functon" : "ricker",
@@ -154,7 +159,7 @@ cat << ieof > $PAR_FILE
 
   "output_dir" : "$OUTPUT_DIR",
 
-  "receiver_file" : "surface.fdrcv",
+  "#in_station_file" : "$STATION_LIST_FILE",
 
   "receiver_line" : [
     {

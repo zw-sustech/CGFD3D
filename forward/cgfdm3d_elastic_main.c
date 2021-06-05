@@ -14,6 +14,9 @@
 #include <time.h>
 #include <mpi.h>
 
+// in lib
+#include "sacLib.h"
+
 #include "fd_t.h"
 #include "par_t.h"
 #include "gd_curv.h"
@@ -23,12 +26,15 @@
 #include "src_funcs.h"
 #include "io_funcs.h"
 #include "sv_eliso1st_curv_macdrp.h"
+#include "media_layer2model.h"
+
 
 int main(int argc, char** argv)
 {
   int verbose = 1; // default fprint
   char *par_fname;
   char ou_file[FD_MAX_STRLEN];
+  char err_message[FD_MAX_STRLEN];
 
 //-------------------------------------------------------------------------------
 // start MPI and read par
@@ -207,6 +213,15 @@ int main(int argc, char** argv)
                          blk->nx,
                          blk->ny,
                          blk->nz,
+                         blk->ni1,
+                         blk->nj1,
+                         blk->nk1,
+                         blk->ni,
+                         blk->nj,
+                         blk->nk,
+                         blk->gni1,
+                         blk->gnj1,
+                         blk->gnk1,
                          blk->output_fname_part,
                          blk->grid_export_dir);
   }
@@ -257,6 +272,15 @@ int main(int argc, char** argv)
                           blk->nx,
                           blk->ny,
                           blk->nz,
+                          blk->ni1,
+                          blk->nj1,
+                          blk->nk1,
+                          blk->ni,
+                          blk->nj,
+                          blk->nk,
+                          blk->gni1,
+                          blk->gnj1,
+                          blk->gnk1,
                           blk->output_fname_part,
                           blk->grid_export_dir);
   }
@@ -291,20 +315,34 @@ int main(int argc, char** argv)
         break;
 
     case PAR_MEDIA_IMPORT :
-        if (myid==0) fprintf(stdout,"import descreted medium file ...\n"); 
+        if (myid==0) fprintf(stdout,"import discrete medium file ...\n"); 
         if (myid==0) fprintf(stdout,"   not implemented yet\n"); 
         //md_el_iso_import(blk->m3d, blk->nx, blk->ny, blk->nz, 
         //              myid3[0],myid3[1],myid3[2]);
         break;
 
     case PAR_MEDIA_3LAY :
-        if (myid==0) fprintf(stdout,"read and descrete 3lay medium file ...\n"); 
+        if (myid==0) fprintf(stdout,"read and discretize 3D layer medium file ...\n"); 
         if (myid==0) fprintf(stdout,"   not implemented yet\n"); 
-
+        float *lam3d = blk->m3d + MD_EL_ISO_SEQ_LAMBDA * blk->siz_volume;
+        float  *mu3d = blk->m3d + MD_EL_ISO_SEQ_MU     * blk->siz_volume;
+        float *rho3d = blk->m3d + MD_EL_ISO_SEQ_RHO    * blk->siz_volume;
+        media_el_iso_layer2model(lam3d, mu3d, rho3d,
+                                 blk->c3d+GD_CURV_SEQ_X3D * blk->siz_volume,
+                                 blk->c3d+GD_CURV_SEQ_Y3D * blk->siz_volume,
+                                 blk->c3d+GD_CURV_SEQ_Z3D * blk->siz_volume,
+                                 blk->nx,
+                                 blk->ny,
+                                 blk->nz,
+                                 blk->siz_line,
+                                 blk->siz_slice,
+                                 blk->siz_volume, 
+                                 par->media_input_file,
+                                 par->equivalent_medium_method);
         break;
 
     case PAR_MEDIA_3GRD :
-        if (myid==0) fprintf(stdout,"read and descrete 3grd medium file ...\n"); 
+        if (myid==0) fprintf(stdout,"read and descretize 3D grid medium file ...\n"); 
         if (myid==0) fprintf(stdout,"   not implemented yet\n"); 
         break;
 
@@ -321,6 +359,15 @@ int main(int argc, char** argv)
                       blk->nx,
                       blk->ny,
                       blk->nz,
+                      blk->ni1,
+                      blk->nj1,
+                      blk->nk1,
+                      blk->ni,
+                      blk->nj,
+                      blk->nk,
+                      blk->gni1,
+                      blk->gnj1,
+                      blk->gnk1,
                       blk->output_fname_part,
                       blk->media_export_dir);
   }
@@ -456,12 +503,27 @@ int main(int argc, char** argv)
 //-------------------------------------------------------------------------------
 
   if (myid==0 && verbose>0) fprintf(stdout,"setup output info ...\n"); 
-  
+
   // receiver: need to do
-  fd_blk_set_sta(blk);
-  
+  io_read_locate_station(par->in_station_file,
+                         blk->gni1, blk->gni2,
+                         blk->gnj1, blk->gnj2,
+                         blk->gnk1, blk->gnk2,
+                         blk->ni1, blk->nj1, blk->nk1,
+                         blk->siz_line, blk->siz_slice,
+                         blk->c3d+blk->c3d_pos[0],
+                         blk->c3d+blk->c3d_pos[1],
+                         blk->c3d+blk->c3d_pos[2],
+                         &(blk->num_of_sta),
+                         &(blk->sta_name),
+                         &(blk->sta_coord),
+                         &(blk->sta_index),
+                         &(blk->sta_shift));
+
+  fd_blk_malloc_station(blk, nt_total);
+
   // inline
-  fd_blk_set_inline(blk,
+  fd_blk_locate_inline(blk,
                     fd->fdx_nghosts,
                     nt_total,
                     par->number_of_receiver_line,
@@ -598,8 +660,8 @@ int main(int argc, char** argv)
                                   blk->force_ext_indx,blk->force_ext_coef,
                                   blk->num_of_moment, blk->moment_info, blk->moment_ten_rate,
                                   blk->moment_ext_indx,blk->moment_ext_coef,
-                                  blk->num_of_sta, blk->sta_loc_point,blk->sta_loc_dxyz,blk->sta_seismo,
-                                  blk->num_of_point, blk->point_loc_point,blk->point_seismo,
+                                  blk->num_of_sta, blk->sta_index,blk->sta_shift,blk->sta_seismo,
+                                  blk->num_of_point, blk->point_loc_indx,blk->point_seismo,
                                   blk->num_of_slice_x, blk->slice_x_indx,blk->slice_x_fname,
                                   blk->num_of_slice_y, blk->slice_y_indx,blk->slice_y_fname,
                                   blk->num_of_slice_z, blk->slice_z_indx,blk->slice_z_fname,
@@ -623,6 +685,90 @@ int main(int argc, char** argv)
   time_t t_end = time(NULL);
   
   fprintf(stdout,"\n\nRuning Time of time :%f s \n", difftime(t_end,t_start));
+
+//-------------------------------------------------------------------------------
+//-- save station and line seismo to sac
+//-------------------------------------------------------------------------------
+
+  for (int ir=0; ir<blk->num_of_sta; ir++)
+  {
+    char *sta_name = blk->sta_name[ir];
+    int   num_of_vars = blk->w3d_num_of_vars;
+    int   iptr_coord   = ir * FD_NDIM;
+
+    // use fake evt_x etc. since did not implement gather evt_x by mpi
+    float evt_x = 0.0;
+    float evt_y = 0.0;
+    float evt_z = 0.0;
+    float evt_d = 0.0;
+
+    //fprintf(stdout,"=== Debug: num_of_vars=%d\n",num_of_vars);fflush(stdout);
+    for (int icmp=0; icmp<num_of_vars; icmp++)
+    {
+      //fprintf(stdout,"=== Debug: icmp=%d\n",icmp);fflush(stdout);
+
+      int iptr_seismo = ir * num_of_vars * nt_total + icmp * nt_total;
+
+      //fprintf(stdout,"=== Debug: icmp=%d,output_dir=%s\n",icmp,blk->output_dir);fflush(stdout);
+      //fprintf(stdout,"=== Debug: icmp=%d,source_name=%s\n",icmp,par->source_name);fflush(stdout);
+      //fprintf(stdout,"=== Debug: icmp=%d,sta_name=%s\n",icmp,sta_name);fflush(stdout);
+      //fprintf(stdout,"=== Debug: icmp=%d,w3d_name=%s\n",icmp,blk->w3d_name[icmp]);fflush(stdout);
+
+      sprintf(ou_file,"%s/%s.%s.%s.sac", blk->output_dir,par->source_name,
+                  sta_name,blk->w3d_name[icmp]);
+
+      //fprintf(stdout,"=== Debug: icmp=%d,ou_file=%s\n",icmp,ou_file);fflush(stdout);
+
+      sacExport1C1R(ou_file,
+            blk->sta_seismo+iptr_seismo,
+            evt_x, evt_y, evt_z, evt_d,
+            blk->sta_coord[iptr_coord+0],
+            blk->sta_coord[iptr_coord+1],
+            blk->sta_coord[iptr_coord+2],
+            0.0, dt, nt_total, err_message
+            );
+    }
+  }
+
+  for (int ir=0; ir<blk->num_of_point; ir++)
+  {
+    int   num_of_vars = blk->w3d_num_of_vars;
+    int   iptr_coord  = ir * FD_NDIM;
+    int   line_sno  = blk->point_line_sno[ir];
+    int   line_offset  = blk->point_line_offset[ir];
+    char *line_name = par->receiver_line_name[line_sno];
+
+    //fprintf(stdout,"=== Debug: ir=%d,line_sno=%d,name=%s,nvar=%d\n",
+    //    ir,line_sno,line_name,num_of_vars);fflush(stdout);
+
+    // use fake evt_x etc. since did not implement gather evt_x by mpi
+    float evt_x = 0.0;
+    float evt_y = 0.0;
+    float evt_z = 0.0;
+    float evt_d = 0.0;
+
+    //fprintf(stdout,"=== Debug: num_of_vars=%d\n",num_of_vars);fflush(stdout);
+
+    for (int icmp=0; icmp<num_of_vars; icmp++)
+    {
+      int iptr_seismo = ir * num_of_vars * nt_total + icmp * nt_total;
+
+      // evt1.line2.pt2.Vx.sac
+      sprintf(ou_file,"%s/%s.%s.no%d.%s.sac", blk->output_dir,par->source_name,
+                  line_name,line_offset,blk->w3d_name[icmp]);
+
+      //fprintf(stdout,"=== Debug: icmp=%d,ou_file=%s\n",icmp,ou_file);fflush(stdout);
+
+      sacExport1C1R(ou_file,
+            blk->point_seismo+iptr_seismo,
+            evt_x, evt_y, evt_z, evt_d,
+            blk->point_coord[iptr_coord+0],
+            blk->point_coord[iptr_coord+1],
+            blk->point_coord[iptr_coord+2],
+            0.0, dt, nt_total, err_message
+            );
+    }
+  }
 
 //-------------------------------------------------------------------------------
 //-- postprocess

@@ -91,6 +91,7 @@ struct par_t{
   // medium
   int media_input_itype;
   int is_export_media;
+  char equivalent_medium_method[PAR_MAX_STRLEN]; // For layer2model
   char media_export_dir[PAR_MAX_STRLEN];
   char media_import_dir[PAR_MAX_STRLEN];
   char media_input_file[PAR_MAX_STRLEN];
@@ -103,6 +104,7 @@ struct par_t{
 
   float source_coords[FD_NDIM];
   int   source_gridindex[FD_NDIM];
+  char  source_name[PAR_MAX_STRLEN];
   char  wavelet_name[PAR_MAX_STRLEN];
   float wavelet_coefs[10]; // maximum 10 coefficients for wavelet
   float wavelet_tstart;
@@ -112,7 +114,7 @@ struct par_t{
 
   // output
   // receiver
-  char input_receiver_file[PAR_MAX_STRLEN];
+  char in_station_file[PAR_MAX_STRLEN];
   // line
   int number_of_receiver_line;
   int *receiver_line_index_start;
@@ -158,8 +160,9 @@ void
 par_read_json_cfspml(cJSON *item,
       int *nlay, float *amax, float *bmax, float *vel);
 void 
-par_read_json_source(cJSON *item, char *wavelet_type_name,float *src_coord,
-      int *grid_index, char *name, float *coefs, float *t_start, float *t_end);
+par_read_json_source(cJSON *item, char *wavelet_type_name,
+      char *src_name, float *src_coord, int *grid_index,
+      char *wavelet_name, float *wavelet_coefs, float *t_start, float *t_end);
 
 void
 par_print(struct par_t *par);

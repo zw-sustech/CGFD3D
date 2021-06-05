@@ -316,6 +316,10 @@ par_read_from_str(const char *str, struct par_t *par)
     if (subitem = cJSON_GetObjectItem(item, "in_3lay_file")) {
         par->media_input_itype = PAR_MEDIA_3LAY;
         sprintf(par->media_input_file, "%s", subitem->valuestring);
+        // If input layer model, choose which equivalent medium para method
+        if (thirditem = cJSON_GetObjectItem(item, "equivalent_medium_method")) {
+          sprintf(par->equivalent_medium_method, "%s", thirditem->valuestring);
+        }
     }
     if (subitem = cJSON_GetObjectItem(item, "in_3grd_file")) {
         par->media_input_itype = PAR_MEDIA_3GRD;
@@ -350,7 +354,7 @@ par_read_from_str(const char *str, struct par_t *par)
          }
        }
        par_read_json_source(subitem,"source_time_functon",
-                par->source_coords, par->source_gridindex,
+                par->source_name,par->source_coords, par->source_gridindex,
                 par->wavelet_name, par->wavelet_coefs,
                 &(par->wavelet_tstart), &(par->wavelet_tend));
     }
@@ -364,7 +368,7 @@ par_read_from_str(const char *str, struct par_t *par)
          }
        }
        par_read_json_source(subitem,"moment_rate_functon",
-                par->source_coords, par->source_gridindex,
+                par->source_name,par->source_coords, par->source_gridindex,
                 par->wavelet_name, par->wavelet_coefs,
                 &(par->wavelet_tstart), &(par->wavelet_tend));
     }
@@ -390,8 +394,8 @@ par_read_from_str(const char *str, struct par_t *par)
   }
 
   //-- receiver
-  if (item = cJSON_GetObjectItem(root, "input_receiver_file")) {
-    sprintf(par->input_receiver_file, "%s", item->valuestring);
+  if (item = cJSON_GetObjectItem(root, "in_station_file")) {
+    sprintf(par->in_station_file, "%s", item->valuestring);
   }
 
   //-- receiver line
@@ -597,10 +601,17 @@ par_read_json_cfspml(cJSON *item,
  * funcs to read index/wavelet para from json str
  */
 void 
-par_read_json_source(cJSON *item, char *wavelet_type_name,float *src_coord,
-      int *grid_index, char *name, float *coefs, float *t_start, float *t_end)
+par_read_json_source(cJSON *item, char *wavelet_type_name,
+      char *src_name, float *src_coord, int *grid_index,
+      char *wavelet_name, float *wavelet_coefs, float *t_start, float *t_end)
 {
   cJSON *subitem;
+
+  // event name
+  if (subitem = cJSON_GetObjectItem(item, "name"))
+  {
+    sprintf(src_name,"%s",subitem->valuestring);
+  }
 
   // if coordinate
   if (subitem = cJSON_GetObjectItem(item, "location_by_coords")) {
@@ -625,32 +636,32 @@ par_read_json_source(cJSON *item, char *wavelet_type_name,float *src_coord,
      *t_end = subitem->valuedouble;
   }
 
-  // name
+  // wavelet name
   if (subitem = cJSON_GetObjectItem(item, wavelet_type_name))
   {
-    sprintf(name,"%s",subitem->valuestring);
+    sprintf(wavelet_name,"%s",subitem->valuestring);
   }
 
   // coefs
 
   // ricker
-  if (strcmp(name, "ricker")==0) {
+  if (strcmp(wavelet_name, "ricker")==0) {
     if (subitem = cJSON_GetObjectItem(item, "ricker_center_frequency")) {
-      coefs[0] = subitem->valuedouble;
+      wavelet_coefs[0] = subitem->valuedouble;
     }
     if (subitem = cJSON_GetObjectItem(item, "ricker_peak_time")) {
-      coefs[1] = subitem->valuedouble;
+      wavelet_coefs[1] = subitem->valuedouble;
     }
   }
 
   // gaussian
-  if (strcmp(name, "gaussian")==0) {
+  if (strcmp(wavelet_name, "gaussian")==0) {
     if (subitem = cJSON_GetObjectItem(item, "gaussian_rms_width")) {
-      coefs[0] = subitem->valuedouble;
+      wavelet_coefs[0] = subitem->valuedouble;
     }
     if (subitem = cJSON_GetObjectItem(item, "gaussian_peak_time"))
     {
-      coefs[1] = subitem->valuedouble;
+      wavelet_coefs[1] = subitem->valuedouble;
     }
   }
 }
@@ -754,7 +765,9 @@ par_print(struct par_t *par)
   fprintf(stdout, "-------------------------------------------------------\n");
   fprintf(stdout, " media_export_dir = %s\n", par->media_export_dir);
   fprintf(stdout, " media_input_itype = %d\n", par->media_input_itype);
-
+  //if (par->media_input_itype == PAR_MEDIA_3LAY) {
+  //  fprintf()
+  //}
   //fprintf(stdout, "\n --> the media filename is:\n");
   //fprintf(stdout, " velp_file  = %s\n", PSV->fnm_velp);
   //fprintf(stdout, " vels_file  = %s\n", PSV->fnm_vels);
@@ -768,6 +781,7 @@ par_print(struct par_t *par)
   {
     case PAR_SOURCE_SINGLE_FORCE :
       fprintf(stdout, " source_input_type = %s\n", "single_force");
+      fprintf(stdout, " source_name = %s\n", par->source_name);
       // grid index negative means to use coord
       if (par->source_gridindex[0] < 0) {
         fprintf(stdout, " source location = [%f, %f, %f]\n", 
@@ -785,6 +799,7 @@ par_print(struct par_t *par)
 
     case PAR_SOURCE_SINGLE_MOMENT :
       fprintf(stdout, " source_input_type = %s\n", "single_moment");
+      fprintf(stdout, " source_name = %s\n", par->source_name);
       if (par->source_gridindex[0] < 0) {
         fprintf(stdout, " source location = [%f, %f, %f]\n", 
             par->source_coords[0], par->source_coords[1], par->source_coords[2]);
@@ -816,8 +831,8 @@ par_print(struct par_t *par)
   fprintf(stdout, "-------------------------------------------------------\n");
   fprintf(stdout, "--> output_dir = %s\n", par->output_dir);
 
-  fprintf(stdout, "--> individual recivers:\n");
-  fprintf(stdout, " input_receiver_file = %s\n", par->input_receiver_file);
+  fprintf(stdout, "--> station list file:\n");
+  fprintf(stdout, " in_station_file = %s\n", par->in_station_file);
 
   fprintf(stdout, "--> recivers lines:\n");
   fprintf(stdout, "number_of_receiver_line=%d\n", par->number_of_receiver_line);
@@ -884,31 +899,6 @@ par_print(struct par_t *par)
   fprintf(stdout, "--> qc parameters:\n");
   fprintf(stdout, "check_nan_every_nummber_of_steps=%d\n", par->check_nan_every_nummber_of_steps);
   fprintf(stdout, "output_all=%d\n", par->output_all);
-
-  /*
-  fprintf(stdout, "\n");
-  fprintf(stdout, "--> station information.\n");
-  fprintf(stdout, " number_of_station  = %4d\n", par->number_of_station);
-  fprintf(stdout, " seismo_format_sac  = %4d\n", par->seismo_format_sac );
-  fprintf(stdout, " seismo_format_segy = %4d\n", par->seismo_format_segy);
-  fprintf(stdout, " SeismoPrefix = %s\n", SeismoPrefix);
-  fprintf(stdout, "\n");
-
-  if(par->number_of_station > 0)
-  {
-      //fprintf(stdout, " station_indx:\n");
-      fprintf(stdout, " stations             x           z           i           k:\n");
-  }
-
-  for(n=0; n<par->number_of_station; n++)
-  {
-      indx = 2*n;
-      fprintf(stdout, "       %04d  %10.4e  %10.4e  %10d  %10d\n", n+1, 
-              par->station_coord[indx], par->station_coord[indx+1],
-              par->station_indx [indx], par->station_indx [indx+1]);
-  }
-  fprintf(stdout, "\n");
-  */
 
   return;
 }

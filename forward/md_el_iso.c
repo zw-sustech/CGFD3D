@@ -50,15 +50,15 @@ md_el_iso_init_vars(
   // init
   int ivar = MD_EL_ISO_SEQ_RHO;
   m3d_pos[ivar] = ivar * siz_volume;
-  strcpy(m3d_name[ivar],"rho");
+  sprintf(m3d_name[ivar],"%s","rho");
 
   ivar = MD_EL_ISO_SEQ_LAMBDA;
   m3d_pos[ivar] = ivar * siz_volume;
-  strcpy(m3d_name[ivar],"lamda");
+  sprintf(m3d_name[ivar],"%s","lambda");
 
   ivar = MD_EL_ISO_SEQ_MU;
   m3d_pos[ivar] = ivar * siz_volume;
-  strcpy(m3d_name[ivar],"mu");
+  sprintf(m3d_name[ivar],"%s","mu");
 
   // set return values
   *p_m3d = m3d;
@@ -118,6 +118,15 @@ md_el_iso_export(float  *restrict m3d,
                  int  nx,
                  int  ny,
                  int  nz,
+                 int  ni1,
+                 int  nj1,
+                 int  nk1,
+                 int  ni,
+                 int  nj,
+                 int  nk,
+                 int  gni1,
+                 int  gnj1,
+                 int  gnk1,
                  char *fname_coords,
                  char *output_dir)
 {
@@ -137,14 +146,27 @@ md_el_iso_export(float  *restrict m3d,
   }
 
   // define dimension
-  ierr = nc_def_dim(ncid, "i"  , nx, &dimid[2]);
-  ierr = nc_def_dim(ncid, "j" , ny, &dimid[1]);
+  ierr = nc_def_dim(ncid, "i", nx, &dimid[2]);
+  ierr = nc_def_dim(ncid, "j", ny, &dimid[1]);
   ierr = nc_def_dim(ncid, "k", nz, &dimid[0]);
 
   // define vars
   for (int ivar=0; ivar<number_of_vars; ivar++) {
     ierr = nc_def_var(ncid, m3d_name[ivar], NC_FLOAT, FD_NDIM, dimid, &varid[ivar]);
   }
+
+  // attribute: index in output snapshot, index w ghost in thread
+  int l_start[] = { ni1, nj1, nk1 };
+  nc_put_att_int(ncid,NC_GLOBAL,"local_index_of_first_physical_points",
+                   NC_INT,FD_NDIM,l_start);
+
+  int g_start[] = { gni1, gnj1, gnk1 };
+  nc_put_att_int(ncid,NC_GLOBAL,"global_index_of_first_physical_points",
+                   NC_INT,FD_NDIM,g_start);
+
+  int l_count[] = { ni, nj, nk };
+  nc_put_att_int(ncid,NC_GLOBAL,"count_of_physical_points",
+                   NC_INT,FD_NDIM,l_count);
 
   // end def
   ierr = nc_enddef(ncid);

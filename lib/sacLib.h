@@ -337,7 +337,7 @@ enum SAC_HEADER_ENUMS {
   This part is for writing sac format seismogram.
   ---------------------------------------------------------------------------------*/
 /* write seismogram to file using sac format.*/
-int seismo3dWriteSAC(
+int sacExport1C1R(
         char *fnm, 
         float *seismo, 
         float evla,
