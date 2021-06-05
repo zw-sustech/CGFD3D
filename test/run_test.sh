@@ -18,14 +18,16 @@ EXEC_DIR=/home/zhangw/code/zwlab/CGFD3D-elastic
 EXEC_WAVE=$EXEC_DIR/cgfdm3d_elastic_mpi
 
 #-- conf
-PROJDIR=/export/home/zhangw/work/cgfd_opt/19_sacout
+PROJDIR=/export/home/zhangw/work/cgfd_opt/21_media
 PAR_FILE=${PROJDIR}/test.json
 GRID_DIR=${PROJDIR}/output
 MEDIA_DIR=${PROJDIR}/output
 SOURCE_DIR=${PROJDIR}/output
 OUTPUT_DIR=${PROJDIR}/output
 #-- input file
-STATION_LIST_FILE=/home/zhangw/code/zwlab/CGFD3D-elastic/test/station_list.txt
+TEST_INPUT_DIR=/home/zhangw/code/zwlab/CGFD3D-elastic/test
+IN_STATION_LIST_FILE=${TEST_INPUT_DIR}/test_station.sta
+IN_MEDIA_3LAY_FILE=${TEST_INPUT_DIR}/test_hill3d.md3lay
 
 #-- create dir
 mkdir -p $PROJDIR
@@ -122,7 +124,7 @@ cat << ieof > $PAR_FILE
   "media_input" : {
       "#import" : "$MEDIA_DIR",
       "#code_generate" : 1,
-      "in_3lay_file" : "$PROJDIR/test/hill3d.md3lay",
+      "in_3lay_file" : "${IN_MEDIA_3LAY_FILE}",
       "equivalent_medium_method" : "har",
       "#in_3grd_file" : "$PROJDIR/test/hill3d.md3grd"
   },
@@ -159,7 +161,7 @@ cat << ieof > $PAR_FILE
 
   "output_dir" : "$OUTPUT_DIR",
 
-  "#in_station_file" : "$STATION_LIST_FILE",
+  "in_station_file" : "$IN_STATION_LIST_FILE",
 
   "receiver_line" : [
     {
