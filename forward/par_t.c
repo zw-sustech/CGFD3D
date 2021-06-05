@@ -269,6 +269,11 @@ par_read_from_str(const char *str, struct par_t *par)
            par->grid_layer_interp_factor[i] = cJSON_GetArrayItem(thirditem, i)->valueint;
          }
        }
+        if (thirditem = cJSON_GetObjectItem(subitem, "grid_layermodel_start")) {
+         for (int i = 0; i < FD_NDIM; i++) {
+           par->grid_layermodel_start[i] = cJSON_GetArrayItem(thirditem, i)->valueint;
+         }
+       }
     }
   }
 

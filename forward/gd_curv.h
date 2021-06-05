@@ -112,11 +112,15 @@ int gd_SPLine( int n, int end1, int end2,
               float b[], float c[], float d[],
               int *iflag);
 void gd_SPL(int n, float *x, float *y, int ni, float *xi, float *yi);
-int gd_curv_gen_layer(float *restrict c3d, int nLayers,
-                      int* NCellPerlay, int* VmapSpacingIsequal,
-                      int nx, int ni, int gni1, int fdx_nghosts, int n_total_grid_x,
-                      int ny, int nj, int gnj1, int fdy_nghosts, int n_total_grid_y,
-                      int nz, int nk, int gnk1, int fdz_nghosts, int n_total_grid_z);
-
+int gd_curv_gen_layer(char *in_grid_layer_file,
+                      int *grid_layer_interp_factor,
+                      int *grid_layermodel_start,
+                      int n_total_grid_x,
+                      int n_total_grid_y,
+                      int n_total_grid_z,
+                      float *restrict c3d,
+                      int nx, int ni, int gni1, int fdx_nghosts, 
+                      int ny, int nj, int gnj1, int fdy_nghosts, 
+                      int nz, int nk, int gnk1, int fdz_nghosts);
 
 #endif

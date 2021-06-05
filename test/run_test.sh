@@ -103,13 +103,14 @@ cat << ieof > $PAR_FILE
 
   "grid_generation_method" : {
       "#import" : "$GRID_DIR",
-      "cartesian" : {
+      "#cartesian" : {
         "origin"  : [0.0, 0.0, -6600.0 ],
         "inteval" : [ 100.0, 100.0, 100.0 ]
       },
-      "#layer_interp" : {
+      "layer_interp" : {
         "in_grid_layer_file" : "$PROJDIR/test/grid_layer.gdlay",
-        "refine_factor" : [ 2, 2, 2 ]
+        "refine_factor" : [ 2, 2, 1 ]
+        "grid_layermodel_start" : [ 50, 50, 0 ]
       }
   },
   "is_export_grid" : 1,

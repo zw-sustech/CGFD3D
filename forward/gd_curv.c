@@ -658,26 +658,267 @@ gd_curv_metric_export(float  *restrict g3d,
 }
 
 
-
-// code by SunWenliang
-int gd_curv_gen_layer(float*restrict c3d, int nLayers,
-                      int* NCellPerlay, int* VmapSpacingIsequal,
-                      int nx, int ni, int gni1, int fdx_nghosts, int n_total_grid_x,
-                      int ny, int nj, int gnj1, int fdy_nghosts, int n_total_grid_y,
-                      int nz, int nk, int gnk1, int fdz_nghosts, int n_total_grid_z)
+// code by SunWenliang  2021/06/02
+int gd_curv_gen_layer(char *in_grid_layer_file,
+                      int *grid_layer_interp_factor,
+                      int *grid_layermodel_start,
+                      int n_total_grid_x,
+                      int n_total_grid_y,
+                      int n_total_grid_z,
+                      float *restrict c3d,
+                      int nx, int ni, int gni1, int fdx_nghosts, 
+                      int ny, int nj, int gnj1, int fdy_nghosts, 
+                      int nz, int nk, int gnk1, int fdz_nghosts)
 {
-  size_t siz_volume       = nx  * ny  * nz ; 
-  size_t siz_volume_layer = n_total_grid_x  * n_total_grid_y  * (nLayers+1) ; 
-  size_t siz_volume_layer_ch = ( n_total_grid_x + 2*fdx_nghosts )  * ( n_total_grid_y + 2*fdy_nghosts ) * (nLayers+1) ; 
+  int nLayers;
+  int n_Interfaces;
+  int nx_layers;
+  int ny_layers;
+  int nx_first;
+  int ny_first;
+  int nx_interp;
+  int ny_interp;
+  size_t iptr1 ;
+  size_t iptr2 ;
+  size_t iptr3 ;
 
+  //// read data from layer file
+  FILE * fp;
+  fp = fopen( in_grid_layer_file, "r");
+  if (!fp){
+    printf("Failed to open input file of interface!!");
+  }
+  fscanf(fp,"%d", &n_Interfaces);
+  nLayers = n_Interfaces - 1;
+  int NCellPerlay[nLayers];
+  int VmapSpacingIsequal[nLayers];
+  for ( int i=0; i<nLayers; i++)
+  {
+    fscanf(fp,"%d",&NCellPerlay[i]);
+  }
+  for ( int i=0; i<nLayers; i++)
+  {
+    fscanf(fp,"%d",&VmapSpacingIsequal[i]);
+  }
+  fscanf(fp,"%d",&nx_layers);
+  fscanf(fp,"%d",&ny_layers);
+  size_t siz_volume_layerIn = nx_layers  * ny_layers  * (nLayers+1) ;  
+  float * layer3d_In        = NULL;
+  layer3d_In   = ( float * ) malloc( sizeof( float ) * siz_volume_layerIn * 3 );
+  for ( int i=0; i<siz_volume_layerIn; i++)
+  {
+    fscanf(fp,"%f",&layer3d_In[i                       ]);
+    fscanf(fp,"%f",&layer3d_In[i + siz_volume_layerIn  ]);
+    fscanf(fp,"%f",&layer3d_In[i + siz_volume_layerIn*2]);
+  }
+  fclose( fp );
+
+// Interpolation of input interface grid nodes
+  int x_interp_factor = abs(grid_layer_interp_factor[0]);
+  int y_interp_factor = abs(grid_layer_interp_factor[1]);
+  int z_interp_factor = abs(grid_layer_interp_factor[2]);
+  if ( grid_layer_interp_factor[0] < 0 ) {
+    nx_interp = floor( (nx_layers               +1) / x_interp_factor );
+    nx_first  = floor( (grid_layermodel_start[0]+1) / x_interp_factor );
+  }else{ 
+    nx_interp = (nx_layers               -1) * x_interp_factor + 1;
+    nx_first  = (grid_layermodel_start[0]-1) * x_interp_factor + 1;
+  }
+  if ( grid_layer_interp_factor[1] < 0 ) {
+    ny_interp = floor( (ny_layers               +1) / y_interp_factor );
+    ny_first  = floor( (grid_layermodel_start[1]+1) / y_interp_factor );
+  }else{ 
+    ny_interp = (ny_layers               -1) * y_interp_factor + 1;
+    ny_first  = (grid_layermodel_start[1]-1) * y_interp_factor + 1;
+  }
+
+  size_t siz_volume_layer_interp = nx_interp * ny_interp * (nLayers + 1);
+  float *layer3d_interp = NULL;
+  layer3d_interp = (float *)malloc(sizeof(float) * siz_volume_layer_interp * 3);
+  // 
+    float   *xx1_lenX = NULL;
+    float   *xx2_lenX = NULL;
+    float *yy1_x_lenX = NULL;
+    float *yy2_x_lenX = NULL;
+    float *yy1_y_lenX = NULL;
+    float *yy2_y_lenX = NULL;
+    float *yy1_z_lenX = NULL;
+    float *yy2_z_lenX = NULL;
+    float   *xx1_lenY = NULL;
+    float   *xx2_lenY = NULL;
+    float *yy1_x_lenY = NULL;
+    float *yy2_x_lenY = NULL;
+    float *yy1_y_lenY = NULL;
+    float *yy2_y_lenY = NULL;
+    float *yy1_z_lenY = NULL;
+    float *yy2_z_lenY = NULL;
+      xx1_lenX = (float *)malloc(sizeof(float) * nx_interp);
+      xx2_lenX = (float *)malloc(sizeof(float) * nx_layers);
+    yy1_x_lenX = (float *)malloc(sizeof(float) * nx_interp);
+    yy2_x_lenX = (float *)malloc(sizeof(float) * nx_layers);
+    yy1_y_lenX = (float *)malloc(sizeof(float) * nx_interp);
+    yy2_y_lenX = (float *)malloc(sizeof(float) * nx_layers);
+    yy1_z_lenX = (float *)malloc(sizeof(float) * nx_interp);
+    yy2_z_lenX = (float *)malloc(sizeof(float) * nx_layers);
+      xx1_lenY = (float *)malloc(sizeof(float) * ny_interp);
+      xx2_lenY = (float *)malloc(sizeof(float) * ny_layers);
+    yy1_x_lenY = (float *)malloc(sizeof(float) * ny_interp);
+    yy2_x_lenY = (float *)malloc(sizeof(float) * ny_layers);
+    yy1_y_lenY = (float *)malloc(sizeof(float) * ny_interp);
+    yy2_y_lenY = (float *)malloc(sizeof(float) * ny_layers);
+    yy1_z_lenY = (float *)malloc(sizeof(float) * ny_interp);
+    yy2_z_lenY = (float *)malloc(sizeof(float) * ny_layers);
+
+  // Downsampling in X and Y
+  if (grid_layer_interp_factor[0] < 2 && grid_layer_interp_factor[1] < 2 ) 
+  {
+    for (int kk = 0; kk < nLayers+1; kk++) {
+      for (int jj = 0; jj < ny_interp; jj++) {
+        for (int ii = 0; ii < nx_interp; ii++) {
+          iptr1 = INDEX(ii, jj, kk, nx_interp, ny_interp);
+          iptr2 = INDEX(ii * x_interp_factor, jj * y_interp_factor, kk, nx_layers,
+                        ny_layers);
+          layer3d_interp[ iptr1                           ] = layer3d_In[ iptr2 ];
+          layer3d_interp[ iptr1 +siz_volume_layer_interp  ] = layer3d_In[ iptr2 
+                          +siz_volume_layerIn   ]; 
+          layer3d_interp[ iptr1 +siz_volume_layer_interp*2] = layer3d_In[ iptr2 
+                          +siz_volume_layerIn*2 ]; 
+        }
+      }
+    }
+  }
+  //Downsampling in in X, Interpolating in Y
+  else if( grid_layer_interp_factor[0] < 2 && grid_layer_interp_factor[1] >= 2  )  
+  {
+    for ( int jj1=0; jj1<ny_interp; jj1++) xx1_lenY[jj1] = jj1;
+    for ( int jj1=0; jj1<ny_layers; jj1++) xx2_lenY[jj1] = jj1*y_interp_factor;
+
+    for (int kk = 0; kk < nLayers+1; kk++) {
+      for (int ii = 0; ii < nx_interp; ii++) {
+        for ( int jj1=0; jj1<ny_layers; jj1++) {
+          yy2_x_lenY[jj1] = layer3d_In[INDEX(ii*x_interp_factor, jj1, kk, nx_layers,
+                                       ny_layers)                        ];
+          yy2_y_lenY[jj1] = layer3d_In[INDEX(ii*x_interp_factor, jj1, kk, nx_layers,
+                                             ny_layers) + siz_volume_layerIn   ];
+          yy2_z_lenY[jj1] = layer3d_In[INDEX(ii*x_interp_factor, jj1, kk, nx_layers,
+                                             ny_layers) + siz_volume_layerIn*2 ];
+          }
+          gd_SPL(ny_layers, xx2_lenY, yy2_x_lenY, ny_interp, xx1_lenY, yy1_x_lenY);
+          gd_SPL(ny_layers, xx2_lenY, yy2_y_lenY, ny_interp, xx1_lenY, yy1_y_lenY);
+          gd_SPL(ny_layers, xx2_lenY, yy2_z_lenY, ny_interp, xx1_lenY, yy1_z_lenY);
+          for (int jj = 0; jj < ny_interp; jj++)
+          {
+            iptr1 = INDEX(ii, jj, kk, nx_interp, ny_interp);
+            layer3d_interp[iptr1] = yy1_x_lenY[jj];
+            layer3d_interp[iptr1 + siz_volume_layer_interp] = yy1_y_lenY[jj];
+            layer3d_interp[iptr1 + siz_volume_layer_interp * 2] = yy1_z_lenY[jj];
+        }
+      }
+    }
+  }
+  //Interpolating in in X, Downsampling in Y
+  else if( grid_layer_interp_factor[0] >=2 && grid_layer_interp_factor[1] < 2  )  
+  {
+    for ( int ii1=0; ii1<nx_interp; ii1++) xx1_lenX[ii1] = ii1;
+    for ( int ii1=0; ii1<nx_layers; ii1++) xx2_lenX[ii1] = ii1*x_interp_factor;
+
+    for (int kk = 0; kk < nLayers+1; kk++) {
+      for (int jj = 0; jj < ny_interp; jj++) {
+        for ( int ii1=0; ii1<nx_layers; ii1++) {
+          yy2_x_lenX[ii1] = layer3d_In[INDEX(ii1, jj*y_interp_factor, kk, nx_layers,
+                                            ny_layers)                        ];
+          yy2_y_lenX[ii1] = layer3d_In[INDEX(ii1, jj*y_interp_factor, kk, nx_layers,
+                                            ny_layers) + siz_volume_layerIn   ];
+          yy2_z_lenX[ii1] = layer3d_In[INDEX(ii1, jj*y_interp_factor, kk, nx_layers,
+                                            ny_layers) + siz_volume_layerIn*2 ];
+          }
+          gd_SPL(nx_layers, xx2_lenX, yy2_x_lenX, nx_interp, xx1_lenX, yy1_x_lenX);
+          gd_SPL(nx_layers, xx2_lenX, yy2_y_lenX, nx_interp, xx1_lenX, yy1_y_lenX);
+          gd_SPL(nx_layers, xx2_lenX, yy2_z_lenX, nx_interp, xx1_lenX, yy1_z_lenX);
+          for (int ii = 0; ii < nx_interp; ii++)
+          {
+            iptr1 = INDEX(ii, jj, kk, nx_interp, ny_interp);
+            layer3d_interp[iptr1] = yy1_x_lenX[ii];
+            layer3d_interp[iptr1 + siz_volume_layer_interp] = yy1_y_lenX[ii];
+            layer3d_interp[iptr1 + siz_volume_layer_interp * 2] = yy1_z_lenX[ii];
+        }
+      }
+    }
+  }
+  // Interpolating in in X and Y
+  else if( grid_layer_interp_factor[0] >=2 && grid_layer_interp_factor[1] >= 2  ) 
+  {
+    for ( int ii1=0; ii1<nx_interp; ii1++) xx1_lenX[ii1] = ii1;
+    for ( int ii1=0; ii1<nx_layers; ii1++) xx2_lenX[ii1] = ii1*x_interp_factor;
+    for (int kk = 0; kk < nLayers+1; kk++) {
+      for (int jj = 0; jj < ny_layers; jj++) {
+        for ( int ii1=0; ii1<nx_layers; ii1++) {
+          yy2_x_lenX[ii1] = layer3d_In[INDEX(ii1, jj, kk, nx_layers, ny_layers)];
+          yy2_y_lenX[ii1] = layer3d_In[INDEX(ii1, jj, kk, nx_layers, ny_layers) 
+                                       + siz_volume_layerIn   ];
+          yy2_z_lenX[ii1] = layer3d_In[INDEX(ii1, jj, kk, nx_layers, ny_layers) 
+                                       + siz_volume_layerIn*2 ];
+          }
+          gd_SPL( nx_layers, xx2_lenX, yy2_x_lenX, nx_interp, xx1_lenX, yy1_x_lenX);
+          gd_SPL( nx_layers, xx2_lenX, yy2_y_lenX, nx_interp, xx1_lenX, yy1_y_lenX);
+          gd_SPL( nx_layers, xx2_lenX, yy2_z_lenX, nx_interp, xx1_lenX, yy1_z_lenX);
+        for (int ii = 0; ii < nx_interp; ii++) {
+          iptr1 = INDEX( ii, jj*y_interp_factor, kk, nx_interp, ny_interp );
+          layer3d_interp[ iptr1                           ] = yy1_x_lenX[ ii ];
+          layer3d_interp[ iptr1 +siz_volume_layer_interp  ] = yy1_y_lenX[ ii ];
+          layer3d_interp[ iptr1 +siz_volume_layer_interp*2] = yy1_z_lenX[ ii ];
+        }
+      }
+    }
+
+    for ( int jj1=0; jj1<ny_interp; jj1++) xx1_lenY[jj1] = jj1;
+    for ( int jj1=0; jj1<ny_layers; jj1++) xx2_lenY[jj1] = jj1*y_interp_factor;
+    for (int kk = 0; kk < nLayers+1; kk++) {
+      for (int ii = 0; ii < nx_interp; ii++) {
+        for ( int jj1=0; jj1<ny_layers; jj1++) {
+          yy2_x_lenY[jj1] = layer3d_interp[INDEX(ii, jj1 * y_interp_factor, kk,
+                               nx_interp, ny_interp)];
+          yy2_y_lenY[jj1] = layer3d_interp[INDEX(ii, jj1 * y_interp_factor, kk,
+                               nx_interp, ny_interp) + siz_volume_layer_interp];
+          yy2_z_lenY[jj1] = layer3d_interp[INDEX(ii, jj1 * y_interp_factor, kk,
+                               nx_interp, ny_interp) + siz_volume_layer_interp * 2];
+          }
+          gd_SPL( ny_layers, xx2_lenY, yy2_x_lenY, ny_interp, xx1_lenY, yy1_x_lenY);
+          gd_SPL( ny_layers, xx2_lenY, yy2_y_lenY, ny_interp, xx1_lenY, yy1_y_lenY);
+          gd_SPL( ny_layers, xx2_lenY, yy2_z_lenY, ny_interp, xx1_lenY, yy1_z_lenY);
+        for (int jj = 0; jj < ny_interp; jj++) {
+          iptr1 = INDEX( ii, jj, kk, nx_interp, ny_interp );
+          layer3d_interp[ iptr1                           ] = yy1_x_lenY[ jj ];
+          layer3d_interp[ iptr1 +siz_volume_layer_interp  ] = yy1_y_lenY[ jj ];
+          layer3d_interp[ iptr1 +siz_volume_layer_interp*2] = yy1_z_lenY[ jj ];
+        }
+      }
+    }  
+  }
+
+  free(xx1_lenX);
+  free(xx2_lenX);
+  free(yy1_x_lenX);
+  free(yy2_x_lenX);
+  free(yy1_y_lenX);
+  free(yy2_y_lenX);
+  free(yy1_z_lenX);
+  free(yy2_z_lenX);
+  free(xx1_lenY);
+  free(xx2_lenY);
+  free(yy1_x_lenY);
+  free(yy2_x_lenY);
+  free(yy1_y_lenY);
+  free(yy2_y_lenY);
+  free(yy1_z_lenY);
+  free(yy2_z_lenY);
+
+  size_t siz_volume  = nx  * ny  * nz ; 
   float * layer3d      = NULL;
-  float * layer3d_load = NULL;
-  float * layer3d_load_ch = NULL;
-  layer3d         = ( float * ) malloc( sizeof( float ) * nx * ny * (nLayers+1) * 3 );
-  layer3d_load    = ( float * ) malloc( sizeof( float ) * siz_volume_layer      * 3 );
-  layer3d_load_ch = ( float * ) malloc( sizeof( float ) * siz_volume_layer_ch   * 3 );
+  layer3d = ( float * ) malloc( sizeof( float ) * nx * ny * (nLayers+1) * 3 );
 
   float dd;
+  float dd_ch;
   float *x3d = c3d + GD_CURV_SEQ_X3D * nx*ny*nz + nx*ny*fdz_nghosts;
   float *y3d = c3d + GD_CURV_SEQ_Y3D * nx*ny*nz + nx*ny*fdz_nghosts;
   float *z3d = c3d + GD_CURV_SEQ_Z3D * nx*ny*nz + nx*ny*fdz_nghosts;
@@ -685,16 +926,9 @@ int gd_curv_gen_layer(float*restrict c3d, int nLayers,
   float *y3d_ch = c3d + GD_CURV_SEQ_Y3D * nx*ny*nz;
   float *z3d_ch = c3d + GD_CURV_SEQ_Z3D * nx*ny*nz;
 
-
   float *xlayer3d = layer3d + GD_CURV_SEQ_X3D * nx*ny*(nLayers+1);
   float *ylayer3d = layer3d + GD_CURV_SEQ_Y3D * nx*ny*(nLayers+1);
   float *zlayer3d = layer3d + GD_CURV_SEQ_Z3D * nx*ny*(nLayers+1);
-  float *xlayer3d_load = layer3d_load + GD_CURV_SEQ_X3D * siz_volume_layer;
-  float *ylayer3d_load = layer3d_load + GD_CURV_SEQ_Y3D * siz_volume_layer;
-  float *zlayer3d_load = layer3d_load + GD_CURV_SEQ_Z3D * siz_volume_layer;
-  float *xlayer3d_load_ch = layer3d_load_ch + GD_CURV_SEQ_X3D * siz_volume_layer_ch;
-  float *ylayer3d_load_ch = layer3d_load_ch + GD_CURV_SEQ_Y3D * siz_volume_layer_ch;
-  float *zlayer3d_load_ch = layer3d_load_ch + GD_CURV_SEQ_Z3D * siz_volume_layer_ch;
   
   float * zlayerpart  = NULL;
   float * ylayerpart  = NULL;
@@ -708,108 +942,30 @@ int gd_curv_gen_layer(float*restrict c3d, int nLayers,
   z3dpart = ( float * ) malloc( sizeof( float ) * nk );
   y3dpart = ( float * ) malloc( sizeof( float ) * nk );
   x3dpart = ( float * ) malloc( sizeof( float ) * nk );
-////////////////////////////////////////////////////////////////////////////////////////
-  FILE * fp;
-  fp = fopen("./layer3d_hill.dat","rb");
-  if (!fp){
-    printf("Failed to open input file of interface!!");
-  }
-  fread( layer3d_load, sizeof(float),  siz_volume_layer * 3, fp );
-  fclose( fp );
-///////////////////////////////////////////////////////////////////////////////////////
- 
-  size_t iptr1 = 0;
-  size_t iptr2 = 0;
-  size_t iptr3 = 0;
-  float dd_ch;
-
-  for ( int k=0; k<nLayers+1; k++ )
-  {
-    for (int j=0; j<n_total_grid_y; j++)
-    {
-      for (int i=0; i<n_total_grid_x; i++)
-      {
-        iptr1 = INDEX( i + fdx_nghosts, j + fdy_nghosts, k, n_total_grid_x + 2*fdx_nghosts, n_total_grid_y + 2*fdy_nghosts );
-        iptr2 = INDEX( i              , j              , k, n_total_grid_x                , n_total_grid_y                 );
-        xlayer3d_load_ch[ iptr1 ] = xlayer3d_load[ iptr2 ];
-        ylayer3d_load_ch[ iptr1 ] = ylayer3d_load[ iptr2 ];
-        zlayer3d_load_ch[ iptr1 ] = zlayer3d_load[ iptr2 ];
+  // Intercept submodel nodes from input model
+  size_t x_gd_first = nx_first + gni1 - fdx_nghosts;
+  size_t y_gd_first = ny_first + gnj1 - fdy_nghosts;
+  for (int k = 0; k < (nLayers + 1); k++) {
+    for (int j = 0; j < ny; j++) {
+      for (int i = 0; i < nx; i++) {
+        iptr1 = INDEX(i, j, k, nx, ny);
+        iptr2 = INDEX(i + x_gd_first, j + y_gd_first, k, nx_interp, ny_interp);
+        xlayer3d[iptr1] = layer3d_interp[iptr2];
+        ylayer3d[iptr1] = layer3d_interp[iptr2 + siz_volume_layer_interp];
+        zlayer3d[iptr1] = layer3d_interp[iptr2 + siz_volume_layer_interp * 2];
       }
     }
   }
 
-  for ( int k=0; k<nLayers+1; k++ )
-  {
-    for (int j=0; j<n_total_grid_y+ 2*fdy_nghosts; j++)
-    {
-      for (int i=0; i<fdx_nghosts; i++)
-      {
-        iptr1 = INDEX( i            , j, k, n_total_grid_x + 2*fdx_nghosts, n_total_grid_y + 2*fdy_nghosts );
-        iptr2 = INDEX( fdx_nghosts  , j, k, n_total_grid_x + 2*fdx_nghosts, n_total_grid_y + 2*fdy_nghosts );
-        iptr3 = INDEX( fdx_nghosts+1, j, k, n_total_grid_x + 2*fdx_nghosts, n_total_grid_y + 2*fdy_nghosts );
-        dd_ch = xlayer3d_load_ch[ iptr3 ] - xlayer3d_load_ch[ iptr2 ];
-        xlayer3d_load_ch[ iptr1 ]  = xlayer3d_load_ch[ iptr2 ] - dd_ch * ( fdx_nghosts - i);
-        ylayer3d_load_ch[ iptr1 ]  = ylayer3d_load_ch[ iptr2 ];
-        zlayer3d_load_ch[ iptr1 ]  = zlayer3d_load_ch[ iptr2 ];
-
-        iptr1 = INDEX( n_total_grid_x + 2*fdx_nghosts -1 - i , j, k, n_total_grid_x + 2*fdx_nghosts, n_total_grid_y + 2*fdy_nghosts );
-        iptr2 = INDEX( n_total_grid_x + 1*fdx_nghosts -1     , j, k, n_total_grid_x + 2*fdx_nghosts, n_total_grid_y + 2*fdy_nghosts );
-        iptr3 = INDEX( n_total_grid_x + 1*fdx_nghosts -2     , j, k, n_total_grid_x + 2*fdx_nghosts, n_total_grid_y + 2*fdy_nghosts );
-        dd_ch = xlayer3d_load_ch[ iptr2 ] - xlayer3d_load_ch[ iptr3 ];
-        xlayer3d_load_ch[ iptr1 ]  = xlayer3d_load_ch[ iptr2 ] + dd_ch * ( fdx_nghosts - i);
-        ylayer3d_load_ch[ iptr1 ]  = ylayer3d_load_ch[ iptr2 ];
-        zlayer3d_load_ch[ iptr1 ]  = zlayer3d_load_ch[ iptr2 ];
-      }
-    }
-  }
-
-  for ( int k=0; k<nLayers+1; k++ )
-  {
-    for (int j=0; j<fdy_nghosts; j++)
-    {
-      for ( int i=0; i<n_total_grid_x + 2*fdx_nghosts; i++)
-      {
-        iptr1 = INDEX( i, j          , k, n_total_grid_x + 2*fdx_nghosts   , n_total_grid_y + 2*fdy_nghosts );
-        iptr2 = INDEX( i, fdy_nghosts, k, n_total_grid_x + 2*fdx_nghosts   , n_total_grid_y + 2*fdy_nghosts );
-        iptr3 = INDEX( i, fdy_nghosts, k, n_total_grid_x + 2*fdx_nghosts + 1, n_total_grid_y + 2*fdy_nghosts );
-        dd_ch = ylayer3d_load_ch[ iptr3 ] - ylayer3d_load_ch[ iptr2 ];
-        xlayer3d_load_ch[ iptr1 ]  = xlayer3d_load_ch[ iptr2 ];
-        ylayer3d_load_ch[ iptr1 ]  = ylayer3d_load_ch[ iptr2 ] - dd_ch * ( fdy_nghosts - j);
-        zlayer3d_load_ch[ iptr1 ]  = zlayer3d_load_ch[ iptr2 ];
-
-        iptr1 = INDEX( i, n_total_grid_y + 2*fdy_nghosts - 1 - j, k, n_total_grid_x + 2*fdx_nghosts, n_total_grid_y + 2*fdy_nghosts );
-        iptr2 = INDEX( i, n_total_grid_y + 1*fdy_nghosts - 1    , k, n_total_grid_x + 2*fdx_nghosts, n_total_grid_y + 2*fdy_nghosts );
-        iptr3 = INDEX( i, n_total_grid_y + 1*fdy_nghosts - 2    , k, n_total_grid_x + 2*fdx_nghosts, n_total_grid_y + 2*fdy_nghosts );
-        dd_ch = ylayer3d_load_ch[ iptr2 ] - ylayer3d_load_ch[ iptr3 ];
-        xlayer3d_load_ch[ iptr1 ]  = xlayer3d_load_ch[ iptr2 ];
-        ylayer3d_load_ch[ iptr1 ]  = ylayer3d_load_ch[ iptr2 ] + dd_ch * ( fdy_nghosts - j);
-        zlayer3d_load_ch[ iptr1 ]  = zlayer3d_load_ch[ iptr2 ];
-      }
-    }
-  }
-
-  for (int k=0; k<( nLayers + 1 ); k++)
-  {
-    for (int j=0; j<ny; j++)
-    {
-      for (int i=0; i<nx; i++)
-      {
-        iptr1 = INDEX( i       , j       , k, nx                            , ny                             );
-        iptr2 = INDEX( i + gni1, j + gnj1, k, n_total_grid_x + 2*fdx_nghosts, n_total_grid_y + 2*fdy_nghosts );
-        xlayer3d[ iptr1 ]  = xlayer3d_load_ch[ iptr2 ];
-        ylayer3d[ iptr1 ]  = ylayer3d_load_ch[ iptr2 ];
-        zlayer3d[ iptr1 ]  = zlayer3d_load_ch[ iptr2 ];
-      }
-    }
-  }
-
+  //// Interpolating the Z coordinate of the grid by interface control point.
   dd = zlayer3d[INDEX( 0, 0, 1, nx, ny )] - zlayer3d[INDEX( 0, 0, 0, nx, ny )];
-  for ( int i = 0; i < nx; i ++ )
+  for (int i = 0; i < nx; i++)
   {
-    for ( int j = 0; j < ny; j ++ )
+    for (int j = 0; j < ny; j++)
     {
-      gd_grid_z_interp( i, j, z3d, zlayer3d, NCellPerlay, VmapSpacingIsequal, nLayers, nx, ny );
-      float abszfirstpts = fabs( z3d[ INDEX( i, j, 0, nx, ny ) ] );
+      gd_grid_z_interp(i, j, z3d, zlayer3d, NCellPerlay, VmapSpacingIsequal,
+                       nLayers, nx, ny);
+      float abszfirstpts = fabs(z3d[INDEX(i, j, 0, nx, ny)]);
       if ( dd > 0 )
       {
         for ( int k = 0; k < nk; k ++ )
@@ -818,9 +974,9 @@ int gd_curv_gen_layer(float*restrict c3d, int nLayers,
         }
         for ( int k = 0; k < nLayers+1; k ++ )
         {
-          xlayerpart[ k ] = xlayer3d[ INDEX( i, j, k, nx, ny ) ] ;
-          ylayerpart[ k ] = ylayer3d[ INDEX( i, j, k, nx, ny ) ] ;
-          zlayerpart[ k ] = abszfirstpts + zlayer3d[ INDEX( i, j, k, nx, ny ) ] + 1;
+          xlayerpart[k] = xlayer3d[INDEX(i, j, k, nx, ny)];
+          ylayerpart[k] = ylayer3d[INDEX(i, j, k, nx, ny)];
+          zlayerpart[k] = abszfirstpts + zlayer3d[INDEX(i, j, k, nx, ny)] + 1;
         }
       }
       else
@@ -829,21 +985,15 @@ int gd_curv_gen_layer(float*restrict c3d, int nLayers,
         {
           z3dpart[ k ] = abszfirstpts - z3d[ INDEX( i, j, k, nx, ny ) ] + 1;
         }
-        for ( int k = 0; k < nLayers+1; k ++ )
+        for (int k = 0; k < nLayers + 1; k++)
         {
           xlayerpart[ k ] = xlayer3d[ INDEX( i, j, k, nx, ny ) ] ;
-          ylayerpart[ k ] = ylayer3d[ INDEX( i, j, k, nx, ny ) ] ;
-          zlayerpart[ k ] =  abszfirstpts - zlayer3d[ INDEX( i, j, k, nx, ny ) ] + 1;
+          ylayerpart[k] = ylayer3d[INDEX(i, j, k, nx, ny)];
+          zlayerpart[k] = abszfirstpts - zlayer3d[INDEX(i, j, k, nx, ny)] + 1;
         }
       }
-      if (i*j==1)
-      {
-        for (int ii = 0; ii<60; ii++ )
-        {
-           printf( "%d: %f -> %f\n",  ii, z3d[ INDEX( i, j, ii, nx, ny )], xlayerpart[ ii ]);
-        }
-      }
-      
+      // Interpolating the X and Y coordinate of the grid ...
+      // by cubic spline interpolation method. 
       gd_SPL( nLayers+1, zlayerpart, xlayerpart, nk, z3dpart, x3dpart);
       gd_SPL( nLayers+1, zlayerpart, ylayerpart, nk, z3dpart, y3dpart);
       for ( int k = 0; k < nk; k ++)
@@ -853,44 +1003,47 @@ int gd_curv_gen_layer(float*restrict c3d, int nLayers,
       }
     }
   }
-
+  // Grids outside the boundary of the upper and lower interfaces. 
   for ( int k=0; k<fdz_nghosts; k++ )
   {
     for (int j=0; j<ny; j++)
     {
       for ( int i=0; i<nx; i++)
       {
-        iptr1 = INDEX( i, j, k              , nx, ny );
-        iptr2 = INDEX( i, j, fdz_nghosts    , nx, ny );
-        iptr3 = INDEX( i, j, fdz_nghosts + 1, nx, ny );
-        dd_ch = z3d_ch[ iptr3 ] - z3d_ch[ iptr2 ];
-        x3d_ch[ iptr1 ]  = x3d_ch[ iptr2 ];
-        y3d_ch[ iptr1 ]  = y3d_ch[ iptr2 ];
-        z3d_ch[ iptr1 ]  = z3d_ch[ iptr2 ] - dd_ch * ( fdz_nghosts - k ) ;
+        iptr1 = INDEX(i, j, k, nx, ny);
+        iptr2 = INDEX(i, j, fdz_nghosts, nx, ny);
+        iptr3 = INDEX(i, j, fdz_nghosts + 1, nx, ny);
+        dd_ch = z3d_ch[iptr3] - z3d_ch[iptr2];
+        x3d_ch[iptr1] = x3d_ch[iptr2];
+        y3d_ch[iptr1] = y3d_ch[iptr2];
+        z3d_ch[iptr1] = z3d_ch[iptr2] - dd_ch * (fdz_nghosts - k);
 
-        iptr1 = INDEX( i, j, nz - 1 - k              , nx, ny );
-        iptr2 = INDEX( i, j, nz - 1 -fdz_nghosts     , nx, ny );
-        iptr3 = INDEX( i, j, nz - 1 -fdz_nghosts - 1 , nx, ny );
-        dd_ch = z3d_ch[ iptr2 ] - z3d_ch[ iptr3 ];
-        x3d_ch[ iptr1 ]  = x3d_ch[ iptr2 ];
-        y3d_ch[ iptr1 ]  = y3d_ch[ iptr2 ];
-        z3d_ch[ iptr1 ]  = z3d_ch[ iptr2 ] + dd_ch * ( fdz_nghosts - k );
+        iptr1 = INDEX(i, j, nz - 1 - k, nx, ny);
+        iptr2 = INDEX(i, j, nz - 1 - fdz_nghosts, nx, ny);
+        iptr3 = INDEX(i, j, nz - 1 - fdz_nghosts - 1, nx, ny);
+        dd_ch = z3d_ch[iptr2] - z3d_ch[iptr3];
+        x3d_ch[iptr1] = x3d_ch[iptr2];
+        y3d_ch[iptr1] = y3d_ch[iptr2];
+        z3d_ch[iptr1] = z3d_ch[iptr2] + dd_ch * (fdz_nghosts - k);
       }
     }
   }
-  free( layer3d );
-  free( layer3d_load );
-  free( layer3d_load_ch );
-  free( zlayerpart );
-  free( ylayerpart );
-  free( xlayerpart );
-  free( z3dpart );
-  free( y3dpart );
-  free( x3dpart );
+
+  free(layer3d);
+  free(layer3d_In);
+  free(layer3d_interp);
+  free(zlayerpart);
+  free(ylayerpart);
+  free(xlayerpart);
+  free(z3dpart);
+  free(y3dpart);
+  free(x3dpart);
   return 0;
 }
 
-int gd_grid_z_interp(int xi, int yi, float* z3d, float* zlayer3d, int* NCellPerlay, int* VmapSpacingIsequal, int nLayers, int nx, int ny )
+//  Interpolating the Z coordinate
+int gd_grid_z_interp(int xi, int yi, float* z3d, float* zlayer3d, int* NCellPerlay,
+                     int* VmapSpacingIsequal, int nLayers, int nx, int ny )
 {
   int i = 0, ii = 0, j = 0, N1 = 0, N2 = 0;
   float distance = 0.0, dmidpoint = 0.0;
@@ -900,15 +1053,18 @@ int gd_grid_z_interp(int xi, int yi, float* z3d, float* zlayer3d, int* NCellPerl
   float * range2  = NULL;
   LayerDz = ( float * ) malloc( sizeof( float ) * nLayers );
   for( i = 0; i < nLayers; i ++ ){
-    LayerDz[i] = (zlayer3d[INDEX( xi, yi, i+1, nx, ny )] - zlayer3d[INDEX( xi, yi, i, nx, ny )]) / NCellPerlay[i];
+    LayerDz[i] = (zlayer3d[INDEX(xi, yi, i + 1, nx, ny)] - 
+                  zlayer3d[INDEX(xi, yi, i, nx, ny)]) / NCellPerlay[i];
   }
   for( i = 0; i < nLayers; i ++ )
   {
     for (ii = sumNCellPerlay; ii < sumNCellPerlay + NCellPerlay[i]; ii ++ )
     {
-      z3d[INDEX( xi, yi, ii, nx, ny )] = zlayer3d[INDEX( xi, yi, i, nx, ny )] + LayerDz[i]/2 + ( ii - sumNCellPerlay ) * LayerDz[i] ;
+      z3d[INDEX( xi, yi, ii, nx, ny )] = zlayer3d[INDEX( xi, yi, i, nx, ny )] 
+                        + LayerDz[i]/2 + ( ii - sumNCellPerlay ) * LayerDz[i] ;
     }
-    if (VmapSpacingIsequal[i] < 1 && i > 0 && i < nLayers-1) // The grid spacing is equal)
+    // The grid spacing is equal)
+    if (VmapSpacingIsequal[i] < 1 && i > 0 && i < nLayers-1) 
     {
       range1 = ( float * ) malloc( sizeof( float ) * (NCellPerlay[i] +1) );
       range2 = ( float * ) malloc( sizeof( float ) * (NCellPerlay[i] +1) );
@@ -916,32 +1072,34 @@ int gd_grid_z_interp(int xi, int yi, float* z3d, float* zlayer3d, int* NCellPerl
       range2[0] = zlayer3d[INDEX( xi, yi, i, nx, ny )];
       if ( (LayerDz[i] - LayerDz[i-1]) * (LayerDz[i+1] - LayerDz[i]) > 0 )
       {
-        N1 = floor(NCellPerlay[i]/2);
+        N1 = floor(NCellPerlay[i] / 2);
         N2 = NCellPerlay[i] - N1;
-        distance = zlayer3d[INDEX( xi, yi, i+1, nx, ny )] - zlayer3d[INDEX( xi, yi, i, nx, ny )];
-        dmidpoint = ( distance*2 - N1 * LayerDz[i-1] - N2*LayerDz[i+1] ) / NCellPerlay[i];
-        
+        distance = zlayer3d[INDEX(xi, yi, i + 1, nx, ny)] 
+                            - zlayer3d[INDEX(xi, yi, i, nx, ny)];
+        dmidpoint = (distance * 2 - N1 * LayerDz[i - 1] 
+                     - N2 * LayerDz[i + 1]) / NCellPerlay[i];
+
         for ( j = 0; j < N1; j ++)
         {
-          range1[j+1] = range1[j] + LayerDz[i-1] + j*(dmidpoint - LayerDz[i-1])/(N1-1);
+          range1[j+1] = range1[j] + LayerDz[i-1] 
+                        + j*(dmidpoint - LayerDz[i-1])/(N1-1);
         }
         for ( j = N1; j < N1+N2; j ++)
         {
-          range1[j+1] = range1[j] + dmidpoint + (j-N1)*(LayerDz[i+1] - dmidpoint)/(N2-1);
+          range1[j + 1] = range1[j] + dmidpoint 
+                          + (j - N1) * (LayerDz[i + 1] - dmidpoint) / (N2 - 1);
         }
         // Vertical smooth
         range2[N1+N2] = range1[N1+N2];
-        for (j = 1; j < N1+N2; j ++ )
-        {
+        for (j = 1; j < N1+N2; j ++ ) {
           range2[j] = ( range1[j-1] + range1[j] + range1[j+1] ) / 3;
         }
-        for (j = 1; j < N1+N2; j ++ )
-        {
+        for (j = 1; j < N1+N2; j ++ ) {
           range1[j] = ( range2[j-1] + range2[j] + range2[j+1] ) / 3;
         }
-        for (ii = sumNCellPerlay; ii < sumNCellPerlay + NCellPerlay[i]; ii ++ )
-        {
-          z3d[INDEX( xi, yi, ii, nx, ny )] = ( range1[ii-sumNCellPerlay] + range1[ii+1-sumNCellPerlay] ) / 2;
+        for (ii = sumNCellPerlay; ii < sumNCellPerlay + NCellPerlay[i]; ii ++ ) {
+          z3d[INDEX( xi, yi, ii, nx, ny )] = ( range1[ii-sumNCellPerlay] + 
+                                              range1[ii+1-sumNCellPerlay] ) / 2;
         }
       }
     }
@@ -980,6 +1138,7 @@ float gd_seval(int ni, float u,
   return (w);
 }
 
+//// Cubic spline difference function
 int gd_SPLine( int n, int end1, int end2,
            float slope1, float slope2,
            float x[], float y[],
@@ -1034,14 +1193,14 @@ int gd_SPLine( int n, int end1, int end2,
       b[nm1] = 2.0 * (x[nm1] - x[n - 2]);
       c[nm1] = slope2 - (y[nm1] - y[n - 2]) / (x[nm1] - x[n - 2]);
     }
-    /* Forward elimination */
+    // Forward elimination 
     for (i = 1; i < n; ++i)
     {
       t = d[i - 1] / b[i - 1];
       b[i] = b[i] - t * d[i - 1];
       c[i] = c[i] - t * c[i - 1];
     }
-    /* Back substitution */
+    // Back substitution 
     c[nm1] = c[nm1] / b[nm1];
     for (ib = 0; ib < nm1; ++ib)
     {
@@ -1071,6 +1230,7 @@ Leavegd_SPLine:
   return 0;
 }
 
+//// Cubic spline difference function in grid interpolation
 void gd_SPL(int n, float *x, float *y, int ni, float *xi, float *yi)
 {
   float *b, *c, *d;
@@ -1088,7 +1248,6 @@ void gd_SPL(int n, float *x, float *y, int ni, float *xi, float *yi)
     free(d);
   };
 }
-
 
 
 

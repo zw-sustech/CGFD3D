@@ -185,18 +185,17 @@ int main(int argc, char** argv)
     case PAR_GRID_LAYER_INTERP :
         if (myid==0) fprintf(stdout,"gerate grid using layer interp ...\n"); 
         if (myid==0) fprintf(stdout,"   not implemented yet\n"); 
-
-        int VmapSpacingIsequal[] = { 1, 0, 1 }; // 1:The grid spacing is equal; 0: Is not.
-        int NCellPerlay[] = { 25, 15, 20 };
-        int nLayers = 3;
-        gd_curv_gen_layer(blk->c3d, nLayers,
-                          NCellPerlay, VmapSpacingIsequal,
-                          blk->nx, blk->ni, blk->gni1, fd->fdx_nghosts, par->number_of_total_grid_points_x,
-                          blk->ny, blk->nj, blk->gnj1, fd->fdy_nghosts, par->number_of_total_grid_points_y,
-                          blk->nz, blk->nk, blk->gnk1, fd->fdz_nghosts, par->number_of_total_grid_points_z);
-
-        break;
-
+		  gd_curv_gen_layer(par->in_grid_layer_file,
+							par->grid_layer_interp_factor,
+							par->grid_layermodel_start,
+							par->number_of_total_grid_points_x,
+							par->number_of_total_grid_points_y,
+							par->number_of_total_grid_points_z,
+							blk->c3d,
+							blk->nx, blk->ni, blk->gni1, fd->fdx_nghosts,
+							blk->ny, blk->nj, blk->gnj1, fd->fdy_nghosts,
+							blk->nz, blk->nk, blk->gnk1, fd->fdz_nghosts);
+      break;
   }
 
   // generate topo over all the domain
@@ -572,7 +571,7 @@ int main(int argc, char** argv)
     abs_set_cfspml(par->cfspml_alpha_max,
                    par->cfspml_beta_max,
                    par->cfspml_velocity,
-                   par->cartesian_grid_stepsize[0],
+                   100.0, //par->cartesian_grid_stepsize[0], (warning Sunwenliang2021/06/04)
                    blk->ni1,
                    blk->ni2,
                    blk->nj1,
