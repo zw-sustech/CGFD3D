@@ -26,6 +26,8 @@
 #include "src_funcs.h"
 #include "io_funcs.h"
 #include "sv_eliso1st_curv_macdrp.h"
+#include "media_layer2model.h"
+
 
 int main(int argc, char** argv)
 {
@@ -313,20 +315,34 @@ int main(int argc, char** argv)
         break;
 
     case PAR_MEDIA_IMPORT :
-        if (myid==0) fprintf(stdout,"import descreted medium file ...\n"); 
+        if (myid==0) fprintf(stdout,"import discrete medium file ...\n"); 
         if (myid==0) fprintf(stdout,"   not implemented yet\n"); 
         //md_el_iso_import(blk->m3d, blk->nx, blk->ny, blk->nz, 
         //              myid3[0],myid3[1],myid3[2]);
         break;
 
     case PAR_MEDIA_3LAY :
-        if (myid==0) fprintf(stdout,"read and descrete 3lay medium file ...\n"); 
+        if (myid==0) fprintf(stdout,"read and discretize 3D layer medium file ...\n"); 
         if (myid==0) fprintf(stdout,"   not implemented yet\n"); 
-
+        float *lam3d = blk->m3d + MD_EL_ISO_SEQ_LAMBDA * blk->siz_volume;
+        float  *mu3d = blk->m3d + MD_EL_ISO_SEQ_MU     * blk->siz_volume;
+        float *rho3d = blk->m3d + MD_EL_ISO_SEQ_RHO    * blk->siz_volume;
+        media_el_iso_layer2model(lam3d, mu3d, rho3d,
+                                 blk->c3d+GD_CURV_SEQ_X3D * blk->siz_volume,
+                                 blk->c3d+GD_CURV_SEQ_Y3D * blk->siz_volume,
+                                 blk->c3d+GD_CURV_SEQ_Z3D * blk->siz_volume,
+                                 blk->nx,
+                                 blk->ny,
+                                 blk->nz,
+                                 blk->siz_line,
+                                 blk->siz_slice,
+                                 blk->siz_volume, 
+                                 par->media_input_file,
+                                 par->equivalent_medium_method);
         break;
 
     case PAR_MEDIA_3GRD :
-        if (myid==0) fprintf(stdout,"read and descrete 3grd medium file ...\n"); 
+        if (myid==0) fprintf(stdout,"read and descretize 3D grid medium file ...\n"); 
         if (myid==0) fprintf(stdout,"   not implemented yet\n"); 
         break;
 
