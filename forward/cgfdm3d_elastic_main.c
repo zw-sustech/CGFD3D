@@ -323,7 +323,6 @@ int main(int argc, char** argv)
 
     case PAR_MEDIA_3LAY :
         if (myid==0) fprintf(stdout,"read and discretize 3D layer medium file ...\n"); 
-        if (myid==0) fprintf(stdout,"   not implemented yet\n"); 
         float *lam3d = blk->m3d + MD_EL_ISO_SEQ_LAMBDA * blk->siz_volume;
         float  *mu3d = blk->m3d + MD_EL_ISO_SEQ_MU     * blk->siz_volume;
         float *rho3d = blk->m3d + MD_EL_ISO_SEQ_RHO    * blk->siz_volume;
