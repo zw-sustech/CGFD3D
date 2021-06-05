@@ -711,7 +711,7 @@ int main(int argc, char** argv)
       int iptr_seismo = ir * num_of_vars * nt_total + icmp * nt_total;
 
       // evt1.line2.pt2.Vx.sac
-      sprintf(ou_file,"%s/%s.%s.pt%d.%s.sac", blk->output_dir,par->source_name,
+      sprintf(ou_file,"%s/%s.%s.no%d.%s.sac", blk->output_dir,par->source_name,
                   line_name,line_offset,blk->w3d_name[icmp]);
 
       //fprintf(stdout,"=== Debug: icmp=%d,ou_file=%s\n",icmp,ou_file);fflush(stdout);
