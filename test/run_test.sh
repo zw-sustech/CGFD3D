@@ -108,8 +108,8 @@ cat << ieof > $PAR_FILE
         "inteval" : [ 100.0, 100.0, 100.0 ]
       },
       "layer_interp" : {
-        "in_grid_layer_file" : "$PROJDIR/test/grid_layer.gdlay",
-        "refine_factor" : [ 2, 2, 1 ]
+        "in_grid_layer_file" : "$EXEC_DIR/test/grid_layer.gdlay",
+        "refine_factor" : [ 2, 2, 1 ],
         "grid_layermodel_start" : [ 50, 50, 0 ]
       }
   },
