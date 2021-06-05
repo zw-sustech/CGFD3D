@@ -305,18 +305,18 @@ int main(int argc, char** argv)
         float *lam3d = blk->m3d + MD_EL_ISO_SEQ_LAMBDA * blk->siz_volume;
         float  *mu3d = blk->m3d + MD_EL_ISO_SEQ_MU     * blk->siz_volume;
         float *rho3d = blk->m3d + MD_EL_ISO_SEQ_RHO    * blk->siz_volume;
-        pre_el_iso_layer2model(lam3d, mu3d, rho3d,
-                               blk->c3d+GD_CURV_SEQ_X3D * blk->siz_volume,
-                               blk->c3d+GD_CURV_SEQ_Y3D * blk->siz_volume,
-                               blk->c3d+GD_CURV_SEQ_Z3D * blk->siz_volume,
-                               blk->nx,
-                               blk->ny,
-                               blk->nz,
-                               blk->siz_line,
-                               blk->siz_slice,
-                               blk->siz_volume, 
-                               par->media_input_file,
-                               par->equivalent_medium_method);
+        media_el_iso_layer2model(lam3d, mu3d, rho3d,
+                                 blk->c3d+GD_CURV_SEQ_X3D * blk->siz_volume,
+                                 blk->c3d+GD_CURV_SEQ_Y3D * blk->siz_volume,
+                                 blk->c3d+GD_CURV_SEQ_Z3D * blk->siz_volume,
+                                 blk->nx,
+                                 blk->ny,
+                                 blk->nz,
+                                 blk->siz_line,
+                                 blk->siz_slice,
+                                 blk->siz_volume, 
+                                 par->media_input_file,
+                                 par->equivalent_medium_method);
         break;
 
     case PAR_MEDIA_3GRD :
