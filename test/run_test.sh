@@ -18,16 +18,17 @@ EXEC_DIR=/export/home/lihl/CGFD3D-elastic
 EXEC_WAVE=$EXEC_DIR/cgfdm3d_elastic_mpi
 
 #-- conf
-PROJDIR=/export/home/zhangw/work/cgfd_opt/21_media
+PROJDIR=/export/home/lihl/CGFD3D-elastic/project
 PAR_FILE=${PROJDIR}/test.json
 GRID_DIR=${PROJDIR}/output
 MEDIA_DIR=${PROJDIR}/output
 SOURCE_DIR=${PROJDIR}/output
 OUTPUT_DIR=${PROJDIR}/output
 #-- input file
-TEST_INPUT_DIR=/home/zhangw/code/zwlab/CGFD3D-elastic/test
+TEST_INPUT_DIR=/export/home/lihl/CGFD3D-elastic/test
 IN_STATION_LIST_FILE=${TEST_INPUT_DIR}/test_station.sta
 IN_MEDIA_3LAY_FILE=${TEST_INPUT_DIR}/test_hill3d.md3lay
+IN_SOURCE_FILE=${TEST_INPUT_DIR}/test_source.anasrc
 
 #-- create dir
 mkdir -p $PROJDIR
@@ -132,7 +133,7 @@ cat << ieof > $PAR_FILE
   "media_export_dir"  : "$MEDIA_DIR",
 
   "source_input" : {
-      "single_force" : {
+      "#single_force" : {
          "name" : "evt_test_singel_force",
          "location_by_grid_index" : [ 40, 40, 50 ],
          "#location_by_coords" : [ 4000, 4000, -500 ],
@@ -154,7 +155,7 @@ cat << ieof > $PAR_FILE
          "end_time"   : 1.0,
          "moment_tensor" : [ 1e9, 1e9, 1e9, 0, 0, 0]
       },
-      "in_source_file" : "../test_sorce.anasrc"
+      "in_source_file" : "$IN_SOURCE_FILE"
   },
   "is_export_source" : 1,
   "source_export_dir"  : "$SOURCE_DIR",

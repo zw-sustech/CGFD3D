@@ -7,7 +7,7 @@
   "number_of_mpiprocs_y" : 2,
 
   "size_of_time_step" : 0.01,
-  "number_of_time_steps" : 500,
+  "number_of_time_steps" : 50,
 
   "boundary_x_left" : {
       "cfspml" : {
@@ -56,7 +56,7 @@
   "grid_generation_method" : {
       "#import" : "/export/home/lihl/CGFD3D-elastic/project/output",
       "cartesian" : {
-        "origin"  : [0.0, 0.0, -6000.0 ],
+        "origin"  : [0.0, 0.0, -6600.0 ],
         "inteval" : [ 100.0, 100.0, 100.0 ]
       },
       "#layer_interp" : {
@@ -75,8 +75,9 @@
 
   "media_input" : {
       "#import" : "/export/home/lihl/CGFD3D-elastic/project/output",
-      "code_generate" : 1,
-      "#in_3lay_file" : "/export/home/lihl/CGFD3D-elastic/project/test/hill3d.md3lay",
+      "#code_generate" : 1,
+      "in_3lay_file" : "/export/home/lihl/CGFD3D-elastic/test/test_hill3d.md3lay",
+      "equivalent_medium_method" : "har",
       "#in_3grd_file" : "/export/home/lihl/CGFD3D-elastic/project/test/hill3d.md3grd"
   },
   "is_export_media" : 1,
@@ -84,6 +85,7 @@
 
   "source_input" : {
       "#single_force" : {
+         "name" : "evt_test_singel_force",
          "location_by_grid_index" : [ 40, 40, 50 ],
          "#location_by_coords" : [ 4000, 4000, -500 ],
          "source_time_functon" : "ricker",
@@ -94,6 +96,7 @@
          "force_vector" : [ 0, 0, 1e16]
       },
       "#single_moment" : {
+         "name" : "evt_test_singel_moment",
          "location_by_grid_index" : [ 40, 40, 50 ],
          "#location_by_coords" : [ 4000, 4000, -500 ],
          "moment_rate_functon" : "ricker",
@@ -103,14 +106,14 @@
          "end_time"   : 1.0,
          "moment_tensor" : [ 1e9, 1e9, 1e9, 0, 0, 0]
       },
-      "in_source_file" : "../test_sorce.anasrc"
+      "in_source_file" : "/export/home/lihl/CGFD3D-elastic/test/test_source.anasrc"
   },
   "is_export_source" : 1,
   "source_export_dir"  : "/export/home/lihl/CGFD3D-elastic/project/output",
 
   "output_dir" : "/export/home/lihl/CGFD3D-elastic/project/output",
 
-  "receiver_file" : "surface.fdrcv",
+  "in_station_file" : "/export/home/lihl/CGFD3D-elastic/test/test_station.sta",
 
   "receiver_line" : [
     {
