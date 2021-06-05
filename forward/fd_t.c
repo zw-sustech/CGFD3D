@@ -594,6 +594,13 @@ fd_blk_set_snapshot(struct fd_blk_t *blk,
   }
 }
 
+void fd_blk_malloc_station(struct fd_blk_t *blk, int nt_total)
+{
+  blk->sta_seismo = (float *) malloc(blk->num_of_sta * 
+                                     blk->w3d_num_of_vars *
+                                     nt_total * sizeof(int));
+}
+
 void
 fd_blk_set_slice(struct fd_blk_t *blk,
                  int  fd_nghosts,
@@ -675,24 +682,21 @@ fd_blk_set_slice(struct fd_blk_t *blk,
 }
 
 void
-fd_blk_set_inline(struct fd_blk_t *blk,
-                  int  fd_nghosts,
-                  int  nt_total,
-                  int  number_of_receiver_line,
-                  int *receiver_line_index_start,
-                  int *receiver_line_index_incre,
-                  int *receiver_line_count,
-                  char **receiver_line_name)
+fd_blk_locate_inline(struct fd_blk_t *blk,
+                     int    fd_nghosts,
+                     int    nt_total,
+                     int    number_of_receiver_line,
+                     int   *receiver_line_index_start,
+                     int   *receiver_line_index_incre,
+                     int   *receiver_line_count,
+                     char **receiver_line_name)
 {
-
   // init
-  blk->num_of_inline = 0;
   blk->num_of_point  = 0;
 
   // first run for count
   for (int n=0; n < number_of_receiver_line; n++)
   {
-    int is_here = 0;
     for (int ipt=0; ipt<receiver_line_count[n]; ipt++)
     {
       int gi = receiver_line_index_start[n*FD_NDIM+0] + ipt * receiver_line_index_incre[n*FD_NDIM  ];
@@ -703,34 +707,34 @@ fd_blk_set_inline(struct fd_blk_t *blk,
            gk >= blk->gnk1 && gk <= blk->gnk2 )
       {
         blk->num_of_point += 1;
-        is_here = 1;
       }
     }
-    if (is_here==1) blk->num_of_inline+=1;
   }
 
   // alloc
-  if (blk->num_of_inline>0)
-  {
-    blk->inline_fname = (char **) fdlib_mem_malloc_2l_char(blk->num_of_inline,
-                                                           FD_MAX_STRLEN,
-                                                           "inline_fname");
-    blk->inline_pos = (int *) malloc(blk->num_of_inline * sizeof(int));
-    blk->inline_num = (int *) malloc(blk->num_of_inline * sizeof(int));
-  }
   if (blk->num_of_point>0)
   {
-    blk->point_loc_point = (int *) malloc(blk->num_of_point * FD_NDIM * sizeof(int));
+    blk->point_loc_indx = (int *) malloc(blk->num_of_point * FD_NDIM * sizeof(int));
+    blk->point_line_sno = (int *) malloc(blk->num_of_point *           sizeof(int));
+    blk->point_line_offset = (int *) malloc(blk->num_of_point *        sizeof(int));
     blk->point_seismo = (float *) fdlib_mem_malloc_1d(
                                     blk->num_of_point * blk->w3d_num_of_vars * nt_total * sizeof(float),
+                                    "point_seismo");
+    blk->point_coord = (float *) fdlib_mem_malloc_1d(
+                                    blk->num_of_point * FD_NDIM * sizeof(float),
                                     "point_seismo");
   }
 
   // second run for value
-  int num_all = 0; int nline=0;
+  int num_all = 0;
+  float *x3d = blk->c3d + blk->c3d_pos[0];
+  float *y3d = blk->c3d + blk->c3d_pos[1];
+  float *z3d = blk->c3d + blk->c3d_pos[2];
+  size_t   siz_line = blk->siz_line;
+  size_t   siz_slice = blk->siz_slice;
+
   for (int n=0; n < number_of_receiver_line; n++)
   {
-    int num_this_line = 0;
     for (int ipt=0; ipt<receiver_line_count[n]; ipt++)
     {
       int gi = receiver_line_index_start[n*FD_NDIM+0] + ipt * receiver_line_index_incre[n*FD_NDIM  ];
@@ -744,37 +748,27 @@ fd_blk_set_inline(struct fd_blk_t *blk,
         int gj = receiver_line_index_start[n*FD_NDIM+1] + ipt * receiver_line_index_incre[n*FD_NDIM+1];
         int gk = receiver_line_index_start[n*FD_NDIM+2] + ipt * receiver_line_index_incre[n*FD_NDIM+2];
 
-        blk->point_loc_point[num_all*FD_NDIM+0] = gi - blk->gni1 + fd_nghosts;
-        blk->point_loc_point[num_all*FD_NDIM+1] = gj - blk->gnj1 + fd_nghosts;
-        blk->point_loc_point[num_all*FD_NDIM+2] = gk - blk->gnk1 + fd_nghosts;
+        int i = gi - blk->gni1 + fd_nghosts;
+        int j = gj - blk->gnj1 + fd_nghosts;
+        int k = gk - blk->gnk1 + fd_nghosts;
+
+        int iptr = i + j * siz_line + k * siz_slice;
+
+        blk->point_line_sno[num_all] = n;
+        blk->point_line_offset[num_all] = ipt;
+
+        blk->point_loc_indx[num_all*FD_NDIM+0] = i;
+        blk->point_loc_indx[num_all*FD_NDIM+1] = j;
+        blk->point_loc_indx[num_all*FD_NDIM+2] = k;
+
+        blk->point_coord[num_all*FD_NDIM+0] = x3d[iptr];
+        blk->point_coord[num_all*FD_NDIM+1] = y3d[iptr];
+        blk->point_coord[num_all*FD_NDIM+2] = z3d[iptr];
 
         num_all += 1;
-        num_this_line += 1;
       }
-    }
-    if (num_this_line>0)
-    {
-      blk->inline_num[nline] = num_this_line;
-      if (nline>0) {
-        blk->inline_pos[nline] = blk->inline_pos[nline-1] + blk->inline_num[nline-1];
-      } else {
-        blk->inline_pos[nline] = 0;
-      }
-
-      sprintf(blk->inline_fname[nline],"%s/%s_%s.nc", blk->output_dir,
-                                                      receiver_line_name[n],
-                                                      blk->output_fname_part);
-
-      nline++;
     }
   }
-}
-
-void
-fd_blk_set_sta(struct fd_blk_t *blk)
-{
-  // init
-  blk->num_of_sta = 0;
 }
 
 void

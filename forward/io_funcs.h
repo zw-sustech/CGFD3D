@@ -36,4 +36,24 @@ io_var3d_export_nc(char   *ou_file,
                    int  ny,
                    int  nz);
 
+int
+io_read_locate_station(char *in_filenm, 
+                       int   glob_phys_ix1, // gloabl start index along x this thread
+                       int   glob_phys_ix2, // gloabl end index along x
+                       int   glob_phys_iy1,
+                       int   glob_phys_iy2,
+                       int   glob_phys_iz1,
+                       int   glob_phys_iz2,
+                       int   ni1,
+                       int   nj1,
+                       int   nk1,
+                       size_t siz_line,
+                       size_t siz_slice,
+                       float *x3d, float *y3d, float *z3d,
+                       int *num_of_sta,
+                       char ***p_sta_name,
+                       float **p_sta_coord,
+                       int   **p_sta_point,
+                       float **p_sta_shift);
+
 #endif

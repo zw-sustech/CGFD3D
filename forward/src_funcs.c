@@ -74,7 +74,7 @@ src_gen_single_point_gauss(size_t siz_line,
 
   // convert time to index
   int  it_begin = (int) (wavelet_tstart / dt);
-  int  it_end   = (int) ((wavelet_tend + 0.5) / dt);
+  int  it_end   = (int) ((wavelet_tend / dt + 0.5);
   int  nt_total_wavelet = it_end - it_begin + 1;
   float *wavelet_values = NULL;
 
@@ -291,6 +291,10 @@ src_gen_single_point_gauss(size_t siz_line,
   *p_force_info = force_info;
   *num_of_moment = nmoment;
   *p_moment_info = moment_info;
+
+  if (wavelet_values!=NULL) free(wavelet_values);
+
+  return;
 }
 
 /*
