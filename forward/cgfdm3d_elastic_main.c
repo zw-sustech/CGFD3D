@@ -211,6 +211,15 @@ int main(int argc, char** argv)
                          blk->nx,
                          blk->ny,
                          blk->nz,
+                         blk->ni1,
+                         blk->nj1,
+                         blk->nk1,
+                         blk->ni,
+                         blk->nj,
+                         blk->nk,
+                         blk->gni1,
+                         blk->gnj1,
+                         blk->gnk1,
                          blk->output_fname_part,
                          blk->grid_export_dir);
   }
@@ -261,6 +270,15 @@ int main(int argc, char** argv)
                           blk->nx,
                           blk->ny,
                           blk->nz,
+                          blk->ni1,
+                          blk->nj1,
+                          blk->nk1,
+                          blk->ni,
+                          blk->nj,
+                          blk->nk,
+                          blk->gni1,
+                          blk->gnj1,
+                          blk->gnk1,
                           blk->output_fname_part,
                           blk->grid_export_dir);
   }
@@ -325,6 +343,15 @@ int main(int argc, char** argv)
                       blk->nx,
                       blk->ny,
                       blk->nz,
+                      blk->ni1,
+                      blk->nj1,
+                      blk->nk1,
+                      blk->ni,
+                      blk->nj,
+                      blk->nk,
+                      blk->gni1,
+                      blk->gnj1,
+                      blk->gnk1,
                       blk->output_fname_part,
                       blk->media_export_dir);
   }
