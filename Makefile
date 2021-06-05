@@ -41,7 +41,7 @@ LDFLAGS := -lm $(LDFLAGS) $(NETCDF)/lib/libnetcdf.a
 
 cgfdm3d_elastic_mpi: \
 		cJSON.o sacLib.o fdlib_mem.o fdlib_math.o  \
-		fd_t.o par_t.o \
+		fd_t.o par_t.o interp.o\
 		gd_curv.o md_el_iso.o wf_el_1st.o \
 		abs_funcs.o src_funcs.o io_funcs.o \
 		sv_eliso1st_curv_macdrp.o \
@@ -59,6 +59,8 @@ fdlib_math.o: lib/fdlib_math.c
 fd_t.o: forward/fd_t.c
 	${CC} -c -o $@ $(CFLAGS) $<
 par_t.o: forward/par_t.c
+	${CC} -c -o $@ $(CFLAGS) $<
+interp.o: forward/interp.c
 	${CC} -c -o $@ $(CFLAGS) $<
 gd_curv.o: forward/gd_curv.c
 	${CC} -c -o $@ $(CFLAGS) $<
