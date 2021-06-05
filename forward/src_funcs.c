@@ -74,7 +74,7 @@ src_gen_single_point_gauss(size_t siz_line,
 
   // convert time to index
   int  it_begin = (int) (wavelet_tstart / dt);
-  int  it_end   = (int) ((wavelet_tend / dt + 0.5);
+  int  it_end   = (int) ((wavelet_tend / dt + 0.5));
   int  nt_total_wavelet = it_end - it_begin + 1;
   float *wavelet_values = NULL;
 
