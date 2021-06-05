@@ -2,7 +2,7 @@
 #include <iostream>
 #include <vector>
 #include <cfloat>
-#include "pre_interpolation.hpp"
+#include "media_interpolation.hpp"
 //using namespace std;
 
 /* find the index of the nearest value (x[i] <= value), 
