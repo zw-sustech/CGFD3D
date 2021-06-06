@@ -575,6 +575,7 @@ LocaSrc(float sx, float sy, float sz,
                   
           if (Dist < DistInt)
            {
+             DistInt = Dist;
              /* Keep indx for minimum distance */
              NearSi = i ;  NearSj = j ; NearSk = k ;
              NearIndx = indx;
