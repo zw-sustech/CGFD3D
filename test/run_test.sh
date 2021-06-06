@@ -110,7 +110,8 @@ cat << ieof > $PAR_FILE
       "layer_interp" : {
         "in_grid_layer_file" : "$EXEC_DIR/test/grid_layer.gdlay",
         "refine_factor" : [ 2, 2, 1 ],
-        "grid_layermodel_start" : [ 50, 50, 0 ]
+        "horizontal_start_point" : [ 50, 50 ],
+        "vertical_end_point"     : 61
       }
   },
   "is_export_grid" : 1,

@@ -81,7 +81,7 @@ struct par_t{
 
   char in_grid_layer_file[PAR_MAX_STRLEN];
   int  grid_layer_interp_factor[FD_NDIM];
-  int  grid_layermodel_start[FD_NDIM];
+  int  grid_layer_startend[FD_NDIM];
 
   // metric
   int metric_method_itype;

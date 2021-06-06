@@ -187,7 +187,7 @@ int main(int argc, char** argv)
         if (myid==0) fprintf(stdout,"   not implemented yet\n"); 
 		  gd_curv_gen_layer(par->in_grid_layer_file,
 							par->grid_layer_interp_factor,
-							par->grid_layermodel_start,
+							par->grid_layer_startend,
 							par->number_of_total_grid_points_x,
 							par->number_of_total_grid_points_y,
 							par->number_of_total_grid_points_z,
