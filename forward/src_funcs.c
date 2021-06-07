@@ -297,44 +297,6 @@ src_gen_single_point_gauss(size_t siz_line,
   return;
 }
 
-/*
- * Locate 
- */
-void 
-eighth_locate(float *location, 
-              float *vx, float *vy, float *vz, 
-              float sx_inc, int sy_inc, int sz_inc)
-{
-  float x0 = location[0];
-  float y0 = location[1];
-  float z0 = location[2];
-  
-  float x[125] ;
-  float y[125] ;
-  float z[125] ;
- 
-
-  for( int i=0; i<5; i=i+2 )
-  {
-    for( int j=0; j<5; j=j+2) 
-    {
-     for ( int k=0; k<5; k=k+2)
-      {
-       int indx_01  = k * 25 + j * 5 + i ;
-       int indx_02  = ((int)(k / 2)) * 9 + ((int)(j / 2)) * 3 + ((int)(i / 2));
-
-       
-      
-      }
-
-    }
-
-  }
-
-
-
-}
-
 void
 src_gen_multiple_point_gauss(size_t siz_line,
                              size_t siz_slice,
@@ -1043,11 +1005,11 @@ int zindx;
 
 
 /* search location of source
- *
- *
+ * struct Cubic *Pt = (struct Cubic *)malloc(8 * sizeof(struct Cubic));
  */
+
 struct CubicPt *
-LocaSrc(float sx, float sy, float sz,
+Src_Location(float sx, float sy, float sz,
         int ni1, int ni2, int nj1, int nj2, int nk1, int nk2,
         size_t siz_line, size_t siz_slice, size_t siz_volume, 
         float *restrict c3d,
@@ -1059,7 +1021,12 @@ LocaSrc(float sx, float sy, float sz,
   float Dist = 0.0 ; 
   float DistInt = 0.0 ;
   float NearSi, NearSj, NearSk;
-  
+  float NearCubX, NearCubY, NearCubZ;
+  struct Point{
+   int x; int y; int z;};
+
+  struct Point IntiPt[8];
+
 
   float *restrict xcoord = c3d + c3d_pos[0];
   float *restrict ycoord = c3d + c3d_pos[1];
@@ -1067,10 +1034,26 @@ LocaSrc(float sx, float sy, float sz,
 
 //  struct Cubic *Pt = (struct Cubic *)malloc(8 * sizeof(struct Cubic));
    
+  IntiPt[0].x = 0;  IntiPt[0].y = 0;  IntiPt[0].z = 0 ;
+  IntiPt[1].x = 0;  IntiPt[1].y = 1;  IntiPt[1].z = 0 ;
+  IntiPt[2].x = 1;  IntiPt[2].y = 1;  IntiPt[2].z = 0 ;
+  IntiPt[3].x = 1;  IntiPt[3].y = 0;  IntiPt[3].z = 0 ;
+  IntiPt[4].x = 0;  IntiPt[4].y = 0;  IntiPt[4].z = 1 ;
+  IntiPt[5].x = 0;  IntiPt[5].y = 1;  IntiPt[5].z = 1 ;
+  IntiPt[6].x = 1;  IntiPt[6].y = 1;  IntiPt[6].z = 1 ;
+  IntiPt[7].x = 1;  IntiPt[7].y = 0;  IntiPt[7].z = 1 ;
+
   /* search minimum distance  */ 
-  DistInt =  (sx - xcoord[0]) * (sx - xcoord[0])
-           + (sy - ycoord[0]) * (sy - ycoord[0])
-           + (sz - zcoord[0]) * (sz - zcoord[0]);
+  for (int i = 0; i<8; i++)
+   { 
+    indx =  IntiPt[i].x  +  IntiPt[i].y * siz_line + IntiPt[i].z * siz_slice ;
+   
+    DistInt =  (sx - xcoord[0]) * (sx - xcoord[0])
+             + (sy - ycoord[0]) * (sy - ycoord[0])
+             + (sz - zcoord[0]) * (sz - zcoord[0]);
+
+    DistInt =  sqrt(DistInt);
+   }
 
   for(int k=nk1; k<nk2; k++)
    {
@@ -1078,126 +1061,54 @@ LocaSrc(float sx, float sy, float sz,
       {
         for(int i=ni1; i<ni2; i++)
          {
-          indx = i + j * siz_line + k * siz_slice ;
-         
-          Dist =  (sx - xcoord[indx]) * (sx - xcoord[indx])
-                + (sy - ycoord[indx]) * (sy - ycoord[indx])
-                + (sz - zcoord[indx]) * (sz - zcoord[indx]);
+
+          IntiPt[0].x = (i+0);  IntiPt[0].y = (j+0);  IntiPt[0].z = (k+0) ;
+          IntiPt[1].x = (i+0);  IntiPt[1].y = (j+1);  IntiPt[1].z = (k+0) ;
+          IntiPt[2].x = (i+1);  IntiPt[2].y = (j+1);  IntiPt[2].z = (k+0) ;
+          IntiPt[3].x = (i+1);  IntiPt[3].y = (j+0);  IntiPt[3].z = (k+0) ;
+          IntiPt[4].x = (i+0);  IntiPt[4].y = (j+0);  IntiPt[4].z = (k+1) ;
+          IntiPt[5].x = (i+0);  IntiPt[5].y = (j+1);  IntiPt[5].z = (k+1) ;
+          IntiPt[6].x = (i+1);  IntiPt[6].y = (j+1);  IntiPt[6].z = (k+1) ;
+          IntiPt[7].x = (i+1);  IntiPt[7].y = (j+0);  IntiPt[7].z = (k+1) ;
+
+          for(int m=0 ; m < 8; m++)
+           {
+             indx =  IntiPt[i].x  +  IntiPt[i].y * siz_line + IntiPt[i].z * siz_slice ;
+
+             Dist =  (sx - xcoord[indx]) * (sx - xcoord[indx])
+                   + (sy - ycoord[indx]) * (sy - ycoord[indx])
+                   + (sz - zcoord[indx]) * (sz - zcoord[indx]);
+
+             Dist =  sqrt(Dist);
+           }
                   
           if (Dist < DistInt)
            {
-             /* Keep indx for minimum distance */
-             NearSi = i ;  NearSj = j ; NearSk = k ;
-             NearIndx = indx;
+             DistInt = Dist;
+             /* Keep indx for physics cubic */
+             NearCubX = i ;  NearCubY = j ; NearCubZ = k ;
            }
          }
       }
    }
 
-  float NearPtX = xcoord[NearIndx]; 
-  float NearPtY = ycoord[NearIndx]; 
-  float NearPtZ = zcoord[NearIndx]; 
+   Pt[0].xindx = (NearCubX+0);  Pt[0].yindx = (NearCubY+0);  Pt[0].zindx = (NearCubZ+0) ;
+   Pt[1].xindx = (NearCubX+0);  Pt[1].yindx = (NearCubY+1);  Pt[1].zindx = (NearCubZ+0) ;
+   Pt[2].xindx = (NearCubX+1);  Pt[2].yindx = (NearCubY+1);  Pt[2].zindx = (NearCubZ+0) ;
+   Pt[3].xindx = (NearCubX+1);  Pt[3].yindx = (NearCubY+0);  Pt[3].zindx = (NearCubZ+0) ;
+   Pt[4].xindx = (NearCubX+0);  Pt[4].yindx = (NearCubY+0);  Pt[4].zindx = (NearCubZ+1) ;
+   Pt[5].xindx = (NearCubX+0);  Pt[5].yindx = (NearCubY+1);  Pt[5].zindx = (NearCubZ+1) ;
+   Pt[6].xindx = (NearCubX+1);  Pt[6].yindx = (NearCubY+1);  Pt[6].zindx = (NearCubZ+1) ;
+   Pt[7].xindx = (NearCubX+1);  Pt[7].yindx = (NearCubY+0);  Pt[7].zindx = (NearCubZ+1) ;
 
- /* eight situtations 
-  * Always save the nearest point at the first
-  * */ 
- 
-  if ( sx > NearPtX && sy > NearPtY && sz > NearPtZ  )
-     {
-        Pt[0].xindx = NearSi;    Pt[0].yindx = NearSj;    Pt[0].zindx = NearSk;
-        Pt[1].xindx = NearSi+1;  Pt[1].yindx = NearSj;    Pt[1].zindx = NearSk;
-        Pt[2].xindx = NearSi+1;  Pt[2].yindx = NearSj+1;  Pt[2].zindx = NearSk;
-        Pt[3].xindx = NearSi;    Pt[3].yindx = NearSj+1;  Pt[3].zindx = NearSk;
-        Pt[4].xindx = NearSi;    Pt[4].yindx = NearSj;    Pt[4].zindx = NearSk+1;
-        Pt[5].xindx = NearSi+1;  Pt[5].yindx = NearSj;    Pt[5].zindx = NearSk+1;
-        Pt[6].xindx = NearSi+1;  Pt[6].yindx = NearSj+1;  Pt[6].zindx = NearSk+1;
-        Pt[7].xindx = NearSi;    Pt[7].yindx = NearSj+1;  Pt[7].zindx = NearSk+1;
-     }
-  else if ( sx > NearPtX && sy > NearPtY && sz < NearPtZ)
-     {
-        Pt[0].xindx = NearSi;    Pt[0].yindx = NearSj;    Pt[0].zindx = NearSk;
-        Pt[1].xindx = NearSi+1;  Pt[1].yindx = NearSj;    Pt[1].zindx = NearSk;
-        Pt[2].xindx = NearSi+1;  Pt[2].yindx = NearSj+1;  Pt[2].zindx = NearSk;
-        Pt[3].xindx = NearSi;    Pt[3].yindx = NearSj+1;  Pt[3].zindx = NearSk;
-        Pt[4].xindx = NearSi;    Pt[4].yindx = NearSj;    Pt[4].zindx = NearSk-1;
-        Pt[5].xindx = NearSi+1;  Pt[5].yindx = NearSj;    Pt[5].zindx = NearSk-1;
-        Pt[6].xindx = NearSi+1;  Pt[6].yindx = NearSj+1;  Pt[6].zindx = NearSk-1;
-        Pt[7].xindx = NearSi;    Pt[7].yindx = NearSj+1;  Pt[7].zindx = NearSk-1;
-     }
-  else if ( sx > NearPtX && sy < NearPtY && sz > NearPtZ) 
-     {
-        Pt[0].xindx = NearSi;    Pt[0].yindx = NearSj;    Pt[0].zindx = NearSk;
-        Pt[1].xindx = NearSi;    Pt[1].yindx = NearSj-1;  Pt[1].zindx = NearSk;
-        Pt[2].xindx = NearSi+1;  Pt[2].yindx = NearSj-1;  Pt[2].zindx = NearSk;
-        Pt[3].xindx = NearSi+1;  Pt[3].yindx = NearSj;    Pt[3].zindx = NearSk;
-        Pt[4].xindx = NearSi;    Pt[4].yindx = NearSj;    Pt[4].zindx = NearSk+1;
-        Pt[5].xindx = NearSi;    Pt[5].yindx = NearSj-1;  Pt[5].zindx = NearSk+1;
-        Pt[6].xindx = NearSi+1;  Pt[6].yindx = NearSj-1;  Pt[6].zindx = NearSk+1;
-        Pt[7].xindx = NearSi+1;  Pt[7].yindx = NearSj;    Pt[7].zindx = NearSk+1;
-     }
-  else if ( sx > NearPtX && sy < NearPtY && sz < NearPtZ) 
-     {
-        Pt[0].xindx = NearSi;    Pt[0].yindx = NearSj;    Pt[0].zindx = NearSk;
-        Pt[1].xindx = NearSi;    Pt[1].yindx = NearSj-1;  Pt[1].zindx = NearSk;
-        Pt[2].xindx = NearSi+1;  Pt[2].yindx = NearSj-1;  Pt[2].zindx = NearSk;
-        Pt[3].xindx = NearSi+1;  Pt[3].yindx = NearSj;    Pt[3].zindx = NearSk;
-        Pt[4].xindx = NearSi;    Pt[4].yindx = NearSj;    Pt[4].zindx = NearSk-1;
-        Pt[5].xindx = NearSi;    Pt[5].yindx = NearSj-1;  Pt[5].zindx = NearSk-1;
-        Pt[6].xindx = NearSi+1;  Pt[6].yindx = NearSj-1;  Pt[6].zindx = NearSk-1;
-        Pt[7].xindx = NearSi+1;  Pt[7].yindx = NearSj;    Pt[7].zindx = NearSk-1;
-     }
-  else if ( sx < NearPtX && sy > NearPtY && sz > NearPtZ  )
-     {
-        Pt[0].xindx = NearSi;    Pt[0].yindx = NearSj;    Pt[0].zindx = NearSk;
-        Pt[1].xindx = NearSi;    Pt[1].yindx = NearSj+1;  Pt[1].zindx = NearSk;
-        Pt[2].xindx = NearSi-1;  Pt[2].yindx = NearSj+1;  Pt[2].zindx = NearSk;
-        Pt[3].xindx = NearSi-1;  Pt[3].yindx = NearSj;    Pt[3].zindx = NearSk;
-        Pt[4].xindx = NearSi;    Pt[4].yindx = NearSj;    Pt[4].zindx = NearSk+1;
-        Pt[5].xindx = NearSi;    Pt[5].yindx = NearSj+1;  Pt[5].zindx = NearSk+1;
-        Pt[6].xindx = NearSi-1;  Pt[6].yindx = NearSj+1;  Pt[6].zindx = NearSk+1;
-        Pt[7].xindx = NearSi-1;  Pt[7].yindx = NearSj;    Pt[7].zindx = NearSk+1;
-     }
-  else if ( sx < NearPtX && sy > NearPtY && sz < NearPtZ)
-     {
-        Pt[0].xindx = NearSi;    Pt[0].yindx = NearSj;    Pt[0].zindx = NearSk;
-        Pt[1].xindx = NearSi;    Pt[1].yindx = NearSj+1;  Pt[1].zindx = NearSk;
-        Pt[2].xindx = NearSi-1;  Pt[2].yindx = NearSj+1;  Pt[2].zindx = NearSk;
-        Pt[3].xindx = NearSi-1;  Pt[3].yindx = NearSj;    Pt[3].zindx = NearSk;
-        Pt[4].xindx = NearSi;    Pt[4].yindx = NearSj;    Pt[4].zindx = NearSk-1;
-        Pt[5].xindx = NearSi;    Pt[5].yindx = NearSj+1;  Pt[5].zindx = NearSk-1;
-        Pt[6].xindx = NearSi-1;  Pt[6].yindx = NearSj+1;  Pt[6].zindx = NearSk-1;
-        Pt[7].xindx = NearSi-1;  Pt[7].yindx = NearSj;    Pt[7].zindx = NearSk-1;
-     }
-  else if ( sx < NearPtX && sy < NearPtY && sz > NearPtZ) 
-     {
-        Pt[0].xindx = NearSi;    Pt[0].yindx = NearSj;    Pt[0].zindx = NearSk;
-        Pt[1].xindx = NearSi-1;  Pt[1].yindx = NearSj;    Pt[1].zindx = NearSk;
-        Pt[2].xindx = NearSi-1;  Pt[2].yindx = NearSj-1;  Pt[2].zindx = NearSk;
-        Pt[3].xindx = NearSi;    Pt[3].yindx = NearSj-1;  Pt[3].zindx = NearSk;
-        Pt[4].xindx = NearSi;    Pt[4].yindx = NearSj;    Pt[4].zindx = NearSk+1;
-        Pt[5].xindx = NearSi-1;  Pt[5].yindx = NearSj;    Pt[5].zindx = NearSk+1;
-        Pt[6].xindx = NearSi-1;  Pt[6].yindx = NearSj-1;  Pt[6].zindx = NearSk+1;
-        Pt[7].xindx = NearSi;    Pt[7].yindx = NearSj-1;  Pt[7].zindx = NearSk+1;
-     }
-  else 
-     {
-        Pt[0].xindx = NearSi;    Pt[0].yindx = NearSj;    Pt[0].zindx = NearSk;
-        Pt[1].xindx = NearSi-1;  Pt[1].yindx = NearSj;    Pt[1].zindx = NearSk;
-        Pt[2].xindx = NearSi-1;  Pt[2].yindx = NearSj-1;  Pt[2].zindx = NearSk;
-        Pt[3].xindx = NearSi;    Pt[3].yindx = NearSj-1;  Pt[3].zindx = NearSk;
-        Pt[4].xindx = NearSi;    Pt[4].yindx = NearSj;    Pt[4].zindx = NearSk-1;
-        Pt[5].xindx = NearSi-1;  Pt[5].yindx = NearSj;    Pt[5].zindx = NearSk-1;
-        Pt[6].xindx = NearSi-1;  Pt[6].yindx = NearSj-1;  Pt[6].zindx = NearSk-1;
-        Pt[7].xindx = NearSi;    Pt[7].yindx = NearSj-1;  Pt[7].zindx = NearSk-1;
-     }
+   for (int i=0; i<8; i++)
+   {
+     NearIndx = Pt[i].xindx + Pt[i].yindx * siz_line + Pt[i].zindx * siz_slice; 
 
-    for (int i=0; i<8; i++)
-    {
-      indx  =  Pt[i].xindx + Pt[i].yindx * siz_line + Pt[i].zindx * siz_slice;
-      Pt[i].coordx =  xcoord[indx]; 
-      Pt[i].coordy =  ycoord[indx]; 
-      Pt[i].coordz =  zcoord[indx]; 
-    }
+     Pt[i].coordx = xcoord[NearIndx]; 
+     Pt[i].coordy = ycoord[NearIndx]; 
+     Pt[i].coordz = zcoord[NearIndx]; 
+   }
 
    return Pt;
 }
@@ -1221,7 +1132,7 @@ LocaSrc(float sx, float sy, float sz,
  * */
 
 struct SrcIndx 
-CoorMap(float sx, float sy, float sz, 
+Src_CoorMap(float sx, float sy, float sz, 
         struct CubicPt  *Pt, 
         struct SrcIndx SrcInfor)
 {
@@ -1230,6 +1141,9 @@ CoorMap(float sx, float sy, float sz,
  float SUM;
  float Weight[8];
  float Mapsi, Mapsj, Mapsk;
+ float Intidist=0.0;
+ float dist=0.0;
+ int MinDisIndx;
 // float shift;
 // int si, sj, sk; 
  
@@ -1255,8 +1169,28 @@ CoorMap(float sx, float sy, float sz,
   
   }
 
+  /* Search minimum distance point */
+ Intidist =  (sx - Pt[0].coordx) * (sx - Pt[0].coordx)
+          + (sy - Pt[0].coordy) * (sy - Pt[0].coordy)
+          + (sz - Pt[0].coordz) * (sz - Pt[0].coordz);
+
+ for (int i=0; i<8; i++)
+  {
+    
+     dist =  (sx - Pt[i].coordx) * (sx - Pt[i].coordx)
+           + (sy - Pt[i].coordy) * (sy - Pt[i].coordy)
+           + (sz - Pt[i].coordz) * (sz - Pt[i].coordz);
+            
+     if( dist < Intidist ) 
+        {
+          Intidist = dist;
+          MinDisIndx = i; 
+        }
+  }
+
+
   /* Locate si */
-  if ( Mapsi > Pt[0].xindx )
+  if ( Mapsi > Pt[MinDisIndx].xindx )
     {
       SrcInfor.si = (int)(floor(Mapsi)); 
     } 
@@ -1265,7 +1199,8 @@ CoorMap(float sx, float sy, float sz,
       SrcInfor.si = (int)(ceil(Mapsi)); 
     }
 
-  if ( Mapsj > Pt[0].yindx )
+  /* Locate sj */
+  if ( Mapsj > Pt[MinDisIndx].yindx )
     {
       SrcInfor.sj = (int)(floor(Mapsj)); 
     } 
@@ -1274,7 +1209,8 @@ CoorMap(float sx, float sy, float sz,
       SrcInfor.sj = (int)(ceil(Mapsj)); 
     }
 
-  if ( Mapsk > Pt[0].zindx )
+  /* Locate sk */
+  if ( Mapsk > Pt[MinDisIndx].zindx )
     {
       SrcInfor.sk = (int)(floor(Mapsk)); 
     } 
@@ -1283,13 +1219,10 @@ CoorMap(float sx, float sy, float sz,
       SrcInfor.sk = (int)(ceil(Mapsk)); 
     }
 
-  SrcInfor.sx_inc = Mapsi-Pt[0].xindx;
-  SrcInfor.sy_inc = Mapsj-Pt[0].yindx;
-  SrcInfor.sz_inc = Mapsk-Pt[0].zindx;
+  /* calculate shift */
+  SrcInfor.sx_inc = Mapsi-Pt[MinDisIndx].xindx;
+  SrcInfor.sy_inc = Mapsj-Pt[MinDisIndx].yindx;
+  SrcInfor.sz_inc = Mapsk-Pt[MinDisIndx].zindx;
 
-
-//  Shift = sqrt( (Mapsi-Pt[0].xindx) * (Mapsi-Pt[0].xindx)
-//              + (Mapsj-Pt[0].yindx) * (Mapsj-Pt[0].yindx)
-//              + (Mapsk-Pt[0].zindx) * (Mapsk-Pt[0].zindx) );
   return SrcInfor;
 }

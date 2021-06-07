@@ -146,7 +146,7 @@ void
 angle2moment(float strike, float dip, float rake, float* source_moment_tensor);
 
 struct CubicPt *
-LocaSrc(float sx, float sy, float sz,
+Src_Location(float sx, float sy, float sz,
         int ni1, int ni2, int nj1, int nj2, int nk1, int nk2,
         size_t siz_line, size_t siz_slice, size_t siz_volume, 
         float *restrict c3d,
@@ -154,7 +154,7 @@ LocaSrc(float sx, float sy, float sz,
         struct CubicPt *Pt);
 
 struct SrcIndx 
-CoorMap(float sx, float sy, float sz, 
+Src_CoorMap(float sx, float sy, float sz, 
         struct CubicPt  *Pt, 
         struct SrcIndx SrcInfro);
 

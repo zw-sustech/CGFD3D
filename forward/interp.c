@@ -18,9 +18,12 @@ float
 LagInterp_2d(float *x, float *y, float *z, int ni, int nj, float xi, float yi)
 {
     int i, j;
-    float *Lx, *Ly, Li=0;
+  //  float *Lx, *Ly, Li=0;
+    float Lx[ni];
+    float Ly[nj];
+    float Li=0;
 
-    Lx = (float*)malloc(sizeof(float)*ni);
+//    Lx = (float*)malloc(sizeof(float)*ni);
     for(i=0; i<ni; i++) 
     {
         Lx[i] = 1;
@@ -31,7 +34,7 @@ LagInterp_2d(float *x, float *y, float *z, int ni, int nj, float xi, float yi)
         }
     }
 
-    Ly = (float*)malloc(sizeof(float)*nj);
+//    Ly = (float*)malloc(sizeof(float)*nj);
     for(i=0; i<nj; i++) 
     {
         Ly[i] = 1;
@@ -72,9 +75,12 @@ float LagInterp_3d(float *x, float *y, float *z, float *f,
                 float xi, float yi, float zi)
 {
     int i, j, k;
-    float *Lx, *Ly, *Lz, Li=0;
+    float  Li=0;
+    float Lx[ni]; 
+    float Ly[nj]; 
+    float Lz[nk]; 
 
-    Lx = (float*)malloc(sizeof(float)*ni);
+//    Lx = (float*)malloc(sizeof(float)*ni);
     for(i=0; i<ni; i++) 
     {
         Lx[i] = 1;
@@ -85,7 +91,7 @@ float LagInterp_3d(float *x, float *y, float *z, float *f,
         }
     }
 
-    Ly = (float*)malloc(sizeof(float)*nj);
+//    Ly = (float*)malloc(sizeof(float)*nj);
     for(i=0; i<nj; i++) 
     {
         Ly[i] = 1;
@@ -96,7 +102,7 @@ float LagInterp_3d(float *x, float *y, float *z, float *f,
         }
     }
 
-    Lz = (float*)malloc(sizeof(float)*nk);
+//    Lz = (float*)malloc(sizeof(float)*nk);
     for(i=0; i<nj; i++) 
     {
         Lz[i] = 1;
