@@ -14,11 +14,11 @@ date
 MPIDIR=/share/apps/gnu-4.8.5/mpich-3.3
 
 #-- program related dir
-EXEC_DIR=/export/home/lihl/CGFD3D-elastic
+EXEC_DIR=/export/home/zhangw/code/zwlab/CGFD3D-elastic
 EXEC_WAVE=$EXEC_DIR/cgfdm3d_elastic_mpi
 
 #-- conf
-PROJDIR=/export/home/zhangw/work/cgfd_opt/21_media
+PROJDIR=/export/home/zhangw/work/cgfd_opt/23_srcmpi
 PAR_FILE=${PROJDIR}/test.json
 GRID_DIR=${PROJDIR}/output
 MEDIA_DIR=${PROJDIR}/output
@@ -47,8 +47,8 @@ ieof
 #----------------------------------------------------------------------
 cat << ieof > $PAR_FILE
 {
-  "number_of_total_grid_points_x" : 100,
-  "number_of_total_grid_points_y" : 100,
+  "number_of_total_grid_points_x" : 200,
+  "number_of_total_grid_points_y" : 200,
   "number_of_total_grid_points_z" : 60,
 
   "number_of_mpiprocs_x" : 2,
@@ -123,9 +123,9 @@ cat << ieof > $PAR_FILE
 
   "media_input" : {
       "#import" : "$MEDIA_DIR",
-      "#code_generate" : 1,
-      "in_3lay_file" : "${IN_MEDIA_3LAY_FILE}",
-      "equivalent_medium_method" : "har",
+      "code_generate" : 1,
+      "#in_3lay_file" : "${IN_MEDIA_3LAY_FILE}",
+      "#equivalent_medium_method" : "har",
       "#in_3grd_file" : "$PROJDIR/test/hill3d.md3grd"
   },
   "is_export_media" : 1,
@@ -134,8 +134,9 @@ cat << ieof > $PAR_FILE
   "source_input" : {
       "single_force" : {
          "name" : "evt_test_singel_force",
-         "location_by_grid_index" : [ 40, 40, 50 ],
-         "#location_by_coords" : [ 4000, 4000, -500 ],
+         "#location_by_grid_index" : [ 40, 40, 50 ],
+         "#location_by_coords" : [ 4050, 4010, -1020 ],
+         "location_by_coords" : [ 4000, 4000, -1000 ],
          "source_time_functon" : "ricker",
          "ricker_center_frequency" : 2.0,
          "ricker_peak_time" : 0.5,
@@ -154,7 +155,7 @@ cat << ieof > $PAR_FILE
          "end_time"   : 1.0,
          "moment_tensor" : [ 1e9, 1e9, 1e9, 0, 0, 0]
       },
-      "in_source_file" : "../test_sorce.anasrc"
+      "#in_source_file" : "../test_sorce.anasrc"
   },
   "is_export_source" : 1,
   "source_export_dir"  : "$SOURCE_DIR",
