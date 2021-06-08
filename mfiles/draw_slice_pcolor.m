@@ -43,10 +43,6 @@ nproj=par.number_of_mpiprocs_y;
 % figure plot
 hid=figure;
 set(hid,'BackingStore','on');
-set(hid,'renderer','painters');
-set(gcf, 'PaperPositionMode', 'manual');
-set(gcf,'PaperUnits','points');
-set(gcf,'PaperPosition',[0 0 800 800]);
 
 % load data
 for nlayer=ns:nt:ne
@@ -241,21 +237,26 @@ for nlayer=ns:nt:ne
     disp([ '  draw ' num2str(nlayer) 'th time step (t=' num2str(t) ')']);
     
     set(gca,'layer','top');
+    set(gcf,'color','white','renderer','painters');
 
-    %axis image
-    %shading interp;
+    % axis image
+    % shading interp;
     shading flat;
+    % colorbar range/scale
     if exist('scl_caxis')
         caxis(scl_caxis);
     end
+    % axis daspect
     if exist('scl_daspect')
         daspect(scl_daspect);
     end
+    % colormap and colorbar
     if exist('clrmp')
         colormap(clrmp);
     end
     colorbar('vert');
     
+    % title
     titlestr=['Snapshot of ' varnm ' at ' ...
               '{\fontsize{12}{\bf ' ...
               num2str((t),'%7.3f') ...
@@ -265,9 +266,15 @@ for nlayer=ns:nt:ne
     drawnow;
     pause(taut);
     
+    % save and print figure
     if flag_print==1
-        fnm_out=[varnm '_ndim',num2str(nlayer,'%5.5i')];
-%         set(gca,'FontName','FixedWidth');
+        width= 500;
+        height=500;
+        set(gcf,'paperpositionmode','manual');
+        set(gcf,'paperunits','points');
+        set(gcf,'papersize',[width,height]);
+        set(gcf,'paperposition',[0,0,width,height]);
+        fnm_out=[varnm '_ndim_',num2str(nlayer,'%5.5i')];
         print(gcf,[fnm_out '.png'],'-dpng');
     end
     
