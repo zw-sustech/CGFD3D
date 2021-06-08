@@ -4,6 +4,8 @@
 #include <iostream>
 #include <vector>
 #include <cfloat>
+#include <cassert>
+
 
 #define EPS 1e-10
 
@@ -30,15 +32,24 @@ Vector3 Cross(Vector3 A, Vector3 B);
 double Area2 (Point3 A, Point3 B, Point3 C);
 bool PointInTri(Point3 P, Point3 P0, Point3 P1, Point3 P2);
 double Volume6(Point3 A, Point3 B, Point3 C, Point3 D);
-
+/* 
+ * If the number of points is 3, calculate the normal directly;
+ * if the number of points > 3, calculate the least squares plane.
+*/
 struct Face {
-    int v[3];
-    Vector3 normal(Point3 *P) const {
-        return Cross(P[v[1]]-P[v[0]], P[v[2]]-P[v[0]]);
+    std::vector<Point3> v;
+    // jlq: TODO: the least squares plane.
+    Vector3 normal() const { 
+        assert(v.size() > 2);
+    //    Vector3 dir1 = v[1] - v[0];
+    //    Vector3 dir2 = v[2] - v[0];
+    // TODO: no normalization, needed?
+        return Cross(v[1]-v[0], v[2]-v[0]);
     }
-    int cansee(Point3 *P, int i) const{
-        return Dot(P[i]-P[v[0]], normal(P)) > 0 ? 1:0;
-    }
+
+//    int cansee(Point3 *P, int i) const{
+//        return Dot(P[i]-P[v[0]], normal(P)) > 0 ? 1:0;
+//    }
 };
 
 struct Mesh3 {
@@ -55,6 +66,16 @@ struct Mesh3 {
     }
 };
 
+bool isPointInPolyhedron(const Point3 &p, const std::vector<Face> &fs);
 
-
+#ifdef __cplusplus
+extern "C" {
 #endif
+bool isPointInHexahedron(float px, float py, float pz,
+                         float *vx, float *vy, float *vz);
+#ifdef __cplusplus
+}
+#endif
+
+
+#endif /*media_geometry*/
