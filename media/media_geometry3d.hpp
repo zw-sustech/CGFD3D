@@ -61,7 +61,7 @@ struct Mesh3 {
         this->v[6] = G;
         this->v[7] = H;
     }
-    ~Mesh3();
+    //~Mesh3();
 };
 
 bool isPointInPolyhedron(const Point3 &p, const std::vector<Face> &fs);
