@@ -100,7 +100,7 @@ gd_curv_coord_export(float  *restrict c3d,
                      char *fname_coords,
                      char *output_dir);
 
-int gd_grid_z_interp(int xi, int yi, float* z3d, float* zlayer3d, int* NCellPerlay,
+int gd_grid_z_interp(int xi, int yi, float* z3dpart, float* zlayer3d, int* NCellPerlay,
                      int* VmapSpacingIsequal, int nLayers, int nx, int ny );
 float gd_seval(int ni, float u,
                int n, float x[], float y[],
