@@ -33,7 +33,7 @@ clrmp       = 'parula';
 
 
 
-% load media data
+% locate metric data
 metricinfo=locate_metric(parfnm,'start',subs,'count',subc,'stride',subt,'metricdir',output_dir);
 % get coordinate data
 [x,y,z]=gather_coord(metricinfo,'coorddir',output_dir);
@@ -49,16 +49,12 @@ if flag_km
    str_unit='km';
 end
 
-% load media data
+% gather metric data
 v=gather_metric(metricinfo,varnm,'metricdir',output_dir);
 
 % figure plot
 hid=figure;
 set(hid,'BackingStore','on');
-set(hid,'renderer','painters');
-set(gcf, 'PaperPositionMode', 'manual');
-set(gcf,'PaperUnits','points');
-set(gcf,'PaperPosition',[0 0 800 800]);
 
 % metric show
 if flag_emlast
@@ -115,8 +111,5 @@ if flag_print
     set(gcf,'paperposition',[0,0,width,height]);
     print(gcf,[varnm '.png'],'-dpng');
 end
-
-
-
 
 

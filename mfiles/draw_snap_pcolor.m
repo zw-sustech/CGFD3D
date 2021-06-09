@@ -53,10 +53,6 @@ end
 % figure plot
 hid=figure;
 set(hid,'BackingStore','on');
-set(hid,'renderer','painters');
-set(gcf, 'PaperPositionMode', 'manual');
-set(gcf,'PaperUnits','points');
-set(gcf,'PaperPosition',[0 0 800 800]);
 
 % snapshot show
 for nlayer=ns:nt:ne
@@ -149,4 +145,5 @@ for nlayer=ns:nt:ne
     end
     
 end
+
 

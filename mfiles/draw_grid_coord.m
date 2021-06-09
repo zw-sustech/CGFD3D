@@ -115,7 +115,3 @@ if flag_print
 end
 
 
-
-
-
-

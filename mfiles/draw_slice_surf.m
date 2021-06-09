@@ -102,7 +102,9 @@ for nlayer=ns:nt:ne
             Z=Z/1e3;
             str_unit='km';
         end
-            
+        
+        disp([ '  draw ' num2str(nlayer) 'th time step (t=' num2str(t) ')']);
+        
         surf(X,Y,Z,V);
         xlabel(['X axis (',str_unit,')']);
         ylabel(['Y axis (',str_unit,')']);
@@ -164,7 +166,9 @@ for nlayer=ns:nt:ne
             Z=Z/1e3;
             str_unit='km';
         end
-            
+        
+        disp([ '  draw ' num2str(nlayer) 'th time step (t=' num2str(t) ')']);
+        
         surf(X,Y,Z,V);
         xlabel(['X axis (',str_unit,')']);
         ylabel(['Y axis (',str_unit,')']);
@@ -235,14 +239,14 @@ for nlayer=ns:nt:ne
             str_unit='km';
         end
             
+        disp([ '  draw ' num2str(nlayer) 'th time step (t=' num2str(t) ')']);
+        
         surf(X,Y,Z,V);
         xlabel(['X axis (',str_unit,')']);
         ylabel(['Y axis (',str_unit,')']);
         zlabel(['Z axis (',str_unit,')']);
         
     end
-    
-    disp([ '  draw ' num2str(nlayer) 'th time step (t=' num2str(t) ')']);
     
     set(gca,'layer','top');
     set(gcf,'color','white','renderer','painters');
@@ -289,8 +293,4 @@ for nlayer=ns:nt:ne
 end
         
         
-        
-        
-        
-
         

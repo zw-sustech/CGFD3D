@@ -72,10 +72,6 @@ end
 % figure plot
 hid=figure;
 set(hid,'BackingStore','on');
-set(hid,'renderer','painters');
-set(gcf, 'PaperPositionMode', 'manual');
-set(gcf,'PaperUnits','points');
-set(gcf,'PaperPosition',[0 0 800 800]);
 
 % media show
 if flag_emlast
@@ -138,8 +134,5 @@ if flag_print
     set(gcf,'paperposition',[0,0,width,height]);
     print(gcf,[varnm '.png'],'-dpng');
 end
-
-
-
 
 
