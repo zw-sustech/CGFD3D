@@ -25,9 +25,10 @@ MEDIA_DIR=${PROJDIR}/output
 SOURCE_DIR=${PROJDIR}/output
 OUTPUT_DIR=${PROJDIR}/output
 #-- input file
-TEST_INPUT_DIR=/home/zhangw/code/zwlab/CGFD3D-elastic/test
+TEST_INPUT_DIR=/export/home/lihl/CGFD3D-elastic/test
 IN_STATION_LIST_FILE=${TEST_INPUT_DIR}/test_station.sta
 IN_MEDIA_3LAY_FILE=${TEST_INPUT_DIR}/test_hill3d.md3lay
+IN_SOURCE_FILE=${TEST_INPUT_DIR}/test_source.anasrc
 
 #-- create dir
 mkdir -p $PROJDIR
@@ -132,7 +133,7 @@ cat << ieof > $PAR_FILE
   "media_export_dir"  : "$MEDIA_DIR",
 
   "source_input" : {
-      "single_force" : {
+      "#single_force" : {
          "name" : "evt_test_singel_force",
          "#location_by_grid_index" : [ 40, 40, 50 ],
          "#location_by_coords" : [ 4050, 4010, -1020 ],
