@@ -23,7 +23,7 @@ CXX    :=  mpicxx
 CFLAGS   := -g $(CFLAGS)
 #- O3
 CFLAGS   := -O3 $(CFLAGS)
-CPPFLAGS := -O2 --std=c++11 $(CPPFLAGS)
+CPPFLAGS := -O2 -std=c++11 $(CPPFLAGS)
 
 #- static
 #LDFLAGS := $(NETCDF)/lib/libnetcdf.a -lm -static $(LDFLAGS)
