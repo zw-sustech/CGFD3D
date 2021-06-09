@@ -8,11 +8,13 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdbool.h>
 
 #include "fdlib_math.h"
 #include "fdlib_mem.h"
 #include "fd_t.h"
 #include "src_funcs.h"
+#include "isPointInHexahedron.h"
 
 /*
  * for single force or moment source term, with Gaussian spatial smoothing
@@ -38,6 +40,9 @@ src_gen_single_point_gauss(size_t siz_line,
                            int   nk2,
                            int   npoint_half_ext,
                            int   npoint_ghosts,
+                           float *x3d,
+                           float *y3d,
+                           float *z3d,
                            int   *source_gridindex,
                            float *source_coords,
                            float *force_vector,
@@ -46,6 +51,8 @@ src_gen_single_point_gauss(size_t siz_line,
                            float *wavelet_coefs,
                            float wavelet_tstart,
                            float wavelet_tend,
+                           MPI_Comm comm, 
+                           int myid,
                            // following output
                            int  *num_of_force, // inout: if force source, if in this thread
                            int **restrict p_force_info,
@@ -82,34 +89,85 @@ src_gen_single_point_gauss(size_t siz_line,
   int si=-1; int sj=-1; int sk=-1;
   float sx_inc = 0.0; float sy_inc = 0.0; float sz_inc = 0.0;
 
+  // workspace 3d var for distance calculation
+  float *wrk3d=NULL;
+
   // locate into this thread
   if (sgpi < 0 || sgpj < 0 || sgpk < 0) {
     // use coord to locate local index
-    fprintf(stdout,"locate source by coord ...\n"); 
-    fprintf(stdout,"   not implemented yet\n"); 
+    fprintf(stdout,"locate source by coord (%f,%f,%f) ...\n",
+                source_coords[0],source_coords[1],source_coords[2]); 
+    //fprintf(stdout,"   not implemented yet\n"); 
     fflush(stdout);
+
+    int nx = (ni2-ni1+1)+2*npoint_ghosts;
+    int ny = (nj2-nj1+1)+2*npoint_ghosts;
+    int nz = (nk2-nk1+1)+2*npoint_ghosts;
+    wrk3d = (float *) fdlib_mem_calloc_1d_float(nx*ny*nz,0.0,
+                                      "src_gen_single_point_gauss");
+
+    // if located in this thread
+    int is_here = src_coord2index(source_coords[0],source_coords[1],source_coords[2],
+                                  nx, ny, nz, 
+                                  ni1,ni2,nj1,nj2,nk1,nk2,
+                                  x3d, y3d, z3d, wrk3d,
+                                  &si, &sj, &sk,
+                                  &sx_inc, &sy_inc, &sz_inc);
+    if ( is_here == 1)
+    {
+      // conver to global index
+      sgpi = si - npoint_ghosts + glob_phys_ix1;
+      sgpj = sj - npoint_ghosts + glob_phys_iy1;
+      sgpk = sk - npoint_ghosts + glob_phys_iz1;
+      fprintf(stdout," -- located to local index = %d %d %d\n", si,sj,sk);
+      fprintf(stdout," -- located to global index = %d %d %d\n", sgpi,sgpj,sgpk);
+      fprintf(stdout," --  with shift = %f %f %f\n", sx_inc,sy_inc,sz_inc);
+    } else {
+      fprintf(stdout," -- not in this thread %d\n", myid);
+    }
+
+    // free allocated vars
+    free(wrk3d);
   }
-  else // use grid index
+
+  // reduce global index and shift values
+  int sendbufi = sgpi;
+  MPI_Allreduce(&sendbufi, &sgpi, 1, MPI_INT, MPI_MAX, comm);
+  sendbufi = sgpj;
+  MPI_Allreduce(&sendbufi, &sgpj, 1, MPI_INT, MPI_MAX, comm);
+  sendbufi = sgpk;
+  MPI_Allreduce(&sendbufi, &sgpk, 1, MPI_INT, MPI_MAX, comm);
+
+  float sendbuf = sx_inc;
+  MPI_Allreduce(&sendbuf, &sx_inc, 1, MPI_INT, MPI_SUM, comm);
+  sendbuf = sy_inc;
+  MPI_Allreduce(&sendbuf, &sy_inc, 1, MPI_INT, MPI_SUM, comm);
+  sendbuf = sz_inc;
+  MPI_Allreduce(&sendbuf, &sz_inc, 1, MPI_INT, MPI_SUM, comm);
+
+  fprintf(stdout," --myid=%d,index=%d %d %d,shift = %f %f %f\n",
+                myid,sgpi,sgpj,sgpk, sx_inc,sy_inc,sz_inc);
+
+  // use grid index to check if in this thread after extend
+  if (sgpi-npoint_half_ext <= glob_phys_ix2 && // exted left point is less than right bdry
+      sgpi+npoint_half_ext >= glob_phys_ix1 && // exted right point is larger than left bdry
+      sgpj-npoint_half_ext <= glob_phys_iy2 && 
+      sgpj+npoint_half_ext >= glob_phys_iy1 &&
+      sgpk-npoint_half_ext <= glob_phys_iz2 && 
+      sgpk+npoint_half_ext >= glob_phys_iz1)
   {
-    if (sgpi-npoint_half_ext <= glob_phys_ix2 && // exted left point is less than right bdry
-        sgpi+npoint_half_ext >= glob_phys_ix1 && // exted right point is larger than left bdry
-        sgpj-npoint_half_ext <= glob_phys_iy2 && 
-        sgpj+npoint_half_ext >= glob_phys_iy1 &&
-        sgpk-npoint_half_ext <= glob_phys_iz2 && 
-        sgpk+npoint_half_ext >= glob_phys_iz1)
-     {
-        // at least one extend point in this thread
-        // convert to local index
-        si = sgpi - glob_phys_ix1 + npoint_ghosts;
-        sj = sgpj - glob_phys_iy1 + npoint_ghosts;
-        sk = sgpk - glob_phys_iz1 + npoint_ghosts;
-     }
-     else
-     {  // no source in this thread
-        nforce  = 0;
-        nmoment = 0;
-     }
+     // at least one extend point in this thread
+     // convert to local index
+     si = sgpi - glob_phys_ix1 + npoint_ghosts;
+     sj = sgpj - glob_phys_iy1 + npoint_ghosts;
+     sk = sgpk - glob_phys_iz1 + npoint_ghosts;
   }
+  else
+  {  // no source in this thread
+     nforce  = 0;
+     nmoment = 0;
+  }
+  
 
   // if source here, cal wavelet series
   if (nt_total_wavelet > 0) {
@@ -295,44 +353,6 @@ src_gen_single_point_gauss(size_t siz_line,
   if (wavelet_values!=NULL) free(wavelet_values);
 
   return;
-}
-
-/*
- * Locate 
- */
-void 
-eighth_locate(float *location, 
-              float *vx, float *vy, float *vz, 
-              float sx_inc, int sy_inc, int sz_inc)
-{
-  float x0 = location[0];
-  float y0 = location[1];
-  float z0 = location[2];
-  
-  float x[125] ;
-  float y[125] ;
-  float z[125] ;
- 
-
-  for( int i=0; i<5; i=i+2 )
-  {
-    for( int j=0; j<5; j=j+2) 
-    {
-     for ( int k=0; k<5; k=k+2)
-      {
-       int indx_01  = k * 25 + j * 5 + i ;
-       int indx_02  = ((int)(k / 2)) * 9 + ((int)(j / 2)) * 3 + ((int)(i / 2));
-
-       
-      
-      }
-
-    }
-
-  }
-
-
-
 }
 
 void
@@ -990,6 +1010,11 @@ src_get_stage_stf(
 
 }
 
+/*
+ * convert angles (defined as Aki and Richards) to moment tensor 
+ *  in the cartesian coordinate: x-east, y-north, z-upward
+ */
+
 void 
 angle2moment(float strike, float dip, float rake, float* source_moment_tensor)
 {
@@ -1000,7 +1025,7 @@ angle2moment(float strike, float dip, float rake, float* source_moment_tensor)
   strike_pi = strike / 180.0 * PI;
   rake_pi   = rake   / 180.0 * PI;
 
- // in Aki and Richard's
+ // Angles are defined same as in Aki and Richard's book
   M11 = - (  sin(dip_pi) * cos(rake_pi) * sin(2.0*strike_pi) 
            + sin(2.0*dip_pi) * sin(rake_pi) * sin(strike_pi) * sin(strike_pi) );
  
@@ -1018,278 +1043,269 @@ angle2moment(float strike, float dip, float rake, float* source_moment_tensor)
   M23 = - (  cos(dip_pi) * cos(rake_pi) * sin(strike_pi) 
            - cos(2.0*dip_pi) * sin(rake_pi) * cos(strike_pi) );
  
+  // attention: the order may be different with outside
   source_moment_tensor[0] = M11 ; 
   source_moment_tensor[1] = M22 ;   
   source_moment_tensor[2] = M33 ;
   source_moment_tensor[3] = M12 ;  
   source_moment_tensor[4] = M13 ;
   source_moment_tensor[5] = M23 ;  
- 
 }
 
-/* structure for keep vertex of cubic*/
-
-/*struct CubicPt {
-
-float coordx; 
-float coordy; 
-float coordz;
-
-int xindx; 
-int yindx;
-int zindx;
-
-} ;*/
-
-
-/* search location of source
- *
- *
+/* 
+ * if the nearest point in this thread then search its grid index
+ *   return value:
+ *      1 - in this thread
+ *      0 - not in this thread
  */
-struct CubicPt *
-LocaSrc(float sx, float sy, float sz,
+
+int
+src_coord2index(float sx, float sy, float sz,
+        int nx, int ny, int nz,
         int ni1, int ni2, int nj1, int nj2, int nk1, int nk2,
-        size_t siz_line, size_t siz_slice, size_t siz_volume, 
-        float *restrict c3d,
-        size_t *restrict c3d_pos,
-        struct CubicPt *Pt)
+        float *restrict x3d,
+        float *restrict y3d,
+        float *restrict z3d,
+        float *restrict wrk3d,
+        int *si, int *sj, int *sk,
+        float *sx_inc, float *sy_inc, float *sz_inc)
 {
+  int is_here = 0; // default outside
 
-  int indx, NearIndx;
-  float Dist = 0.0 ; 
-  float DistInt = 0.0 ;
-  float NearSi, NearSj, NearSk;
-  
+  // range of coord of this thread w ghosts
+  int x_min = x3d[0];
+  int x_max = x3d[0];
+  int y_min = y3d[0];
+  int y_max = y3d[0];
+  int z_min = z3d[0];
+  int z_max = z3d[0];
+  size_t siz_line  = nx;
+  size_t siz_slice = nx * ny;
 
-  float *restrict xcoord = c3d + c3d_pos[0];
-  float *restrict ycoord = c3d + c3d_pos[1];
-  float *restrict zcoord = c3d + c3d_pos[2];
-
-//  struct Cubic *Pt = (struct Cubic *)malloc(8 * sizeof(struct Cubic));
-   
-  /* search minimum distance  */ 
-  DistInt =  (sx - xcoord[0]) * (sx - xcoord[0])
-           + (sy - ycoord[0]) * (sy - ycoord[0])
-           + (sz - zcoord[0]) * (sz - zcoord[0]);
-
-  for(int k=nk1; k<nk2; k++)
-   {
-     for(int j=nj1; j<nj2; j++)
+  for (int k=0; k<nz; k++) {
+    for (int j=0; j<ny; j++) {
+      for (int i=0; i<nx; i++)
       {
-        for(int i=ni1; i<ni2; i++)
-         {
-          indx = i + j * siz_line + k * siz_slice ;
-         
-          Dist =  (sx - xcoord[indx]) * (sx - xcoord[indx])
-                + (sy - ycoord[indx]) * (sy - ycoord[indx])
-                + (sz - zcoord[indx]) * (sz - zcoord[indx]);
-                  
-          if (Dist < DistInt)
-           {
-             /* Keep indx for minimum distance */
-             NearSi = i ;  NearSj = j ; NearSk = k ;
-             NearIndx = indx;
-           }
-         }
+          size_t iptr = i + j * siz_line + k * siz_slice;
+          x_min = (x_min < x3d[iptr]) ? x_min : x3d[iptr]; 
+          x_max = (x_max > x3d[iptr]) ? x_max : x3d[iptr]; 
+          y_min = (y_min < y3d[iptr]) ? y_min : y3d[iptr]; 
+          y_max = (y_max > y3d[iptr]) ? y_max : y3d[iptr]; 
+          z_min = (z_min < z3d[iptr]) ? z_min : z3d[iptr]; 
+          z_max = (z_max > z3d[iptr]) ? z_max : z3d[iptr]; 
       }
-   }
-
-  float NearPtX = xcoord[NearIndx]; 
-  float NearPtY = ycoord[NearIndx]; 
-  float NearPtZ = zcoord[NearIndx]; 
-
- /* eight situtations 
-  * Always save the nearest point at the first
-  * */ 
- 
-  if ( sx > NearPtX && sy > NearPtY && sz > NearPtZ  )
-     {
-        Pt[0].xindx = NearSi;    Pt[0].yindx = NearSj;    Pt[0].zindx = NearSk;
-        Pt[1].xindx = NearSi+1;  Pt[1].yindx = NearSj;    Pt[1].zindx = NearSk;
-        Pt[2].xindx = NearSi+1;  Pt[2].yindx = NearSj+1;  Pt[2].zindx = NearSk;
-        Pt[3].xindx = NearSi;    Pt[3].yindx = NearSj+1;  Pt[3].zindx = NearSk;
-        Pt[4].xindx = NearSi;    Pt[4].yindx = NearSj;    Pt[4].zindx = NearSk+1;
-        Pt[5].xindx = NearSi+1;  Pt[5].yindx = NearSj;    Pt[5].zindx = NearSk+1;
-        Pt[6].xindx = NearSi+1;  Pt[6].yindx = NearSj+1;  Pt[6].zindx = NearSk+1;
-        Pt[7].xindx = NearSi;    Pt[7].yindx = NearSj+1;  Pt[7].zindx = NearSk+1;
-     }
-  else if ( sx > NearPtX && sy > NearPtY && sz < NearPtZ)
-     {
-        Pt[0].xindx = NearSi;    Pt[0].yindx = NearSj;    Pt[0].zindx = NearSk;
-        Pt[1].xindx = NearSi+1;  Pt[1].yindx = NearSj;    Pt[1].zindx = NearSk;
-        Pt[2].xindx = NearSi+1;  Pt[2].yindx = NearSj+1;  Pt[2].zindx = NearSk;
-        Pt[3].xindx = NearSi;    Pt[3].yindx = NearSj+1;  Pt[3].zindx = NearSk;
-        Pt[4].xindx = NearSi;    Pt[4].yindx = NearSj;    Pt[4].zindx = NearSk-1;
-        Pt[5].xindx = NearSi+1;  Pt[5].yindx = NearSj;    Pt[5].zindx = NearSk-1;
-        Pt[6].xindx = NearSi+1;  Pt[6].yindx = NearSj+1;  Pt[6].zindx = NearSk-1;
-        Pt[7].xindx = NearSi;    Pt[7].yindx = NearSj+1;  Pt[7].zindx = NearSk-1;
-     }
-  else if ( sx > NearPtX && sy < NearPtY && sz > NearPtZ) 
-     {
-        Pt[0].xindx = NearSi;    Pt[0].yindx = NearSj;    Pt[0].zindx = NearSk;
-        Pt[1].xindx = NearSi;    Pt[1].yindx = NearSj-1;  Pt[1].zindx = NearSk;
-        Pt[2].xindx = NearSi+1;  Pt[2].yindx = NearSj-1;  Pt[2].zindx = NearSk;
-        Pt[3].xindx = NearSi+1;  Pt[3].yindx = NearSj;    Pt[3].zindx = NearSk;
-        Pt[4].xindx = NearSi;    Pt[4].yindx = NearSj;    Pt[4].zindx = NearSk+1;
-        Pt[5].xindx = NearSi;    Pt[5].yindx = NearSj-1;  Pt[5].zindx = NearSk+1;
-        Pt[6].xindx = NearSi+1;  Pt[6].yindx = NearSj-1;  Pt[6].zindx = NearSk+1;
-        Pt[7].xindx = NearSi+1;  Pt[7].yindx = NearSj;    Pt[7].zindx = NearSk+1;
-     }
-  else if ( sx > NearPtX && sy < NearPtY && sz < NearPtZ) 
-     {
-        Pt[0].xindx = NearSi;    Pt[0].yindx = NearSj;    Pt[0].zindx = NearSk;
-        Pt[1].xindx = NearSi;    Pt[1].yindx = NearSj-1;  Pt[1].zindx = NearSk;
-        Pt[2].xindx = NearSi+1;  Pt[2].yindx = NearSj-1;  Pt[2].zindx = NearSk;
-        Pt[3].xindx = NearSi+1;  Pt[3].yindx = NearSj;    Pt[3].zindx = NearSk;
-        Pt[4].xindx = NearSi;    Pt[4].yindx = NearSj;    Pt[4].zindx = NearSk-1;
-        Pt[5].xindx = NearSi;    Pt[5].yindx = NearSj-1;  Pt[5].zindx = NearSk-1;
-        Pt[6].xindx = NearSi+1;  Pt[6].yindx = NearSj-1;  Pt[6].zindx = NearSk-1;
-        Pt[7].xindx = NearSi+1;  Pt[7].yindx = NearSj;    Pt[7].zindx = NearSk-1;
-     }
-  else if ( sx < NearPtX && sy > NearPtY && sz > NearPtZ  )
-     {
-        Pt[0].xindx = NearSi;    Pt[0].yindx = NearSj;    Pt[0].zindx = NearSk;
-        Pt[1].xindx = NearSi;    Pt[1].yindx = NearSj+1;  Pt[1].zindx = NearSk;
-        Pt[2].xindx = NearSi-1;  Pt[2].yindx = NearSj+1;  Pt[2].zindx = NearSk;
-        Pt[3].xindx = NearSi-1;  Pt[3].yindx = NearSj;    Pt[3].zindx = NearSk;
-        Pt[4].xindx = NearSi;    Pt[4].yindx = NearSj;    Pt[4].zindx = NearSk+1;
-        Pt[5].xindx = NearSi;    Pt[5].yindx = NearSj+1;  Pt[5].zindx = NearSk+1;
-        Pt[6].xindx = NearSi-1;  Pt[6].yindx = NearSj+1;  Pt[6].zindx = NearSk+1;
-        Pt[7].xindx = NearSi-1;  Pt[7].yindx = NearSj;    Pt[7].zindx = NearSk+1;
-     }
-  else if ( sx < NearPtX && sy > NearPtY && sz < NearPtZ)
-     {
-        Pt[0].xindx = NearSi;    Pt[0].yindx = NearSj;    Pt[0].zindx = NearSk;
-        Pt[1].xindx = NearSi;    Pt[1].yindx = NearSj+1;  Pt[1].zindx = NearSk;
-        Pt[2].xindx = NearSi-1;  Pt[2].yindx = NearSj+1;  Pt[2].zindx = NearSk;
-        Pt[3].xindx = NearSi-1;  Pt[3].yindx = NearSj;    Pt[3].zindx = NearSk;
-        Pt[4].xindx = NearSi;    Pt[4].yindx = NearSj;    Pt[4].zindx = NearSk-1;
-        Pt[5].xindx = NearSi;    Pt[5].yindx = NearSj+1;  Pt[5].zindx = NearSk-1;
-        Pt[6].xindx = NearSi-1;  Pt[6].yindx = NearSj+1;  Pt[6].zindx = NearSk-1;
-        Pt[7].xindx = NearSi-1;  Pt[7].yindx = NearSj;    Pt[7].zindx = NearSk-1;
-     }
-  else if ( sx < NearPtX && sy < NearPtY && sz > NearPtZ) 
-     {
-        Pt[0].xindx = NearSi;    Pt[0].yindx = NearSj;    Pt[0].zindx = NearSk;
-        Pt[1].xindx = NearSi-1;  Pt[1].yindx = NearSj;    Pt[1].zindx = NearSk;
-        Pt[2].xindx = NearSi-1;  Pt[2].yindx = NearSj-1;  Pt[2].zindx = NearSk;
-        Pt[3].xindx = NearSi;    Pt[3].yindx = NearSj-1;  Pt[3].zindx = NearSk;
-        Pt[4].xindx = NearSi;    Pt[4].yindx = NearSj;    Pt[4].zindx = NearSk+1;
-        Pt[5].xindx = NearSi-1;  Pt[5].yindx = NearSj;    Pt[5].zindx = NearSk+1;
-        Pt[6].xindx = NearSi-1;  Pt[6].yindx = NearSj-1;  Pt[6].zindx = NearSk+1;
-        Pt[7].xindx = NearSi;    Pt[7].yindx = NearSj-1;  Pt[7].zindx = NearSk+1;
-     }
-  else 
-     {
-        Pt[0].xindx = NearSi;    Pt[0].yindx = NearSj;    Pt[0].zindx = NearSk;
-        Pt[1].xindx = NearSi-1;  Pt[1].yindx = NearSj;    Pt[1].zindx = NearSk;
-        Pt[2].xindx = NearSi-1;  Pt[2].yindx = NearSj-1;  Pt[2].zindx = NearSk;
-        Pt[3].xindx = NearSi;    Pt[3].yindx = NearSj-1;  Pt[3].zindx = NearSk;
-        Pt[4].xindx = NearSi;    Pt[4].yindx = NearSj;    Pt[4].zindx = NearSk-1;
-        Pt[5].xindx = NearSi-1;  Pt[5].yindx = NearSj;    Pt[5].zindx = NearSk-1;
-        Pt[6].xindx = NearSi-1;  Pt[6].yindx = NearSj-1;  Pt[6].zindx = NearSk-1;
-        Pt[7].xindx = NearSi;    Pt[7].yindx = NearSj-1;  Pt[7].zindx = NearSk-1;
-     }
-
-    for (int i=0; i<8; i++)
-    {
-      indx  =  Pt[i].xindx + Pt[i].yindx * siz_line + Pt[i].zindx * siz_slice;
-      Pt[i].coordx =  xcoord[indx]; 
-      Pt[i].coordy =  ycoord[indx]; 
-      Pt[i].coordz =  zcoord[indx]; 
     }
+  }
 
-   return Pt;
+  // outside coord range
+  if ( sx < x_min || sx > x_max ||
+       sy < y_min || sy > y_max ||
+       sz < z_min || sz > z_max)
+  {
+    is_here = 0;
+    return is_here;
+  }
+
+  // init closest point
+  float min_dist = sqrtf(  (sx - x3d[0]) * (sx - x3d[0])
+                         + (sy - y3d[0]) * (sy - y3d[0])
+                         + (sz - z3d[0]) * (sz - z3d[0]) );
+  int min_dist_i = 0 ;
+  int min_dist_j = 0 ;
+  int min_dist_k = 0 ;
+
+  // compute distance to each point
+  for (int k=0; k<nz; k++) {
+    for (int j=0; j<ny; j++) {
+      for (int i=0; i<nx; i++)
+      {
+        size_t iptr = i + j * siz_line + k * siz_slice;
+
+        float x = x3d[iptr];
+        float y = y3d[iptr];
+        float z = z3d[iptr];
+
+        float DistInt = sqrtf(  (sx - x) * (sx - x)
+                              + (sy - y) * (sy - y)
+                              + (sz - z) * (sz - z) );
+        wrk3d[iptr] =  sqrtf(DistInt);
+
+        // replace closest point
+        if (min_dist > DistInt)
+        {
+          min_dist = DistInt;
+          min_dist_i = i;
+          min_dist_j = j;
+          min_dist_k = k;
+        }
+      }
+    }
+  }
+
+  // if nearest index is outside phys region, not here
+  if ( min_dist_i < ni1 || min_dist_i > ni2 ||
+       min_dist_j < nj1 || min_dist_j > nj2 ||
+       min_dist_k < nk1 || min_dist_k > nk2 )
+  {
+    is_here = 0;
+    return is_here;
+  }
+
+  // in this thread
+  is_here = 1;
+
+  // inverse distance interp curv coord
+  //float points_x[3*3*3];
+  //float points_y[3*3*3];
+  //float points_z[3*3*3];
+  //float points_i[3*3*3];
+  //float points_j[3*3*3];
+  //float points_k[3*3*3];
+
+  //for (int kk=0; kk<3; kk++)
+  //{
+  //  for (int jj=0; jj<3; jj++)
+  //  {
+  //    for (int ii=0; ii<3; ii++)
+  //    {
+  //      int iptr_cube = ii + jj * 3 + kk * 9;
+  //      int iptr = (min_dist_i-1+ii) + (min_dist_j-1+jj) * siz_line +
+  //                 (min_dist_k-1+kk) * siz_slice;
+
+  //      points_x[iptr_cube] = x3d[iptr];
+  //      points_y[iptr_cube] = y3d[iptr];
+  //      points_z[iptr_cube] = z3d[iptr];
+
+  //      points_i[iptr_cube] = min_dist_i-1+ii;
+  //      points_j[iptr_cube] = min_dist_j-1+jj;
+  //      points_k[iptr_cube] = min_dist_k-1+kk;
+  //    }
+  //  }
+  //}
+
+  float points_x[8];
+  float points_y[8];
+  float points_z[8];
+  float points_i[8];
+  float points_j[8];
+  float points_k[8];
+
+  for (int kk=0; kk<2; kk++)
+  {
+    for (int jj=0; jj<2; jj++)
+    {
+      for (int ii=0; ii<2; ii++)
+      {
+        int cur_i = min_dist_i-1+ii;
+        int cur_j = min_dist_j-1+jj;
+        int cur_k = min_dist_k-1+kk;
+
+        for (int n3=0; n3<2; n3++) {
+        for (int n2=0; n2<2; n2++) {
+        for (int n1=0; n1<2; n1++) {
+          int iptr_cube = n1 + n2 * 2 + n3 * 4;
+          int iptr = (cur_i+n1) + (cur_j+n2) * siz_line +
+                     (cur_k+n3) * siz_slice;
+          points_x[iptr_cube] = x3d[iptr];
+          points_y[iptr_cube] = y3d[iptr];
+          points_z[iptr_cube] = z3d[iptr];
+          points_i[iptr_cube] = cur_i+n1;
+          points_j[iptr_cube] = cur_j+n2;
+          points_k[iptr_cube] = cur_k+n3;
+        }
+        }
+        }
+
+        if (isPointInHexahedron(sx,sy,sz,points_x,points_y,points_z) == true)
+        {
+          float si_curv, sj_curv, sk_curv;
+          src_cart2curv(sx,sy,sz,
+                        8,
+                        points_x,points_y,points_z,
+                        points_i,points_j,points_k,
+                        &si_curv, &sj_curv, &sk_curv);
+
+          // convert to return values
+          *si = min_dist_i;
+          *sj = min_dist_j;
+          *sk = min_dist_k;
+          *sx_inc = si_curv - min_dist_i;
+          *sy_inc = sj_curv - min_dist_j;
+          *sz_inc = sk_curv - min_dist_k;
+
+          return is_here;
+        }
+      }
+    }
+  }
+
+  return is_here;
 }
 
-
-
-/* Coor  dinate mapping using  Inverse Distance Weight
- * sx, sy, sz: physical cooedinate for source  
- * struct CubicPt : structure cubic point coordinate 
- * struct SrcIndx : including indx (si, sj, sk) and shift(sx_inc, sy_inc, sz_inc ) for every source
- * 
+/* 
+ * interp curv coord using inverse distance interp
  */
-/* Struct SrcIndx{
- *  int si; 
- *  int sj; 
- *  int sk;
- *  float sx_inc;
- *  float sy_inc;
- *  float sz_inc;
- * }
- * */
 
-struct SrcIndx 
-CoorMap(float sx, float sy, float sz, 
-        struct CubicPt  *Pt, 
-        struct SrcIndx SrcInfor)
+int
+src_cart2curv(float sx, float sy, float sz, 
+        int num_points,
+        float *points_x, // x coord of all points
+        float *points_y,
+        float *points_z,
+        float *points_i, // curv coord of all points
+        float *points_j,
+        float *points_k,
+        float *si_curv, // interped curv coord
+        float *sj_curv,
+        float *sk_curv)
 {
+ float weight[num_points];
+ float total_weight = 0.0 ;
 
- float Dist[8];
- float SUM;
- float Weight[8];
- float Mapsi, Mapsj, Mapsk;
-// float shift;
-// int si, sj, sk; 
+ // cal weight
+ int at_point_indx = -1;
+ for (int i=0; i<num_points; i++)
+ {
+   float dist = sqrtf ((sx - points_x[i]) * (sx - points_x[i])
+                 + (sy - points_y[i]) * (sy - points_y[i])
+                 + (sz - points_z[i]) * (sz - points_z[i])
+                  );
+   if (dist < 1e-9) {
+     at_point_indx = i;
+   } else {
+     weight[i]   = 1.0 / dist;
+     total_weight += weight[i];
+   }
+ }
+ // if at a point
+ if (at_point_indx > 0) {
+   total_weight = 1.0;
+   // other weight 0
+   for (int i=0; i<num_points; i++) {
+     weight[i] = 0.0;
+   }
+   // point weight 1
+   weight[at_point_indx] = 1.0;
+ }
+
+ // interp
+
+ *si_curv = 0.0;
+ *sj_curv = 0.0;
+ *sk_curv = 0.0;
+
+ for (int i=0; i<num_points; i++)
+ {
+   weight[i] *= 1.0 / total_weight ;
  
- SUM = 0.0 ;
- 
- for (int i=0; i<8; i++)
-  {
-   Dist[i] = sqrt ((sx - Pt[i].coordx) * (sx - Pt[i].coordx)
-                 + (sy - Pt[i].coordy) * (sy - Pt[i].coordy)
-                 + (sz - Pt[i].coordz) * (sz - Pt[i].coordz));
+   (*si_curv) += weight[i] * points_i[i];
+   (*sj_curv) += weight[i] * points_j[i]; 
+   (*sk_curv) += weight[i] * points_k[i];  
 
-   SUM += 1.0/Dist[i]; 
-  }
+   fprintf(stdout,"---- i=%d,weight=%f,points_i=%f,points_j=%f,points_k=%f\n",
+          i,weight[i],points_i[i],points_j[i],points_k[i]);
+ }
 
- for (int i=0; i<8; i++)
-  {
-
-   Weight[i] = 1.0 / Dist[i] / SUM ;
- 
-   Mapsi += Weight[i] * Pt[i].xindx;
-   Mapsj += Weight[i] * Pt[i].yindx; 
-   Mapsk += Weight[i] * Pt[i].zindx;  
-  
-  }
-
-  /* Locate si */
-  if ( Mapsi > Pt[0].xindx )
-    {
-      SrcInfor.si = (int)(floor(Mapsi)); 
-    } 
-  else
-    {
-      SrcInfor.si = (int)(ceil(Mapsi)); 
-    }
-
-  if ( Mapsj > Pt[0].yindx )
-    {
-      SrcInfor.sj = (int)(floor(Mapsj)); 
-    } 
-  else
-    {
-      SrcInfor.sj = (int)(ceil(Mapsj)); 
-    }
-
-  if ( Mapsk > Pt[0].zindx )
-    {
-      SrcInfor.sk = (int)(floor(Mapsk)); 
-    } 
-  else
-    {
-      SrcInfor.sk = (int)(ceil(Mapsk)); 
-    }
-
-  SrcInfor.sx_inc = Mapsi-Pt[0].xindx;
-  SrcInfor.sy_inc = Mapsj-Pt[0].yindx;
-  SrcInfor.sz_inc = Mapsk-Pt[0].zindx;
-
-
-//  Shift = sqrt( (Mapsi-Pt[0].xindx) * (Mapsi-Pt[0].xindx)
-//              + (Mapsj-Pt[0].yindx) * (Mapsj-Pt[0].yindx)
-//              + (Mapsk-Pt[0].zindx) * (Mapsk-Pt[0].zindx) );
-  return SrcInfor;
+ return 0;
 }
+

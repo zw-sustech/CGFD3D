@@ -1,4 +1,4 @@
-% Draw a cross-section of media by using pcolor style
+% Draw a cross-section of metric by using pcolor style
 % Author:       Yuanhang Huo
 % Email:        yhhuo@mail.ustc.edu.cn
 % Affiliation:  University of Science and Technology of China
@@ -11,14 +11,15 @@ clear all;
 parfnm='./project/test.json';
 output_dir='./project/output';
 
-% which media profile to plot
-subs=[1,50,1];      % start from index '1'
+% which metric profile to plot
+subs=[10,50,1];     % start from index '1'
 subc=[-1,1,-1];     % '-1' to plot all points in this dimension
 subt=[2,1,2];
 
 % variable to plot
-% 'Vp', 'Vs', 'rho', 'lambda', 'mu'
-varnm='Vp';
+% 'jac', 'xi_x', 'xi_y', 'xi_z', 'eta_x', 'eta_y', 'eta_z',
+% 'zeta_x', 'zeta_y', 'zeta_z'
+varnm='jac';
 
 % figure control parameters
 flag_km     = 1;
@@ -33,9 +34,9 @@ clrmp       = 'parula';
 
 
 % load media data
-mediainfo=locate_media(parfnm,'start',subs,'count',subc,'stride',subt,'mediadir',output_dir);
+metricinfo=locate_metric(parfnm,'start',subs,'count',subc,'stride',subt,'metricdir',output_dir);
 % get coordinate data
-[x,y,z]=gather_coord(mediainfo,'coorddir',output_dir);
+[x,y,z]=gather_coord(metricinfo,'coorddir',output_dir);
 nx=size(x,1);
 ny=size(x,2);
 nz=size(x,3);
@@ -49,31 +50,13 @@ if flag_km
 end
 
 % load media data
-switch varnm
-    case 'Vp'
-        rho=gather_media(mediainfo,'rho','mediadir',output_dir);
-        mu=gather_media(mediainfo,'mu','mediadir',output_dir);
-        lambda=gather_media(mediainfo,'lambda','mediadir',output_dir);
-        v=( (lambda+2*mu)./rho ).^0.5;
-        v=v/1e3;
-    case 'Vs'
-        rho=gather_media(mediainfo,'rho','mediadir',output_dir);
-        mu=gather_media(mediainfo,'mu','mediadir',output_dir);
-        v=( mu./rho ).^0.5;
-        v=v/1e3;
-    case 'rho'
-        v=gather_media(mediainfo,varnm,'mediadir',output_dir);
-        v=v/1e3;
-    otherwise
-        v=gather_media(mediainfo,varnm,'mediadir',output_dir);
-end
-
+v=gather_metric(metricinfo,varnm,'metricdir',output_dir);
 
 % figure plot
 hid=figure;
 set(hid,'BackingStore','on');
 
-% media show
+% metric show
 if nx==1
    if flag_emlast
       sid=pcolor((flipud(permute(squeeze(y),[2 1]))), ...
@@ -135,17 +118,11 @@ if exist('clrmp')
 end
 if flag_clb
     cid=colorbar;
-    if strcmp(varnm,'Vp') || strcmp(varnm,'Vs')
-        cid.Label.String='(km/s)';
-    end
-    if strcmp(varnm,'rho')
-        cid.Label.String='g/cm^3';
-    end
 end
 
 % title
 if flag_title
-    title(varnm);
+    title(varnm,'interpreter','none');
 end
 
 % save and print figure

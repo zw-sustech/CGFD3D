@@ -30,8 +30,8 @@ while n<=nargin-2
                 if length(gsubt)==4
                     gtstride=gsubt(4);gsubt=gsubt(1:3);
                 end
-            case 'outdir'
-                output_dir=varargin{n+1}; n=n+1;
+            case 'snapdir'
+                snap_dir=varargin{n+1}; n=n+1;
         end
     end
     
@@ -65,11 +65,11 @@ gsube=gsubs+(gsubc-1).*gsubt;
 
 % search the nc file headers to locate the threads/processors
 snapprefix=par.snapshot{id}.name;
-snaplist=dir([output_dir,'/',snapprefix,'*.nc']);
+snaplist=dir([snap_dir,'/',snapprefix,'*.nc']);
 n=1;
 for i=1:length(snaplist)
     
-    snapnm=[output_dir,'/',snaplist(i).name];
+    snapnm=[snap_dir,'/',snaplist(i).name];
     xyzs=double(nc_attget(snapnm,nc_global,'first_index_to_snapshot_output'));
     xs=xyzs(1);
     ys=xyzs(2);
@@ -96,7 +96,7 @@ for ip=1:length(px)
     
     nthd=nthd+1;
     
-    snapnm=[output_dir,'/',snapprefix,'_px',num2str(px(ip)),...
+    snapnm=[snap_dir,'/',snapprefix,'_px',num2str(px(ip)),...
             '_py',num2str(py(ip)),'.nc'];
     xyzs=double(nc_attget(snapnm,nc_global,'first_index_to_snapshot_output'));
     xs=xyzs(1);

@@ -1,4 +1,4 @@
-% Draw a cross-section of media by using pcolor style
+% Draw a cross-section of media by using surf style
 % Author:       Yuanhang Huo
 % Email:        yhhuo@mail.ustc.edu.cn
 % Affiliation:  University of Science and Technology of China
@@ -12,8 +12,8 @@ parfnm='./project/test.json';
 output_dir='./project/output';
 
 % which media profile to plot
-subs=[1,50,1];      % start from index '1'
-subc=[-1,1,-1];     % '-1' to plot all points in this dimension
+subs=[50,5,5];      % start from index '1'
+subc=[1,-1,-1];     % '-1' to plot all points in this dimension
 subt=[2,1,2];
 
 % variable to plot
@@ -26,7 +26,7 @@ flag_emlast = 1;
 flag_print  = 0;
 flag_clb    = 1;
 flag_title  = 1;
-scl_daspect = [1 1 1];
+scl_daspect =[1 1 1];
 clrmp       = 'parula';
 % ---------------------------------------------------------------------- %
 
@@ -72,47 +72,27 @@ end
 % figure plot
 hid=figure;
 set(hid,'BackingStore','on');
+set(hid,'renderer','painters');
+set(gcf, 'PaperPositionMode', 'manual');
+set(gcf,'PaperUnits','points');
+set(gcf,'PaperPosition',[0 0 800 800]);
 
 % media show
-if nx==1
-   if flag_emlast
-      sid=pcolor((flipud(permute(squeeze(y),[2 1]))), ...
-                 (flipud(permute(squeeze(z),[2 1]))), ...
-                 (flipud(permute(squeeze(v),[2 1]))));
-   else
-      sid=pcolor(permute(squeeze(y),[2 1]), ...
-                 permute(squeeze(z),[2 1]), ...
-                 permute(squeeze(v),[2 1]));
-   end
-   xlabel(['Y axis (' str_unit ')']);
-   ylabel(['Z axis (' str_unit ')']);
-   
-elseif ny==1
-   if flag_emlast
-      sid=pcolor(flipud(permute(squeeze(x),[2 1])), ...
-                 flipud(permute(squeeze(z),[2 1])), ...
-                 flipud(permute(squeeze(v),[2 1])));
-   else
-      sid=pcolor(permute(squeeze(x),[2 1]), ...
-                 permute(squeeze(z),[2 1]), ...
-                 permute(squeeze(v),[2 1]));
-   end
-   xlabel(['X axis (' str_unit ')']);
-   ylabel(['Z axis (' str_unit ')']);
-   
+if flag_emlast
+    sid=surf(squeeze(permute(x,[2 1 3])), ...
+        squeeze(permute(y,[2 1 3])), ...
+        squeeze(permute(z,[2 1 3])), ...
+        squeeze(permute(v,[2 1 3])));
 else
-   if flag_emlast
-      sid=pcolor(flipud(permute(squeeze(x),[2 1])), ...
-                 flipud(permute(squeeze(y),[2 1])), ...
-                 flipud(permute(squeeze(v),[2 1])));
-   else
-      sid=pcolor(permute(squeeze(x),[2 1]), ...
-                 permute(squeeze(y),[2 1]), ...
-                 permute(squeeze(v),[2 1]));
-   end
-   xlabel(['X axis (' str_unit ')']);
-   ylabel(['Y axis (' str_unit ')']);
+    sid=surf(flipdim(squeeze(permute(x,[2 1 3])),3), ...
+        flipdim(squeeze(permute(y,[2 1 3])),3), ...
+        flipdim(squeeze(permute(z,[2 1 3])),3), ...
+        flipdim(squeeze(permute(v,[2 1 3])),3));
 end
+
+xlabel(['X axis (' str_unit ')']);
+ylabel(['Y axis (' str_unit ')']);
+zlabel(['Z axis (' str_unit ')']);
 
 set(gca,'layer','top');
 set(gcf,'color','white','renderer','painters');
