@@ -6,7 +6,6 @@
 #include <cfloat>
 #include <cassert>
 
-
 #define EPS 1e-10
 
 struct Point3{
@@ -34,22 +33,20 @@ bool PointInTri(Point3 P, Point3 P0, Point3 P1, Point3 P2);
 double Volume6(Point3 A, Point3 B, Point3 C, Point3 D);
 /* 
  * If the number of points is 3, calculate the normal directly;
- * if the number of points > 3, calculate the least squares plane.
+ * if the number of points > 3, just use first two points.
 */
 struct Face {
     std::vector<Point3> v;
-    // jlq: TODO: the least squares plane.
     Vector3 normal() const { 
         assert(v.size() > 2);
-    //    Vector3 dir1 = v[1] - v[0];
-    //    Vector3 dir2 = v[2] - v[0];
-    // TODO: no normalization, needed?
-        return Cross(v[1]-v[0], v[2]-v[0]);
+        Vector3 n = Cross(v[1]-v[0], v[2]-v[0]);
+        /* Normalized the normal vector */
+        double d = Length(n);
+        n = n/d;
+        return n;
     }
-
-//    int cansee(Point3 *P, int i) const{
-//        return Dot(P[i]-P[v[0]], normal(P)) > 0 ? 1:0;
-//    }
+    Face() = default;
+     ~Face() = default;
 };
 
 struct Mesh3 {
@@ -64,6 +61,7 @@ struct Mesh3 {
         this->v[6] = G;
         this->v[7] = H;
     }
+    ~Mesh3();
 };
 
 bool isPointInPolyhedron(const Point3 &p, const std::vector<Face> &fs);
@@ -75,7 +73,7 @@ bool isPointInHexahedron(float px, float py, float pz,
                          float *vx, float *vy, float *vz);
 #ifdef __cplusplus
 }
-#endif
+#endif /* extern C */
 
 
 #endif /*media_geometry*/

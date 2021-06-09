@@ -65,7 +65,7 @@ Vector3 Cross(Vector3 A, Vector3 B) {
 	return Vector3(A.y*B.z - A.z*B.y, A.z*B.x - A.x*B.z, A.x*B.y - A.y*B.x);
 }
 
-double Area2 (Point3 A, Point3 B, Point3 C) {
+double Area2(Point3 A, Point3 B, Point3 C) {
 	return Length(Cross(B-A, C-A));
 }
 
@@ -81,15 +81,19 @@ double Volume6(Point3 A, Point3 B, Point3 C, Point3 D) {
 }
 
 
-// check whether the point is in the polyhedron
+/* 
+ * Check whether the point is in the polyhedron.
+ * Note: The hexahedron must be convex!
+ */
 bool isPointInPolyhedron(const Point3 &p, const std::vector<Face> &fs) {
 	for (Face const &f:fs) {
 		Vector3 p2f = f.v[0]-p;
-//		Vector3 A = f.normal();
+		Vector3 A = f.normal();
 		double sign = Dot(p2f, f.normal());
+		sign /= Length(p2f); // normalization, for stability
 
 		constexpr double bound = -1e-15;
-		if(sign < bound) return false;
+		if(sign < 0.0) return false;
 	}
 	return true;
 }
@@ -104,20 +108,36 @@ bool isPointInPolyhedron(const Point3 &p, const std::vector<Face> &fs) {
  *            |/   |/
  *            1----3
  *
- * Note: The hexahedron must be convex!
  *
  */
 bool isPointInHexahedron(float px, float py, float pz,
                          float *vx, float *vy, float *vz) 
 {
+
 	Point3 P(px, py, pz); 
+
+	/* 
+	 * Just for cgfd3D, in which the grid mesh maybe not a hexahedron,
+	 *  cut one "plane" into two faces. 
+	 */
 	std::vector<Face> hexa{
-		Face{ {Point3{vx[0], vy[0], vz[0]}, Point3{vx[4], vy[4], vz[4]}, Point3{vx[6], vy[6], vz[6]}} }, // back
+		Face{ {Point3{vx[0], vy[0], vz[0]}, Point3{vx[4], vy[4], vz[4]}, Point3{vx[6], vy[6], vz[6]}} }, 
+		Face{ {Point3{vx[6], vy[6], vz[6]}, Point3{vx[2], vy[2], vz[2]}, Point3{vx[0], vy[0], vz[0]}} }, // back
+
+		Face{ {Point3{vx[7], vy[7], vz[7]}, Point3{vx[5], vy[5], vz[5]}, Point3{vx[1], vy[1], vz[1]}} },
 		Face{ {Point3{vx[1], vy[1], vz[1]}, Point3{vx[3], vy[3], vz[3]}, Point3{vx[7], vy[7], vz[7]}} }, // front
-		Face{ {Point3{vx[5], vy[5], vz[5]}, Point3{vx[4], vy[4], vz[4]}, Point3{vx[0], vy[0], vz[0]}} }, // left
-		Face{ {Point3{vx[6], vy[6], vz[6]}, Point3{vx[7], vy[7], vz[7]}, Point3{vx[3], vy[3], vz[3]}} }, // right
-		Face{ {Point3{vx[4], vy[4], vz[4]}, Point3{vx[5], vy[5], vz[5]}, Point3{vx[7], vy[7], vz[7]}} }, // top
-		Face{ {Point3{vx[0], vy[0], vz[0]}, Point3{vx[2], vy[2], vz[2]}, Point3{vx[3], vy[3], vz[3]}} }, // bottom
+
+		Face{ {Point3{vx[5], vy[5], vz[5]}, Point3{vx[4], vy[4], vz[4]}, Point3{vx[0], vy[0], vz[0]}} }, 
+		Face{ {Point3{vx[0], vy[0], vz[0]}, Point3{vx[1], vy[1], vz[1]}, Point3{vx[5], vy[5], vz[5]}} }, // left
+
+		Face{ {Point3{vx[2], vy[2], vz[2]}, Point3{vx[6], vy[6], vz[6]}, Point3{vx[7], vy[7], vz[7]}} }, 
+		Face{ {Point3{vx[7], vy[7], vz[7]}, Point3{vx[3], vy[3], vz[3]}, Point3{vx[2], vy[2], vz[2]}} }, // right
+
+		Face{ {Point3{vx[4], vy[4], vz[4]}, Point3{vx[5], vy[5], vz[5]}, Point3{vx[7], vy[7], vz[7]}} }, 
+		Face{ {Point3{vx[7], vy[7], vz[7]}, Point3{vx[6], vy[6], vz[6]}, Point3{vx[4], vy[4], vz[4]}} }, // top
+
+		Face{ {Point3{vx[0], vy[0], vz[0]}, Point3{vx[2], vy[2], vz[2]}, Point3{vx[3], vy[3], vz[3]}} }, 
+		Face{ {Point3{vx[3], vy[3], vz[3]}, Point3{vx[1], vy[1], vz[1]}, Point3{vx[0], vy[0], vz[0]}} }, // bottom
 	};
 
 

@@ -15,9 +15,9 @@ int main()
      *            |/   |/
      *            1----3
      */
-    float x0 = 0.0, dx = 1.0;
+    float x0 = 0.0, dx = 2.0;
     float y0 = 0.0, dy = 1.0;
-    float z0 = 0.0, dz = 1.0;
+    float z0 = 0.0, dz = 10.0;
 
     float vx[8], vy[8], vz[8];
 
@@ -37,10 +37,10 @@ int main()
 //    }
 
 // USAGE !!
-    if (isPointInHexahedron(0.5,0.5,0.5, vx, vy, vz) == false) 
-        printf("\nOutside\n");
-    else 
+    if ( isPointInHexahedron(2.0,0.5,5, vx, vy, vz) ) 
         printf("\nInside\n");
+    else 
+        printf("\nOutside\n");
 
     return 0;
 }
