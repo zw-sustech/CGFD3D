@@ -13,14 +13,14 @@ output_dir='./project/output';
 
 % which snapshot to plot
 id=1;
-subs=[1,1,45];
-subc=[-1,-1,1];
+subs=[1,1,50];      % start from index '1'
+subc=[-1,-1,1];     % '-1' to plot all points in this dimension
 subt=[1,1,1];
 
 % variable and time to plot
 varnm='Vz';
 ns=1;
-ne=300;
+ne=500;
 nt=50;
 
 % figure control parameters
@@ -35,7 +35,7 @@ taut=0.5;
 
 
 % load snapshot data
-snapinfo=locate_snap(parfnm,id,'start',subs,'count',subc,'stride',subt,'outdir',output_dir);
+snapinfo=locate_snap(parfnm,id,'start',subs,'count',subc,'stride',subt,'snapdir',output_dir);
 % get coordinate data
 [x,y,z]=gather_coord(snapinfo,'coorddir',output_dir);
 nx=size(x,1);
@@ -61,7 +61,7 @@ set(gcf,'PaperPosition',[0 0 800 800]);
 % snapshot show
 for nlayer=ns:nt:ne
     
-    [v,t]=gather_snap(snapinfo,nlayer,varnm,'outdir',output_dir);
+    [v,t]=gather_snap(snapinfo,nlayer,varnm,'snapdir',output_dir);
     
     disp([ '  draw ' num2str(nlayer) 'th time step (t=' num2str(t) ')']);
     
@@ -80,7 +80,6 @@ for nlayer=ns:nt:ne
         
     elseif ny==1
         if flag_emlast
-            %v(:,:,1)=0; v(:,:,end)=0;
             sid=pcolor((flipud(permute(squeeze(x),[2 1]))), ...
                 (flipud(permute(squeeze(z),[2 1]))), ...
                 (flipud(permute(squeeze(v),[2 1]))));
@@ -91,7 +90,6 @@ for nlayer=ns:nt:ne
         end
         xlabel(['X axis (' str_unit ')']);
         ylabel(['Z axis (' str_unit ')']);
-        %set(gca,'ydir','reverse');
         
     else
         if flag_emlast
@@ -106,22 +104,29 @@ for nlayer=ns:nt:ne
         xlabel(['X axis (' str_unit ')']);
         ylabel(['Y axis (' str_unit ')']);
     end
+    
     set(gca,'layer','top');
+    set(gcf,'color','white','renderer','painters');
 
-    %axis image
-    %shading interp;
+    % axis image
+    % shading
+    % shading interp;
     shading flat;
+    % colorbar range/scale
     if exist('scl_caxis')
         caxis(scl_caxis);
     end
+    % axis daspect
     if exist('scl_daspect')
         daspect(scl_daspect);
     end
+    % colormap and colorbar
     if exist('clrmp')
         colormap(clrmp);
     end
     colorbar('vert');
     
+    %title
     titlestr=['Snapshot of ' varnm ' at ' ...
               '{\fontsize{12}{\bf ' ...
               num2str((t),'%7.3f') ...
@@ -131,22 +136,17 @@ for nlayer=ns:nt:ne
     drawnow;
     pause(taut);
     
+    % save and print figure
     if flag_print==1
-        fnm_out=[varnm '_ndim',num2str(nlayer,'%5.5i')];
-%         set(gca,'FontName','FixedWidth');
+        width= 500;
+        height=500;
+        set(gcf,'paperpositionmode','manual');
+        set(gcf,'paperunits','points');
+        set(gcf,'papersize',[width,height]);
+        set(gcf,'paperposition',[0,0,width,height]);
+        fnm_out=[varnm '_ndim_',num2str(nlayer,'%5.5i')];
         print(gcf,[fnm_out '.png'],'-dpng');
     end
     
 end
-
-
-
-
-
-
-
-
-
-
-
 

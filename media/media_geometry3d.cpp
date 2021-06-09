@@ -50,7 +50,8 @@ double DistanceToPlane(const Point3 &p, const Point3 &p0, const Vector3 &n) {
 	return fabs(Dot(p-p0, n));
 }
 
-Point3 GetplaneProjection(const Point3 &p, const Point3 &p0, const Vector3 &n) {
+
+Point3 GetPlaneProjection(const Point3 &p, const Point3 &p0, const Vector3 &n) {
 	return p - n*Dot(p-p0, n);
 }
 
@@ -80,6 +81,46 @@ double Volume6(Point3 A, Point3 B, Point3 C, Point3 D) {
 }
 
 
+// check whether the point is in the polyhedron
+bool isPointInPolyhedron(const Point3 &p, const std::vector<Face> &fs) {
+	for (Face const &f:fs) {
+		Vector3 p2f = f.v[0]-p;
+//		Vector3 A = f.normal();
+		double sign = Dot(p2f, f.normal());
+
+		constexpr double bound = -1e-15;
+		if(sign < bound) return false;
+	}
+	return true;
+}
+
+/*
+ * Input: vx, vy, vz are the EIGHT vertexes of the hexahedron 
+ *
+ *    ↑ +z       4----6
+ *    |         /|   /|
+ *             / 0--/-2
+ *            5----7 /
+ *            |/   |/
+ *            1----3
+ *
+ * Note: The hexahedron must be convex!
+ *
+ */
+bool isPointInHexahedron(float px, float py, float pz,
+                         float *vx, float *vy, float *vz) 
+{
+	Point3 P(px, py, pz); 
+	std::vector<Face> hexa{
+		Face{ {Point3{vx[0], vy[0], vz[0]}, Point3{vx[4], vy[4], vz[4]}, Point3{vx[6], vy[6], vz[6]}} }, // back
+		Face{ {Point3{vx[1], vy[1], vz[1]}, Point3{vx[3], vy[3], vz[3]}, Point3{vx[7], vy[7], vz[7]}} }, // front
+		Face{ {Point3{vx[5], vy[5], vz[5]}, Point3{vx[4], vy[4], vz[4]}, Point3{vx[0], vy[0], vz[0]}} }, // left
+		Face{ {Point3{vx[6], vy[6], vz[6]}, Point3{vx[7], vy[7], vz[7]}, Point3{vx[3], vy[3], vz[3]}} }, // right
+		Face{ {Point3{vx[4], vy[4], vz[4]}, Point3{vx[5], vy[5], vz[5]}, Point3{vx[7], vy[7], vz[7]}} }, // top
+		Face{ {Point3{vx[0], vy[0], vz[0]}, Point3{vx[2], vy[2], vz[2]}, Point3{vx[3], vy[3], vz[3]}} }, // bottom
+	};
 
 
 
+    return isPointInPolyhedron(P, hexa);
+}

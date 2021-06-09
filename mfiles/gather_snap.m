@@ -12,16 +12,16 @@ n=1;
 while n<=nargs
     if numel(varargin{n})==1 | ~isnumeric(varargin{n})
         switch varargin{n}
-            case 'outdir'
-                output_dir=varargin{n+1}; n=n+1;
+            case 'snapdir'
+                snap_dir=varargin{n+1}; n=n+1;
         end
     end   
     n=n+1;
 end
 
 % check dir exists
-if ~ exist(output_dir,'dir')
-    error([mfilename ': directory ' output_dir ' does not exist']);
+if ~ exist(snap_dir,'dir')
+    error([mfilename ': directory ' snap_dir ' does not exist']);
 end
 
 % load
@@ -34,7 +34,7 @@ for n=1:nthd
     subs=snapinfo(n).subs;
     subc=snapinfo(n).subc;
     subt=snapinfo(n).subt;
-    fnm_snap=[output_dir,'/',snapinfo(n).fnmprefix,'_px',num2str(n_i),...
+    fnm_snap=[snap_dir,'/',snapinfo(n).fnmprefix,'_px',num2str(n_i),...
               '_py',num2str(n_j),'.nc'];
     if ~ exist(fnm_snap)
        error([mfilename ': file ',fnm_snap, ' does not exist']);

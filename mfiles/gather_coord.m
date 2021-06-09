@@ -1,4 +1,4 @@
-function [x,y,z] = gather_coord(snapinfo,varargin)
+function [x,y,z] = gather_coord(coordinfo,varargin)
 
 % gather coordinates of the snapshot
 % Author:   Yuanhang Huo
@@ -13,7 +13,7 @@ while n<=nargs
     if numel(varargin{n})==1 | ~isnumeric(varargin{n})
         switch varargin{n}
             case 'coorddir'
-                output_dir=varargin{n+1}; n=n+1;
+                coord_dir=varargin{n+1}; n=n+1;
         end
     end
     
@@ -22,22 +22,22 @@ while n<=nargs
 end
 
 % check
-if ~ exist(output_dir,'dir')
-    error([mfilename ': directory ' output_dir ' does not exist']);
+if ~ exist(coord_dir,'dir')
+    error([mfilename ': directory ' coord_dir ' does not exist']);
 end
 
 % load
 coordprefix='coord';
-nthd=length(snapinfo);
+nthd=length(coordinfo);
 for n=1:nthd
     
-    n_i=snapinfo(n).thisid(1); n_j=snapinfo(n).thisid(2);
-    i1=snapinfo(n).indxs(1); j1=snapinfo(n).indxs(2); k1=snapinfo(n).indxs(3);
-    i2=snapinfo(n).indxe(1); j2=snapinfo(n).indxe(2); k2=snapinfo(n).indxe(3);
-    subs=snapinfo(n).wsubs;
-    subc=snapinfo(n).wsubc;
-    subt=snapinfo(n).wsubt;
-    fnm_coord=[output_dir,'/',coordprefix,'_px',num2str(n_i),'_py',num2str(n_j),'.nc'];
+    n_i=coordinfo(n).thisid(1); n_j=coordinfo(n).thisid(2);
+    i1=coordinfo(n).indxs(1); j1=coordinfo(n).indxs(2); k1=coordinfo(n).indxs(3);
+    i2=coordinfo(n).indxe(1); j2=coordinfo(n).indxe(2); k2=coordinfo(n).indxe(3);
+    subs=coordinfo(n).wsubs;
+    subc=coordinfo(n).wsubc;
+    subt=coordinfo(n).wsubt;
+    fnm_coord=[coord_dir,'/',coordprefix,'_px',num2str(n_i),'_py',num2str(n_j),'.nc'];
     
     if ~ exist(fnm_coord,'file')
        error([mfilename ': file ' fnm_coord 'does not exist']);

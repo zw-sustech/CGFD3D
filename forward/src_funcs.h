@@ -1,6 +1,8 @@
 #ifndef SRC_FUNCS_H
 #define SRC_FUNCS_H
 
+#include <mpi.h>
+
 #ifndef PI
 #define PI 3.1415926535898
 #endif
@@ -21,27 +23,6 @@
 //  with respect to the start pointer of this source point
 #define M_SRC_IND(icmp,it,istage,nt,num_stage) \
   ((icmp) * (nt) * (num_stage) + (it) * (num_stage) + (istage))
-
-struct CubicPt 
-{
-float coordx; 
-float coordy; 
-float coordz;
-
-int xindx; 
-int yindx;
-int zindx;
-} ;
-
-struct SrcIndx
- {
-  int si; 
-  int sj; 
-  int sk;
-  float sx_inc;
-  float sy_inc;
-  float sz_inc;
- };
 
 void
 src_gen_single_point_gauss(size_t siz_line,
@@ -64,6 +45,9 @@ src_gen_single_point_gauss(size_t siz_line,
                            int   nk2,
                            int   npoint_half_ext,
                            int   npoint_ghosts,
+                           float *x3d,
+                           float *y3d,
+                           float *z3d,
                            int   *source_gridindex,
                            float *source_coords,
                            float *force_vector,
@@ -72,6 +56,8 @@ src_gen_single_point_gauss(size_t siz_line,
                            float *wavelet_coefs,
                            float wavelet_tstart,
                            float wavelet_tend,
+                           MPI_Comm comm, 
+                           int myid,
                            // following output
                            int  *num_of_force, // inout: if force source, if in this thread
                            int **restrict p_force_info,
@@ -145,17 +131,44 @@ src_get_stage_stf(
 void 
 angle2moment(float strike, float dip, float rake, float* source_moment_tensor);
 
-struct CubicPt *
-LocaSrc(float sx, float sy, float sz,
+int
+src_coord2index(float sx, float sy, float sz,
+        int nx, int ny, int nz,
         int ni1, int ni2, int nj1, int nj2, int nk1, int nk2,
-        size_t siz_line, size_t siz_slice, size_t siz_volume, 
-        float *restrict c3d,
-        size_t *restrict c3d_pos,
-        struct CubicPt *Pt);
+        float *restrict x3d,
+        float *restrict y3d,
+        float *restrict z3d,
+        float *restrict wrk3d,
+        int *si, int *sj, int *sk,
+        float *sx_inc, float *sy_inc, float *sz_inc);
 
-struct SrcIndx 
-CoorMap(float sx, float sy, float sz, 
-        struct CubicPt  *Pt, 
-        struct SrcIndx SrcInfro);
+int
+src_cart2curv_rdinterp(float sx, float sy, float sz, 
+        int num_points,
+        float *points_x, // x coord of all points
+        float *points_y,
+        float *points_z,
+        float *points_i, // curv coord of all points
+        float *points_j,
+        float *points_k,
+        float *si_curv, // interped curv coord
+        float *sj_curv,
+        float *sk_curv);
+
+int
+src_cart2curv_sample(float sx, float sy, float sz, 
+        int num_points,
+        float *points_x, // x coord of all points
+        float *points_y,
+        float *points_z,
+        float *points_i, // curv coord of all points
+        float *points_j,
+        float *points_k,
+        int    nx_sample,
+        int    ny_sample,
+        int    nz_sample,
+        float *si_curv, // interped curv coord
+        float *sj_curv,
+        float *sk_curv);
 
 #endif
