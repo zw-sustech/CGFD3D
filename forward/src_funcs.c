@@ -1128,7 +1128,7 @@ src_coord2index(float sx, float sy, float sz,
         float DistInt = sqrtf(  (sx - x) * (sx - x)
                               + (sy - y) * (sy - y)
                               + (sz - z) * (sz - z) );
-        wrk3d[iptr] =  sqrtf(DistInt);
+        wrk3d[iptr] =  DistInt;
 
         // replace closest point
         if (min_dist > DistInt)
@@ -1219,10 +1219,17 @@ src_coord2index(float sx, float sy, float sz,
         if (isPointInHexahedron(sx,sy,sz,points_x,points_y,points_z) == true)
         {
           float si_curv, sj_curv, sk_curv;
-          src_cart2curv(sx,sy,sz,
+          //src_cart2curv_rdinterp(sx,sy,sz,
+          //              8,
+          //              points_x,points_y,points_z,
+          //              points_i,points_j,points_k,
+          //              &si_curv, &sj_curv, &sk_curv);
+
+          src_cart2curv_sample(sx,sy,sz,
                         8,
                         points_x,points_y,points_z,
                         points_i,points_j,points_k,
+                        100,100,100,
                         &si_curv, &sj_curv, &sk_curv);
 
           // convert to return values
@@ -1239,6 +1246,15 @@ src_coord2index(float sx, float sy, float sz,
     }
   }
 
+  // if not in any cube due to bug, set default value
+  //    if everything is right, should be return 10 line before
+  *si = min_dist_i;
+  *sj = min_dist_j;
+  *sk = min_dist_k;
+  *sx_inc = 0.0;
+  *sy_inc = 0.0;
+  *sz_inc = 0.0;
+
   return is_here;
 }
 
@@ -1247,7 +1263,7 @@ src_coord2index(float sx, float sy, float sz,
  */
 
 int
-src_cart2curv(float sx, float sy, float sz, 
+src_cart2curv_rdinterp(float sx, float sy, float sz, 
         int num_points,
         float *points_x, // x coord of all points
         float *points_y,
@@ -1307,5 +1323,89 @@ src_cart2curv(float sx, float sy, float sz,
  }
 
  return 0;
+}
+
+/* 
+ * find curv coord using sampling
+ */
+
+int
+src_cart2curv_sample(float sx, float sy, float sz, 
+        int num_points,
+        float *points_x, // x coord of all points
+        float *points_y,
+        float *points_z,
+        float *points_i, // curv coord of all points
+        float *points_j,
+        float *points_k,
+        int    nx_sample,
+        int    ny_sample,
+        int    nz_sample,
+        float *si_curv, // interped curv coord
+        float *sj_curv,
+        float *sk_curv)
+{
+  float Lx[2], Ly[2], Lz[2];
+
+  // init closest point
+  float min_dist = sqrtf(  (sx - points_x[0]) * (sx - points_x[0])
+                         + (sy - points_y[0]) * (sy - points_y[0])
+                         + (sz - points_z[0]) * (sz - points_z[0]) );
+  int min_dist_i = 0 ;
+  int min_dist_j = 0 ;
+  int min_dist_k = 0 ;
+
+  // linear interp for all sample
+  for (int n3=0; n3<nz_sample+1; n3++)
+  {
+    Lz[1] = (float)(n3) / (float)(nz_sample);
+    Lz[0] = 1.0 - Lz[1];
+    for (int n2=0; n2<ny_sample+1; n2++)
+    {
+      Ly[1] = (float)(n2) / (float)(ny_sample);
+      Ly[0] = 1.0 - Ly[1];
+      for (int n1=0; n1<nx_sample+1; n1++)
+      {
+        Lx[1] = (float)(n1) / (float)(nx_sample);
+        Lx[0] = 1.0 - Lx[1];
+
+        // interp
+        float x_pt=0;
+        float y_pt=0;
+        float z_pt=0;
+        for (int kk=0; kk<2; kk++) {
+          for (int jj=0; jj<2; jj++) {
+            for (int ii=0; ii<2; ii++)
+            {
+              int iptr_cube = ii + jj * 2 + kk * 4;
+              x_pt += Lx[ii]*Ly[jj]*Lz[kk] * points_x[iptr_cube];
+              y_pt += Lx[ii]*Ly[jj]*Lz[kk] * points_y[iptr_cube];
+              z_pt += Lx[ii]*Ly[jj]*Lz[kk] * points_z[iptr_cube];
+            }
+          }
+        }
+
+        // find min dist
+        float DistInt = sqrtf(  (sx - x_pt) * (sx - x_pt)
+                              + (sy - y_pt) * (sy - y_pt)
+                              + (sz - z_pt) * (sz - z_pt) );
+
+        // replace closest point
+        if (min_dist > DistInt)
+        {
+          min_dist = DistInt;
+          min_dist_i = n1;
+          min_dist_j = n2;
+          min_dist_k = n3;
+        }
+      } // n1
+    } // n2
+  } // n3
+
+  *si_curv = points_i[0] + (float)min_dist_i / (float)nx_sample;
+  *sj_curv = points_j[0] + (float)min_dist_j / (float)ny_sample;
+  *sk_curv = points_k[0] + (float)min_dist_k / (float)nz_sample;
+
+  return 0;
 }
 

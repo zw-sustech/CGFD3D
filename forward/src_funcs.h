@@ -143,7 +143,7 @@ src_coord2index(float sx, float sy, float sz,
         float *sx_inc, float *sy_inc, float *sz_inc);
 
 int
-src_cart2curv(float sx, float sy, float sz, 
+src_cart2curv_rdinterp(float sx, float sy, float sz, 
         int num_points,
         float *points_x, // x coord of all points
         float *points_y,
@@ -151,6 +151,22 @@ src_cart2curv(float sx, float sy, float sz,
         float *points_i, // curv coord of all points
         float *points_j,
         float *points_k,
+        float *si_curv, // interped curv coord
+        float *sj_curv,
+        float *sk_curv);
+
+int
+src_cart2curv_sample(float sx, float sy, float sz, 
+        int num_points,
+        float *points_x, // x coord of all points
+        float *points_y,
+        float *points_z,
+        float *points_i, // curv coord of all points
+        float *points_j,
+        float *points_k,
+        int    nx_sample,
+        int    ny_sample,
+        int    nz_sample,
         float *si_curv, // interped curv coord
         float *sj_curv,
         float *sk_curv);
