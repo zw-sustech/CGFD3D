@@ -427,8 +427,9 @@ int main(int argc, char** argv)
     if (myid==0) fprintf(stdout,"read source file ...\n"); 
     if (myid==0) fprintf(stdout,"   not implemented yet\n");
 
-    src_read_locat_valsrc(par->source_input_file,
-                          blk->siz_line,
+ 
+    src_read_locat_anasrc(par->source_input_file,
+             			        blk->siz_line,
                           blk->siz_slice,
                           t0,
                           dt,

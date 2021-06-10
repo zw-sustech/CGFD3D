@@ -25,10 +25,11 @@ MEDIA_DIR=${PROJDIR}/output
 SOURCE_DIR=${PROJDIR}/output
 OUTPUT_DIR=${PROJDIR}/output
 #-- input file
-TEST_INPUT_DIR=/export/home/lihl/new-CGFD3D-elastic/test
+TEST_INPUT_DIR=/export/home/lihl/CGFD3D-elastic/test
 IN_STATION_LIST_FILE=${TEST_INPUT_DIR}/test_station.sta
 IN_MEDIA_3LAY_FILE=${TEST_INPUT_DIR}/test_hill3d.md3lay
-IN_SOURCE_FILE=${TEST_INPUT_DIR}/test_source.valsrc
+IN_SOURCE_FILE=${TEST_INPUT_DIR}/test_source.anasrc
+
 #-- create dir
 mkdir -p $PROJDIR
 mkdir -p $OUTPUT_DIR

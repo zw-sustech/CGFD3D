@@ -72,6 +72,7 @@ src_gen_single_point_gauss(size_t siz_line,
                            int verbose);
 
 
+
 void
 src_read_locat_valsrc(char *pfilepath,
                       size_t siz_line,
@@ -151,6 +152,7 @@ src_read_locat_anasrc(char *pfilepath,
                       int    **restrict p_moment_ext_indx,
                       float  **restrict p_moment_ext_coef,
                       int verbose);
+
 
 float 
 fun_ricker(float t, float fc, float t0);
