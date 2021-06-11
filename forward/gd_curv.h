@@ -16,7 +16,7 @@
 #define GD_CURV_SEQ_ZTY 8
 #define GD_CURV_SEQ_ZTZ 9
 
-#define INDEX( i, j, k, ni, nj ) ( ( i ) + ( j ) * ( ni ) + ( k ) * ( ni ) * ( nj ) )
+#define M_gd_INDEX( i, j, k, ni, nj ) ( ( i ) + ( j ) * ( ni ) + ( k ) * ( ni ) * ( nj ) )
 
 void 
 gd_curv_init_c3d(
