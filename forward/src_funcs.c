@@ -400,18 +400,15 @@ src_read_locate_valsrc(char *pfilepath,
   int nt_in;       // numbers_time_steps from inputfile
   float dt_in;     // time_step from inputfile
   // read sample source value from inputfile
-  if ((fp = fopen(pfilepath, "r"))==NULL)
-  {
-    fprintf(stdout,"fail to open");
-  }
+  if ((fp = fopen(pfilepath, "r"))==NULL) fprintf(stdout,"fail to open");
 
   fgets(str,500,fp);
   sscanf(str,"%s",event_name);
 
   fgets(str,500,fp);
   sscanf(str,"%d %d",&num_force,&num_moment);
-
   fgets(str,500,fp);
+
   sscanf(str,"%f %d",&dt_in,&nt_in);
   *p_event_name = event_name;
 
@@ -449,145 +446,160 @@ src_read_locate_valsrc(char *pfilepath,
   int nz = (nk2-nk1+1)+2*npoint_ghosts;  
   // workspace 3d var for distance calculation
   float *wrk3d = (float *) fdlib_mem_calloc_1d_float(nx*ny*nz,0.0, "src_read_locat_valsrc");
-  // judge force in this thread 
+
+  int *global_force_index = NULL;
   int nforce = 0;
-  int *index_force = (int *)malloc(num_force*sizeof(int));
-  int *force_local_index = (int *)malloc(3*num_force*sizeof(int));
-  float *force_coords_inc = (float *)malloc(3*num_force*sizeof(float));
+  int *index_force = NULL;
+  int *force_local_index = NULL;
+  float *force_coords_inc = NULL;
+  if(num_force>0)
+  {
+    // judge force in this thread 
+    global_force_index = (int *)malloc(3 * num_force * sizeof(int));
+    index_force = (int *)malloc(num_force * sizeof(int));
+    force_local_index = (int *)malloc(3 * num_force*sizeof(int));
+    force_coords_inc = (float *)malloc(3 * num_force*sizeof(float));
+    for (int i=0; i<num_force; i++)
+    {
+      fprintf(stdout,"locate force by coord  ...\n"); 
+      // default local index and relative shift to -1 and 0
+      int si=-1; int sj=-1; int sk=-1;
+      float sx_inc = 0.0; float sy_inc = 0.0; float sz_inc = 0.0;
+      int sgpi=-1; int sgpj=-1; int sgpk=-1;
+      // if located in this thread
+      int is_here = src_coord2index(force_coords[3*i+0],force_coords[3*i+1],force_coords[3*i+2],
+          nx, ny, nz, 
+          ni1,ni2,nj1,nj2,nk1,nk2,
+          x3d, y3d, z3d, wrk3d,
+          &si, &sj, &sk,
+          &sx_inc, &sy_inc, &sz_inc);
+      if ( is_here == 1)
+      {
+        // conver to global index
+        sgpi = si - npoint_ghosts + glob_phys_ix1;
+        sgpj = sj - npoint_ghosts + glob_phys_iy1;
+        sgpk = sk - npoint_ghosts + glob_phys_iz1;
+        fprintf(stdout," -- located to local index = %d %d %d\n", si,sj,sk);
+        fprintf(stdout," -- located to global index = %d %d %d\n", sgpi,sgpj,sgpk);
+        fprintf(stdout," --  with shift = %f %f %f\n", sx_inc,sy_inc,sz_inc);
+        force_local_index[3*i+0] = si;
+        force_local_index[3*i+1] = sj; 
+        force_local_index[3*i+2] = sk;
+        force_coords_inc[3*i+0] = sx_inc;
+        force_coords_inc[3*i+1] = sy_inc;
+        force_coords_inc[3*i+2] = sz_inc;
+        index_force[nforce] = i;
+        nforce++;
+      } else {
+        fprintf(stdout," this force not in this thread %d\n", myid);
+        force_local_index[3*i+0] = -1;
+        force_local_index[3*i+1] = -1; 
+        force_local_index[3*i+2] = -1;
+        force_coords_inc[3*i+0] = 0.0;
+        force_coords_inc[3*i+1] = 0.0;
+        force_coords_inc[3*i+2] = 0.0;
+      }
+      global_force_index[3*i+0] = sgpi;
+      global_force_index[3*i+1] = sgpj;
+      global_force_index[3*i+2] = sgpk;
+    }
+  }
+
+  int *global_moment_index = NULL;
+  int nmoment = 0;
+  int *index_moment = NULL;
+  int *moment_local_index = NULL;
+  float *moment_coords_inc = NULL;
+  if(num_moment>0)
+  {
+    // judge moment in this thread
+    global_moment_index = (int *)malloc(3 * num_moment*sizeof(int));
+    index_moment = (int *)malloc(num_moment*sizeof(int));
+    moment_local_index = (int *)malloc(3 * num_moment*sizeof(int));
+    moment_coords_inc = (float *)malloc(3 * num_moment*sizeof(float));
+    for (int i =0; i<num_moment; i++)
+    {
+      fprintf(stdout,"locate moment by coord  ...\n"); 
+      // default local index and relative shift to -1 and 0
+      int si=-1; int sj=-1; int sk=-1;
+      float sx_inc = 0.0; float sy_inc = 0.0; float sz_inc = 0.0;
+      int sgpi=-1; int sgpj=-1; int sgpk=-1;
+      // if located in this thread
+      int is_here = src_coord2index(moment_coords[3*i+0],moment_coords[3*i+1],moment_coords[3*i+2],
+          nx, ny, nz, 
+          ni1,ni2,nj1,nj2,nk1,nk2,
+          x3d, y3d, z3d, wrk3d,
+          &si, &sj, &sk,
+          &sx_inc, &sy_inc, &sz_inc);
+      if ( is_here == 1)
+      {
+        // conver to global index
+        sgpi = si - npoint_ghosts + glob_phys_ix1;
+        sgpj = sj - npoint_ghosts + glob_phys_iy1;
+        sgpk = sk - npoint_ghosts + glob_phys_iz1;
+        fprintf(stdout," -- located to local index = %d %d %d\n", si,sj,sk);
+        fprintf(stdout," -- located to global index = %d %d %d\n", sgpi,sgpj,sgpk);
+        fprintf(stdout," --  with shift = %f %f %f\n", sx_inc,sy_inc,sz_inc);
+        moment_local_index[3*i+0] = si;
+        moment_local_index[3*i+1] = sj; 
+        moment_local_index[3*i+2] = sk;
+        moment_coords_inc[3*i+0] = sx_inc;
+        moment_coords_inc[3*i+1] = sy_inc;
+        moment_coords_inc[3*i+2] = sz_inc;
+        index_moment[nmoment] = i;
+        nmoment++;
+      } else {
+        fprintf(stdout," this moment not in this thread %d\n", myid);
+        moment_local_index[3*i+0] = -1;
+        moment_local_index[3*i+1] = -1; 
+        moment_local_index[3*i+2] = -1;
+        moment_coords_inc[3*i+0] = 0.0;
+        moment_coords_inc[3*i+1] = 0.0;
+        moment_coords_inc[3*i+2] = 0.0;
+      }
+      global_moment_index[3*i+0] = sgpi;
+      global_moment_index[3*i+1] = sgpj;
+      global_moment_index[3*i+2] = sgpk;
+    }
+  }
+  // reduce global index and shift values
+  int *recv_global_force_index = (int *)malloc(3 * num_force * sizeof(int));
+  MPI_Allreduce(global_force_index, recv_global_force_index, 3*num_force, MPI_INT, MPI_MAX, comm);
+ 
+  int *recv_global_moment_index = (int *)malloc(3 * num_moment * sizeof(int));
+  MPI_Allreduce(global_moment_index, recv_global_moment_index, 3*num_moment, MPI_INT, MPI_MAX, comm);
+
+  float *recv_force_coords_inc = (float *)malloc(3 * num_force*sizeof(float));
+  MPI_Allreduce(force_coords_inc,recv_force_coords_inc, 3*num_force, MPI_INT, MPI_SUM, comm);
+  
+  float *recv_moment_coords_inc = (float *)malloc(3 * num_moment*sizeof(float));
+  MPI_Allreduce(moment_coords_inc,recv_moment_coords_inc, 3*num_moment, MPI_INT, MPI_SUM, comm);
+
   for (int i=0; i<num_force; i++)
   {
-    fprintf(stdout,"locate force by coord  ...\n"); 
-    // default local index and relative shift to -1 and 0
-    int si=-1; int sj=-1; int sk=-1;
-    float sx_inc = 0.0; float sy_inc = 0.0; float sz_inc = 0.0;
-    int sgpi=-1; int sgpj=-1; int sgpk=-1;
-    // if located in this thread
-    int is_here = src_coord2index(force_coords[3*i+0],force_coords[3*i+1],force_coords[3*i+2],
-        nx, ny, nz, 
-        ni1,ni2,nj1,nj2,nk1,nk2,
-        x3d, y3d, z3d, wrk3d,
-        &si, &sj, &sk,
-        &sx_inc, &sy_inc, &sz_inc);
-    if ( is_here == 1)
-    {
-      // conver to global index
-      sgpi = si - npoint_ghosts + glob_phys_ix1;
-      sgpj = sj - npoint_ghosts + glob_phys_iy1;
-      sgpk = sk - npoint_ghosts + glob_phys_iz1;
-      fprintf(stdout," -- located to local index = %d %d %d\n", si,sj,sk);
-      fprintf(stdout," -- located to global index = %d %d %d\n", sgpi,sgpj,sgpk);
-      fprintf(stdout," --  with shift = %f %f %f\n", sx_inc,sy_inc,sz_inc);
-      force_local_index[3*i+0] = si;
-      force_local_index[3*i+1] = sj; 
-      force_local_index[3*i+2] = sk;
-      force_coords_inc[3*i+0] = sx_inc;
-      force_coords_inc[3*i+1] = sy_inc;
-      force_coords_inc[3*i+2] = sz_inc;
-      index_force[nforce] = i;
-      nforce++;
-    } else {
-      fprintf(stdout," this force not in this thread %d\n", myid);
-      force_local_index[3*i+0] = -1;
-      force_local_index[3*i+1] = -1; 
-      force_local_index[3*i+2] = -1;
-      force_coords_inc[3*i+0] = 0.0;
-      force_coords_inc[3*i+1] = 0.0;
-      force_coords_inc[3*i+2] = 0.0;
-    }
-    // reduce global index and shift values
-    int sendbufi = sgpi;
-    MPI_Allreduce(&sendbufi, &sgpi, 1, MPI_INT, MPI_MAX, comm);
-    sendbufi = sgpj;
-    MPI_Allreduce(&sendbufi, &sgpj, 1, MPI_INT, MPI_MAX, comm);
-    sendbufi = sgpk;
-    MPI_Allreduce(&sendbufi, &sgpk, 1, MPI_INT, MPI_MAX, comm);
-
-    float sendbuf = sx_inc;
-    MPI_Allreduce(&sendbuf, &sx_inc, 1, MPI_INT, MPI_SUM, comm);
-    sendbuf = sy_inc;
-    MPI_Allreduce(&sendbuf, &sy_inc, 1, MPI_INT, MPI_SUM, comm);
-    sendbuf = sz_inc;
-    MPI_Allreduce(&sendbuf, &sz_inc, 1, MPI_INT, MPI_SUM, comm);
-
-    fprintf(stdout," --myid=%d,index=%d %d %d,shift = %f %f %f\n",
-        myid,sgpi,sgpj,sgpk, sx_inc,sy_inc,sz_inc);
+    fprintf(stdout,"force %d --myid=%d,index=%d %d %d,shift = %f %f %f\n",
+       i, myid,recv_global_force_index[3*i+0],recv_global_force_index[3*i+1],recv_global_force_index[3*i+2],
+       recv_force_coords_inc[3*i+0],recv_force_coords_inc[3*i+1],recv_force_coords_inc[3*i+2]);
   }
 
-
-  // judge moment in this thread
-  int nmoment = 0;
-  int *index_moment = (int *)malloc(num_moment*sizeof(int));
-  int *moment_local_index = (int *)malloc(3*num_moment*sizeof(int));
-  float *moment_coords_inc = (float *)malloc(3*num_moment*sizeof(float));
-  for (int i =0; i<num_moment; i++)
+  for (int i=0; i<num_moment; i++)
   {
-    fprintf(stdout,"locate moment by coord  ...\n"); 
-    // default local index and relative shift to -1 and 0
-    int si=-1; int sj=-1; int sk=-1;
-    float sx_inc = 0.0; float sy_inc = 0.0; float sz_inc = 0.0;
-    int sgpi=-1; int sgpj=-1; int sgpk=-1;
-    // if located in this thread
-    int is_here = src_coord2index(moment_coords[3*i+0],moment_coords[3*i+1],moment_coords[3*i+2],
-        nx, ny, nz, 
-        ni1,ni2,nj1,nj2,nk1,nk2,
-        x3d, y3d, z3d, wrk3d,
-        &si, &sj, &sk,
-        &sx_inc, &sy_inc, &sz_inc);
-    if ( is_here == 1)
-    {
-      // conver to global index
-      sgpi = si - npoint_ghosts + glob_phys_ix1;
-      sgpj = sj - npoint_ghosts + glob_phys_iy1;
-      sgpk = sk - npoint_ghosts + glob_phys_iz1;
-      fprintf(stdout," -- located to local index = %d %d %d\n", si,sj,sk);
-      fprintf(stdout," -- located to global index = %d %d %d\n", sgpi,sgpj,sgpk);
-      fprintf(stdout," --  with shift = %f %f %f\n", sx_inc,sy_inc,sz_inc);
-      moment_local_index[3*i+0] = si;
-      moment_local_index[3*i+1] = sj; 
-      moment_local_index[3*i+2] = sk;
-      moment_coords_inc[3*i+0] = sx_inc;
-      moment_coords_inc[3*i+1] = sy_inc;
-      moment_coords_inc[3*i+2] = sz_inc;
-      index_moment[nmoment] = i;
-      nmoment++;
-    } else {
-      fprintf(stdout," this moment not in this thread %d\n", myid);
-      moment_local_index[3*i+0] = -1;
-      moment_local_index[3*i+1] = -1; 
-      moment_local_index[3*i+2] = -1;
-      moment_coords_inc[3*i+0] = 0.0;
-      moment_coords_inc[3*i+1] = 0.0;
-      moment_coords_inc[3*i+2] = 0.0;
-    }
-    // reduce global index and shift values
-    int sendbufi = sgpi;
-    MPI_Allreduce(&sendbufi, &sgpi, 1, MPI_INT, MPI_MAX, comm);
-    sendbufi = sgpj;
-    MPI_Allreduce(&sendbufi, &sgpj, 1, MPI_INT, MPI_MAX, comm);
-    sendbufi = sgpk;
-    MPI_Allreduce(&sendbufi, &sgpk, 1, MPI_INT, MPI_MAX, comm);
-
-    float sendbuf = sx_inc;
-    MPI_Allreduce(&sendbuf, &sx_inc, 1, MPI_INT, MPI_SUM, comm);
-    sendbuf = sy_inc;
-    MPI_Allreduce(&sendbuf, &sy_inc, 1, MPI_INT, MPI_SUM, comm);
-    sendbuf = sz_inc;
-    MPI_Allreduce(&sendbuf, &sz_inc, 1, MPI_INT, MPI_SUM, comm);
-
-    fprintf(stdout," --myid=%d,index=%d %d %d,shift = %f %f %f\n",
-        myid,sgpi,sgpj,sgpk, sx_inc,sy_inc,sz_inc);
+    fprintf(stdout,"moment %d --myid=%d,index=%d %d %d,shift = %f %f %f\n",
+       i,myid,recv_global_moment_index[3*i+0],recv_global_moment_index[3*i+1],recv_global_moment_index[3*i+2],
+       recv_moment_coords_inc[3*i+0],recv_moment_coords_inc[3*i+1],recv_moment_coords_inc[3*i+2]);
   }
-
 
   if(num_force > 0)
   {
     free(force_coords);
     free(force_sur);
+    free(global_force_index);
   }
   if(num_moment > 0)
   {
     free(moment_coords);
     free(moment_sur);
+    free(global_moment_index);
   }
 
   float **force_value = NULL;
@@ -909,44 +921,44 @@ src_read_locate_valsrc(char *pfilepath,
 
 int
 src_read_locate_anasrc(char *pfilepath,
-    size_t siz_line,
-    size_t siz_slice,
-    float t0,
-    float dt,
-    int   num_of_stages,
-    float *rk_stage_time,
-    int   glob_phys_ix1, // gloabl start index along x this thread
-    int   glob_phys_ix2, // gloabl end index along x
-    int   glob_phys_iy1,
-    int   glob_phys_iy2,
-    int   glob_phys_iz1,
-    int   glob_phys_iz2,
-    int   ni1,
-    int   ni2,
-    int   nj1,
-    int   nj2,
-    int   nk1,
-    int   nk2,
-    int   npoint_half_ext,
-    int   npoint_ghosts,
-    float *x3d,
-    float *y3d,
-    float *z3d,
-    MPI_Comm comm,
-    int myid,
-    // following output
-    char **p_event_name,
-    int   *num_of_force, // force in this thread
-    int **restrict p_force_info,
-    float  **restrict p_force_vec_stf,
-    int    **restrict p_force_ext_indx,
-    float  **restrict p_force_ext_coef,
-    int   *num_of_moment, // moment in this thread
-    int    **restrict p_moment_info,
-    float  **restrict p_moment_ten_rate,
-    int    **restrict p_moment_ext_indx,
-    float  **restrict p_moment_ext_coef,
-    int verbose)
+                       size_t siz_line,
+                       size_t siz_slice,
+                       float t0,
+                       float dt,
+                       int   num_of_stages,
+                       float *rk_stage_time,
+                       int   glob_phys_ix1, // gloabl start index along x this thread
+                       int   glob_phys_ix2, // gloabl end index along x
+                       int   glob_phys_iy1,
+                       int   glob_phys_iy2,
+                       int   glob_phys_iz1,
+                       int   glob_phys_iz2,
+                       int   ni1,
+                       int   ni2,
+                       int   nj1,
+                       int   nj2,
+                       int   nk1,
+                       int   nk2,
+                       int   npoint_half_ext,
+                       int   npoint_ghosts,
+                       float *x3d,
+                       float *y3d,
+                       float *z3d,
+                       MPI_Comm comm,
+                       int myid,
+                       // following output
+                       char **p_event_name,
+                       int   *num_of_force, // force in this thread
+                       int **restrict p_force_info,
+                       float  **restrict p_force_vec_stf,
+                       int    **restrict p_force_ext_indx,
+                       float  **restrict p_force_ext_coef,
+                       int   *num_of_moment, // moment in this thread
+                       int    **restrict p_moment_info,
+                       float  **restrict p_moment_ten_rate,
+                       int    **restrict p_moment_ext_indx,
+                       float  **restrict p_moment_ext_coef,
+                       int verbose)
 {
   FILE* fp =NULL;
   char str[500];
@@ -1079,72 +1091,77 @@ src_read_locate_anasrc(char *pfilepath,
   int nz = (nk2-nk1+1)+2*npoint_ghosts;  
   // workspace 3d var for distance calculation
   float *wrk3d = (float *) fdlib_mem_calloc_1d_float(nx*ny*nz,0.0, "src_read_locat_valsrc");
-
-  // judge force in this thread
+  int *global_force_index = NULL;
   int nforce = 0;
-  int *index_force = (int *)malloc(num_force*sizeof(int));
-  int *force_local_index = (int*)malloc(3*num_force*sizeof(int));
-  float *force_coords_inc = (float*)malloc(3*num_force*sizeof(float));
-  for (int i =0; i<num_force; i++)
+  int *index_force = NULL;
+  int *force_local_index = NULL;
+  float *force_coords_inc =NULL;
+  if(num_force>0)
   {
-    fprintf(stdout,"locate force by coord  ...\n"); 
-    // default local index and relative shift to -1 and 0
-    int si=-1; int sj=-1; int sk=-1;
-    float sx_inc = 0.0; float sy_inc = 0.0; float sz_inc = 0.0;
-    int sgpi=-1; int sgpj=-1; int sgpk=-1;
-    // if located in this thread
-    int is_here = src_coord2index(force_coords[3*i+0],force_coords[3*i+1],force_coords[3*i+2],
-        nx, ny, nz, 
-        ni1,ni2,nj1,nj2,nk1,nk2,
-        x3d, y3d, z3d, wrk3d,
-        &si, &sj, &sk,
-        &sx_inc, &sy_inc, &sz_inc);
-    if ( is_here == 1)
+  // judge force in this thread
+  global_force_index = (int*)malloc(3*num_force*sizeof(int));
+  index_force = (int *)malloc(num_force*sizeof(int));
+  force_local_index = (int*)malloc(3*num_force*sizeof(int));
+  force_coords_inc = (float*)malloc(3*num_force*sizeof(float));
+    for (int i =0; i<num_force; i++)
     {
-      // conver to global index
-      sgpi = si - npoint_ghosts + glob_phys_ix1;
-      sgpj = sj - npoint_ghosts + glob_phys_iy1;
-      sgpk = sk - npoint_ghosts + glob_phys_iz1;
-      fprintf(stdout," -- located to local index = %d %d %d\n", si,sj,sk);
-      fprintf(stdout," -- located to global index = %d %d %d\n", sgpi,sgpj,sgpk);
-      fprintf(stdout," --  with shift = %f %f %f\n", sx_inc,sy_inc,sz_inc);
-      force_local_index[3*i+0] = si;
-      force_local_index[3*i+1] = sj; 
-      force_local_index[3*i+2] = sk;
-      force_coords_inc[3*i+0] = sx_inc;
-      force_coords_inc[3*i+1] = sy_inc;
-      force_coords_inc[3*i+2] = sz_inc;
-      index_force[nforce] = i;
-      nforce++;
-    } else {
-      fprintf(stdout," this force not in this thread %d\n", myid);
-      force_local_index[3*i+0] = -1;
-      force_local_index[3*i+1] = -1; 
-      force_local_index[3*i+2] = -1;
-      force_coords_inc[3*i+0] = 0.0;
-      force_coords_inc[3*i+1] = 0.0;
-      force_coords_inc[3*i+2] = 0.0;
+      fprintf(stdout,"locate force by coord  ...\n"); 
+      // default local index and relative shift to -1 and 0
+      int si=-1; int sj=-1; int sk=-1;
+      float sx_inc = 0.0; float sy_inc = 0.0; float sz_inc = 0.0;
+      int sgpi=-1; int sgpj=-1; int sgpk=-1;
+      // if located in this thread
+      int is_here = src_coord2index(force_coords[3*i+0],force_coords[3*i+1],force_coords[3*i+2],
+          nx, ny, nz, 
+          ni1,ni2,nj1,nj2,nk1,nk2,
+          x3d, y3d, z3d, wrk3d,
+          &si, &sj, &sk,
+          &sx_inc, &sy_inc, &sz_inc);
+      if ( is_here == 1)
+      {
+        // conver to global index
+        sgpi = si - npoint_ghosts + glob_phys_ix1;
+        sgpj = sj - npoint_ghosts + glob_phys_iy1;
+        sgpk = sk - npoint_ghosts + glob_phys_iz1;
+        fprintf(stdout," -- located to local index = %d %d %d\n", si,sj,sk);
+        fprintf(stdout," -- located to global index = %d %d %d\n", sgpi,sgpj,sgpk);
+        fprintf(stdout," --  with shift = %f %f %f\n", sx_inc,sy_inc,sz_inc);
+        force_local_index[3*i+0] = si;
+        force_local_index[3*i+1] = sj; 
+        force_local_index[3*i+2] = sk;
+        force_coords_inc[3*i+0] = sx_inc;
+        force_coords_inc[3*i+1] = sy_inc;
+        force_coords_inc[3*i+2] = sz_inc;
+        index_force[nforce] = i;
+        nforce++;
+      } else {
+        fprintf(stdout," this force not in this thread %d\n", myid);
+        force_local_index[3*i+0] = -1;
+        force_local_index[3*i+1] = -1; 
+        force_local_index[3*i+2] = -1;
+        force_coords_inc[3*i+0] = 0.0;
+        force_coords_inc[3*i+1] = 0.0;
+        force_coords_inc[3*i+2] = 0.0;
+      }
+      global_force_index[3*i+0] = sgpi;
+      global_force_index[3*i+1] = sgpj;
+      global_force_index[3*i+2] = sgpk;
     }
+ 
     // reduce global index and shift values
-    int sendbufi = sgpi;
-    MPI_Allreduce(&sendbufi, &sgpi, 1, MPI_INT, MPI_MAX, comm);
-    sendbufi = sgpj;
-    MPI_Allreduce(&sendbufi, &sgpj, 1, MPI_INT, MPI_MAX, comm);
-    sendbufi = sgpk;
-    MPI_Allreduce(&sendbufi, &sgpk, 1, MPI_INT, MPI_MAX, comm);
-
-    float sendbuf = sx_inc;
-    MPI_Allreduce(&sendbuf, &sx_inc, 1, MPI_INT, MPI_SUM, comm);
-    sendbuf = sy_inc;
-    MPI_Allreduce(&sendbuf, &sy_inc, 1, MPI_INT, MPI_SUM, comm);
-    sendbuf = sz_inc;
-    MPI_Allreduce(&sendbuf, &sz_inc, 1, MPI_INT, MPI_SUM, comm);
-
-    fprintf(stdout," --myid=%d,index=%d %d %d,shift = %f %f %f\n",
-        myid,sgpi,sgpj,sgpk, sx_inc,sy_inc,sz_inc);
+    int *recv_global_force_index = (int*)malloc(3*num_force*sizeof(int));
+    MPI_Allreduce(global_force_index, recv_global_force_index, 3*num_force, MPI_INT, MPI_MAX, comm);
+ 
+    float *recv_force_coords_inc = (float*)malloc(3*num_force*sizeof(float));
+    MPI_Allreduce(force_coords_inc,recv_force_coords_inc, 3*num_force, MPI_INT, MPI_SUM, comm);
+  
+    for (int i=0; i<num_force; i++)
+    {
+      fprintf(stdout,"force %d --myid=%d,index=%d %d %d,shift = %f %f %f\n",
+         i, myid,recv_global_force_index[3*i+0],recv_global_force_index[3*i+1],recv_global_force_index[3*i+2],
+         recv_force_coords_inc[3*i+0],recv_force_coords_inc[3*i+1],recv_force_coords_inc[3*i+2]);
+    }
   }
-
-
   int *force_info = NULL;
   float *force_vec_stf = NULL;
   float *force_ext_coef = NULL;
@@ -1248,76 +1265,83 @@ src_read_locate_anasrc(char *pfilepath,
     free(force_wavelet_tstart);
     free(force_wavelet_name);
     free(index_force);
+    free(global_force_index);
     free(force_local_index);
     free(force_coords_inc);
   }
-
-
-  // judge moment in this thread
+  int *global_moment_index = NULL; 
   int nmoment = 0;
-  int *index_moment = (int *)malloc(num_moment*sizeof(int));
-  int *moment_local_index = (int*)malloc(3*num_moment*sizeof(int));
-  float *moment_coords_inc = (float*)malloc(3*num_moment*sizeof(float));
-  for (int i =0; i<num_moment; i++)
+  int *index_moment =NULL;
+  int *moment_local_index = NULL;
+  float *moment_coords_inc = NULL;
+
+  if(num_moment>0)
   {
-    fprintf(stdout,"locate moment by coord  ...\n"); 
-    // default local index and relative shift to -1 and 0
-    int si=-1; int sj=-1; int sk=-1;
-    float sx_inc = 0.0; float sy_inc = 0.0; float sz_inc = 0.0;
-    int sgpi=-1; int sgpj=-1; int sgpk=-1;
-    // if located in this thread
-    int is_here = src_coord2index(moment_coords[3*i+0],moment_coords[3*i+1],moment_coords[3*i+2],
-        nx, ny, nz, 
-        ni1,ni2,nj1,nj2,nk1,nk2,
-        x3d, y3d, z3d, wrk3d,
-        &si, &sj, &sk,
-        &sx_inc, &sy_inc, &sz_inc);
-    if ( is_here == 1)
+    // judge moment in this thread
+    global_moment_index = (int*)malloc(3*num_moment*sizeof(int));
+    index_moment = (int *)malloc(num_moment*sizeof(int));
+    moment_local_index = (int*)malloc(3*num_moment*sizeof(int));
+    moment_coords_inc = (float*)malloc(3*num_moment*sizeof(float));
+    for (int i =0; i<num_moment; i++)
     {
-      // conver to global index
-      sgpi = si - npoint_ghosts + glob_phys_ix1;
-      sgpj = sj - npoint_ghosts + glob_phys_iy1;
-      sgpk = sk - npoint_ghosts + glob_phys_iz1;
-      fprintf(stdout," -- located to local index = %d %d %d\n", si,sj,sk);
-      fprintf(stdout," -- located to global index = %d %d %d\n", sgpi,sgpj,sgpk);
-      fprintf(stdout," --  with shift = %f %f %f\n", sx_inc,sy_inc,sz_inc);
-      index_moment[nmoment] = i;
-      moment_local_index[3*i+0] = si;
-      moment_local_index[3*i+1] = sj; 
-      moment_local_index[3*i+2] = sk;
-      moment_coords_inc[3*i+0] = sx_inc;
-      moment_coords_inc[3*i+1] = sy_inc;
-      moment_coords_inc[3*i+2] = sz_inc;
-      index_moment[nmoment] = i;
-      nmoment++;
-    } else {
-      fprintf(stdout," this moment not in this thread %d\n", myid);
-      moment_local_index[3*i+0] = -1;
-      moment_local_index[3*i+1] = -1; 
-      moment_local_index[3*i+2] = -1;
-      moment_coords_inc[3*i+0] = 0.0;
-      moment_coords_inc[3*i+1] = 0.0;
-      moment_coords_inc[3*i+2] = 0.0;
+      fprintf(stdout,"locate moment by coord  ...\n"); 
+      // default local index and relative shift to -1 and 0
+      int si=-1; int sj=-1; int sk=-1;
+      float sx_inc = 0.0; float sy_inc = 0.0; float sz_inc = 0.0;
+      int sgpi=-1; int sgpj=-1; int sgpk=-1;
+      // if located in this thread
+      int is_here = src_coord2index(moment_coords[3*i+0],moment_coords[3*i+1],moment_coords[3*i+2],
+          nx, ny, nz, 
+          ni1,ni2,nj1,nj2,nk1,nk2,
+          x3d, y3d, z3d, wrk3d,
+          &si, &sj, &sk,
+          &sx_inc, &sy_inc, &sz_inc);
+      if ( is_here == 1)
+      {
+        // conver to global index
+        sgpi = si - npoint_ghosts + glob_phys_ix1;
+        sgpj = sj - npoint_ghosts + glob_phys_iy1;
+        sgpk = sk - npoint_ghosts + glob_phys_iz1;
+        fprintf(stdout," -- located to local index = %d %d %d\n", si,sj,sk);
+        fprintf(stdout," -- located to global index = %d %d %d\n", sgpi,sgpj,sgpk);
+        fprintf(stdout," --  with shift = %f %f %f\n", sx_inc,sy_inc,sz_inc);
+        index_moment[nmoment] = i;
+        moment_local_index[3*i+0] = si;
+        moment_local_index[3*i+1] = sj; 
+        moment_local_index[3*i+2] = sk;
+        moment_coords_inc[3*i+0] = sx_inc;
+        moment_coords_inc[3*i+1] = sy_inc;
+        moment_coords_inc[3*i+2] = sz_inc;
+        index_moment[nmoment] = i;
+        nmoment++;
+      } else {
+        fprintf(stdout," this moment not in this thread %d\n", myid);
+        moment_local_index[3*i+0] = -1;
+        moment_local_index[3*i+1] = -1; 
+        moment_local_index[3*i+2] = -1;
+        moment_coords_inc[3*i+0] = 0.0;
+        moment_coords_inc[3*i+1] = 0.0;
+        moment_coords_inc[3*i+2] = 0.0;
+      }
+      global_moment_index[3*i+0] = sgpi;
+      global_moment_index[3*i+1] = sgpj;
+      global_moment_index[3*i+2] = sgpk;
     }
+
     // reduce global index and shift values
-    int sendbufi = sgpi;
-    MPI_Allreduce(&sendbufi, &sgpi, 1, MPI_INT, MPI_MAX, comm);
-    sendbufi = sgpj;
-    MPI_Allreduce(&sendbufi, &sgpj, 1, MPI_INT, MPI_MAX, comm);
-    sendbufi = sgpk;
-    MPI_Allreduce(&sendbufi, &sgpk, 1, MPI_INT, MPI_MAX, comm);
+    int *recv_global_moment_index = (int*)malloc(3*num_moment*sizeof(int));
+    MPI_Allreduce(global_moment_index, recv_global_moment_index, 3*num_moment, MPI_INT, MPI_MAX, comm);
 
-    float sendbuf = sx_inc;
-    MPI_Allreduce(&sendbuf, &sx_inc, 1, MPI_INT, MPI_SUM, comm);
-    sendbuf = sy_inc;
-    MPI_Allreduce(&sendbuf, &sy_inc, 1, MPI_INT, MPI_SUM, comm);
-    sendbuf = sz_inc;
-    MPI_Allreduce(&sendbuf, &sz_inc, 1, MPI_INT, MPI_SUM, comm);
-
-    fprintf(stdout," --myid=%d,index=%d %d %d,shift = %f %f %f\n",
-        myid,sgpi,sgpj,sgpk, sx_inc,sy_inc,sz_inc);
+    float *recv_moment_coords_inc = (float*)malloc(3*num_moment*sizeof(float));
+    MPI_Allreduce(moment_coords_inc,recv_moment_coords_inc, 3*num_moment, MPI_INT, MPI_SUM, comm);
+  
+    for (int i=0; i<num_moment; i++)
+    {
+      fprintf(stdout,"moment %d --myid=%d,index=%d %d %d,shift = %f %f %f\n",
+          i, myid,recv_global_moment_index[3*i+0],recv_global_moment_index[3*i+1],recv_global_moment_index[3*i+2],
+          recv_moment_coords_inc[3*i+0],recv_moment_coords_inc[3*i+1],recv_moment_coords_inc[3*i+2]);
+    }
   }
-
   // set moment
   int   *moment_info = NULL;
   float *moment_ten_rate = NULL;
@@ -1426,6 +1450,7 @@ src_read_locate_anasrc(char *pfilepath,
     free(index_moment);
     free(moment_local_index);
     free(moment_coords_inc);
+    free(global_moment_index);
   }
   return 0;
 }
