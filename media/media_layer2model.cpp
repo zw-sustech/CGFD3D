@@ -16,98 +16,10 @@
 #include <string.h>
 #include "media_geometry3d.hpp"
 #include "media_layer2model.hpp"
-#include "media_interpolation.hpp"
 #include "media_read_interface_file.hpp"
+#include "media_utility.hpp"
 
 //using namespace std;
-
-void GenerateHalfGrid(
-    size_t nx, 
-    size_t ny, 
-    size_t nz,
-    const float *Gridx, 
-    const float *Gridy, 
-    const float *Gridz,
-    float *halfGridx,
-    float *halfGridy,
-    float *halfGridz) 
-{
-    // half grid point is inside the grid, 
-    // so the number of grid point in one direction is np-1
-    size_t siz_line = nx;
-    size_t siz_slice = ny * siz_line;
-    size_t siz_volume = nz * siz_slice;
-
-    for (size_t k = 0; k < nz-1; k++) {
-        for (size_t j = 0; j < ny-1; j++) {
-            for (size_t i = 0; i < nx-1; i++) {
-                size_t indx =  i + j * siz_line + k * siz_slice;
-                // clockwise: conducive to debugging
-                halfGridx[indx] = (Gridx[indx]       + Gridx[indx+1]                  + 
-                    Gridx[indx+siz_line+1]           + Gridx[indx+siz_line]           + 
-                    Gridx[indx+siz_slice]            + Gridx[indx+siz_slice+1]        + 
-                    Gridx[indx+siz_slice+siz_line+1] + Gridx[indx+siz_line+siz_slice]  )/8.0;
-
-                halfGridy[indx] = (Gridy[indx]       + Gridy[indx+1]                  + 
-                    Gridy[indx+siz_line+1]           + Gridy[indx+siz_line]           + 
-                    Gridy[indx+siz_slice]            + Gridy[indx+siz_slice+1]        + 
-                    Gridy[indx+siz_slice+siz_line+1] + Gridy[indx+siz_line+siz_slice]  )/8.0;
-
-                halfGridz[indx] = (Gridz[indx]       + Gridz[indx+1]                  + 
-                    Gridz[indx+siz_line+1]           + Gridz[indx+siz_line]           + 
-                    Gridz[indx+siz_slice]            + Gridz[indx+siz_slice+1]        + 
-                    Gridz[indx+siz_slice+siz_line+1] + Gridz[indx+siz_line+siz_slice]  )/8.0;
-                
-            }
-        }
-    }
-
-}
-
-// How many different values in the vector, 
-//  NI is the upper limitation of the v[i].
-int NumOfValues(std::vector<int> v, int NI) 
-{
-    std::vector<int> tab(NI, 0);
-    int num = 0;
-    for (size_t i = 0; i < v.size(); i++) {
-        if (tab[v[i]] == 0)
-            num++;
-        tab[v[i]]++;
-    }
-    return num;
-}
-
-// one mesh is subdivided into ng segments in one direction
-Point3 *MeshSubdivide(Mesh3 M) {
-
-    int ng = NG;
-    int siz_line = ng+1;
-    int siz_slice = (ng+1) * siz_line;
-    int siz_volume = (ng+1) * siz_slice;
-
-    Point3 *gd = new Point3[siz_volume];
-
-    for (int k = 0; k <= ng; k++) {
-        for (int j = 0; j <= ng; j++) {
-            for (int i = 0; i <= ng; i++) {
-                int indx = i + j * siz_line + k * siz_slice;
-                // 1st 0/1: y, 2nd 0/1: z
-                Point3 Lx00 = M.v[0] + (M.v[1]-M.v[0])/ng*i;
-                Point3 Lx10 = M.v[3] + (M.v[2]-M.v[3])/ng*i;
-                Point3 Lx01 = M.v[4] + (M.v[5]-M.v[4])/ng*i;
-                Point3 Lx11 = M.v[7] + (M.v[6]-M.v[7])/ng*i;
-                // 0: upper plane, 1: Lower plane (for z-axis)
-                Point3 Lxy0 = Lx00 + (Lx10-Lx00)/ng*j;
-                Point3 Lxy1 = Lx01 + (Lx11-Lx01)/ng*j;
-                // interpolation in the z-axis direction.
-                gd[indx] = Lxy0 + (Lxy1-Lxy0)/ng*k;           
-            }
-        }
-    }
-        
-    return gd;
-}
 
 
 int AssignMediaPara2Point(
@@ -119,70 +31,52 @@ int AssignMediaPara2Point(
     float &vs,
     float &rho)
 {
-    int flag = 0;
-    std::vector<float> depth(NI, -FLT_MAX);
+    float MINX = interfaces[0].MINX;
+    float MINY = interfaces[0].MINY;
+    float   DX = interfaces[0].DX;
+    float   DY = interfaces[0].DY;
+    size_t  NX = interfaces[0].NX;
+    size_t  NY = interfaces[0].NY;
+    float MAXX = MINX + (NX-1)*DX;  
+    float MAXY = MINY + (NY-1)*DY;
+    std::vector<float> XVEC(NX), YVEC(NY);
+    std::vector<float> altitude(NI, -FLT_MAX);
+    for (size_t i = 0; i < NX; i++) {
+        XVEC[i] = MINX + DX*i;
+    }
+    for (size_t i = 0; i < NY; i++) {
+        YVEC[i] = MINY + DY*i;
+    }
 
-    // for each interface, interpolate the depth of the position
+    // for each interface, interpolate the altitude of the position
     //  where the Point A is located.
     for (int ni = 0; ni < NI; ni++) {
-        float MINX = interfaces[ni].MINX;
-        float MINY = interfaces[ni].MINY;
-        float   DX = interfaces[ni].DX;
-        float   DY = interfaces[ni].DY;
-        size_t  NX = interfaces[ni].NX;
-        size_t  NY = interfaces[ni].NY;
-        float MAXX = MINX + (NX-1)*DX;  
-        float MAXY = MINY + (NY-1)*DY;
-
-        // Out of the INTERFACE MESH area.
-        // TODO: For we change the interface file by one mesh,
-        //       an error will be reported if out of range.  
+        // Out of the INTERFACE MESH area. 
         if (A.x < MINX || A.x > MAXX || A.y < MINY || A.y > MAXY) {
             fprintf(stderr,"\033[47;31mGrid(%d, %d, %d) is out of the interfaces mesh range, "\
                            "please check the interfaces file!\033[0m\n", ix, iy, iz);
             fflush(stderr);
             exit(1);
-            //flag++;
-            //continue;
         }
 
-        std::vector<float> XVEC(NX), YVEC(NY);
-        for (size_t i = 0; i < NX; i++)
-            XVEC[i] = MINX + DX*i;
-        for (size_t i = 0; i < NY; i++)
-            YVEC[i] = MINY + DY*i;
 
-        // Geth the depth for the corresponding location
-        depth[ni] = BilinearInterpolation(XVEC, YVEC, interfaces[ni].depth, A.x, A.y);
+        // Get the altitude for the corresponding location
+        altitude[ni] = BilinearInterpolation(XVEC, YVEC, interfaces[ni].altitude, A.x, A.y);
     }
 
- /*
-    if (flag == NI) {
-        fprintf(stderr,"\033[47;31mGrid(%d, %d, %d) is out of the interfaces mesh range, "\
-            "please check the interfaces file!\033[0m\n", ix, iy, iz);
-        fflush(stderr);
-        exit(1);    
-    }
-*/
     // use which material 
-    int mi = findNearestGreaterIndex(A.z, depth);
+    int mi = findNearestGreaterIndex(A.z, altitude);
 
     if (mi == -1) {
         // z-axis is positive downward
-        fprintf(stderr,"\033[47;31mz-location of Grid(%d, %d, %d) is smaller than the given depth in " \
+        fprintf(stderr,"\033[47;31mz-location of Grid(%d, %d, %d) is smaller than the given altitude in " \
             "the interfaces file, please check the interfaces file or the grid!\033[0m\n", ix, iy, iz);
         fflush(stderr);
         exit(1);    
     }
 
-    // Get the Material info of this point from interfaces[mi]
-    std::vector<float> XVEC(interfaces[mi].NX), YVEC(interfaces[mi].NY);
-    for (size_t i = 0; i < interfaces[mi].NX; i++)
-        XVEC[i] = interfaces[mi].MINX + interfaces[mi].DX*i;
-    for (size_t i = 0; i < interfaces[mi].NY; i++)
-        YVEC[i] = interfaces[mi].MINY + interfaces[mi].DY*i;
 
-    // Bilinear or trilinear ???
+    // Bilinear
     float vp0      = BilinearInterpolation(XVEC, YVEC, interfaces[mi].vp      , A.x, A.y);
     float vp_grad  = BilinearInterpolation(XVEC, YVEC, interfaces[mi].vp_grad , A.x, A.y);
     float vs0      = BilinearInterpolation(XVEC, YVEC, interfaces[mi].vs      , A.x, A.y);
@@ -190,9 +84,9 @@ int AssignMediaPara2Point(
     float rho0     = BilinearInterpolation(XVEC, YVEC, interfaces[mi].rho     , A.x, A.y);
     float rho_grad = BilinearInterpolation(XVEC, YVEC, interfaces[mi].rho_grad, A.x, A.y);
 
-    vp  = vp0  + (A.z - depth[mi])* vp_grad;
-    vs  = vs0  + (A.z - depth[mi])* vs_grad;
-    rho = rho0 + (A.z - depth[mi])*rho_grad;
+    vp  = vp0  + (A.z - altitude[mi])* vp_grad;
+    vs  = vs0  + (A.z - altitude[mi])* vs_grad;
+    rho = rho0 + (A.z - altitude[mi])*rho_grad;
 
     return 0;
 }
@@ -206,35 +100,37 @@ int MediaNumberAtPoint(
     Interfaces *interfaces) 
 {
 
-    std::vector<float> depth(NI, -FLT_MAX);
-    for (int ni = 0; ni < NI; ni++) {
-        float MINX = interfaces[ni].MINX;
-        float MINY = interfaces[ni].MINY;
-        float   DX = interfaces[ni].DX;
-        float   DY = interfaces[ni].DY;
-        int     NX = interfaces[ni].NX;
-        int     NY = interfaces[ni].NY;
-        float MAXX = MINX + (NX-1)*DX;  
-        float MAXY = MINY + (NY-1)*DY;
+    float MINX = interfaces[0].MINX;
+    float MINY = interfaces[0].MINY;
+    float   DX = interfaces[0].DX;
+    float   DY = interfaces[0].DY;
+    int     NX = interfaces[0].NX;
+    int     NY = interfaces[0].NY;
+    float MAXX = MINX + (NX-1)*DX;  
+    float MAXY = MINY + (NY-1)*DY;
+    std::vector<float> XVEC(NX), YVEC(NY);
+    std::vector<float> altitude(NI, -FLT_MAX);
 
+    for (int i = 0; i < NX; i++) {
+        XVEC[i] = MINX + DX*i;
+    }
+    for (int i = 0; i < NY; i++) {
+        YVEC[i] = MINY + DY*i;
+    }
+
+
+    for (int ni = 0; ni < NI; ni++) {
         // Out of the INTERFACE MESH area.
         if (A.x < MINX || A.x > MAXX || A.y < MINY || A.y > MAXY) {
             continue;
         }
-
-        std::vector<float> XVEC(NX), YVEC(NY);
-        for (int i = 0; i < NX; i++)
-            XVEC[i] = MINX + DX*i;
-        for (int i = 0; i < NY; i++)
-            YVEC[i] = MINY + DY*i;
-
-        // Geth the depth for the corresponding location
-        depth[ni] = BilinearInterpolation(XVEC, YVEC, interfaces[ni].depth, A.x, A.y);
+        // Get the altitude for the corresponding location
+        altitude[ni] = BilinearInterpolation(XVEC, YVEC, interfaces[ni].altitude, A.x, A.y);
     }
 
 
     // use which material 
-    int mi = findNearestGreaterIndex(A.z, depth);
+    int mi = findNearestGreaterIndex(A.z, altitude);
     return mi;
 }
 
@@ -262,7 +158,7 @@ void isotropic_loc(
             for (size_t i = 0; i < nx; i++) {
 
                 float vp = 0.0, vs = 0.0, rho = 1.0;
-                size_t indx = indx =  i + j * siz_line + k * siz_slice;
+                size_t indx =  i + j * siz_line + k * siz_slice;
 
                 AssignMediaPara2Point(i, j, k,
                     Point3(Gridx[indx], Gridy[indx], Gridz[indx]),
@@ -321,9 +217,9 @@ void isotropic_har(
     }
 
      
-    for (size_t k = 1; k < nz-1; k++) {
-        for (size_t j = 1; j < ny-1; j++) {
-            for (size_t i = 1; i < nx-1; i++) {
+    for (size_t k = 1; k < nz; k++) {
+        for (size_t j = 1; j < ny; j++) {
+            for (size_t i = 1; i < nx; i++) {
                 size_t indx =  i + j * siz_line + k * siz_slice; 
                 // check if the mesh have different values;
                 std::vector<int> v(8);
@@ -402,9 +298,6 @@ void media_el_iso_layer2model(
     int nx,
     int ny,
     int nz,
-    size_t siz_line,
-    size_t siz_slice,
-    size_t siz_volume, 
     const char *interfaces_file,
     const char *equivalent_medium_method) 
 {
@@ -428,6 +321,7 @@ void media_el_iso_layer2model(
 
 
     for (int ni = 0; ni < NI; ni++) {
+        delete []interfaces[ni].altitude;
         delete []interfaces[ni].rho;
         delete []interfaces[ni].vp;
         delete []interfaces[ni].vs;
