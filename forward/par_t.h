@@ -80,8 +80,8 @@ struct par_t{
   float cartesian_grid_stepsize[FD_NDIM];
 
   char in_grid_layer_file[PAR_MAX_STRLEN];
-  int  grid_layer_interp_factor[FD_NDIM];
-  int  grid_layer_startend[FD_NDIM];
+  int  grid_layer_resample_factor[FD_NDIM];
+  int  grid_layer_start[FD_NDIM];
 
   // metric
   int metric_method_itype;

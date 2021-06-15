@@ -14,18 +14,22 @@ date
 MPIDIR=/share/apps/gnu-4.8.5/mpich-3.3
 
 #-- program related dir
-EXEC_DIR=/export/home/zhangw/code/zwlab/CGFD3D-elastic
+# EXEC_DIR=/home/sunwenliang/SWLwork/5/CGFD3D-elastic
+EXEC_DIR=/export/home/sunwl/CGFD3D-elastic
 EXEC_WAVE=$EXEC_DIR/cgfdm3d_elastic_mpi
 
 #-- conf
-PROJDIR=/export/home/zhangw/work/cgfd_opt/23_srcmpi
+#PROJDIR=/home/sunwenliang/SWLwork/5/CGFD3D-elastic/project
+# PROJDIR=/export/home/zhangw/work/cgfd_opt/23_srcmpi
+PROJDIR=/export/home/sunwl/work/cgfd_opt
+
 PAR_FILE=${PROJDIR}/test.json
 GRID_DIR=${PROJDIR}/output
 MEDIA_DIR=${PROJDIR}/output
 SOURCE_DIR=${PROJDIR}/output
 OUTPUT_DIR=${PROJDIR}/output
 #-- input file
-TEST_INPUT_DIR=/export/home/lihl/CGFD3D-elastic/test
+TEST_INPUT_DIR=/export/home/sunwl/CGFD3D-elastic/test
 IN_STATION_LIST_FILE=${TEST_INPUT_DIR}/test_station.sta
 IN_MEDIA_3LAY_FILE=${TEST_INPUT_DIR}/test_hill3d.md3lay
 IN_SOURCE_FILE=${TEST_INPUT_DIR}/test_source.anasrc
@@ -48,15 +52,15 @@ ieof
 #----------------------------------------------------------------------
 cat << ieof > $PAR_FILE
 {
-  "number_of_total_grid_points_x" : 200,
-  "number_of_total_grid_points_y" : 200,
+  "number_of_total_grid_points_x" : 100,
+  "number_of_total_grid_points_y" : 100,
   "number_of_total_grid_points_z" : 60,
 
-  "number_of_mpiprocs_x" : 2,
-  "number_of_mpiprocs_y" : 2,
+  "number_of_mpiprocs_x" : 1,
+  "number_of_mpiprocs_y" : 1,
 
-  "size_of_time_step" : 0.01,
-  "number_of_time_steps" : 50,
+  "size_of_time_step" : 0.008,
+  "number_of_time_steps" : 100,
 
   "boundary_x_left" : {
       "cfspml" : {
@@ -109,10 +113,10 @@ cat << ieof > $PAR_FILE
         "inteval" : [ 100.0, 100.0, 100.0 ]
       },
       "layer_interp" : {
-        "in_grid_layer_file" : "$EXEC_DIR/test/grid_layer.gdlay",
-        "refine_factor" : [ 2, 2, 1 ],
-        "horizontal_start_point" : [ 50, 50 ],
-        "vertical_end_point"     : 61
+        "in_grid_layer_file" : "$EXEC_DIR/test/test_grid.gdlay",
+        "refine_factor" : [ 1, 1, 2 ],
+        "horizontal_start_index" : [ 50, 50 ],
+        "vertical_ToFreeSurf_resample_index" : 0
       }
   },
   "is_export_grid" : 1,
@@ -135,11 +139,11 @@ cat << ieof > $PAR_FILE
   "media_export_dir"  : "$MEDIA_DIR",
 
   "source_input" : {
-      "#single_force" : {
+      "single_force" : {
          "name" : "evt_test_singel_force",
-         "#location_by_grid_index" : [ 40, 40, 50 ],
+         "location_by_grid_index" : [ 40, 40, 50 ],
          "#location_by_coords" : [ 4050, 4010, -1020 ],
-         "location_by_coords" : [ 4000, 4000, -1000 ],
+         "#location_by_coords" : [ 4000, 4000, -1000 ],
          "source_time_functon" : "ricker",
          "ricker_center_frequency" : 2.0,
          "ricker_peak_time" : 0.5,

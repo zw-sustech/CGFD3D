@@ -266,16 +266,16 @@ par_read_from_str(const char *str, struct par_t *par)
        }
        if (thirditem = cJSON_GetObjectItem(subitem, "refine_factor")) {
          for (int i = 0; i < FD_NDIM; i++) {
-           par->grid_layer_interp_factor[i] = cJSON_GetArrayItem(thirditem, i)->valueint;
+           par->grid_layer_resample_factor[i] = cJSON_GetArrayItem(thirditem, i)->valueint;
          }
        }
-       if (thirditem = cJSON_GetObjectItem(subitem, "horizontal_start_point")) {
+       if (thirditem = cJSON_GetObjectItem(subitem, "horizontal_start_index")) {
          for (int i = 0; i < FD_NDIM-1; i++) {
-           par->grid_layer_startend[i] = cJSON_GetArrayItem(thirditem, i)->valueint;
+           par->grid_layer_start[i] = cJSON_GetArrayItem(thirditem, i)->valueint;
          }
        }
-       if (thirditem = cJSON_GetObjectItem(subitem, "vertical_end_point")) {
-         par->grid_layer_startend[FD_NDIM-1] = thirditem->valueint;
+       if (thirditem = cJSON_GetObjectItem(subitem, "vertical_ToFreeSurf_resample_index")) {
+         par->grid_layer_start[FD_NDIM-1] = thirditem->valueint;
        }
     }
   }
