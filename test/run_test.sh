@@ -14,11 +14,11 @@ date
 MPIDIR=/share/apps/gnu-4.8.5/mpich-3.3
 
 #-- program related dir
-EXEC_DIR=/export/home/lihl/new-CGFD3D-elastic
+EXEC_DIR=/export/home/lihl/CGFD3D-elastic
 EXEC_WAVE=$EXEC_DIR/cgfdm3d_elastic_mpi
 
 #-- conf
-PROJDIR=/export/home/lihl/new-CGFD3D-elastic/project
+PROJDIR=/export/home/lihl/CGFD3D-elastic/project
 PAR_FILE=${PROJDIR}/test.json
 GRID_DIR=${PROJDIR}/output
 MEDIA_DIR=${PROJDIR}/output
@@ -28,7 +28,7 @@ OUTPUT_DIR=${PROJDIR}/output
 TEST_INPUT_DIR=/export/home/lihl/CGFD3D-elastic/test
 IN_STATION_LIST_FILE=${TEST_INPUT_DIR}/test_station.sta
 IN_MEDIA_3LAY_FILE=${TEST_INPUT_DIR}/test_hill3d.md3lay
-IN_SOURCE_FILE=${TEST_INPUT_DIR}/test_source.anasrc
+IN_SOURCE_FILE=${TEST_INPUT_DIR}/test_source.valsrc
 
 #-- create dir
 mkdir -p $PROJDIR
@@ -52,8 +52,8 @@ cat << ieof > $PAR_FILE
   "number_of_total_grid_points_y" : 200,
   "number_of_total_grid_points_z" : 60,
 
-  "number_of_mpiprocs_x" : 1,
-  "number_of_mpiprocs_y" : 1,
+  "number_of_mpiprocs_x" : 2,
+  "number_of_mpiprocs_y" : 2,
 
   "size_of_time_step" : 0.01,
   "number_of_time_steps" : 50,
@@ -105,7 +105,7 @@ cat << ieof > $PAR_FILE
   "grid_generation_method" : {
       "#import" : "$GRID_DIR",
       "cartesian" : {
-        "origin"  : [0.0, 0.0, -6600.0 ],
+        "origin"  : [0.0, 0.0, -6000.0 ],
         "inteval" : [ 100.0, 100.0, 100.0 ]
       },
       "#layer_interp" : {
@@ -143,7 +143,7 @@ cat << ieof > $PAR_FILE
          "ricker_peak_time" : 0.5,
          "start_time" : 0.0,
          "end_time"   : 1.0,
-         "force_vector" : [ 0, 0, 1e16]
+         "force_vector" : [ 1e16, 1e16, 1e16]
       },
       "#single_moment" : {
          "name" : "evt_test_singel_moment",
@@ -154,7 +154,7 @@ cat << ieof > $PAR_FILE
          "ricker_peak_time" : 0.5,
          "start_time" : 0.0,
          "end_time"   : 1.0,
-         "moment_tensor" : [ 1e9, 1e9, 1e9, 0, 0, 0]
+         "moment_tensor" : [ 1e15, 1e15, 1e15, 1e15, 1e15, 1e15]
       },
       "in_source_file" : "$IN_SOURCE_FILE"
   },
@@ -170,7 +170,7 @@ cat << ieof > $PAR_FILE
       "name" : "line_x_1",
       "grid_index_start"    : [  0, 49, 59 ],
       "grid_index_incre"    : [  1,  0,  0 ],
-      "grid_index_count"    : 100
+      "grid_index_count"    : 20
     },
     {
       "name" : "line_y_1",
@@ -189,9 +189,9 @@ cat << ieof > $PAR_FILE
   "snapshot" : [
     {
       "name" : "volume_vel",
-      "grid_index_start" : [ 10, 1, 0 ],
-      "grid_index_count" : [ 40,50, 50 ],
-      "grid_index_incre" : [  2, 2, 1 ],
+      "grid_index_start" : [ 0, 0, 0 ],
+      "grid_index_count" : [ 199,199, 59 ],
+      "grid_index_incre" : [  1, 1, 1 ],
       "time_index_start" : 0,
       "time_index_incre" : 1,
       "save_velocity" : 1,

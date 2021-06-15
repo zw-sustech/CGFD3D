@@ -220,21 +220,22 @@ float
 LagInterp_Piecewise_1d(float *t, float *z, int ni, int order, float t_start, float dt, float ti)
 {
   float *Lx, Li=0.0;
-  int indx; // 
+  int indx,inc; // 
   int lower,upper;
-  if(order/2 == 0)
+  if(order%2 == 0)
   {
     lower = order/2;
     upper = order/2;
   }
 
-  if(order/2 != 0)
+  if(order%2 != 0)
   {
     lower = floor(order/2);
     upper = floor(order/2)+1;
   }
-
-  indx = (int)  ((ti-t_start)+0.5*dt)/dt; // Nearest point number
+  
+  indx = (int)  ((ti-t_start)/dt+0.5); // Nearest point number
+  if(indx>ni-1) indx = ni-1;
   Lx = (float*)malloc((order+1)*sizeof(float));
 
   if ((indx-lower>=0) && (indx+upper<=ni-1))
@@ -257,17 +258,18 @@ LagInterp_Piecewise_1d(float *t, float *z, int ni, int order, float t_start, flo
 
   if (indx-lower<0)
   {
-    for (int i=0; i<= indx+upper; i++)
+    inc = lower - indx;
+    for (int i=0; i<= indx+upper+inc; i++)
     {
-      Lx[0] = 1;
-      for (int j=0; j<=indx+upper; j++)
+      Lx[i] = 1;
+      for (int j=0; j<=indx+upper+inc; j++)
       {
         if(i==j) continue;
         Lx[i] = Lx[i] * (ti-t[j]) / (t[i]-t[j]);
       }
     }
 
-    for(int i=0; i<=indx+upper; i++)
+    for(int i=0; i<=indx+upper+inc; i++)
     {
       Li = Li + Lx[i] * z[i];
     }
@@ -275,19 +277,20 @@ LagInterp_Piecewise_1d(float *t, float *z, int ni, int order, float t_start, flo
 
   if (indx+upper>ni-1)
   {
-    for (int i=indx-lower; i<= ni-1; i++)
+    inc = indx+upper-(ni-1);
+    for (int i=indx-lower-inc; i<= ni-1; i++)
     {
-      Lx[i-indx+lower] = 1;
-      for (int j=indx-lower; j<=ni-1; j++)
+      Lx[i-indx+lower+inc] = 1;
+      for (int j=indx-lower-inc; j<=ni-1; j++)
       {
         if(i==j) continue;
-        Lx[i-indx+lower] = Lx[i-indx+lower] * (ti-t[j]) / (t[i]-t[j]);
+        Lx[i-indx+lower+inc] = Lx[i-indx+lower+inc] * (ti-t[j]) / (t[i]-t[j]);
       }
     }
 
-    for(int i=indx-lower; i<=ni-1; i++)
+    for(int i=indx-lower-inc; i<=ni-1; i++)
     {
-      Li = Li + Lx[i-indx+lower] * z[i];
+      Li = Li + Lx[i-indx+lower+inc] * z[i];
     }
   }
 

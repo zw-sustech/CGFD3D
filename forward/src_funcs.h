@@ -73,8 +73,8 @@ src_gen_single_point_gauss(size_t siz_line,
 
 
 
-void
-src_read_locat_valsrc(char *pfilepath,
+int
+src_read_locate_valsrc(char *pfilepath,
                       size_t siz_line,
                       size_t siz_slice,
                       float t0,
@@ -101,6 +101,7 @@ src_read_locat_valsrc(char *pfilepath,
                       MPI_Comm comm,
                       int myid,
                       // following output
+                      char **p_event_name,
                       int  *num_of_force, // inout: if force source, if in this thread
                       int **restrict p_force_info,
                       float  **restrict p_force_vec_stf,
@@ -113,8 +114,8 @@ src_read_locat_valsrc(char *pfilepath,
                       float  **restrict p_moment_ext_coef,
                       int verbose);
 
-void
-src_read_locat_anasrc(char *pfilepath,
+int
+src_read_locate_anasrc(char *pfilepath,
                       size_t siz_line,
                       size_t siz_slice,
                       float t0,
@@ -141,6 +142,7 @@ src_read_locat_anasrc(char *pfilepath,
                       MPI_Comm comm,
                       int myid,
                       // following output
+                      char **p_event_name,
                       int   *num_of_force, // force in this thread
                       int **restrict p_force_info,
                       float  **restrict p_force_vec_stf,
