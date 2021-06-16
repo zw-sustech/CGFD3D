@@ -209,10 +209,10 @@ void read_grid_file(
 
         /* jlq TODO!!! */
         /* the range need to read */
-        size_t ix0 = 0; //(Xmin-MINX)/DX;
-        size_t iy0 = 0; //(Ymin-MINY)/DY;
-        size_t ix1 = NX-1; //(Xmax-MINX)/DX+1;
-        size_t iy1 = NY-1; //(Ymax-MINY)/DY+1;
+        size_t ix0 = (Xmin-MINX)/DX;
+        size_t iy0 = (Ymin-MINY)/DY;
+        size_t ix1 = (Xmax-MINX)/DX+1;
+        size_t iy1 = (Ymax-MINY)/DY+1;
         size_t nx  = ix1-ix0+1;
         size_t ny  = iy1-iy0+1;
         float minx = ix0 * DX + MINX;
@@ -252,7 +252,7 @@ void read_grid_file(
 
                     if (ix >= ix0 && ix <= ix1 && iy >= iy0 && iy <= iy1) {
 
-                        size_t indx = (ix-ix0) + ny * (iy-iy0);
+                        size_t indx = (ix-ix0) + nx * (iy-iy0);
 
                         int u = fscanf(tmp_file, "%f %f %f %f",
                                        &(*interfaces)[ni].altitude[indx],  // altitude
