@@ -617,13 +617,13 @@ fd_blk_set_slice(struct fd_blk_t *blk,
                                                             "slice_x_fname");
     blk->slice_x_indx = (int *) malloc(number_of_slice_x * sizeof(int));
   }
-  if (number_of_slice_x>0) {
+  if (number_of_slice_y>0) {
     blk->slice_y_fname = (char **) fdlib_mem_malloc_2l_char(number_of_slice_y,
                                                             FD_MAX_STRLEN,
                                                             "slice_y_fname");
     blk->slice_y_indx = (int *) malloc(number_of_slice_y * sizeof(int));
   }
-  if (number_of_slice_x>0) {
+  if (number_of_slice_z>0) {
     blk->slice_z_fname = (char **) fdlib_mem_malloc_2l_char(number_of_slice_z,
                                                             FD_MAX_STRLEN,
                                                             "slice_z_fname");

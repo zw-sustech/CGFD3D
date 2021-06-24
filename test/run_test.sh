@@ -28,7 +28,7 @@ OUTPUT_DIR=${PROJDIR}/output
 TEST_INPUT_DIR=/export/home/lihl/CGFD3D-elastic/test
 IN_STATION_LIST_FILE=${TEST_INPUT_DIR}/test_station.sta
 IN_MEDIA_3LAY_FILE=${TEST_INPUT_DIR}/test_hill3d.md3lay
-IN_SOURCE_FILE=${TEST_INPUT_DIR}/test_source.valsrc
+IN_SOURCE_FILE=${TEST_INPUT_DIR}/test_source.anasrc
 
 #-- create dir
 mkdir -p $PROJDIR
@@ -145,18 +145,18 @@ cat << ieof > $PAR_FILE
          "end_time"   : 1.0,
          "force_vector" : [ 1e16, 1e16, 1e16]
       },
-      "#single_moment" : {
+      "single_moment" : {
          "name" : "evt_test_singel_moment",
          "location_by_grid_index" : [ 40, 40, 50 ],
          "#location_by_coords" : [ 4000, 4000, -500 ],
-         "moment_rate_functon" : "ricker",
-         "ricker_center_frequency" : 2.0,
-         "ricker_peak_time" : 0.5,
+         "moment_rate_functon" : "gaussian",
+         "gaussian_rms_width" : 2.0,
+         "gaussian_peak_time" : 0.5,
          "start_time" : 0.0,
          "end_time"   : 1.0,
-         "moment_tensor" : [ 1e15, 1e15, 1e15, 1e15, 1e15, 1e15]
+         "moment_tensor" : [ 1e13, 1e13, 1e13, 1e15, 1e15, 1e15]
       },
-      "in_source_file" : "$IN_SOURCE_FILE"
+      "#in_source_file" : "$IN_SOURCE_FILE"
   },
   "is_export_source" : 1,
   "source_export_dir"  : "$SOURCE_DIR",

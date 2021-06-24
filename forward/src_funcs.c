@@ -168,8 +168,6 @@ src_gen_single_point_gauss(size_t siz_line,
     nforce  = 0;
     nmoment = 0;
   }
-
-
   // if source here, cal wavelet series
   if (nt_total_wavelet > 0) {
     wavelet_values = (float *)fdlib_mem_calloc_1d_float(
@@ -241,6 +239,7 @@ src_gen_single_point_gauss(size_t siz_line,
         }
       }
     }
+
     cal_norm_delt3d(moment_ext_coef, sx_inc, sy_inc, sz_inc, 1.5, 1.5, 1.5, 3);
 
     size_t iptr_s = 0;
@@ -392,7 +391,7 @@ src_read_locate_valsrc(char *pfilepath,
                        float  **restrict p_moment_ext_coef,
                        int verbose)
 {
-  FILE* fp =NULL;
+  FILE *fp =NULL;
   char str[500];
   char *event_name = (char *)malloc(500*sizeof(char));
   int num_force;
@@ -404,14 +403,12 @@ src_read_locate_valsrc(char *pfilepath,
 
   fgets(str,500,fp);
   sscanf(str,"%s",event_name);
-
   fgets(str,500,fp);
   sscanf(str,"%d %d",&num_force,&num_moment);
   fgets(str,500,fp);
-
   sscanf(str,"%f %d",&dt_in,&nt_in);
-  *p_event_name = event_name;
 
+  *p_event_name = event_name;
   float *force_coords = NULL;
   int   *force_sur = NULL;
   float *moment_coords = NULL;
@@ -422,7 +419,6 @@ src_read_locate_valsrc(char *pfilepath,
     force_coords = (float *) malloc(3 * num_force * sizeof(float));
     force_sur = (int *) malloc(num_force * sizeof(int)); // relocated_to_surface
   }
-
   if(num_moment>0)
   {
     moment_coords = (float *) malloc(3 * num_moment * sizeof(float));
@@ -447,7 +443,7 @@ src_read_locate_valsrc(char *pfilepath,
   // workspace 3d var for distance calculation
   float *wrk3d = (float *) fdlib_mem_calloc_1d_float(nx*ny*nz,0.0, "src_read_locat_valsrc");
 
-  int *global_force_index = NULL;
+  int *force_global_index = NULL;
   int nforce = 0;
   int *index_force = NULL;
   int *force_local_index = NULL;
@@ -455,7 +451,7 @@ src_read_locate_valsrc(char *pfilepath,
   if(num_force>0)
   {
     // judge force in this thread 
-    global_force_index = (int *)malloc(3 * num_force * sizeof(int));
+    force_global_index = (int *)malloc(3 * num_force * sizeof(int));
     index_force = (int *)malloc(num_force * sizeof(int));
     force_local_index = (int *)malloc(3 * num_force*sizeof(int));
     force_coords_inc = (float *)malloc(3 * num_force*sizeof(float));
@@ -468,11 +464,11 @@ src_read_locate_valsrc(char *pfilepath,
       int sgpi=-1; int sgpj=-1; int sgpk=-1;
       // if located in this thread
       int is_here = src_coord2index(force_coords[3*i+0],force_coords[3*i+1],force_coords[3*i+2],
-          nx, ny, nz, 
-          ni1,ni2,nj1,nj2,nk1,nk2,
-          x3d, y3d, z3d, wrk3d,
-          &si, &sj, &sk,
-          &sx_inc, &sy_inc, &sz_inc);
+                                    nx, ny, nz, 
+                                    ni1,ni2,nj1,nj2,nk1,nk2,
+                                    x3d, y3d, z3d, wrk3d,
+                                    &si, &sj, &sk,
+                                    &sx_inc, &sy_inc, &sz_inc);
       if ( is_here == 1)
       {
         // conver to global index
@@ -482,30 +478,24 @@ src_read_locate_valsrc(char *pfilepath,
         fprintf(stdout," -- located to local index = %d %d %d\n", si,sj,sk);
         fprintf(stdout," -- located to global index = %d %d %d\n", sgpi,sgpj,sgpk);
         fprintf(stdout," --  with shift = %f %f %f\n", sx_inc,sy_inc,sz_inc);
-        force_local_index[3*i+0] = si;
-        force_local_index[3*i+1] = sj; 
-        force_local_index[3*i+2] = sk;
-        force_coords_inc[3*i+0] = sx_inc;
-        force_coords_inc[3*i+1] = sy_inc;
-        force_coords_inc[3*i+2] = sz_inc;
         index_force[nforce] = i;
         nforce++;
       } else {
         fprintf(stdout," this force not in this thread %d\n", myid);
-        force_local_index[3*i+0] = -1;
-        force_local_index[3*i+1] = -1; 
-        force_local_index[3*i+2] = -1;
-        force_coords_inc[3*i+0] = 0.0;
-        force_coords_inc[3*i+1] = 0.0;
-        force_coords_inc[3*i+2] = 0.0;
       }
-      global_force_index[3*i+0] = sgpi;
-      global_force_index[3*i+1] = sgpj;
-      global_force_index[3*i+2] = sgpk;
+      force_local_index[3*i+0] = si;
+      force_local_index[3*i+1] = sj; 
+      force_local_index[3*i+2] = sk;
+      force_coords_inc[3*i+0] = sx_inc;
+      force_coords_inc[3*i+1] = sy_inc;
+      force_coords_inc[3*i+2] = sz_inc;
+      force_global_index[3*i+0] = sgpi;
+      force_global_index[3*i+1] = sgpj;
+      force_global_index[3*i+2] = sgpk;
     }
   }
 
-  int *global_moment_index = NULL;
+  int *moment_global_index = NULL;
   int nmoment = 0;
   int *index_moment = NULL;
   int *moment_local_index = NULL;
@@ -513,7 +503,7 @@ src_read_locate_valsrc(char *pfilepath,
   if(num_moment>0)
   {
     // judge moment in this thread
-    global_moment_index = (int *)malloc(3 * num_moment*sizeof(int));
+    moment_global_index = (int *)malloc(3 * num_moment*sizeof(int));
     index_moment = (int *)malloc(num_moment*sizeof(int));
     moment_local_index = (int *)malloc(3 * num_moment*sizeof(int));
     moment_coords_inc = (float *)malloc(3 * num_moment*sizeof(float));
@@ -540,34 +530,28 @@ src_read_locate_valsrc(char *pfilepath,
         fprintf(stdout," -- located to local index = %d %d %d\n", si,sj,sk);
         fprintf(stdout," -- located to global index = %d %d %d\n", sgpi,sgpj,sgpk);
         fprintf(stdout," --  with shift = %f %f %f\n", sx_inc,sy_inc,sz_inc);
-        moment_local_index[3*i+0] = si;
-        moment_local_index[3*i+1] = sj; 
-        moment_local_index[3*i+2] = sk;
-        moment_coords_inc[3*i+0] = sx_inc;
-        moment_coords_inc[3*i+1] = sy_inc;
-        moment_coords_inc[3*i+2] = sz_inc;
         index_moment[nmoment] = i;
         nmoment++;
       } else {
         fprintf(stdout," this moment not in this thread %d\n", myid);
-        moment_local_index[3*i+0] = -1;
-        moment_local_index[3*i+1] = -1; 
-        moment_local_index[3*i+2] = -1;
-        moment_coords_inc[3*i+0] = 0.0;
-        moment_coords_inc[3*i+1] = 0.0;
-        moment_coords_inc[3*i+2] = 0.0;
       }
-      global_moment_index[3*i+0] = sgpi;
-      global_moment_index[3*i+1] = sgpj;
-      global_moment_index[3*i+2] = sgpk;
+      moment_local_index[3*i+0] = si;
+      moment_local_index[3*i+1] = sj; 
+      moment_local_index[3*i+2] = sk;
+      moment_coords_inc[3*i+0] = sx_inc;
+      moment_coords_inc[3*i+1] = sy_inc;
+      moment_coords_inc[3*i+2] = sz_inc;
+      moment_global_index[3*i+0] = sgpi;
+      moment_global_index[3*i+1] = sgpj;
+      moment_global_index[3*i+2] = sgpk;
     }
   }
   // reduce global index and shift values
-  int *recv_global_force_index = (int *)malloc(3 * num_force * sizeof(int));
-  MPI_Allreduce(global_force_index, recv_global_force_index, 3*num_force, MPI_INT, MPI_MAX, comm);
+  int *recv_force_global_index = (int *)malloc(3 * num_force * sizeof(int));
+  MPI_Allreduce(force_global_index, recv_force_global_index, 3*num_force, MPI_INT, MPI_MAX, comm);
  
-  int *recv_global_moment_index = (int *)malloc(3 * num_moment * sizeof(int));
-  MPI_Allreduce(global_moment_index, recv_global_moment_index, 3*num_moment, MPI_INT, MPI_MAX, comm);
+  int *recv_moment_global_index = (int *)malloc(3 * num_moment * sizeof(int));
+  MPI_Allreduce(moment_global_index, recv_moment_global_index, 3*num_moment, MPI_INT, MPI_MAX, comm);
 
   float *recv_force_coords_inc = (float *)malloc(3 * num_force*sizeof(float));
   MPI_Allreduce(force_coords_inc,recv_force_coords_inc, 3*num_force, MPI_INT, MPI_SUM, comm);
@@ -578,14 +562,14 @@ src_read_locate_valsrc(char *pfilepath,
   for (int i=0; i<num_force; i++)
   {
     fprintf(stdout,"force %d --myid=%d,index=%d %d %d,shift = %f %f %f\n",
-       i, myid,recv_global_force_index[3*i+0],recv_global_force_index[3*i+1],recv_global_force_index[3*i+2],
+       i, myid,recv_force_global_index[3*i+0],recv_force_global_index[3*i+1],recv_force_global_index[3*i+2],
        recv_force_coords_inc[3*i+0],recv_force_coords_inc[3*i+1],recv_force_coords_inc[3*i+2]);
   }
 
   for (int i=0; i<num_moment; i++)
   {
     fprintf(stdout,"moment %d --myid=%d,index=%d %d %d,shift = %f %f %f\n",
-       i,myid,recv_global_moment_index[3*i+0],recv_global_moment_index[3*i+1],recv_global_moment_index[3*i+2],
+       i,myid,recv_moment_global_index[3*i+0],recv_moment_global_index[3*i+1],recv_moment_global_index[3*i+2],
        recv_moment_coords_inc[3*i+0],recv_moment_coords_inc[3*i+1],recv_moment_coords_inc[3*i+2]);
   }
 
@@ -593,18 +577,17 @@ src_read_locate_valsrc(char *pfilepath,
   {
     free(force_coords);
     free(force_sur);
-    free(global_force_index);
+    free(force_global_index);
   }
   if(num_moment > 0)
   {
     free(moment_coords);
     free(moment_sur);
-    free(global_moment_index);
+    free(moment_global_index);
   }
 
   float **force_value = NULL;
   float *force_wavelet_tstart = NULL;
-
   float **moment_value = NULL;
   float *moment_wavelet_tstart = NULL;
   char  **moment_wavelet_mechism = NULL;
@@ -620,7 +603,7 @@ src_read_locate_valsrc(char *pfilepath,
     moment_wavelet_mechism = (char **) fdlib_mem_malloc_2l_char(nmoment,100,"mechanism type:tensor or angel"); 
   }
   // read force
-  if (nforce>0)
+  if (num_force>0)
   {
     for (int i=0; i<num_force; i++)
     {	
@@ -649,7 +632,7 @@ src_read_locate_valsrc(char *pfilepath,
   }
 
   //read moment
-  if (nmoment>0)
+  if (num_moment>0)
   {
     for(int i=0; i<num_moment; i++)
     {
@@ -686,12 +669,9 @@ src_read_locate_valsrc(char *pfilepath,
           for (int k=0;k<nt_in;k++)
           {
             fgets(str,500,fp);
-            sscanf(str,"%f %f %f %f %f %f",&moment_value[0][indx*nt_in+k],
-                &moment_value[1][indx*nt_in+k], 
-                &moment_value[2][indx*nt_in+k], 
-                &moment_value[3][indx*nt_in+k],
-                &moment_value[4][indx*nt_in+k],
-                &moment_value[5][indx*nt_in+k]);
+            sscanf(str,"%f %f %f %f %f %f",&moment_value[0][indx*nt_in+k], &moment_value[1][indx*nt_in+k], 
+                                           &moment_value[2][indx*nt_in+k], &moment_value[3][indx*nt_in+k],
+                                           &moment_value[4][indx*nt_in+k], &moment_value[5][indx*nt_in+k]);
           }
         }
         indx++;
@@ -710,18 +690,16 @@ src_read_locate_valsrc(char *pfilepath,
   }
   fclose(fp); 
 
-
   // get total elem of exted src region for a single point
   //int siz_ext = 7 * 7 * 7;
   int siz_ext = (2*npoint_half_ext+1)*(2*npoint_half_ext+1)*(2*npoint_half_ext+1);
-
+  float *t_in = (float *)malloc(nt_in*sizeof(float));
   // set force
-  int *force_info = NULL;
+  int   *force_info = NULL;
   float *force_vec_stf = NULL;
   float *force_ext_coef = NULL;
   int   *force_ext_indx = NULL;
-  int nt_force = 0;
-  float * t_in = (float *)malloc(nt_in*sizeof(float));
+  int   nt_force = 0;
   if(nforce > 0)
   {
     // allocate info and return to main function
@@ -744,7 +722,7 @@ src_read_locate_valsrc(char *pfilepath,
     force_info[8 * i + M_SRC_INFO_SEQ_SI   ] = force_local_index[3 * indx + 0];
     force_info[8 * i + M_SRC_INFO_SEQ_SJ   ] = force_local_index[3 * indx + 1];
     force_info[8 * i + M_SRC_INFO_SEQ_SK   ] = force_local_index[3 * indx + 2];
-    force_info[8 * i + M_SRC_INFO_SEQ_POS  ] = 0 + i * nt_force*FD_NDIM*num_of_stages;
+    force_info[8 * i + M_SRC_INFO_SEQ_POS  ] = 0 + i*nt_force*FD_NDIM*num_of_stages;
     force_info[8 * i + M_SRC_INFO_SEQ_ITBEG] = it_begin;
     force_info[8 * i + M_SRC_INFO_SEQ_ITEND] = it_end;
 
@@ -867,8 +845,7 @@ src_read_locate_valsrc(char *pfilepath,
       }
     }
     float *this_moment_ext_conf = moment_ext_coef + i * siz_ext;
-    cal_norm_delt3d(this_moment_ext_conf, moment_coords_inc[3*indx+0], moment_coords_inc[3*indx+1], moment_coords_inc[3*indx+2],
-        1.5, 1.5, 1.5, 3);
+    cal_norm_delt3d(this_moment_ext_conf, moment_coords_inc[3*indx+0], moment_coords_inc[3*indx+1], moment_coords_inc[3*indx+2],1.5, 1.5, 1.5, 3);
 
     size_t iptr_s = 0;
     for (int k=moment_local_index[3 * indx + 2]-npoint_half_ext; k<=moment_local_index[3 * indx + 2]+npoint_half_ext; k++)
@@ -967,17 +944,14 @@ src_read_locate_anasrc(char *pfilepath,
   float wavelet_tlen;
   char *event_name = (char *)malloc(500 * sizeof(char));
   // read analysis source from inputfile
-  if ((fp = fopen(pfilepath, "r"))==NULL)
-  {
-    fprintf(stdout,"fail to open");
-  }
+  if ((fp = fopen(pfilepath, "r"))==NULL) fprintf(stdout,"fail to open");
   fgets(str,500,fp);
   sscanf(str,"%s",event_name);
   fgets(str,500,fp);
   sscanf(str,"%d %d",&num_force,&num_moment);
   fgets(str,500,fp);
   sscanf(str,"%f",&wavelet_tlen);
-
+  *p_event_name = event_name;
   float *force_coords = NULL;
   int   *force_sur = NULL;
   float *force_vector = NULL;
@@ -1012,74 +986,79 @@ src_read_locate_anasrc(char *pfilepath,
     moment_eight_paras = (float *) malloc(8 * num_moment * sizeof(float)); 
     moment_wavelet_tstart = (float *) malloc(num_moment * sizeof(float));
     moment_wavelet_name = (char **) fdlib_mem_malloc_2l_char(num_moment,100,"source_time_function type");
-    moment_wavelet_mechism = (char **) fdlib_mem_malloc_2l_char(num_moment,100,"mechanism type:tensor or angle");                                         
+    moment_wavelet_mechism = (char **) fdlib_mem_malloc_2l_char(num_moment,100,"mechanism type:tensor or angle");
   }
   // read force
-  for (int i=0;i<num_force;i++)
+  if (num_force > 0)
   {
-    fgets(str,500,fp);
-    sscanf(str,"%f %f %f %d",&force_coords[3*i+0],&force_coords[3*i+1],&force_coords[3*i+2],&force_sur[i]);
+    for (int i=0;i<num_force;i++)
+    {
+      fgets(str,500,fp);
+      sscanf(str,"%f %f %f %d",&force_coords[3*i+0],&force_coords[3*i+1],&force_coords[3*i+2],&force_sur[i]);
 
-    fgets(str,500,fp);
-    sscanf(str,"%f %f %f",&force_vector[3*i+0], &force_vector[3*i+1], &force_vector[3*i+2]);
+      fgets(str,500,fp);
+      sscanf(str,"%f %f %f",&force_vector[3*i+0], &force_vector[3*i+1], &force_vector[3*i+2]);
 
-    fgets(str,500,fp);
-    sscanf(str,"%s",force_wavelet_name[i]);
+      fgets(str,500,fp);
+      sscanf(str,"%s",force_wavelet_name[i]);
 
-    fgets(str,500,fp);
-    sscanf(str,"%f %f",&force_wavelet_coefs[2*i+0], &force_wavelet_coefs[2*i+1]);
+      fgets(str,500,fp);
+      sscanf(str,"%f %f",&force_wavelet_coefs[2*i+0], &force_wavelet_coefs[2*i+1]);
 
-    fgets(str,500,fp);
-    sscanf(str,"%f %f %f %f %f %f %f %f",&force_eight_paras[8*i+0],&force_eight_paras[8*i+1],
-        &force_eight_paras[8*i+2],&force_eight_paras[8*i+3],&force_eight_paras[8*i+4],
-        &force_eight_paras[8*i+5],&force_eight_paras[8*i+6],&force_eight_paras[8*i+7]);
+      fgets(str,500,fp);
+      sscanf(str,"%f %f %f %f %f %f %f %f",&force_eight_paras[8*i+0],&force_eight_paras[8*i+1],
+          &force_eight_paras[8*i+2],&force_eight_paras[8*i+3],&force_eight_paras[8*i+4],
+          &force_eight_paras[8*i+5],&force_eight_paras[8*i+6],&force_eight_paras[8*i+7]);
 
-    fgets(str,500,fp);
-    sscanf(str,"%f",&force_wavelet_tstart[i]);
+      fgets(str,500,fp);
+      sscanf(str,"%f",&force_wavelet_tstart[i]);
+    }
   }
   // read moment
-  for(int i=0;i<num_moment;i++)
+  if (num_moment > 0)
   {
-    fgets(str,500,fp);
-    sscanf(str,"%f %f %f %d",&moment_coords[3*i+0],&moment_coords[3*i+1],
-        &moment_coords[3*i+2],&moment_sur[i]);
-
-    fgets(str,500,fp);
-    sscanf(str, "%s", moment_wavelet_mechism[i]);
-
-    if (strcmp("mechanism_angle",moment_wavelet_mechism[i])==0)
+    for(int i=0;i<num_moment;i++)
     {
-      float angle[6];
-      float temp_moment[6];
       fgets(str,500,fp);
-      sscanf(str,"%f %f %f %f %f %f",&angle[0],&angle[1],&angle[2],&angle[3],&angle[4],&angle[5]);
-      // M0 = mu * D * A
-      float M0 = angle[3]*angle[4]*angle[5];    
-      angle2moment(angle[0],angle[1],angle[2],temp_moment);
-      for (int j=0;j<6;j++)
+      sscanf(str,"%f %f %f %d",&moment_coords[3*i+0],&moment_coords[3*i+1],
+         &moment_coords[3*i+2],&moment_sur[i]);
+
+      fgets(str,500,fp);
+      sscanf(str, "%s", moment_wavelet_mechism[i]);
+
+      if (strcmp("mechanism_angle",moment_wavelet_mechism[i])==0)
       {
-        moment_tensor[6*i +j]=M0*temp_moment[j];
-      }
-    }else{  
+        float angle[6];
+        float temp_moment[6];
+        fgets(str,500,fp);
+        sscanf(str,"%f %f %f %f %f %f",&angle[0],&angle[1],&angle[2],&angle[3],&angle[4],&angle[5]);
+        // M0 = mu * D * A
+        float M0 = angle[3]*angle[4]*angle[5];    
+        angle2moment(angle[0],angle[1],angle[2],temp_moment);
+        for (int j=0;j<6;j++)
+        {
+          moment_tensor[6*i +j]=M0*temp_moment[j];
+        }
+      } else {  
+        fgets(str,500,fp);
+        sscanf(str,"%f %f %f %f %f %f",&moment_tensor[6*i +0],&moment_tensor[6*i +1],
+            &moment_tensor[6*i +2],&moment_tensor[6*i +3],&moment_tensor[6*i +4],&moment_tensor[6*i +5]);
+      } 
       fgets(str,500,fp);
-      sscanf(str,"%f %f %f %f %f %f",&moment_tensor[6*i +0],&moment_tensor[6*i +1],
-          &moment_tensor[6*i +2],&moment_tensor[6*i +3],&moment_tensor[6*i +4],&moment_tensor[6*i +5]);
+      sscanf(str,"%s",moment_wavelet_name[i]);
+
+      fgets(str,500,fp);
+      sscanf(str,"%f %f",&moment_wavelet_coefs[2*i+0], &moment_wavelet_coefs[2*i+1]);
+
+      fgets(str,500,fp);
+      sscanf(str,"%f %f %f %f %f %f %f %f",&moment_eight_paras[8*i+0],&moment_eight_paras[8*i+1],&moment_eight_paras[8*i+2],
+          &moment_eight_paras[8*i+3],&moment_eight_paras[8*i+4],&moment_eight_paras[8*i+5],
+          &moment_eight_paras[8*i+6],&moment_eight_paras[8*i+7]);
+
+      fgets(str,500,fp);
+      sscanf(str,"%f",&moment_wavelet_tstart[i]);
     }
-    fgets(str,500,fp);
-    sscanf(str,"%s",moment_wavelet_name[i]);
-
-    fgets(str,500,fp);
-    sscanf(str,"%f %f",&moment_wavelet_coefs[2*i+0], &moment_wavelet_coefs[2*i+1]);
-
-    fgets(str,500,fp);
-    sscanf(str,"%f %f %f %f %f %f %f %f",&moment_eight_paras[8*i+0],&moment_eight_paras[8*i+1],&moment_eight_paras[8*i+2],
-        &moment_eight_paras[8*i+3],&moment_eight_paras[8*i+4],&moment_eight_paras[8*i+5],
-        &moment_eight_paras[8*i+6],&moment_eight_paras[8*i+7]);
-
-    fgets(str,500,fp);
-    sscanf(str,"%f",&moment_wavelet_tstart[i]);
   }
-
   fclose(fp);
 
   // get total elem of exted src region for a single point
@@ -1091,7 +1070,7 @@ src_read_locate_anasrc(char *pfilepath,
   int nz = (nk2-nk1+1)+2*npoint_ghosts;  
   // workspace 3d var for distance calculation
   float *wrk3d = (float *) fdlib_mem_calloc_1d_float(nx*ny*nz,0.0, "src_read_locat_valsrc");
-  int *global_force_index = NULL;
+  int *force_global_index = NULL;
   int nforce = 0;
   int *index_force = NULL;
   int *force_local_index = NULL;
@@ -1099,7 +1078,7 @@ src_read_locate_anasrc(char *pfilepath,
   if(num_force>0)
   {
   // judge force in this thread
-  global_force_index = (int*)malloc(3*num_force*sizeof(int));
+  force_global_index = (int*)malloc(3*num_force*sizeof(int));
   index_force = (int *)malloc(num_force*sizeof(int));
   force_local_index = (int*)malloc(3*num_force*sizeof(int));
   force_coords_inc = (float*)malloc(3*num_force*sizeof(float));
@@ -1126,31 +1105,25 @@ src_read_locate_anasrc(char *pfilepath,
         fprintf(stdout," -- located to local index = %d %d %d\n", si,sj,sk);
         fprintf(stdout," -- located to global index = %d %d %d\n", sgpi,sgpj,sgpk);
         fprintf(stdout," --  with shift = %f %f %f\n", sx_inc,sy_inc,sz_inc);
-        force_local_index[3*i+0] = si;
-        force_local_index[3*i+1] = sj; 
-        force_local_index[3*i+2] = sk;
-        force_coords_inc[3*i+0] = sx_inc;
-        force_coords_inc[3*i+1] = sy_inc;
-        force_coords_inc[3*i+2] = sz_inc;
         index_force[nforce] = i;
         nforce++;
       } else {
         fprintf(stdout," this force not in this thread %d\n", myid);
-        force_local_index[3*i+0] = -1;
-        force_local_index[3*i+1] = -1; 
-        force_local_index[3*i+2] = -1;
-        force_coords_inc[3*i+0] = 0.0;
-        force_coords_inc[3*i+1] = 0.0;
-        force_coords_inc[3*i+2] = 0.0;
       }
-      global_force_index[3*i+0] = sgpi;
-      global_force_index[3*i+1] = sgpj;
-      global_force_index[3*i+2] = sgpk;
+      force_local_index[3*i+0] = si;
+      force_local_index[3*i+1] = sj; 
+      force_local_index[3*i+2] = sk;
+      force_coords_inc[3*i+0] = sx_inc;
+      force_coords_inc[3*i+1] = sy_inc;
+      force_coords_inc[3*i+2] = sz_inc;
+      force_global_index[3*i+0] = sgpi;
+      force_global_index[3*i+1] = sgpj;
+      force_global_index[3*i+2] = sgpk;
     }
  
     // reduce global index and shift values
-    int *recv_global_force_index = (int*)malloc(3*num_force*sizeof(int));
-    MPI_Allreduce(global_force_index, recv_global_force_index, 3*num_force, MPI_INT, MPI_MAX, comm);
+    int *recv_force_global_index = (int*)malloc(3*num_force*sizeof(int));
+    MPI_Allreduce(force_global_index, recv_force_global_index, 3*num_force, MPI_INT, MPI_MAX, comm);
  
     float *recv_force_coords_inc = (float*)malloc(3*num_force*sizeof(float));
     MPI_Allreduce(force_coords_inc,recv_force_coords_inc, 3*num_force, MPI_INT, MPI_SUM, comm);
@@ -1158,10 +1131,11 @@ src_read_locate_anasrc(char *pfilepath,
     for (int i=0; i<num_force; i++)
     {
       fprintf(stdout,"force %d --myid=%d,index=%d %d %d,shift = %f %f %f\n",
-         i, myid,recv_global_force_index[3*i+0],recv_global_force_index[3*i+1],recv_global_force_index[3*i+2],
+         i, myid,recv_force_global_index[3*i+0],recv_force_global_index[3*i+1],recv_force_global_index[3*i+2],
          recv_force_coords_inc[3*i+0],recv_force_coords_inc[3*i+1],recv_force_coords_inc[3*i+2]);
     }
   }
+
   int *force_info = NULL;
   float *force_vec_stf = NULL;
   float *force_ext_coef = NULL;
@@ -1223,6 +1197,7 @@ src_read_locate_anasrc(char *pfilepath,
         }
       }     
     }
+
     float *this_force_ext_coef = force_ext_coef + i * siz_ext;
     cal_norm_delt3d(this_force_ext_coef, force_coords_inc[3*indx+0], force_coords_inc[3*indx+1], force_coords_inc[3*indx+2], 1.5, 1.5, 1.5, 3);
     size_t iptr_s = 0;
@@ -1265,11 +1240,12 @@ src_read_locate_anasrc(char *pfilepath,
     free(force_wavelet_tstart);
     free(force_wavelet_name);
     free(index_force);
-    free(global_force_index);
+    free(force_global_index);
     free(force_local_index);
     free(force_coords_inc);
   }
-  int *global_moment_index = NULL; 
+
+  int *moment_global_index = NULL; 
   int nmoment = 0;
   int *index_moment =NULL;
   int *moment_local_index = NULL;
@@ -1278,7 +1254,7 @@ src_read_locate_anasrc(char *pfilepath,
   if(num_moment>0)
   {
     // judge moment in this thread
-    global_moment_index = (int*)malloc(3*num_moment*sizeof(int));
+    moment_global_index = (int*)malloc(3*num_moment*sizeof(int));
     index_moment = (int *)malloc(num_moment*sizeof(int));
     moment_local_index = (int*)malloc(3*num_moment*sizeof(int));
     moment_coords_inc = (float*)malloc(3*num_moment*sizeof(float));
@@ -1306,31 +1282,24 @@ src_read_locate_anasrc(char *pfilepath,
         fprintf(stdout," -- located to global index = %d %d %d\n", sgpi,sgpj,sgpk);
         fprintf(stdout," --  with shift = %f %f %f\n", sx_inc,sy_inc,sz_inc);
         index_moment[nmoment] = i;
-        moment_local_index[3*i+0] = si;
-        moment_local_index[3*i+1] = sj; 
-        moment_local_index[3*i+2] = sk;
-        moment_coords_inc[3*i+0] = sx_inc;
-        moment_coords_inc[3*i+1] = sy_inc;
-        moment_coords_inc[3*i+2] = sz_inc;
-        index_moment[nmoment] = i;
         nmoment++;
       } else {
         fprintf(stdout," this moment not in this thread %d\n", myid);
-        moment_local_index[3*i+0] = -1;
-        moment_local_index[3*i+1] = -1; 
-        moment_local_index[3*i+2] = -1;
-        moment_coords_inc[3*i+0] = 0.0;
-        moment_coords_inc[3*i+1] = 0.0;
-        moment_coords_inc[3*i+2] = 0.0;
       }
-      global_moment_index[3*i+0] = sgpi;
-      global_moment_index[3*i+1] = sgpj;
-      global_moment_index[3*i+2] = sgpk;
+      moment_local_index[3*i+0] = si;
+      moment_local_index[3*i+1] = sj; 
+      moment_local_index[3*i+2] = sk;
+      moment_coords_inc[3*i+0] = sx_inc;
+      moment_coords_inc[3*i+1] = sy_inc;
+      moment_coords_inc[3*i+2] = sz_inc;
+      moment_global_index[3*i+0] = sgpi;
+      moment_global_index[3*i+1] = sgpj;
+      moment_global_index[3*i+2] = sgpk;
     }
 
     // reduce global index and shift values
-    int *recv_global_moment_index = (int*)malloc(3*num_moment*sizeof(int));
-    MPI_Allreduce(global_moment_index, recv_global_moment_index, 3*num_moment, MPI_INT, MPI_MAX, comm);
+    int *recv_moment_global_index = (int*)malloc(3*num_moment*sizeof(int));
+    MPI_Allreduce(moment_global_index, recv_moment_global_index, 3*num_moment, MPI_INT, MPI_MAX, comm);
 
     float *recv_moment_coords_inc = (float*)malloc(3*num_moment*sizeof(float));
     MPI_Allreduce(moment_coords_inc,recv_moment_coords_inc, 3*num_moment, MPI_INT, MPI_SUM, comm);
@@ -1338,7 +1307,7 @@ src_read_locate_anasrc(char *pfilepath,
     for (int i=0; i<num_moment; i++)
     {
       fprintf(stdout,"moment %d --myid=%d,index=%d %d %d,shift = %f %f %f\n",
-          i, myid,recv_global_moment_index[3*i+0],recv_global_moment_index[3*i+1],recv_global_moment_index[3*i+2],
+          i, myid,recv_moment_global_index[3*i+0],recv_moment_global_index[3*i+1],recv_moment_global_index[3*i+2],
           recv_moment_coords_inc[3*i+0],recv_moment_coords_inc[3*i+1],recv_moment_coords_inc[3*i+2]);
     }
   }
@@ -1450,7 +1419,7 @@ src_read_locate_anasrc(char *pfilepath,
     free(index_moment);
     free(moment_local_index);
     free(moment_coords_inc);
-    free(global_moment_index);
+    free(moment_global_index);
   }
   return 0;
 }

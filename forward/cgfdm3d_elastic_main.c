@@ -430,6 +430,7 @@ int main(int argc, char** argv)
     strncpy(fnm_suffix,par->source_input_file+n-6,6);
     if(strcmp(fnm_suffix,"anasrc")==0)
     {
+      if (myid==0) fprintf(stdout,"***input source type is analysis***\n");
       src_read_locate_anasrc(par->source_input_file,
                 			       blk->siz_line,
                              blk->siz_slice,
@@ -468,10 +469,10 @@ int main(int argc, char** argv)
                              &blk->moment_ext_indx,
                              &blk->moment_ext_coef,
                              verbose);
-     if (myid==0) fprintf(stdout,"***input source type is analysis***\n");
-     }
+    }
     if(strcmp(fnm_suffix,"valsrc")==0)
     {
+      if (myid==0) fprintf(stdout,"***input source type is value sample***\n");
       src_read_locate_valsrc(par->source_input_file,
                 			       blk->siz_line,
                              blk->siz_slice,
@@ -510,8 +511,7 @@ int main(int argc, char** argv)
                              &blk->moment_ext_indx,
                              &blk->moment_ext_coef,
                              verbose);
-     if (myid==0) fprintf(stdout,"***input source type is value sample***\n");
-     }
+    }
   }
   else
   {
@@ -851,7 +851,7 @@ int main(int argc, char** argv)
       if (par->source_input_itype == PAR_SOURCE_FILE)
       sprintf(ou_file,"%s/%s.%s.no%d.%s.sac", blk->output_dir,event_name,
                   line_name,line_offset,blk->w3d_name[icmp]);
-      //fprintf(stdout,"=== Debug: icmp=%d,ou_file=%s\n",icmp,ou_file);fflush(stdout);
+     // fprintf(stdout,"=== Debug: icmp=%d,ou_file=%s\n",icmp,ou_file);fflush(stdout);
 
       sacExport1C1R(ou_file,
             blk->point_seismo+iptr_seismo,
