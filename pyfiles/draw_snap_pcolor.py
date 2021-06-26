@@ -47,7 +47,6 @@ figdpi       = 300
 flag_km      = 1
 clbtype      = 'seismic'
 clbrange     = [None,None]
-clbrange     = [-12,12]
 # ------------------------------------------------------------------------- #
 
 
