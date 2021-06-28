@@ -233,7 +233,8 @@ int main(int argc, char** argv)
     case PAR_METRIC_CALCULATE :
         if (myid==0 && verbose>0) fprintf(stdout,"calculate metrics ...\n"); 
 
-        gd_curv_cal_metric(blk->c3d,
+        gd_curv_cal_metric(blk,
+                           blk->c3d,
                            blk->g3d,
                            blk->ni1,
                            blk->ni2,
@@ -249,7 +250,8 @@ int main(int argc, char** argv)
                            blk->siz_volume,
                            fd->fd_len,
                            fd->fd_indx,
-                           fd->fd_coef);
+                           fd->fd_coef,
+                           myid);
 
         //if (myid==0) fprintf(stdout,"exchange metrics ...\n"); 
         //gd_curv_exchange_metric();

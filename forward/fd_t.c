@@ -304,10 +304,9 @@ fd_blk_init(struct fd_blk_t *blk,
 
   int pdims[2]={number_of_mpiprocs_x,number_of_mpiprocs_y};
   int periods[2] = {0,0};
-
+  int rank; 
   // create Cartesian topology
   MPI_Cart_create(comm, 2, pdims, periods, 0, &blk->topocomm);
-
   // get my local x,y coordinates
   MPI_Cart_coords(blk->topocomm, myid, 2, blk->myid2);
 

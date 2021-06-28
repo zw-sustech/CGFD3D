@@ -8,7 +8,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-
+#include <mpi.h>
 #include "netcdf.h"
 
 #include "fdlib_mem.h"
@@ -169,19 +169,19 @@ gd_curv_init_g3d(
 //
 void
 gd_curv_cal_metric(
+    struct fd_blk_t *blk,
     float *restrict c3d,
     float *restrict g3d,
     int ni1, int ni2, int nj1, int nj2, int nk1, int nk2,
     int nx, int ny, int nz,
     size_t siz_line, size_t siz_slice, size_t siz_volume,
-    int fd_len, int *restrict fd_indx, float *restrict fd_coef)
+    int fd_len, int *restrict fd_indx, float *restrict fd_coef, int myid)
 {
   float x_xi, x_et, x_zt;
   float y_xi, y_et, y_zt;
   float z_xi, z_et, z_zt;
   float jac;
   float vec1[3], vec2[3], vec3[3], vecg[3];
-
   int n_fd;
 
   // point to each var
@@ -259,119 +259,95 @@ gd_curv_cal_metric(
       }
     }
   }
+  // extend to ghosts, using mpi exchange
+  int s_iptr;
+  int r_iptr;
+  MPI_Status status;
+  MPI_Datatype DTypeXL, DTypeYL;
+  MPI_Type_vector(ny*nz*10,
+                  3,
+                  nx,
+                  MPI_FLOAT,
+                  &DTypeXL);
+  MPI_Type_vector(nz*10,
+                  3*nx,
+                  nx*ny,
+                  MPI_FLOAT,
+                  &DTypeYL);
+  MPI_Type_commit(&DTypeXL);
+  MPI_Type_commit(&DTypeYL);
+  // to X1
+  s_iptr = ni1 + 0 * siz_line + 0 * siz_slice;        //sendbuff point (ni1,ny1,nz1)
+  r_iptr = (ni2+1) + 0 * siz_line + 0 * siz_slice;    //recvbuff point (ni2+1,ny1,nz1)
+  MPI_Sendrecv(&g3d[s_iptr],1,DTypeXL,blk->neighid[0],110,
+               &g3d[r_iptr],1,DTypeXL,blk->neighid[1],110,
+               blk->topocomm,&status);
+  // to X2
+  s_iptr = (ni2-3+1) + 0 * siz_line + 0 * siz_slice;    //sendbuff point (ni2-3+1,ny1,nz1)
+  r_iptr = (ni1-3) + 0 * siz_line + 0 * siz_slice;      //recvbuff point (ni1-3,ny1,nz1)
+  MPI_Sendrecv(&g3d[s_iptr],1,DTypeXL,blk->neighid[1],120,
+               &g3d[r_iptr],1,DTypeXL,blk->neighid[0],120,
+               blk->topocomm,&status);
+  // to Y1
+  s_iptr = 0 + nj1 * siz_line + 0 * siz_slice;        //sendbuff point (nx1,nj1,nz1)
+  r_iptr = 0 + (nj2+1) * siz_line + 0 * siz_slice;    //recvbuff point (nx1,nj2+1,nz1)
+  MPI_Sendrecv(&g3d[s_iptr],1,DTypeYL,blk->neighid[2],210,
+               &g3d[r_iptr],1,DTypeYL,blk->neighid[3],210,
+               blk->topocomm,&status);
+  // to Y2
+  s_iptr = 0 + (nj2-3+1) * siz_line + 0 * siz_slice;   //sendbuff point (nx1,nj2-3+1,nz1)
+  r_iptr = 0 + (nj1-3) * siz_line + 0 * siz_slice;     //recvbuff point (nx1,nj1-3,nz1)
+  MPI_Sendrecv(&g3d[s_iptr],1,DTypeYL,blk->neighid[3],220,
+               &g3d[r_iptr],1,DTypeYL,blk->neighid[2],220,
+               blk->topocomm,&status);
 
-  // extend to ghosts. may replaced by mpi exchange
-  // x1, mirror
-  for (size_t k = 0; k < nz; k++){
-    for (size_t j = 0; j < ny; j++) {
-      for (size_t i = 0; i < ni1; i++)
-      {
-        size_t iptr = i + j * siz_line + k * siz_slice;
-        jac3d[iptr] = jac3d[iptr + (ni1-i)*2 -1 ];
-         xi_x[iptr] =  xi_x[iptr + (ni1-i)*2 -1 ];
-         xi_y[iptr] =  xi_y[iptr + (ni1-i)*2 -1 ];
-         xi_z[iptr] =  xi_z[iptr + (ni1-i)*2 -1 ];
-         et_x[iptr] =  et_x[iptr + (ni1-i)*2 -1 ];
-         et_y[iptr] =  et_y[iptr + (ni1-i)*2 -1 ];
-         et_z[iptr] =  et_z[iptr + (ni1-i)*2 -1 ];
-         zt_x[iptr] =  zt_x[iptr + (ni1-i)*2 -1 ];
-         zt_y[iptr] =  zt_y[iptr + (ni1-i)*2 -1 ];
-         zt_z[iptr] =  zt_z[iptr + (ni1-i)*2 -1 ];
-      }
-    }
+  // for test.  check send_recv whether success
+  /* 
+  for (size_t i = ni1; i < ni1+3; i++)
+  {
+    int j = nj1;
+    int k = nk1;
+    size_t iptr = i + j * siz_line + k * siz_slice;
+    if(myid ==5 ) fprintf(stdout,"eee %f %f %f eee\n",jac3d[iptr],xi_x[iptr], zt_y[iptr]);
   }
-  // x2, mirror
-  for (size_t k = 0; k < nz; k++){
-    for (size_t j = 0; j < ny; j++) {
-      for (size_t i = ni2+1; i < nx; i++)
-      {
-        size_t iptr = i + j * siz_line + k * siz_slice;
-        jac3d[iptr] = jac3d[iptr - (i-ni2)*2 +1 ];
-         xi_x[iptr] =  xi_x[iptr - (i-ni2)*2 +1 ];
-         xi_y[iptr] =  xi_y[iptr - (i-ni2)*2 +1 ];
-         xi_z[iptr] =  xi_z[iptr - (i-ni2)*2 +1 ];
-         et_x[iptr] =  et_x[iptr - (i-ni2)*2 +1 ];
-         et_y[iptr] =  et_y[iptr - (i-ni2)*2 +1 ];
-         et_z[iptr] =  et_z[iptr - (i-ni2)*2 +1 ];
-         zt_x[iptr] =  zt_x[iptr - (i-ni2)*2 +1 ];
-         zt_y[iptr] =  zt_y[iptr - (i-ni2)*2 +1 ];
-         zt_z[iptr] =  zt_z[iptr - (i-ni2)*2 +1 ];
-      }
-    }
-  }
-  // y1, mirror
-  for (size_t k = 0; k < nz; k++){
-    for (size_t j = 0; j < nj1; j++) {
-      for (size_t i = 0; i < nx; i++) {
-        size_t iptr = i + j * siz_line + k * siz_slice;
-        jac3d[iptr] = jac3d[iptr + ((nj1-j)*2 -1) * siz_line ];
-         xi_x[iptr] =  xi_x[iptr + ((nj1-j)*2 -1) * siz_line ];
-         xi_y[iptr] =  xi_y[iptr + ((nj1-j)*2 -1) * siz_line ];
-         xi_z[iptr] =  xi_z[iptr + ((nj1-j)*2 -1) * siz_line ];
-         et_x[iptr] =  et_x[iptr + ((nj1-j)*2 -1) * siz_line ];
-         et_y[iptr] =  et_y[iptr + ((nj1-j)*2 -1) * siz_line ];
-         et_z[iptr] =  et_z[iptr + ((nj1-j)*2 -1) * siz_line ];
-         zt_x[iptr] =  zt_x[iptr + ((nj1-j)*2 -1) * siz_line ];
-         zt_y[iptr] =  zt_y[iptr + ((nj1-j)*2 -1) * siz_line ];
-         zt_z[iptr] =  zt_z[iptr + ((nj1-j)*2 -1) * siz_line ];
-      }
-    }
-  }
-  // y2, mirror
-  for (size_t k = 0; k < nz; k++){
-    for (size_t j = nj2+1; j < ny; j++) {
-      for (size_t i = 0; i < nx; i++) {
-        size_t iptr = i + j * siz_line + k * siz_slice;
-        jac3d[iptr] = jac3d[iptr - ((j-nj2)*2 -1) * siz_line ];
-         xi_x[iptr] =  xi_x[iptr - ((j-nj2)*2 -1) * siz_line ];
-         xi_y[iptr] =  xi_y[iptr - ((j-nj2)*2 -1) * siz_line ];
-         xi_z[iptr] =  xi_z[iptr - ((j-nj2)*2 -1) * siz_line ];
-         et_x[iptr] =  et_x[iptr - ((j-nj2)*2 -1) * siz_line ];
-         et_y[iptr] =  et_y[iptr - ((j-nj2)*2 -1) * siz_line ];
-         et_z[iptr] =  et_z[iptr - ((j-nj2)*2 -1) * siz_line ];
-         zt_x[iptr] =  zt_x[iptr - ((j-nj2)*2 -1) * siz_line ];
-         zt_y[iptr] =  zt_y[iptr - ((j-nj2)*2 -1) * siz_line ];
-         zt_z[iptr] =  zt_z[iptr - ((j-nj2)*2 -1) * siz_line ];
-      }
-    }
-  }
-  // z1, mirror
-  for (size_t k = 0; k < nk1; k++) {
-    for (size_t j = 0; j < ny; j++){
-      for (size_t i = 0; i < nx; i++) {
-        size_t iptr = i + j * siz_line + k * siz_slice;
-        jac3d[iptr] = jac3d[iptr + ((nk1-k)*2 -1) * siz_slice ];
-         xi_x[iptr] =  xi_x[iptr + ((nk1-k)*2 -1) * siz_slice ];
-         xi_y[iptr] =  xi_y[iptr + ((nk1-k)*2 -1) * siz_slice ];
-         xi_z[iptr] =  xi_z[iptr + ((nk1-k)*2 -1) * siz_slice ];
-         et_x[iptr] =  et_x[iptr + ((nk1-k)*2 -1) * siz_slice ];
-         et_y[iptr] =  et_y[iptr + ((nk1-k)*2 -1) * siz_slice ];
-         et_z[iptr] =  et_z[iptr + ((nk1-k)*2 -1) * siz_slice ];
-         zt_x[iptr] =  zt_x[iptr + ((nk1-k)*2 -1) * siz_slice ];
-         zt_y[iptr] =  zt_y[iptr + ((nk1-k)*2 -1) * siz_slice ];
-         zt_z[iptr] =  zt_z[iptr + ((nk1-k)*2 -1) * siz_slice ];
-      }
-    }
-  }
-  // z2, mirror
-  for (size_t k = nk2+1; k < nz; k++) {
-    for (size_t j = 0; j < ny; j++){
-      for (size_t i = 0; i < nx; i++) {
-        size_t iptr = i + j * siz_line + k * siz_slice;
-        jac3d[iptr] = jac3d[iptr - ((k-nk2)*2 -1) * siz_slice ];
-         xi_x[iptr] =  xi_x[iptr - ((k-nk2)*2 -1) * siz_slice ];
-         xi_y[iptr] =  xi_y[iptr - ((k-nk2)*2 -1) * siz_slice ];
-         xi_z[iptr] =  xi_z[iptr - ((k-nk2)*2 -1) * siz_slice ];
-         et_x[iptr] =  et_x[iptr - ((k-nk2)*2 -1) * siz_slice ];
-         et_y[iptr] =  et_y[iptr - ((k-nk2)*2 -1) * siz_slice ];
-         et_z[iptr] =  et_z[iptr - ((k-nk2)*2 -1) * siz_slice ];
-         zt_x[iptr] =  zt_x[iptr - ((k-nk2)*2 -1) * siz_slice ];
-         zt_y[iptr] =  zt_y[iptr - ((k-nk2)*2 -1) * siz_slice ];
-         zt_z[iptr] =  zt_z[iptr - ((k-nk2)*2 -1) * siz_slice ];
-      }
-    }
+  for (size_t i = ni2+1; i <= ni2+3; i++)
+  {
+    int j = nj1;
+    int k = nk1;
+    size_t iptr = i + j * siz_line + k * siz_slice;
+    if(myid == 2) fprintf(stdout,"*** %f %f %f ***\n",jac3d[iptr],xi_x[iptr], zt_y[iptr]);
   }
 
+  for (size_t i = ni2-2; i <= ni2; i++)
+  {
+    int j = nj1;
+    int k = nk1;
+    size_t iptr = i + j * siz_line + k * siz_slice;
+    if(myid == 1) fprintf(stdout,"eee %f %f %f eee\n",jac3d[iptr],xi_x[iptr], zt_y[iptr]);
+  }
+  for (size_t i = ni1-3; i < ni1; i++)
+  {
+    int j = nj1;
+    int k = nk1;
+    size_t iptr = i + j * siz_line + k * siz_slice;
+    if(myid == 4) fprintf(stdout,"*** %f %f %f ***\n",jac3d[iptr],xi_x[iptr], zt_y[iptr]);
+  }
+
+  for (size_t j = nj2-2; j <= nj2; j++)
+  {
+    int i = ni1+1;
+    int k = nk1+1;
+    size_t iptr = i + j * siz_line + k * siz_slice;
+    if(myid == 1) fprintf(stdout,"eee %f %f %f eee\n",jac3d[iptr],xi_x[iptr], zt_y[iptr]);
+  }
+  for (size_t j = nj1-3; j < nj1; j++)
+  {
+    int i = ni1+1;
+    int k = nk1+1;
+    size_t iptr = i + j * siz_line + k * siz_slice;
+    if(myid == 2) fprintf(stdout,"*** %f %f %f ***\n",jac3d[iptr],xi_x[iptr], zt_y[iptr]);
+  }
+*/
   // for test
   /*
   for (size_t k = 0; k < nz; k++){
