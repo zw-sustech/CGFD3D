@@ -250,8 +250,7 @@ int main(int argc, char** argv)
                            blk->siz_volume,
                            fd->fd_len,
                            fd->fd_indx,
-                           fd->fd_coef,
-                           myid);
+                           fd->fd_coef);
 
         //if (myid==0) fprintf(stdout,"exchange metrics ...\n"); 
         //gd_curv_exchange_metric();
