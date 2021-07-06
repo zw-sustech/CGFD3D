@@ -17,6 +17,10 @@ CC     :=  /share/apps/gnu-4.8.5/mpich-3.3/bin/mpicc
 CXX    :=  /share/apps/gnu-4.8.5/mpich-3.3/bin/mpicxx
 NETCDF :=  /share/apps/gnu-4.8.5/disable-netcdf-4.4.1
 
+# CC     :=  /home/zl/software/mpich3.2/bin/mpicc
+# CXX    :=  /home/zl/software/mpich3.2/bin/mpicxx
+# NETCDF :=  /home/zl/software/netcdf-4.4.1
+
 #-- 
 CFLAGS := -I$(NETCDF)/include -I./lib/ -I./forward/ -I./media/ $(CFLAGS)
 

@@ -186,8 +186,8 @@ int main(int argc, char** argv)
         if (myid==0) fprintf(stdout,"gerate grid using layer interp ...\n"); 
         if (myid==0) fprintf(stdout,"   not implemented yet\n"); 
 		  gd_curv_gen_layer(par->in_grid_layer_file,
-							par->grid_layer_interp_factor,
-							par->grid_layer_startend,
+							par->grid_layer_resample_factor,
+							par->grid_layer_start,
 							par->number_of_total_grid_points_x,
 							par->number_of_total_grid_points_y,
 							par->number_of_total_grid_points_z,
@@ -224,6 +224,7 @@ int main(int argc, char** argv)
                          blk->output_fname_part,
                          blk->grid_export_dir);
   }
+  fprintf(stdout, " export coord to file end\n"); fflush(stdout);
 
   // cal metrics and output for QC
   
