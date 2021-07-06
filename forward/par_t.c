@@ -324,10 +324,9 @@ par_read_from_str(const char *str, struct par_t *par)
     if (subitem = cJSON_GetObjectItem(item, "in_3lay_file")) {
         par->media_input_itype = PAR_MEDIA_3LAY;
         sprintf(par->media_input_file, "%s", subitem->valuestring);
-        // If input layer model, choose which equivalent medium para method
-        if (thirditem = cJSON_GetObjectItem(item, "equivalent_medium_method")) {
-          sprintf(par->equivalent_medium_method, "%s", thirditem->valuestring);
-        }
+    }
+    if (subitem = cJSON_GetObjectItem(item, "equivalent_medium_method")) {
+        sprintf(par->equivalent_medium_method, "%s", subitem->valuestring);
     }
     if (subitem = cJSON_GetObjectItem(item, "in_3grd_file")) {
         par->media_input_itype = PAR_MEDIA_3GRD;

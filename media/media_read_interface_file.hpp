@@ -1,14 +1,25 @@
-#ifndef __READ_INTERFACE_FILE__
-#define __READ_INTERFACE_FILE__
-
-#include "media_layer2model.hpp"
+#ifndef __MEDIA_READ_INTERFACE_FILE__
+#define __MEDIA_READ_INTERFACE_FILE__
 #define MAX_BUF_LEN 1024
+
+#include <iostream>
+#include <vector>
+#include "media_utility.hpp"
 
 FILE *gfopen(const char *filename, const char *mode);
 
 void read_interface_file(
     const char *interface_file,
     int &NI,
+    Interfaces **interfaces);
+
+void read_grid_file(
+    const char *grid_file,
+    // the calculation grid range
+    float Xmin, float Xmax,
+    float Ymin, float Ymax,
+    int &NL,
+    std::vector<int> &NGz, // how many z-grid in each layer
     Interfaces **interfaces);
 
 #endif

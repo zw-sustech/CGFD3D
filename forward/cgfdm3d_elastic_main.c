@@ -26,7 +26,7 @@
 #include "src_funcs.h"
 #include "io_funcs.h"
 #include "sv_eliso1st_curv_macdrp.h"
-#include "media_layer2model.h"
+#include "media_discrete_model.h"
 
 
 int main(int argc, char** argv)
@@ -298,6 +298,7 @@ int main(int argc, char** argv)
                       &blk->m3d_pos,
                       &blk->m3d_name);
   
+
   // read or discrete velocity model
   switch (par->media_input_itype)
   {
@@ -322,8 +323,9 @@ int main(int argc, char** argv)
         //              myid3[0],myid3[1],myid3[2]);
         break;
 
-    case PAR_MEDIA_3LAY :
+    case PAR_MEDIA_3LAY : {
         if (myid==0) fprintf(stdout,"read and discretize 3D layer medium file ...\n"); 
+
         float *lam3d = blk->m3d + MD_EL_ISO_SEQ_LAMBDA * blk->siz_volume;
         float  *mu3d = blk->m3d + MD_EL_ISO_SEQ_MU     * blk->siz_volume;
         float *rho3d = blk->m3d + MD_EL_ISO_SEQ_RHO    * blk->siz_volume;
@@ -334,17 +336,36 @@ int main(int argc, char** argv)
                                  blk->nx,
                                  blk->ny,
                                  blk->nz,
-                                 blk->siz_line,
-                                 blk->siz_slice,
-                                 blk->siz_volume, 
                                  par->media_input_file,
                                  par->equivalent_medium_method);
         break;
+    }
 
-    case PAR_MEDIA_3GRD :
+    case PAR_MEDIA_3GRD : {
         if (myid==0) fprintf(stdout,"read and descretize 3D grid medium file ...\n"); 
         if (myid==0) fprintf(stdout,"   not implemented yet\n"); 
+
+        // jlq: just for test!
+        float *x3d = blk->c3d+GD_CURV_SEQ_X3D * blk->siz_volume;
+        float *y3d = blk->c3d+GD_CURV_SEQ_Y3D * blk->siz_volume;
+
+        float *lam3d = blk->m3d + MD_EL_ISO_SEQ_LAMBDA * blk->siz_volume;
+        float  *mu3d = blk->m3d + MD_EL_ISO_SEQ_MU     * blk->siz_volume;
+        float *rho3d = blk->m3d + MD_EL_ISO_SEQ_RHO    * blk->siz_volume;
+
+        media_el_iso_grid2model(lam3d, mu3d, rho3d,
+                                blk->c3d+GD_CURV_SEQ_X3D * blk->siz_volume,
+                                blk->c3d+GD_CURV_SEQ_Y3D * blk->siz_volume,
+                                blk->c3d+GD_CURV_SEQ_Z3D * blk->siz_volume,
+                                blk->nx,
+                                blk->ny,
+                                blk->nz,
+                                x3d[0], x3d[blk->siz_volume-1],   //float Xmin, float Xmax,
+                                y3d[0], y3d[blk->siz_volume-1],   //float Ymin, float Ymax, 
+                                par->media_input_file,
+                                par->equivalent_medium_method); 
         break;
+    }
 
   }
 

@@ -1,5 +1,5 @@
-#ifndef __GEOMETRY3D_H__
-#define __GEOMETRY3D_H__
+#ifndef __MEDIA_GEOMETRY3D_H__
+#define __MEDIA_GEOMETRY3D_H__
 
 #include <iostream>
 #include <vector>
@@ -61,7 +61,6 @@ struct Mesh3 {
         this->v[6] = G;
         this->v[7] = H;
     }
-    //~Mesh3();
 };
 
 bool isPointInPolyhedron(const Point3 &p, const std::vector<Face> &fs);
@@ -74,6 +73,10 @@ bool isPointInHexahedron(float px, float py, float pz,
 #ifdef __cplusplus
 }
 #endif /* extern C */
+
+
+// For media discretize used
+Point3 *MeshSubdivide(Mesh3 M);
 
 
 #endif /*media_geometry*/
