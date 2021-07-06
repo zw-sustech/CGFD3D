@@ -233,7 +233,8 @@ int main(int argc, char** argv)
     case PAR_METRIC_CALCULATE :
         if (myid==0 && verbose>0) fprintf(stdout,"calculate metrics ...\n"); 
 
-        gd_curv_cal_metric(blk->c3d,
+        gd_curv_cal_metric(blk,
+                           blk->c3d,
                            blk->g3d,
                            blk->ni1,
                            blk->ni2,
@@ -422,48 +423,96 @@ int main(int argc, char** argv)
 //-------------------------------------------------------------------------------
   
   // read or gen source
+  char *event_name =NULL;
   if (par->source_input_itype == PAR_SOURCE_FILE)
   {
-    if (myid==0) fprintf(stdout,"read source file ...\n"); 
-    if (myid==0) fprintf(stdout,"   not implemented yet\n");
- 
-    src_read_locat_anasrc(par->source_input_file,
-			  blk->siz_line,
-                          blk->siz_slice,
-                          t0,
-                          dt,
-                          fd->num_rk_stages,
-                          fd->rk_rhs_time,
-                          blk->gni1,
-                          blk->gni2,
-                          blk->gnj1,
-                          blk->gnj2,
-                          blk->gnk1,
-                          blk->gnk2,
-                          blk->ni1,
-                          blk->ni2,
-                          blk->nj1,
-                          blk->nj2,
-                          blk->nk1,
-                          blk->nk2,
-                          fd->fd_half_len,
-                          fd->fd_nghosts,
-                          &blk->num_of_force,
-                          &blk->force_info,
-                          &blk->force_vec_stf,
-                          &blk->force_ext_indx,
-                          &blk->force_ext_coef,
-                          &blk->num_of_moment,
-                          &blk->moment_info,
-                          &blk->moment_ten_rate,
-                          &blk->moment_ext_indx,
-                          &blk->moment_ext_coef,
-                          verbose);
-
-    if (myid==0) fprintf(stdout,"   ************************\n");
-    if (myid==0) fprintf(stdout,"   this test is right\n");
- 
- 
+    char fnm_suffix[6];
+    int  n = strlen(par->source_input_file);
+    strncpy(fnm_suffix,par->source_input_file+n-6,6);
+    if(strcmp(fnm_suffix,"anasrc")==0)
+    {
+      if (myid==0) fprintf(stdout,"***input source type is analysis***\n");
+      src_read_locate_anasrc(par->source_input_file,
+                			       blk->siz_line,
+                             blk->siz_slice,
+                             t0,
+                             dt,
+                             fd->num_rk_stages,
+                             fd->rk_rhs_time,
+                             blk->gni1,
+                             blk->gni2,
+                             blk->gnj1,
+                             blk->gnj2,
+                             blk->gnk1,
+                             blk->gnk2,
+                             blk->ni1,
+                             blk->ni2,
+                             blk->nj1,
+                             blk->nj2,
+                             blk->nk1,
+                             blk->nk2,
+                             fd->fd_half_len,
+                             fd->fd_nghosts,
+                             blk->c3d+blk->c3d_pos[0],
+                             blk->c3d+blk->c3d_pos[1],
+                             blk->c3d+blk->c3d_pos[2],
+                             comm,
+                             myid,
+                             &event_name,
+                             &blk->num_of_force,
+                             &blk->force_info,
+                             &blk->force_vec_stf,
+                             &blk->force_ext_indx,
+                             &blk->force_ext_coef,
+                             &blk->num_of_moment,
+                             &blk->moment_info,
+                             &blk->moment_ten_rate,
+                             &blk->moment_ext_indx,
+                             &blk->moment_ext_coef,
+                             verbose);
+    }
+    if(strcmp(fnm_suffix,"valsrc")==0)
+    {
+      if (myid==0) fprintf(stdout,"***input source type is value sample***\n");
+      src_read_locate_valsrc(par->source_input_file,
+                			       blk->siz_line,
+                             blk->siz_slice,
+                             t0,
+                             dt,
+                             fd->num_rk_stages,
+                             fd->rk_rhs_time,
+                             blk->gni1,
+                             blk->gni2,
+                             blk->gnj1,
+                             blk->gnj2,
+                             blk->gnk1,
+                             blk->gnk2,
+                             blk->ni1,
+                             blk->ni2,
+                             blk->nj1,
+                             blk->nj2,
+                             blk->nk1,
+                             blk->nk2,
+                             fd->fd_half_len,
+                             fd->fd_nghosts,
+                             blk->c3d+blk->c3d_pos[0],
+                             blk->c3d+blk->c3d_pos[1],
+                             blk->c3d+blk->c3d_pos[2],
+                             comm,
+                             myid,
+                             &event_name,
+                             &blk->num_of_force,
+                             &blk->force_info,
+                             &blk->force_vec_stf,
+                             &blk->force_ext_indx,
+                             &blk->force_ext_coef,
+                             &blk->num_of_moment,
+                             &blk->moment_info,
+                             &blk->moment_ten_rate,
+                             &blk->moment_ext_indx,
+                             &blk->moment_ext_coef,
+                             verbose);
+    }
   }
   else
   {
@@ -749,14 +798,16 @@ int main(int argc, char** argv)
     {
       //fprintf(stdout,"=== Debug: icmp=%d\n",icmp);fflush(stdout);
 
-      int iptr_seismo = ir * num_of_vars * nt_total + icmp * nt_total;
-
+      int iptr_seismo = ir * num_of_vars * nt_total + icmp * nt_total; 
       //fprintf(stdout,"=== Debug: icmp=%d,output_dir=%s\n",icmp,blk->output_dir);fflush(stdout);
       //fprintf(stdout,"=== Debug: icmp=%d,source_name=%s\n",icmp,par->source_name);fflush(stdout);
       //fprintf(stdout,"=== Debug: icmp=%d,sta_name=%s\n",icmp,sta_name);fflush(stdout);
       //fprintf(stdout,"=== Debug: icmp=%d,w3d_name=%s\n",icmp,blk->w3d_name[icmp]);fflush(stdout);
-
+      if (par->source_input_itype != PAR_SOURCE_FILE)
       sprintf(ou_file,"%s/%s.%s.%s.sac", blk->output_dir,par->source_name,
+                  sta_name,blk->w3d_name[icmp]);
+      if (par->source_input_itype == PAR_SOURCE_FILE)
+      sprintf(ou_file,"%s/%s.%s.%s.sac", blk->output_dir,event_name,
                   sta_name,blk->w3d_name[icmp]);
 
       //fprintf(stdout,"=== Debug: icmp=%d,ou_file=%s\n",icmp,ou_file);fflush(stdout);
@@ -794,12 +845,14 @@ int main(int argc, char** argv)
     for (int icmp=0; icmp<num_of_vars; icmp++)
     {
       int iptr_seismo = ir * num_of_vars * nt_total + icmp * nt_total;
-
       // evt1.line2.pt2.Vx.sac
+      if (par->source_input_itype != PAR_SOURCE_FILE)
       sprintf(ou_file,"%s/%s.%s.no%d.%s.sac", blk->output_dir,par->source_name,
                   line_name,line_offset,blk->w3d_name[icmp]);
-
-      //fprintf(stdout,"=== Debug: icmp=%d,ou_file=%s\n",icmp,ou_file);fflush(stdout);
+      if (par->source_input_itype == PAR_SOURCE_FILE)
+      sprintf(ou_file,"%s/%s.%s.no%d.%s.sac", blk->output_dir,event_name,
+                  line_name,line_offset,blk->w3d_name[icmp]);
+     // fprintf(stdout,"=== Debug: icmp=%d,ou_file=%s\n",icmp,ou_file);fflush(stdout);
 
       sacExport1C1R(ou_file,
             blk->point_seismo+iptr_seismo,

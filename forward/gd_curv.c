@@ -8,7 +8,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-
+#include <mpi.h>
 #include "netcdf.h"
 
 #include "fdlib_mem.h"
@@ -169,6 +169,7 @@ gd_curv_init_g3d(
 //
 void
 gd_curv_cal_metric(
+    struct fd_blk_t *blk,
     float *restrict c3d,
     float *restrict g3d,
     int ni1, int ni2, int nj1, int nj2, int nk1, int nk2,
@@ -181,7 +182,6 @@ gd_curv_cal_metric(
   float z_xi, z_et, z_zt;
   float jac;
   float vec1[3], vec2[3], vec3[3], vecg[3];
-
   int n_fd;
 
   // point to each var
@@ -259,7 +259,7 @@ gd_curv_cal_metric(
       }
     }
   }
-
+    
   // extend to ghosts. may replaced by mpi exchange
   // x1, mirror
   for (size_t k = 0; k < nz; k++){
@@ -371,6 +371,97 @@ gd_curv_cal_metric(
       }
     }
   }
+  
+  // extend to ghosts, using mpi exchange
+  // NOTE in different myid, nx(or ny) may not equal
+  // so send type DTypeXL not equal recv type DTypeXL
+  int s_iptr;
+  int r_iptr;
+  MPI_Status status;
+  MPI_Datatype DTypeXL, DTypeYL;
+  MPI_Type_vector(ny*nz*10,
+                  3,
+                  nx,
+                  MPI_FLOAT,
+                  &DTypeXL);
+  MPI_Type_vector(nz*10,
+                  3*nx,
+                  nx*ny,
+                  MPI_FLOAT,
+                  &DTypeYL);
+  MPI_Type_commit(&DTypeXL);
+  MPI_Type_commit(&DTypeYL);
+  // to X1
+  s_iptr = ni1 + 0 * siz_line + 0 * siz_slice;        //sendbuff point (ni1,ny1,nz1)
+  r_iptr = (ni2+1) + 0 * siz_line + 0 * siz_slice;    //recvbuff point (ni2+1,ny1,nz1)
+  MPI_Sendrecv(&g3d[s_iptr],1,DTypeXL,blk->neighid[0],110,
+               &g3d[r_iptr],1,DTypeXL,blk->neighid[1],110,
+               blk->topocomm,&status);
+  // to X2
+  s_iptr = (ni2-3+1) + 0 * siz_line + 0 * siz_slice;    //sendbuff point (ni2-3+1,ny1,nz1)
+  r_iptr = (ni1-3) + 0 * siz_line + 0 * siz_slice;      //recvbuff point (ni1-3,ny1,nz1)
+  MPI_Sendrecv(&g3d[s_iptr],1,DTypeXL,blk->neighid[1],120,
+               &g3d[r_iptr],1,DTypeXL,blk->neighid[0],120,
+               blk->topocomm,&status);
+  // to Y1
+  s_iptr = 0 + nj1 * siz_line + 0 * siz_slice;        //sendbuff point (nx1,nj1,nz1)
+  r_iptr = 0 + (nj2+1) * siz_line + 0 * siz_slice;    //recvbuff point (nx1,nj2+1,nz1)
+  MPI_Sendrecv(&g3d[s_iptr],1,DTypeYL,blk->neighid[2],210,
+               &g3d[r_iptr],1,DTypeYL,blk->neighid[3],210,
+               blk->topocomm,&status);
+  // to Y2
+  s_iptr = 0 + (nj2-3+1) * siz_line + 0 * siz_slice;   //sendbuff point (nx1,nj2-3+1,nz1)
+  r_iptr = 0 + (nj1-3) * siz_line + 0 * siz_slice;     //recvbuff point (nx1,nj1-3,nz1)
+  MPI_Sendrecv(&g3d[s_iptr],1,DTypeYL,blk->neighid[3],220,
+               &g3d[r_iptr],1,DTypeYL,blk->neighid[2],220,
+               blk->topocomm,&status);
+/*
+  // for test.  check send_recv whether success
+  for (size_t i = ni1; i < ni1+3; i++)
+  {
+    int j = nj1;
+    int k = nk1;
+    size_t iptr = i + j * siz_line + k * siz_slice;
+    if(blk->myid2[0]==1 && blk->myid2[1]==0 ) fprintf(stdout,"aaa  %f %f %f aaa\n",jac3d[iptr],xi_x[iptr], zt_y[iptr]);
+  }
+  for (size_t i = ni2+1; i <= ni2+3; i++)
+  {
+    int j = nj1;
+    int k = nk1;
+    size_t iptr = i + j * siz_line + k * siz_slice;
+    if(blk->myid2[0]==0 && blk->myid2[1]==0) fprintf(stdout,"**a %f %f %f **a\n",jac3d[iptr],xi_x[iptr], zt_y[iptr]);
+  }
+
+  for (size_t i = ni2-2; i <= ni2; i++)
+  {
+    int j = nj1;
+    int k = nk1;
+    size_t iptr = i + j * siz_line + k * siz_slice;
+    if(blk->myid2[0]==0 && blk->myid2[1]==1) fprintf(stdout,"bbb %f %f %f bbb\n",jac3d[iptr],xi_x[iptr], zt_y[iptr]);
+  }
+  for (size_t i = ni1-3; i < ni1; i++)
+  {
+    int j = nj1;
+    int k = nk1;
+    size_t iptr = i + j * siz_line + k * siz_slice;
+    if(blk->myid2[0]==1 && blk->myid2[1]==1) fprintf(stdout,"**b %f %f %f **b\n",jac3d[iptr],xi_x[iptr], zt_y[iptr]);
+  }
+
+  for (size_t j = nj2-2; j <= nj2; j++)
+  {
+    int i = ni1+1;
+    int k = nk1+1;
+    size_t iptr = i + j * siz_line + k * siz_slice;
+    if(blk->myid2[0]==0 && blk->myid2[1]==0) fprintf(stdout,"ccc %f %f %f ccc\n",jac3d[iptr],xi_x[iptr], zt_y[iptr]);
+  }
+  for (size_t j = nj1-3; j < nj1; j++)
+  {
+    int i = ni1+1;
+    int k = nk1+1;
+    size_t iptr = i + j * siz_line + k * siz_slice;
+    if(blk->myid2[0]==0 && blk->myid2[1]==1) fprintf(stdout,"**c %f %f %f **c\n",jac3d[iptr],xi_x[iptr], zt_y[iptr]);
+  }
+*/
 
   // for test
   /*

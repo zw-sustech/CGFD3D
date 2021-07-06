@@ -45,6 +45,7 @@ gd_curv_coord_import(float *restrict g3d, size_t *restrict g3d_pos, char **restr
 
 void
 gd_curv_cal_metric(
+    struct fd_blk_t *blk,
     float *restrict c3d,
     float *restrict g3d,
     int ni1, int ni2, int nj1, int nj2, int nk1, int nk2,
