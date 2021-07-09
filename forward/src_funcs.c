@@ -1373,11 +1373,9 @@ src_read_locate_anasrc(char *pfilepath,
         }
       }
     }
-
     float *this_moment_ext_conf = moment_ext_coef + i * siz_ext;
-    cal_norm_delt3d(this_moment_ext_conf, moment_coords_inc[3*indx+0], moment_coords_inc[3*indx+1], moment_coords_inc[3*indx+2],
-        1.5, 1.5, 1.5, 3);
-
+    cal_norm_delt3d(this_moment_ext_conf, moment_coords_inc[3*indx+0], moment_coords_inc[3*indx+1], moment_coords_inc[3*indx+2],1.5, 1.5, 1.5, 3);
+    
     size_t iptr_s = 0;
     for (int k=moment_local_index[3 * indx + 2]-npoint_half_ext; k<=moment_local_index[3 * indx + 2]+npoint_half_ext; k++)
     {
@@ -1405,7 +1403,6 @@ src_read_locate_anasrc(char *pfilepath,
   *p_moment_ten_rate = moment_ten_rate;
   *p_moment_ext_indx = moment_ext_indx;
   *p_moment_ext_coef = moment_ext_coef;
-
   if(num_moment>0)
   {
     free(moment_coords);
@@ -1503,9 +1500,9 @@ src_get_stage_stf(
 {
   for (int n=0; n<num_of_force; n++)
   {
-    int ipos = force_info[M_SRC_INFO_SEQ_POS];
-    int it1  = force_info[M_SRC_INFO_SEQ_ITBEG];
-    int it2  = force_info[M_SRC_INFO_SEQ_ITEND];
+    int ipos = force_info[8*n + M_SRC_INFO_SEQ_POS];
+    int it1  = force_info[8*n + M_SRC_INFO_SEQ_ITBEG];
+    int it2  = force_info[8*n + M_SRC_INFO_SEQ_ITEND];
     int nt_force = it2 - it1 + 1;
 
     // point tho this force in vec_stf
@@ -1530,9 +1527,9 @@ src_get_stage_stf(
 
   for (int n=0; n<num_of_moment; n++)
   {
-    int ipos = moment_info[M_SRC_INFO_SEQ_POS];
-    int it1  = moment_info[M_SRC_INFO_SEQ_ITBEG];
-    int it2  = moment_info[M_SRC_INFO_SEQ_ITEND];
+    int ipos = moment_info[8*n + M_SRC_INFO_SEQ_POS];
+    int it1  = moment_info[8*n + M_SRC_INFO_SEQ_ITBEG];
+    int it2  = moment_info[8*n + M_SRC_INFO_SEQ_ITEND];
     int nt_moment = it2 - it1 + 1;
 
     // point tho this moment in ten_rate

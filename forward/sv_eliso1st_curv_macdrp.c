@@ -363,7 +363,6 @@ sv_eliso1st_curv_macdrp_allstep(
 
       //  MPI_Waitall(num_of_s_reqs, s_reqs, MPI_STATUS_IGNORE);
       //}
-
       // stf value for cur stage
       src_get_stage_stf(num_of_force,
                         force_info,
@@ -377,7 +376,6 @@ sv_eliso1st_curv_macdrp_allstep(
                         force_vec_value,
                         moment_ten_value,
                         myid, verbose);
-
       // compute
       sv_eliso1st_curv_macdrp_onestage(w_cur, w_rhs, g3d, m3d, 
                                        ni1,ni2,nj1,nj2,nk1,nk2,ni,nj,nk,nx,ny,nz,
@@ -2996,8 +2994,8 @@ sv_eliso1st_curv_macdrp_rhs_src(
   for (int n=0; n<num_of_force; n++)
   {
     int    *ptr_force_info = force_info + n * M_SRC_INFO_NVAL;
-    float  *ptr_force_stf = force_vec_value + ptr_force_info[M_SRC_INFO_SEQ_POS];
-
+    // float  *ptr_force_stf = force_vec_value + ptr_force_info[M_SRC_INFO_SEQ_POS];
+    float  *ptr_force_stf = force_vec_value + n*3;
     //-- add at single point
     //si = ptr_force_info[0];
     //sj = ptr_force_info[1];
@@ -3032,7 +3030,8 @@ sv_eliso1st_curv_macdrp_rhs_src(
   for (int n=0; n<num_of_moment; n++)
   {
     int    *ptr_moment_info = moment_info + n * M_SRC_INFO_NVAL;
-    float  *ptr_moment_mrf  = moment_ten_value + ptr_moment_info[M_SRC_INFO_SEQ_POS];
+    //float  *ptr_moment_mrf  = moment_ten_value + ptr_moment_info[M_SRC_INFO_SEQ_POS];
+    float  *ptr_moment_mrf  = moment_ten_value + n*6;
 
     //si = ptr_moment_info[0];
     //sj = ptr_moment_info[1];
