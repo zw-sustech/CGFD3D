@@ -1605,9 +1605,9 @@ angle2moment(float strike, float dip, float rake, float* source_moment_tensor)
   source_moment_tensor[0] = M11 ; 
   source_moment_tensor[1] = M22 ;   
   source_moment_tensor[2] = M33 ;
-  source_moment_tensor[3] = M12 ;  
-  source_moment_tensor[4] = M13 ;
-  source_moment_tensor[5] = M23 ;  
+  source_moment_tensor[3] = M13 ;  
+  source_moment_tensor[4] = M23 ;
+  source_moment_tensor[5] = M12 ;  
 }
 
 /* 
