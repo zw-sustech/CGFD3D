@@ -1221,7 +1221,7 @@ sv_eliso1st_curv_macdrp_rhs_inner(
                          +ztx*DzTxz + zty*DzTyz + ztz*DzTzz );
 
         // Hooke's equatoin
-        hTxx[iptr] =  lam2mu * ( xix*DxVx  +etx*DyVx + ztx*DzVx);
+        hTxx[iptr] =  lam2mu * ( xix*DxVx  +etx*DyVx + ztx*DzVx)
                     + lam    * ( xiy*DxVy + ety*DyVy + zty*DzVy
                                 +xiz*DxVz + etz*DyVz + ztz*DzVz);
 
@@ -2503,7 +2503,7 @@ sv_eliso1st_curv_macdrp_rhs_cfspml_vfree_z2(
                   + matVx2Vz[ij+3*2+2] * DxVz;
 
           // keep xi derivative terms, including free surface convered
-          hTxx_rhs =    lam2mu * (            ztx*Dx_DzVx);
+          hTxx_rhs =    lam2mu * (            ztx*Dx_DzVx)
                       + lam    * (            zty*Dx_DzVy
                                   +           ztz*Dx_DzVz);
 
