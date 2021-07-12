@@ -34,7 +34,7 @@ void read_interface_file(
         fputs(line,tmp_file);
     } 
 
-    /* Set the file pointer at the beginning of the stream*/
+    /* Set the file pointer at the beginning of the stream */
     rewind(tmp_file);
 
     /* Read the temporary data file, Can not use the feof() */
@@ -190,24 +190,6 @@ void read_grid_file(
             exit(1);           
         }
 
-
-        /* The grid media XOY domain */
-
-//        /* The given media domain must bigger than the calculation domain */
-//        if (MAXX < Xmax || MINX > Xmin ) {
-//            fprintf(stderr,"\033[47;31m%s\033[0m\n", "Error: The given media range is smaller than "\
-//                "the calculation grid range in x-direction!");
-//            fflush(stderr); 
-//            exit(1); 
-//        }
-//        if (MAXY < Ymax || MINY > Ymin) {
-//            fprintf(stderr,"\033[47;31m%s\033[0m\n", "Error: The given media range is smaller than "\
-//                "the calculation grid range in y-direction!");
-//            fflush(stderr); 
-//            exit(1);             
-//        }
-
-        /* jlq TODO!!! */
         /* the range need to read */
         size_t ix0 = (Xmin-MINX)/DX;
         size_t iy0 = (Ymin-MINY)/DY;
@@ -248,6 +230,7 @@ void read_grid_file(
             (*interfaces)[ni].rho      = new float [nx*ny];
 
             for (size_t iy = 0; iy < NY; iy++) {
+                
                 for (size_t ix = 0; ix < NX; ix++) {
 
                     if (ix >= ix0 && ix <= ix1 && iy >= iy0 && iy <= iy1) {

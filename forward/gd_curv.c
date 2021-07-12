@@ -1089,6 +1089,20 @@ void gd_SPL(int n, float *x, float *y, int ni, float *xi, float *yi)
   };
 }
 
+void getMinMaxCoor(float *x3d, float *y3d, float *z3d,
+                   size_t siz_volume,
+                   float *xmin, float *ymin, float *zmin,
+                   float *xmax, float *ymax, float *zmax) 
+{
+    for (size_t i = 0; i < siz_volume; i++){
+        *xmin = *xmin < x3d[i] ? *xmin : x3d[i];
+        *xmax = *xmax > x3d[i] ? *xmax : x3d[i];
+        *ymin = *ymin < y3d[i] ? *ymin : y3d[i];
+        *ymax = *ymax > y3d[i] ? *ymax : y3d[i];
+        *zmin = *zmin < z3d[i] ? *zmin : z3d[i];
+        *zmax = *zmax > z3d[i] ? *zmax : z3d[i];
+    }
+}
 
 
 
