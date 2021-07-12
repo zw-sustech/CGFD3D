@@ -1675,7 +1675,7 @@ sv_eliso1st_curv_macdrp_rhs_vlow_z2(
         }
 
         // Hooke's equatoin
-        hTxx[iptr] =  lam2mu * ( xix*DxVx  +etx*DyVx + ztx*DzVx);
+        hTxx[iptr] =  lam2mu * ( xix*DxVx  +etx*DyVx + ztx*DzVx)
                     + lam    * ( xiy*DxVy + ety*DyVy + zty*DzVy
                                 +xiz*DxVz + etz*DyVz + ztz*DzVz);
 
@@ -2618,7 +2618,7 @@ sv_eliso1st_curv_macdrp_rhs_cfspml_vfree_z2(
                   + matVy2Vz[ij+3*2+1] * DyVy
                   + matVy2Vz[ij+3*2+2] * DyVz;
 
-          hTxx_rhs =    lam2mu * (             ztx*Dy_DzVx);
+          hTxx_rhs =    lam2mu * (             ztx*Dy_DzVx)
                       + lam    * (             zty*Dy_DzVy
                                               +ztz*Dy_DzVz);
 
