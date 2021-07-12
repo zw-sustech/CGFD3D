@@ -1,9 +1,24 @@
 \chapter{Media}\label{chapter-media}
 
-\section{layer to model}
-The \textbf{media\_el\_iso\_layer2model} function is used to discretize the given layer model to the grid model. It provides two medium parameterization method: using the local point values (loc), and volume arithmetic and harmonic averaging method (har) \citep{moczo_3d_2002,moczo_finite-difference_2014}.
+\begin{lstlisting}[language=python, title=run\_test.sh, frame=tb]
+  "media_input" : {
+      "#import" : "$MEDIA_DIR", 
+      "#code_generate" : 1,   
+      "#in_3lay_file" : "${IN_MEDIA_3LAY_FILE}", # *.md3lay
+      "in_3grd_file" : "${IN_MEDIA_3GRD_FILE}",  # *.md3grd
+      "equivalent_medium_method" : "har",       # default: "loc"
+  },
+  "is_export_media" : 1,                         # if export media                   
+  "media_export_dir"  : "$MEDIA_DIR",                   
+\end{lstlisting}
 
-\subsection{file format (.md3lay)}
+In the configuration of media, if \texttt{in\_3lay\_file} is selected, there need to be a .md3lay file, and the file format is shown in Section \ref{media-layer2model}. If \texttt{in\_3grd\_file} is selected, there need to be a .md3grd file, and the file format is shown in Section \ref{media-grid2model}.
+
+%===================================================================
+\section{Layer to Model} \label{media-layer2model}
+The \textbf{media\_el\_iso\_layer2model} function is used to discretize the given layer model to the grid model. It provides two medium parameterization method: using the local point values (\texttt{loc}), and volume arithmetic and harmonic averaging method (\texttt{har}) \citep{moczo_3d_2002,moczo_finite-difference_2014}.
+
+\subsection{File Format (.md3lay)}
 
 \paragraph{3D Layer Velocity Model File (\texttt{.md3lay})\\}~
 
@@ -37,9 +52,11 @@ The following description ignores comment lines and blank lines.
   \end{lstlisting}
  }
  For each interface (from the free surface to bottom), a set of elevation values (elevation),
- $v_p$ (vp), the gradient of $v_p$ (vp\_grad), $v_s$ (vs), the gradient of $v_s$ (vs\_grad), $\rho$ (rho) and the gradient of $\rho$ (rho\_grad) on the regular 2D grid is required. The velocities and density below interface(x, y, elevation) are calculated by
+ $v_p$ (vp), the gradient of $v_p$ (vp\_grad), $v_s$ (vs), the gradient of $v_s$ (vs\_grad), $\rho$ (rho) and the gradient of $\rho$ (rho\_grad) on the regular 2D grid is required. 
+
+ The velocities and density below interface(x, y, elevation) are calculated by
  \begin{equation*}
-    v_p^{grid~point} = vp + (elevation-z^{grid~point}) * vp\_grad,
+    v_p^{grid~point} = vp + (elevation-z^{grid~point}) * vp\_grad.
  \end{equation*} 
 \end{itemize}
 
@@ -67,10 +84,10 @@ A model with a horizontal interface can be given as:
 We provide a more complex model in the \texttt{test/} directory.
 
 %=============================================================
-\section{grid to model}
-The \textbf{media\_el\_iso\_grid2model} function is used to discretize the given grid model to the grid model. It also provides two medium parameterization method: using the local point values (loc), and volume arithmetic and harmonic averaging method (har) \citep{moczo_3d_2002,moczo_finite-difference_2014}.
+\section{Grid to Model} \label{media-grid2model}
+The \textbf{media\_el\_iso\_grid2model} function is used to discretize the given grid model to the grid model. It also provides two medium parameterization method: using the local point values (\texttt{loc}), and volume arithmetic and harmonic averaging method (\texttt{har} in ) \citep{moczo_3d_2002,moczo_finite-difference_2014}.
 
-\subsection{file format (.md3grd)}
+\subsection{File Format (.md3grd)}
 The following description ignores comment lines and blank lines.
 \begin{itemize}
  \item The first line is the number of layer (\texttt{NL}), if \texttt{NL} > 1, there is a designated interface.
@@ -92,7 +109,7 @@ The following description ignores comment lines and blank lines.
     for (iy=0; iy<NY; iy++) {
       for (ix=0; ix<NX; ix++) { 
         fscanf(grid_file, "%f %f %f %f", &elevation[ig][iy][ix], 
-              &vp[ni][iy][ix], &vs[ni][iy][ix], &rho[ni][iy][ix]);
+              &vp[ig][iy][ix], &vs[ig][iy][ix], &rho[ig][iy][ix]);
       }
     }
   }
