@@ -348,11 +348,19 @@ int main(int argc, char** argv)
         // jlq: just for test!
         float *x3d = blk->c3d+GD_CURV_SEQ_X3D * blk->siz_volume;
         float *y3d = blk->c3d+GD_CURV_SEQ_Y3D * blk->siz_volume;
+        float *z3d = blk->c3d+GD_CURV_SEQ_Z3D * blk->siz_volume;
 
         float *lam3d = blk->m3d + MD_EL_ISO_SEQ_LAMBDA * blk->siz_volume;
         float  *mu3d = blk->m3d + MD_EL_ISO_SEQ_MU     * blk->siz_volume;
         float *rho3d = blk->m3d + MD_EL_ISO_SEQ_RHO    * blk->siz_volume;
 
+        float xmin = x3d[0], xmax = x3d[0];
+        float ymin = y3d[0], ymax = y3d[0];
+        float zmin = z3d[0], zmax = z3d[0];
+
+        getMinMaxCoor(x3d, y3d, z3d, blk->siz_volume,
+                &xmin, &ymin, &zmin, &xmax, &ymax, &zmax);
+  
         media_el_iso_grid2model(lam3d, mu3d, rho3d,
                                 blk->c3d+GD_CURV_SEQ_X3D * blk->siz_volume,
                                 blk->c3d+GD_CURV_SEQ_Y3D * blk->siz_volume,
@@ -360,8 +368,8 @@ int main(int argc, char** argv)
                                 blk->nx,
                                 blk->ny,
                                 blk->nz,
-                                x3d[0], x3d[blk->siz_volume-1],   //float Xmin, float Xmax,
-                                y3d[0], y3d[blk->siz_volume-1],   //float Ymin, float Ymax, 
+                                xmin, xmax,   //float Xmin, float Xmax,
+                                ymin, ymax,   //float Ymin, float Ymax, 
                                 par->media_input_file,
                                 par->equivalent_medium_method); 
         break;

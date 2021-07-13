@@ -1,0 +1,155 @@
+\chapter{Media}\label{chapter-media}
+
+\begin{lstlisting}[language=python, title=run\_test.sh, frame=tb]
+  "media_input" : {
+      "#import" : "$MEDIA_DIR", 
+      "#code_generate" : 1,   
+      "#in_3lay_file" : "${IN_MEDIA_3LAY_FILE}", # *.md3lay
+      "in_3grd_file" : "${IN_MEDIA_3GRD_FILE}",  # *.md3grd
+      "equivalent_medium_method" : "har",       # default: "loc"
+  },
+  "is_export_media" : 1,                         # if export media                   
+  "media_export_dir"  : "$MEDIA_DIR",                   
+\end{lstlisting}
+
+In the configuration of media, if \texttt{in\_3lay\_file} is selected, there need to be a .md3lay file, and the file format is shown in Section \ref{media-layer2model}. If \texttt{in\_3grd\_file} is selected, there need to be a .md3grd file, and the file format is shown in Section \ref{media-grid2model}.
+
+%===================================================================
+\section{Layer to Model} \label{media-layer2model}
+The \textbf{media\_el\_iso\_layer2model} function is used to discretize the given layer model to the grid model. It provides two medium parameterization method: using the local point values (\texttt{loc}), and volume arithmetic and harmonic averaging method (\texttt{har}) \citep{moczo_3d_2002,moczo_finite-difference_2014}.
+
+\subsection{File Format (.md3lay)}
+
+\paragraph{3D Layer Velocity Model File (\texttt{.md3lay})\\}~
+
+The following description ignores comment lines and blank lines.
+\begin{itemize}
+ \item The first line is the number of interface (\texttt{NI}).
+ \item {The second line is the information of the given interface mesh:
+  
+  \texttt{NX} ~~ \texttt{NY} ~~ \texttt{MIN\_X} ~~ \texttt{MIN\_Y} ~~ \texttt{SPACING\_X} ~~ \texttt{SPACING\_Y}
+
+  \texttt{NX} and \texttt{NY} are the number of points along $x$ and $y$ direction;
+
+  \texttt{MIN\_X} and \texttt{MIN\_Y} are the minimal $x$ and $y$ coordinates;
+
+  \texttt{SPACING\_X} and \texttt{SPACING\_Y} are spacing between points along $x$ and $y$.
+ }
+ \item {
+  After then, the elevation, velocity and density are given as:
+  \begin{lstlisting}[language = C]
+  for (ni=0; ni<NI; ni++)
+    for (iy=0; iy<NY; iy++) {
+      for (ix=0; ix<NX; ix++) { 
+        fscanf(layer_file, "%f %f %f %f %f %f %f", 
+               &elevation[ni][iy][ix],
+               &vp[ni][iy][ix], &vp_grad[ni][iy][ix],
+               &vs[ni][iy][ix], &vs_grad[ni][iy][ix],
+               &rho[ni][iy][ix], &rho_grad[ni][iy][ix]);
+      }
+    }
+  }
+  \end{lstlisting}
+ }
+ For each interface (from the free surface to bottom), a set of elevation values (elevation),
+ $v_p$ (vp), the gradient of $v_p$ (vp\_grad), $v_s$ (vs), the gradient of $v_s$ (vs\_grad), $\rho$ (rho) and the gradient of $\rho$ (rho\_grad) on the regular 2D grid is required. 
+
+ The velocities and density below interface(x, y, elevation) are calculated by
+ \begin{equation*}
+    v_p^{grid~point} = vp + (elevation-z^{grid~point}) * vp\_grad.
+ \end{equation*} 
+\end{itemize}
+
+\subsection{Example}
+
+A model with a horizontal interface can be given as:
+
+\begin{lstlisting}[language=python, title=test.md3lay, frame=tb]
+# NI
+  2
+# NX   NY   MIN_X  MIN_Y  SPACING_X  SPACING_Y 
+  2    2    0.0    0.0    2000.0     2000.0
+# elevation  vp  vp_grad  vs  vs_grad  rho  rho_grad
+# interface #1 free surface
+    0.0    2500.0  0.0  1500.0  0.0  1500.0  0.0   
+    0.0    2500.0  0.0  1500.0  0.0  1500.0  0.0
+    0.0    2500.0  0.0  1500.0  0.0  1500.0  0.0
+    0.0    2500.0  0.0  1500.0  0.0  1500.0  0.0
+# interface #2 
+ -1000.0   4000.0  0.0  2400.0  0.0  2400.0  0.0   
+ -1000.0   4000.0  0.0  2400.0  0.0  2400.0  0.0
+ -1000.0   4000.0  0.0  2400.0  0.0  2400.0  0.0
+ -1000.0   4000.0  0.0  2400.0  0.0  2400.0  0.0 
+\end{lstlisting}
+We provide a more complex model in the \texttt{test/} directory.
+
+%=============================================================
+\section{Grid to Model} \label{media-grid2model}
+The \textbf{media\_el\_iso\_grid2model} function is used to discretize the given grid model to the grid model. It also provides two medium parameterization method: using the local point values (\texttt{loc}), and volume arithmetic and harmonic averaging method (\texttt{har} in ) \citep{moczo_3d_2002,moczo_finite-difference_2014}.
+
+\subsection{File Format (.md3grd)}
+The following description ignores comment lines and blank lines.
+\begin{itemize}
+ \item The first line is the number of layer (\texttt{NL}), if \texttt{NL} > 1, there is a designated interface.
+ \item the next \texttt{NL} lines are the number of grids in the z-direction of each layer 
+ \item {The third line is the information of the given interface mesh:
+  
+  \texttt{NX} ~~ \texttt{NY} ~~ \texttt{MIN\_X} ~~ \texttt{MIN\_Y} ~~ \texttt{SPACING\_X} ~~ \texttt{SPACING\_Y}
+
+  \texttt{NX} and \texttt{NY} are the number of points along $x$ and $y$ direction;
+
+  \texttt{MIN\_X} and \texttt{MIN\_Y} are the minimal $x$ and $y$ coordinates;
+
+  \texttt{SPACING\_X} and \texttt{SPACING\_Y} are spacing between points along $x$ and $y$.
+ }
+ \item {
+  After then, the elevation, velocity and density are given in every grid points:
+  \begin{lstlisting}[language = C]
+  for (ig=0; ig<ng_z; ig++)
+    for (iy=0; iy<NY; iy++) {
+      for (ix=0; ix<NX; ix++) { 
+        fscanf(grid_file, "%f %f %f %f", &elevation[ig][iy][ix], 
+              &vp[ig][iy][ix], &vs[ig][iy][ix], &rho[ig][iy][ix]);
+      }
+    }
+  }
+  \end{lstlisting}
+ } 
+\end{itemize}
+The velocities and density are calculated by interpolation of the values at the given grid points.
+
+\subsection{Example}
+A model with a horizontal interface can be given as:
+\begin{lstlisting}[language=python, title=test.md3lay, frame=tb]
+# NL
+  2
+# How many z-grids are in each layer
+  2
+  2
+
+# NX   NY   MIN_X  MIN_Y  SPACING_X  SPACING_Y 
+  2    2    0.0    0.0    2000.0     2000.0
+# elevation   vp     vs     rho  
+# z-grid #1: Top - free surface
+    0.0    2500.0  1500.0  1500.0 
+    0.0    2500.0  1500.0  1500.0 
+    0.0    2500.0  1500.0  1500.0 
+    0.0    2500.0  1500.0  1500.0 
+# z-grid #2 
+ -1000.0   2500.0  1500.0  2400.0   
+ -1000.0   2500.0  1500.0  2400.0
+ -1000.0   2500.0  1500.0  2400.0
+ -1000.0   2500.0  1500.0  2400.0 
+# z-grid #3 (the elevation needs to be the same as #2)
+ -1000.0   4000.0  2400.0  2400.0   
+ -1000.0   4000.0  2400.0  2400.0
+ -1000.0   4000.0  2400.0  2400.0
+ -1000.0   4000.0  2400.0  2400.0 
+# z-grid #4 
+ -2000.0   4000.0  2400.0  2400.0   
+ -2000.0   4000.0  2400.0  2400.0
+ -2000.0   4000.0  2400.0  2400.0
+ -2000.0   4000.0  2400.0  2400.0  
+\end{lstlisting}
+if \texttt{NL} > 1, there is a designated interface; and the elevation of the ng[il]+1 needs to be the same as ng[il]. The equivalent medium parameterization method can be applied on this interface.
+We provide a more complex model in the \texttt{test/} directory.

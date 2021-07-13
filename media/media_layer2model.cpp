@@ -84,9 +84,9 @@ int AssignMediaPara2Point(
     float rho0     = BilinearInterpolation(XVEC, YVEC, interfaces[mi].rho     , A.x, A.y);
     float rho_grad = BilinearInterpolation(XVEC, YVEC, interfaces[mi].rho_grad, A.x, A.y);
 
-    vp  = vp0  + (A.z - altitude[mi])* vp_grad;
-    vs  = vs0  + (A.z - altitude[mi])* vs_grad;
-    rho = rho0 + (A.z - altitude[mi])*rho_grad;
+    vp  = vp0  + (altitude[mi] - A.z)* vp_grad;
+    vs  = vs0  + (altitude[mi] - A.z)* vs_grad;
+    rho = rho0 + (altitude[mi] - A.z)*rho_grad;
 
     return 0;
 }

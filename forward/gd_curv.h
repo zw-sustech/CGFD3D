@@ -124,4 +124,9 @@ int gd_curv_gen_layer(char *in_grid_layer_file,
                       int ny, int nj, int gnj1, int fdy_nghosts,
                       int nz, int nk, int gnk1, int fdz_nghosts);
 
+void getMinMaxCoor(float *x3d, float *y3d, float *z3d,
+                   size_t siz_volume,
+                   float *xmin, float *ymin, float *zmin,
+                   float *xmax, float *ymax, float *zmax); 
+
 #endif
