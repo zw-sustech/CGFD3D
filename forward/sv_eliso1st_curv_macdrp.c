@@ -552,7 +552,9 @@ sv_eliso1st_curv_macdrp_allstep(
     //-- sta by interp
     for (int n=0; n<num_of_sta; n++)
     {
-      int iptr = sta_loc_indx[0] + sta_loc_indx[1] * siz_line + sta_loc_indx[2] * siz_slice;
+      int iptr =   sta_loc_indx[0+n*FD_NDIM]
+                 + sta_loc_indx[1+n*FD_NDIM] * siz_line
+                 + sta_loc_indx[2+n*FD_NDIM] * siz_slice;
       // need to implement interp, now just take value
       for (int ivar=0; ivar<w3d_num_of_vars; ivar++) {
         int iptr_sta = (n * w3d_num_of_vars + ivar) * nt_total + it;
