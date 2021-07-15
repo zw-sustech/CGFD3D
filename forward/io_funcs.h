@@ -50,10 +50,6 @@ io_read_locate_station(char *in_filenm,
                        size_t siz_line,
                        size_t siz_slice,
                        float *x3d, float *y3d, float *z3d,
-                       int *num_of_sta,
-                       char ***p_sta_name,
-                       float **p_sta_coord,
-                       int   **p_sta_point,
-                       float **p_sta_shift);
+                       struct fd_sta_all_t *sta_info);
 
 #endif

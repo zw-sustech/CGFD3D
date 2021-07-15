@@ -235,11 +235,7 @@ io_read_locate_station(char *in_filenm,
                        size_t siz_line,
                        size_t siz_slice,
                        float *x3d, float *y3d, float *z3d,
-                       int *num_of_sta,
-                       char ***p_sta_name,
-                       float **p_sta_coord,
-                       int   **p_sta_point,
-                       float **p_sta_shift)
+                       struct fd_sta_all_t *sta_info)
 {
   FILE *fp;
   char line[500];
@@ -267,16 +263,8 @@ io_read_locate_station(char *in_filenm,
     exit(1);
   }
 
-  // alloc by maximum number to reduce code
-  char **sta_name;
-  float *sta_shift;
-  float *sta_coord;
-  int   *sta_point;
-
-  sta_name = (char **) fdlib_mem_malloc_2l_char(nr,FD_MAX_STRLEN,"io_read_locate_station");
-  sta_coord= (float *) fdlib_mem_malloc_1d(nr*FD_NDIM*sizeof(float),"io_read_locate_station");
-  sta_shift= (float *) fdlib_mem_malloc_1d(nr*FD_NDIM*sizeof(float),"io_read_locate_station");
-  sta_point= (int   *) fdlib_mem_malloc_1d(nr*FD_NDIM*sizeof(int),"io_read_locate_station");
+  // check fail in the future
+  struct fd_sta1_t *stas = (struct fd_sta1_t *) malloc(nr * sizeof(struct fd_sta1_t));
 
   // read coord and locate
 
@@ -313,7 +301,7 @@ io_read_locate_station(char *in_filenm,
     // read one line
     fgets(line,500,fp);
     // get values
-    sscanf(line, "%s %d %d %d", sta_name[ir], &ix, &iy, &iz);
+    sscanf(line, "%s %d %d %d", stas[ir].name, &ix, &iy, &iz);
     //fprintf(stdout,"== in: %s %d %d %d\n", sta_name[ir],ix,iy,iz); fflush(stdout);
     // locate
     int ptr_this = nr_this * FD_NDIM;
@@ -329,18 +317,22 @@ io_read_locate_station(char *in_filenm,
       int ptr_this = nr_this * FD_NDIM;
       int ptr_point = i_local + j_local * siz_line + k_local * siz_slice;
 
-      sprintf(sta_name[nr_this], "%s", sta_name[ir]);
+      struct fd_sta1_t *sta1 = stas + nr_this;
+
+      sprintf(sta1->name, "%s", stas[ir].name);
       // get coord
-      sta_coord[ptr_this+0]=x3d[ptr_point];
-      sta_coord[ptr_this+1]=y3d[ptr_point];
-      sta_coord[ptr_this+2]=z3d[ptr_point];
+      sta1->x=x3d[ptr_point];
+      sta1->y=y3d[ptr_point];
+      sta1->z=z3d[ptr_point];
       // set point and shift
-      sta_point[ptr_this+0]=i_local;
-      sta_point[ptr_this+1]=j_local;
-      sta_point[ptr_this+2]=k_local;
-      sta_shift[ptr_this+0]=0.0;
-      sta_shift[ptr_this+1]=0.0;
-      sta_shift[ptr_this+2]=0.0;
+      sta1->i=i_local;
+      sta1->j=j_local;
+      sta1->k=k_local;
+      sta1->di=0.0;
+      sta1->dj=0.0;
+      sta1->dk=0.0;
+
+      sta1->indx1d = i_local + j_local * siz_line + k_local * siz_slice;
 
       //fprintf(stdout,"== ir_this=%d,name=%s,i=%d,j=%d,k=%d\n",
       //      nr_this,sta_name[nr_this],i_local,j_local,k_local); fflush(stdout);
@@ -351,11 +343,8 @@ io_read_locate_station(char *in_filenm,
 
   fclose(fp);
 
-  *num_of_sta  = nr_this;
-  *p_sta_name = sta_name;
-  *p_sta_coord  = sta_coord;
-  *p_sta_point  = sta_point;
-  *p_sta_shift  = sta_shift;
+  sta_info->total_number = nr_this;
+  sta_info->stas = stas;
 
   return(0);
 }

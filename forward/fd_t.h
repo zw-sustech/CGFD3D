@@ -298,11 +298,13 @@ struct fd_blk_t
   float   *abs_vars; //  order: vars_one_block -> all block -> one level -> 4 levels
   
   // io
+  struct fd_sta_all_t *sta_info;
+  float           *sta_seismo;
+
   int     num_of_sta;
   int    *sta_index;
   float  *sta_shift; // relative shift in a cell ,for interp
   float  *sta_coord; // for sac output
-  float  *sta_seismo;
   char  **sta_name;
 
   int     num_of_point;  // for saving in solver
@@ -363,6 +365,45 @@ struct fd_blk_t
   size_t number_of_float;
   size_t number_of_btye;
 };
+
+// all station
+struct fd_sta_all_t
+{
+  int              total_number;
+  struct fd_sta1_t *stas;
+};
+
+// single station
+struct fd_sta1_t
+{
+  float x;
+  float y;
+  float z;
+  float di;
+  float dj;
+  float dk;
+  int   i;
+  int   j;
+  int   k;
+  int   indx1d;
+  char  name[FD_MAX_STRLEN];
+};
+
+//// coordinate of a point
+//struct fd_point3_t
+//{
+//  float x;
+//  float y;
+//  float z;
+//}
+//
+//// index of a point
+//struct fd_index3_t
+//{
+//  float i;
+//  float j;
+//  float k;
+//}
 
 /*******************************************************************************
  * function prototype

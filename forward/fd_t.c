@@ -480,11 +480,13 @@ fd_blk_init(struct fd_blk_t *blk,
   sprintf(blk->grid_export_dir, "%s", grid_export_dir);
   sprintf(blk->media_export_dir, "%s", media_export_dir);
 
+  // alloc pointer
+  blk->sta_info = (struct fd_sta_all_t *)malloc(sizeof(struct fd_sta_all_t));
+
   //fprintf(stdout,"in output_dir=%s\n",output_dir);
   //fprintf(stdout,"blk output_dir=%s\n",blk->output_dir);
   //fflush(stdout);
 }
-
 
 void
 fd_blk_set_snapshot(struct fd_blk_t *blk,
@@ -595,7 +597,7 @@ fd_blk_set_snapshot(struct fd_blk_t *blk,
 
 void fd_blk_malloc_station(struct fd_blk_t *blk, int nt_total)
 {
-  blk->sta_seismo = (float *) malloc(blk->num_of_sta * 
+  blk->sta_seismo = (float *) malloc(blk->sta_info->total_number * 
                                      blk->w3d_num_of_vars *
                                      nt_total * sizeof(int));
 }

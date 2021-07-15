@@ -41,7 +41,7 @@ sv_eliso1st_curv_macdrp_allstep(
     int   *restrict moment_ext_indx,
     float *restrict moment_ext_coef,
     // io
-    int num_of_sta, int *restrict sta_loc_indx, float *restrict sta_loc_dxyz, float *restrict sta_seismo,
+    struct fd_sta_all_t *restrict sta_info, float *restrict sta_seismo,
     int num_of_point, int *restrict point_loc_indx, float *restrict point_seismo,
     int num_of_slice_x, int *restrict slice_x_indx, char **restrict slice_x_fname,
     int num_of_slice_y, int *restrict slice_y_indx, char **restrict slice_y_fname,

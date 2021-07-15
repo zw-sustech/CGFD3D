@@ -634,11 +634,7 @@ int main(int argc, char** argv)
                          blk->c3d+blk->c3d_pos[0],
                          blk->c3d+blk->c3d_pos[1],
                          blk->c3d+blk->c3d_pos[2],
-                         &(blk->num_of_sta),
-                         &(blk->sta_name),
-                         &(blk->sta_coord),
-                         &(blk->sta_index),
-                         &(blk->sta_shift));
+                         blk->sta_info);
 
   fd_blk_malloc_station(blk, nt_total);
 
@@ -780,7 +776,7 @@ int main(int argc, char** argv)
                                   blk->force_ext_indx,blk->force_ext_coef,
                                   blk->num_of_moment, blk->moment_info, blk->moment_ten_rate,
                                   blk->moment_ext_indx,blk->moment_ext_coef,
-                                  blk->num_of_sta, blk->sta_index,blk->sta_shift,blk->sta_seismo,
+                                  blk->sta_info, blk->sta_seismo,
                                   blk->num_of_point, blk->point_loc_indx,blk->point_seismo,
                                   blk->num_of_slice_x, blk->slice_x_indx,blk->slice_x_fname,
                                   blk->num_of_slice_y, blk->slice_y_indx,blk->slice_y_fname,
@@ -810,9 +806,9 @@ int main(int argc, char** argv)
 //-- save station and line seismo to sac
 //-------------------------------------------------------------------------------
 
-  for (int ir=0; ir<blk->num_of_sta; ir++)
+  for (int ir=0; ir < blk->sta_info->total_number; ir++)
   {
-    char *sta_name = blk->sta_name[ir];
+    struct fd_sta1_t *sta1 = blk->sta_info->stas+ir;
     int   num_of_vars = blk->w3d_num_of_vars;
     int   iptr_coord   = ir * FD_NDIM;
 
@@ -834,19 +830,17 @@ int main(int argc, char** argv)
       //fprintf(stdout,"=== Debug: icmp=%d,w3d_name=%s\n",icmp,blk->w3d_name[icmp]);fflush(stdout);
       if (par->source_input_itype != PAR_SOURCE_FILE)
       sprintf(ou_file,"%s/%s.%s.%s.sac", blk->output_dir,par->source_name,
-                  sta_name,blk->w3d_name[icmp]);
+                  sta1->name,blk->w3d_name[icmp]);
       if (par->source_input_itype == PAR_SOURCE_FILE)
       sprintf(ou_file,"%s/%s.%s.%s.sac", blk->output_dir,event_name,
-                  sta_name,blk->w3d_name[icmp]);
+                  sta1->name,blk->w3d_name[icmp]);
 
       //fprintf(stdout,"=== Debug: icmp=%d,ou_file=%s\n",icmp,ou_file);fflush(stdout);
 
       sacExport1C1R(ou_file,
             blk->sta_seismo+iptr_seismo,
             evt_x, evt_y, evt_z, evt_d,
-            blk->sta_coord[iptr_coord+0],
-            blk->sta_coord[iptr_coord+1],
-            blk->sta_coord[iptr_coord+2],
+            sta1->x, sta1->y, sta1->z,
             0.0, dt, nt_total, err_message
             );
     }

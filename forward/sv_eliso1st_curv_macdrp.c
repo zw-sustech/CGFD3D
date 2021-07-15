@@ -77,7 +77,7 @@ sv_eliso1st_curv_macdrp_allstep(
     int   *restrict moment_ext_indx,
     float *restrict moment_ext_coef,
     // io
-    int num_of_sta, int *restrict sta_loc_indx, float *restrict sta_loc_dxyz, float *restrict sta_seismo,
+    struct fd_sta_all_t *restrict sta_info, float *restrict sta_seismo,
     int num_of_point, int *restrict point_loc_indx, float *restrict point_seismo,
     int num_of_slice_x, int *restrict slice_x_indx, char **restrict slice_x_fname,
     int num_of_slice_y, int *restrict slice_y_indx, char **restrict slice_y_fname,
@@ -550,14 +550,13 @@ sv_eliso1st_curv_macdrp_allstep(
 
     // save results
     //-- sta by interp
-    for (int n=0; n<num_of_sta; n++)
+    for (int ir=0; ir < sta_info->total_number; ir++)
     {
-      int iptr =   sta_loc_indx[0+n*FD_NDIM]
-                 + sta_loc_indx[1+n*FD_NDIM] * siz_line
-                 + sta_loc_indx[2+n*FD_NDIM] * siz_slice;
+      struct fd_sta1_t *sta1 = sta_info->stas+ir;
+      int iptr = sta1->indx1d;
       // need to implement interp, now just take value
       for (int ivar=0; ivar<w3d_num_of_vars; ivar++) {
-        int iptr_sta = (n * w3d_num_of_vars + ivar) * nt_total + it;
+        int iptr_sta = (ir * w3d_num_of_vars + ivar) * nt_total + it;
         sta_seismo[iptr_sta] = w_end[ivar*siz_volume + iptr];
       }
     }
