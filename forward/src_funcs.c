@@ -187,7 +187,11 @@ src_gen_single_point_gauss(size_t siz_line,
           stf_val = fun_ricker(t, wavelet_coefs[0], wavelet_coefs[1]);
         } else if (strcmp(wavelet_name, "gaussian")==0) {
           stf_val = fun_gauss(t, wavelet_coefs[0], wavelet_coefs[1]);
-        } else {
+        } else if (strcmp(wavelet_name, "ricker_deriv")==0) {
+          stf_val = fun_ricker_deriv(t, wavelet_coefs[0], wavelet_coefs[1]);
+        } else if (strcmp(wavelet_name, "gaussian_deriv")==0) {
+          stf_val = fun_gauss_deriv(t, wavelet_coefs[0], wavelet_coefs[1]);
+        } else{
           fprintf(stderr,"wavelet_name=%s\n", wavelet_name); 
           fprintf(stderr,"   not implemented yet\n"); 
           fflush(stderr);
@@ -1183,10 +1187,10 @@ src_read_locate_anasrc(char *pfilepath,
           int iptr = M_SRC_IND(icmp,it_to_it1,istage,nt_force,num_of_stages);
           float t = it * dt + t0 + rk_stage_time[istage] * dt;
           float stf_val;
-          if (strcmp(force_wavelet_name[indx], "ricker")==0) {
-            stf_val = fun_ricker(t, force_wavelet_coefs[2*indx+0], force_wavelet_coefs[2*indx+1]);
-          } else if (strcmp(force_wavelet_name[indx], "gaussian")==0) {
-            stf_val = fun_gauss(t, force_wavelet_coefs[2*indx+0], force_wavelet_coefs[2*indx+1]);
+          if (strcmp(force_wavelet_name[indx], "ricker_deriv")==0) {
+            stf_val = fun_ricker_deriv(t, force_wavelet_coefs[2*indx+0], force_wavelet_coefs[2*indx+1]);
+          } else if (strcmp(force_wavelet_name[indx], "gaussian_deriv")==0) {
+            stf_val = fun_gauss_deriv(t, force_wavelet_coefs[2*indx+0], force_wavelet_coefs[2*indx+1]);
           } else {
             fprintf(stderr,"wavelet_name=%s\n", force_wavelet_name[indx]); 
             fprintf(stderr,"   not implemented yet\n"); 
@@ -1359,10 +1363,12 @@ src_read_locate_anasrc(char *pfilepath,
           int iptr = M_SRC_IND(icmp,it_to_it1,istage,nt_moment,num_of_stages);
           float t = it * dt + t0 + rk_stage_time[istage] * dt;
           float stf_val;
-          if (strcmp(moment_wavelet_name[indx], "ricker")==0) {
-            stf_val = fun_ricker(t, moment_wavelet_coefs[2*indx+0], moment_wavelet_coefs[2*indx+1]);
-          } else if (strcmp(moment_wavelet_name[indx], "gaussian")==0) {
-            stf_val = fun_gauss(t, moment_wavelet_coefs[2*indx+0], moment_wavelet_coefs[2*indx+1]);
+          if (strcmp(moment_wavelet_name[indx], "ricker_deriv")==0) {
+            stf_val = fun_ricker_deriv(t, moment_wavelet_coefs[2*indx+0], moment_wavelet_coefs[2*indx+1]);
+            fprintf(stdout,"***rick***\n");
+          } else if (strcmp(moment_wavelet_name[indx], "gaussian_deriv")==0) {
+            stf_val = fun_gauss_deriv(t, moment_wavelet_coefs[2*indx+0], moment_wavelet_coefs[2*indx+1]);
+            fprintf(stdout,"***gauss***\n");
           } else {
             fprintf(stderr,"wavelet_name=%s\n", moment_wavelet_name[indx]); 
             fprintf(stderr,"   not implemented yet\n"); 
@@ -1473,6 +1479,17 @@ fun_ricker(float t, float fc, float t0)
   return v;
 }
 
+float 
+fun_ricker_deriv(float t, float fc, float t0)
+{
+  float pi = acos(-1.0);
+  float f0 = sqrtf(pi)/2.0;
+  float u = (t-t0)*2.0*pi*fc;
+  float v = u*(1.5-u*u/4)*exp(-u*u/4)*f0*pi*fc;
+
+  return v;
+}
+
   float
 fun_gauss(float t, float a, float t0)
 {
@@ -1480,6 +1497,15 @@ fun_gauss(float t, float a, float t0)
   f = exp(-(t-t0)*(t-t0)/(a*a))/(sqrtf(PI)*a);
   return f;
 }
+
+  float
+fun_gauss_deriv(float t, float a, float t0)
+{
+  float f;
+  f = exp(-(t-t0)*(t-t0)/(a*a))/(sqrtf(PI)*a)*(-2*(t-t0)/(a*a));
+  return f;
+}
+
 
 /*
  * get the stf and moment rate for one stage
@@ -1500,9 +1526,9 @@ src_get_stage_stf(
 {
   for (int n=0; n<num_of_force; n++)
   {
-    int ipos = force_info[8*n + M_SRC_INFO_SEQ_POS];
-    int it1  = force_info[8*n + M_SRC_INFO_SEQ_ITBEG];
-    int it2  = force_info[8*n + M_SRC_INFO_SEQ_ITEND];
+    int ipos = force_info[M_SRC_INFO_NVAL*n + M_SRC_INFO_SEQ_POS];
+    int it1  = force_info[M_SRC_INFO_NVAL*n + M_SRC_INFO_SEQ_ITBEG];
+    int it2  = force_info[M_SRC_INFO_NVAL*n + M_SRC_INFO_SEQ_ITEND];
     int nt_force = it2 - it1 + 1;
 
     // point tho this force in vec_stf
@@ -1527,9 +1553,9 @@ src_get_stage_stf(
 
   for (int n=0; n<num_of_moment; n++)
   {
-    int ipos = moment_info[8*n + M_SRC_INFO_SEQ_POS];
-    int it1  = moment_info[8*n + M_SRC_INFO_SEQ_ITBEG];
-    int it2  = moment_info[8*n + M_SRC_INFO_SEQ_ITEND];
+    int ipos = moment_info[M_SRC_INFO_NVAL*n + M_SRC_INFO_SEQ_POS];
+    int it1  = moment_info[M_SRC_INFO_NVAL*n + M_SRC_INFO_SEQ_ITBEG];
+    int it2  = moment_info[M_SRC_INFO_NVAL*n + M_SRC_INFO_SEQ_ITEND];
     int nt_moment = it2 - it1 + 1;
 
     // point tho this moment in ten_rate
