@@ -1043,7 +1043,9 @@ src_read_locate_anasrc(char *pfilepath,
         {
           moment_tensor[6*i +j]=M0*temp_moment[j];
         }
-      } else {  
+      } 
+      if (strcmp("moment_tensor",moment_wavelet_mechism[i])==0)
+      {  
         fgets(str,500,fp);
         sscanf(str,"%f %f %f %f %f %f",&moment_tensor[6*i +0],&moment_tensor[6*i +1],
             &moment_tensor[6*i +2],&moment_tensor[6*i +3],&moment_tensor[6*i +4],&moment_tensor[6*i +5]);
@@ -1365,10 +1367,8 @@ src_read_locate_anasrc(char *pfilepath,
           float stf_val;
           if (strcmp(moment_wavelet_name[indx], "ricker_deriv")==0) {
             stf_val = fun_ricker_deriv(t, moment_wavelet_coefs[2*indx+0], moment_wavelet_coefs[2*indx+1]);
-            fprintf(stdout,"***rick***\n");
           } else if (strcmp(moment_wavelet_name[indx], "gaussian_deriv")==0) {
             stf_val = fun_gauss_deriv(t, moment_wavelet_coefs[2*indx+0], moment_wavelet_coefs[2*indx+1]);
-            fprintf(stdout,"***gauss***\n");
           } else {
             fprintf(stderr,"wavelet_name=%s\n", moment_wavelet_name[indx]); 
             fprintf(stderr,"   not implemented yet\n"); 
