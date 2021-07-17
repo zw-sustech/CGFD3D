@@ -1042,6 +1042,7 @@ src_read_locate_anasrc(char *pfilepath,
         for (int j=0;j<6;j++)
         {
           moment_tensor[6*i +j]=M0*temp_moment[j];
+          fprintf(stdout,"source is angle = %f\n ",moment_tensor[6*i +j]);
         }
       } 
       if (strcmp("moment_tensor",moment_wavelet_mechism[i])==0)
@@ -1471,9 +1472,9 @@ cal_norm_delt3d(float *delt, float x0, float y0, float z0, float rx0, float ry0,
   float 
 fun_ricker(float t, float fc, float t0)
 {
-  float pi = acos(-1.0);
-  float f0 = sqrtf(pi)/2.0;
-  float u = (t-t0)*2.0*pi*fc;
+  //float pi = acos(-1.0);
+  float f0 = sqrtf(PI)/2.0;
+  float u = (t-t0)*2.0*PI*fc;
   float v = (u*u/4-0.5)*exp(-u*u/4)*f0;
 
   return v;
@@ -1482,10 +1483,10 @@ fun_ricker(float t, float fc, float t0)
 float 
 fun_ricker_deriv(float t, float fc, float t0)
 {
-  float pi = acos(-1.0);
-  float f0 = sqrtf(pi)/2.0;
-  float u = (t-t0)*2.0*pi*fc;
-  float v = u*(1.5-u*u/4)*exp(-u*u/4)*f0*pi*fc;
+  //float pi = acos(-1.0);
+  float f0 = sqrtf(PI)/2.0;
+  float u = (t-t0)*2.0*PI*fc;
+  float v = u*(1.5-u*u/4)*exp(-u*u/4)*f0*PI*fc;
 
   return v;
 }
@@ -1628,12 +1629,14 @@ angle2moment(float strike, float dip, float rake, float* source_moment_tensor)
       - cos(2.0*dip_pi) * sin(rake_pi) * cos(strike_pi) );
 
   // attention: the order may be different with outside
-  source_moment_tensor[0] = M11 ; 
-  source_moment_tensor[1] = M22 ;   
-  source_moment_tensor[2] = M33 ;
-  source_moment_tensor[3] = M13 ;  
-  source_moment_tensor[4] = M23 ;
-  source_moment_tensor[5] = M12 ;  
+  // Mxz=-Mxz;Mxy=-Mxy !for upward positive z axis
+  // x->2 y->1 z->3
+  source_moment_tensor[0] =  M22 ;  // Mxx
+  source_moment_tensor[1] =  M11 ;  // Myy 
+  source_moment_tensor[2] =  M33 ;  // Mzz
+  source_moment_tensor[3] = -M23 ;  // Mxz 
+  source_moment_tensor[4] = -M13 ;  // Myz
+  source_moment_tensor[5] =  M12 ;  // Mxy 
 }
 
 /* 
