@@ -795,6 +795,754 @@ sv_eliso1st_curv_macdrp_allstep(
 }
 
 /*******************************************************************************
+ * one simulation over all time steps, could be used in imaging or inversion
+ *  simple MPI exchange without computing-communication overlapping
+ ******************************************************************************/
+
+void
+sv_eliso1st_curv_macdrp_allstep_simplempi(
+    float *restrict w3d,  // wavefield
+    size_t *restrict w3d_pos,
+    char **w3d_name,
+    int   w3d_num_of_vars,
+    char **coord_name,
+    float *restrict g3d,  // grid vars
+    float *restrict m3d,  // medium vars
+    // grid size
+    int ni1, int ni2, int nj1, int nj2, int nk1, int nk2,
+    int ni, int nj, int nk, int nx, int ny, int nz,
+    size_t siz_line, size_t siz_slice, size_t siz_volume,
+    // boundary type
+    int *restrict boundary_itype,
+    // if abs
+    int              abs_itype, //
+    int    *restrict abs_num_of_layers, //
+    int *restrict abs_indx, //
+    int *restrict abs_coefs_facepos0, //
+    float  *restrict abs_coefs, //
+    int           abs_vars_size_per_level, //
+    int *restrict abs_vars_volsiz, //
+    int *restrict abs_vars_facepos0, //
+    float  *restrict abs_vars,
+    // if free surface
+    float *matVx2Vz, //
+    float *matVy2Vz, //
+    // source term
+    int num_of_force,
+    int *restrict force_info, // num_of_force * 6 : si,sj,sk,start_pos_in_stf,start_it, end_it
+    float *restrict force_vec_stf,
+    int   *restrict force_ext_indx,
+    float *restrict force_ext_coef,
+    int             num_of_moment,
+    int   *restrict moment_info, // num_of_force * 6 : si,sj,sk,start_pos_in_rate,start_it, end_it
+    float *restrict moment_ten_rate,
+    int   *restrict moment_ext_indx,
+    float *restrict moment_ext_coef,
+    // io
+    int num_of_sta, int *restrict sta_loc_indx, float *restrict sta_loc_dxyz, float *restrict sta_seismo,
+    int num_of_point, int *restrict point_loc_indx, float *restrict point_seismo,
+    int num_of_slice_x, int *restrict slice_x_indx, char **restrict slice_x_fname,
+    int num_of_slice_y, int *restrict slice_y_indx, char **restrict slice_y_fname,
+    int num_of_slice_z, int *restrict slice_z_indx, char **restrict slice_z_fname,
+    int num_of_snap, int *restrict snap_info, char **snap_fname,
+    char *output_fname_part,
+    char *output_dir,
+    // scheme
+    int num_rk_stages, float *rk_a, float *rk_b,
+    int num_of_pairs, 
+    int fdx_max_half_len, int fdy_max_half_len,
+    int fdz_max_len, int fdz_num_surf_lay,
+    int ****pair_fdx_all_info, int ***pair_fdx_all_indx, float ***pair_fdx_all_coef,
+    int ****pair_fdy_all_info, int ***pair_fdy_all_indx, float ***pair_fdy_all_coef,
+    int ****pair_fdz_all_info, int ***pair_fdz_all_indx, float ***pair_fdz_all_coef,
+    // time
+    float dt, int nt_total, float t0,
+    // mpi
+    int myid, int *myid2, MPI_Comm comm,
+    float *restrict sbuff,
+    float *restrict rbuff,
+    MPI_Request *s_reqs,
+    MPI_Request *r_reqs,
+    int qc_check_nan_num_of_step,
+    const int output_all, // qc all var
+    const int verbose)
+{
+  // local allocated array
+  float *force_vec_value  = NULL;  // num_of_force * 3
+  float *moment_ten_value = NULL;  // num_of_moment * 6
+  char ou_file[FD_MAX_STRLEN];
+
+  // local pointer
+  float *restrict w_cur;
+  float *restrict w_pre;
+  float *restrict w_rhs;
+  float *restrict w_end;
+  float *restrict w_tmp;
+
+  float *restrict abs_vars_cur;
+  float *restrict abs_vars_pre;
+  float *restrict abs_vars_rhs;
+  float *restrict abs_vars_end;
+  float *restrict abs_vars_tmp;
+
+  int   ipair, istage;
+  float t_cur;
+  float t_next; // time after this loop for nc output
+
+  size_t w3d_size_per_level = WF_EL_1ST_NVAR * siz_volume;
+
+  // io nc
+  int ncid_slx[num_of_slice_x];
+  int timeid_slx;
+  int varid_slx[w3d_num_of_vars];
+
+  int ncid_sly[num_of_slice_y];
+  int timeid_sly;
+  int varid_sly[w3d_num_of_vars];
+
+  int ncid_slz[num_of_slice_z];
+  int timeid_slz;
+  int varid_slz[w3d_num_of_vars];
+
+  int ncid_snap[num_of_snap];
+  int timeid_snap[num_of_snap];
+  int varid_snap_vel[num_of_snap*FD_NDIM];
+  int varid_snap_T[num_of_snap*FD_NDIM_2];
+  int varid_snap_E[num_of_snap*FD_NDIM_2];
+  int snap_cur_it[num_of_snap];
+  for (int n=0; n<num_of_snap; n++) {
+    snap_cur_it[n] = 0;
+  }
+
+  // only x/y mpi
+  int num_of_r_reqs = 4;
+  int num_of_s_reqs = 4;
+
+  // alloc
+  if (num_of_force > 0) {
+    force_vec_value = (float *)fdlib_mem_malloc_1d(num_of_force*3*sizeof(float),
+                                                   "alloc force_vec_value in all step");
+  }
+  if (num_of_moment > 0) {
+    moment_ten_value = (float *)fdlib_mem_malloc_1d(num_of_moment*6*sizeof(float),
+                                                    "alloc moment_ten_value in all step");
+  }
+
+  // get wavefield
+  w_pre = w3d + w3d_size_per_level * 0; // previous level at n
+  w_tmp = w3d + w3d_size_per_level * 1; // intermidate value
+  w_rhs = w3d + w3d_size_per_level * 2; // for rhs
+  w_end = w3d + w3d_size_per_level * 3; // end level at n+1
+
+  // get pml
+  abs_vars_pre = abs_vars + abs_vars_size_per_level * 0;
+  abs_vars_tmp = abs_vars + abs_vars_size_per_level * 1;
+  abs_vars_rhs = abs_vars + abs_vars_size_per_level * 2;
+  abs_vars_end = abs_vars + abs_vars_size_per_level * 3;
+
+  // create slice and snapshot nc
+  for (int n=0; n<num_of_slice_x; n++)
+  {
+    int dimid[3];
+    if (nc_create(slice_x_fname[n], NC_CLOBBER, &ncid_slx[n])) M_NCERR;
+    if (nc_def_dim(ncid_slx[n], "time", NC_UNLIMITED, &dimid[0])) M_NCERR;
+    if (nc_def_dim(ncid_slx[n], "k", nk      , &dimid[1])) M_NCERR;
+    if (nc_def_dim(ncid_slx[n], "j" , nj      , &dimid[2])) M_NCERR;
+    // time var
+    if (nc_def_var(ncid_slx[n], "time", NC_FLOAT, 1, dimid+0, &timeid_slx)) M_NCERR;
+    // other vars
+    for (int ivar=0; ivar<w3d_num_of_vars; ivar++) {
+      if (nc_def_var(ncid_slx[n], w3d_name[ivar], NC_FLOAT, 3, dimid, &varid_slx[ivar])) M_NCERR;
+    }
+    // attribute: index info for plot
+    nc_put_att_int(ncid_slx[n],NC_GLOBAL,"i_index_with_ghosts_in_this_thread",
+                   NC_INT,1,slice_x_indx+n);
+    nc_put_att_int(ncid_slx[n],NC_GLOBAL,"coords_of_mpi_topo",
+                   NC_INT,2,myid2);
+    // end def
+    if (nc_enddef(ncid_slx[n])) M_NCERR;
+  }
+  for (int n=0; n<num_of_slice_y; n++) {
+    //int sli_id = slice_y_info[n*2+0];
+    int dimid[3];
+    if (nc_create(slice_y_fname[n], NC_CLOBBER, &ncid_sly[n])) M_NCERR;
+    if (nc_def_dim(ncid_sly[n], "time", NC_UNLIMITED, &dimid[0])) M_NCERR;
+    if (nc_def_dim(ncid_sly[n], "k", nk      , &dimid[1])) M_NCERR;
+    if (nc_def_dim(ncid_sly[n], "i" , ni      , &dimid[2])) M_NCERR;
+    // time var
+    if (nc_def_var(ncid_sly[n], "time", NC_FLOAT, 1, dimid+0, &timeid_sly)) M_NCERR;
+    // other vars
+    for (int ivar=0; ivar<w3d_num_of_vars; ivar++) {
+      if (nc_def_var(ncid_sly[n], w3d_name[ivar], NC_FLOAT, 3, dimid, &varid_sly[ivar])) M_NCERR;
+    }
+    // attribute: index info for plot
+    nc_put_att_int(ncid_sly[n],NC_GLOBAL,"j_index_with_ghosts_in_this_thread",
+                   NC_INT,1,slice_y_indx+n);
+    nc_put_att_int(ncid_sly[n],NC_GLOBAL,"coords_of_mpi_topo",
+                   NC_INT,2,myid2);
+    // end def
+    if (nc_enddef(ncid_sly[n])) M_NCERR;
+  }
+  for (int n=0; n<num_of_slice_z; n++) {
+    //int sli_id = slice_z_info[n*2+0];
+    int dimid[3];
+    if (nc_create(slice_z_fname[n], NC_CLOBBER, &ncid_slz[n])) M_NCERR;
+    if (nc_def_dim(ncid_slz[n], "time", NC_UNLIMITED, &dimid[0])) M_NCERR;
+    if (nc_def_dim(ncid_slz[n], "j", nj      , &dimid[1])) M_NCERR;
+    if (nc_def_dim(ncid_slz[n], "i" , ni      , &dimid[2])) M_NCERR;
+    // time var
+    if (nc_def_var(ncid_slz[n], "time", NC_FLOAT, 1, dimid+0, &timeid_slz)) M_NCERR;
+    // other vars
+    for (int ivar=0; ivar<w3d_num_of_vars; ivar++) {
+      if (nc_def_var(ncid_slz[n], w3d_name[ivar], NC_FLOAT, 3, dimid, &varid_slz[ivar])) M_NCERR;
+    }
+    // attribute: index info for plot
+    nc_put_att_int(ncid_slz[n],NC_GLOBAL,"k_index_with_ghosts_in_this_thread",
+                   NC_INT,1,slice_z_indx+n);
+    nc_put_att_int(ncid_slz[n],NC_GLOBAL,"coords_of_mpi_topo",
+                   NC_INT,2,myid2);
+    // end def
+    if (nc_enddef(ncid_slz[n])) M_NCERR;
+  }
+  // snapshot
+  for (int n=0; n<num_of_snap; n++)
+  {
+    int dimid[4];
+    int *cur_snap_info = snap_info + n * FD_SNAP_INFO_SIZE;
+    int snap_i1  = cur_snap_info[FD_SNAP_INFO_I1];
+    int snap_j1  = cur_snap_info[FD_SNAP_INFO_J1];
+    int snap_k1  = cur_snap_info[FD_SNAP_INFO_K1];
+    int snap_ni  = cur_snap_info[FD_SNAP_INFO_NI];
+    int snap_nj  = cur_snap_info[FD_SNAP_INFO_NJ];
+    int snap_nk  = cur_snap_info[FD_SNAP_INFO_NK];
+    int snap_di  = cur_snap_info[FD_SNAP_INFO_DI];
+    int snap_dj  = cur_snap_info[FD_SNAP_INFO_DJ];
+    int snap_dk  = cur_snap_info[FD_SNAP_INFO_DK];
+
+    int snap_it1 = cur_snap_info[FD_SNAP_INFO_IT1];
+    int snap_dit = cur_snap_info[FD_SNAP_INFO_DIT];
+    int snap_nt_total = (nt_total - snap_it1) / snap_dit;
+    int snap_out_V = cur_snap_info[FD_SNAP_INFO_VEL];
+    int snap_out_T = cur_snap_info[FD_SNAP_INFO_STRESS];
+    int snap_out_E = cur_snap_info[FD_SNAP_INFO_STRAIN];
+
+    if (nc_create(snap_fname[n], NC_CLOBBER, &ncid_snap[n])) M_NCERR;
+    if (nc_def_dim(ncid_snap[n], "time", NC_UNLIMITED, &dimid[0])) M_NCERR;
+    if (nc_def_dim(ncid_snap[n], "k", snap_nk     , &dimid[1])) M_NCERR;
+    if (nc_def_dim(ncid_snap[n], "j" , snap_nj     , &dimid[2])) M_NCERR;
+    if (nc_def_dim(ncid_snap[n], "i" , snap_ni      , &dimid[3])) M_NCERR;
+    // time var
+    if (nc_def_var(ncid_snap[n], "time", NC_FLOAT, 1, dimid+0, &timeid_snap[n])) M_NCERR;
+    // other vars
+    if (snap_out_V==1) {
+       if (nc_def_var(ncid_snap[n],"Vx",NC_FLOAT,4,dimid,&varid_snap_vel[n*FD_NDIM+0])) M_NCERR;
+       if (nc_def_var(ncid_snap[n],"Vy",NC_FLOAT,4,dimid,&varid_snap_vel[n*FD_NDIM+1])) M_NCERR;
+       if (nc_def_var(ncid_snap[n],"Vz",NC_FLOAT,4,dimid,&varid_snap_vel[n*FD_NDIM+2])) M_NCERR;
+    }
+    if (snap_out_T==1) {
+       if (nc_def_var(ncid_snap[n],"Txx",NC_FLOAT,4,dimid,&varid_snap_T[n*FD_NDIM_2+0])) M_NCERR;
+       if (nc_def_var(ncid_snap[n],"Tyy",NC_FLOAT,4,dimid,&varid_snap_T[n*FD_NDIM_2+1])) M_NCERR;
+       if (nc_def_var(ncid_snap[n],"Tzz",NC_FLOAT,4,dimid,&varid_snap_T[n*FD_NDIM_2+2])) M_NCERR;
+       if (nc_def_var(ncid_snap[n],"Txz",NC_FLOAT,4,dimid,&varid_snap_T[n*FD_NDIM_2+3])) M_NCERR;
+       if (nc_def_var(ncid_snap[n],"Tyz",NC_FLOAT,4,dimid,&varid_snap_T[n*FD_NDIM_2+4])) M_NCERR;
+       if (nc_def_var(ncid_snap[n],"Txy",NC_FLOAT,4,dimid,&varid_snap_T[n*FD_NDIM_2+5])) M_NCERR;
+    }
+    if (snap_out_E==1) {
+       if (nc_def_var(ncid_snap[n],"Exx",NC_FLOAT,4,dimid,&varid_snap_E[n*FD_NDIM_2+0])) M_NCERR;
+       if (nc_def_var(ncid_snap[n],"Eyy",NC_FLOAT,4,dimid,&varid_snap_E[n*FD_NDIM_2+1])) M_NCERR;
+       if (nc_def_var(ncid_snap[n],"Ezz",NC_FLOAT,4,dimid,&varid_snap_E[n*FD_NDIM_2+2])) M_NCERR;
+       if (nc_def_var(ncid_snap[n],"Exz",NC_FLOAT,4,dimid,&varid_snap_E[n*FD_NDIM_2+3])) M_NCERR;
+       if (nc_def_var(ncid_snap[n],"Eyz",NC_FLOAT,4,dimid,&varid_snap_E[n*FD_NDIM_2+4])) M_NCERR;
+       if (nc_def_var(ncid_snap[n],"Exy",NC_FLOAT,4,dimid,&varid_snap_E[n*FD_NDIM_2+5])) M_NCERR;
+    }
+    // attribute: index in output snapshot, index w ghost in thread
+    int g_start[] = { cur_snap_info[FD_SNAP_INFO_GI1],
+                      cur_snap_info[FD_SNAP_INFO_GJ1],
+                      cur_snap_info[FD_SNAP_INFO_GK1] };
+    nc_put_att_int(ncid_snap[n],NC_GLOBAL,"first_index_to_snapshot_output",
+                   NC_INT,FD_NDIM,g_start);
+
+    nc_put_att_int(ncid_snap[n],NC_GLOBAL,"first_index_in_this_thread_with_ghosts",
+                   NC_INT,FD_NDIM,cur_snap_info+FD_SNAP_INFO_I1);
+
+    nc_put_att_int(ncid_snap[n],NC_GLOBAL,"index_stride_in_this_thread",
+                   NC_INT,FD_NDIM,cur_snap_info+FD_SNAP_INFO_DI);
+    nc_put_att_int(ncid_snap[n],NC_GLOBAL,"coords_of_mpi_topo",
+                   NC_INT,2,myid2);
+
+    if (nc_enddef(ncid_snap[n])) M_NCERR;
+
+    //sv_eliso1st_curv_macdrp_snap_create_nc(snap_fname[n],
+    //                                       snap_nt_totle,
+    //                                       snap_ni,
+    //                                       snap_nj,
+    //                                       snap_nk,
+    //                                       snap_out_vel,
+    //                                       snap_out_stress,
+    //                                       snap_out_strain,
+    //                                       ncid_snap+n,
+    //                                       varid_snap_V+n*FD_NDIM,
+    //                                       varid_snap_T+n*FD_NDIM_2,
+    //                                       varid_snap_E+n*FD_NDIM_2);
+  }
+
+  //
+  // time loop
+  //
+  for (int it=0; it<nt_total; it++)
+  {
+    t_cur = it * dt + t0;
+    t_next = t_cur +dt;
+
+    if (myid==0 && verbose>10) fprintf(stdout,"-> it=%d, t=\%f\n", it, t_cur);
+
+    ipair = it % num_of_pairs; // mod to ipair
+    if (myid==0 && verbose>10) fprintf(stdout, " --> ipair=%d\n",ipair);
+
+    // loop RK stages for one step
+    for (istage=0; istage<num_rk_stages; istage++)
+    {
+      if (myid==0 && verbose>10) fprintf(stdout, " --> istage=%d\n",istage);
+
+      // use pointer to avoid 1 copy for previous level value
+      if (istage!=0) {
+        w_cur        = w_tmp;
+        abs_vars_cur = abs_vars_tmp;
+      } else {
+        w_cur        = w_pre;
+        abs_vars_cur = abs_vars_pre;
+      }
+
+      //// recv mesg
+      //if (it>0 || istage>0) {
+      //  MPI_Waitall(num_of_r_reqs, r_reqs, MPI_STATUS_IGNORE);
+
+      //  fd_blk_unpack_mesg(rbuff, w_cur, w3d_num_of_vars,
+      //                     ni1,ni2,nj1,nj2,nk1,nk2,nx,ny,
+      //                     siz_line,siz_slice,siz_volume);
+
+      //  MPI_Startall(num_of_r_reqs, r_reqs);
+
+      //  MPI_Waitall(num_of_s_reqs, s_reqs, MPI_STATUS_IGNORE);
+      //}
+      // stf value for cur stage
+      src_get_stage_stf(num_of_force,
+                        force_info,
+                        force_vec_stf,
+                        num_of_moment,
+                        moment_info,
+                        moment_ten_rate,
+                        it,
+                        istage,
+                        num_rk_stages,
+                        force_vec_value,
+                        moment_ten_value,
+                        myid, verbose);
+      // compute
+      sv_eliso1st_curv_macdrp_onestage(w_cur, w_rhs, g3d, m3d, 
+                                       ni1,ni2,nj1,nj2,nk1,nk2,ni,nj,nk,nx,ny,nz,
+                                       siz_line,siz_slice,siz_volume,
+                                       boundary_itype,
+                                       abs_itype,
+                                       abs_num_of_layers,
+                                       abs_indx,
+                                       abs_coefs_facepos0,
+                                       abs_coefs,
+                                       abs_vars_size_per_level,
+                                       abs_vars_volsiz,
+                                       abs_vars_facepos0,
+                                       abs_vars_cur,
+                                       abs_vars_rhs,
+                                       matVx2Vz, matVy2Vz,
+                                       num_of_force , force_info , force_vec_value,
+                                       force_ext_indx,force_ext_coef,
+                                       num_of_moment, moment_info, moment_ten_value,
+                                       moment_ext_indx,moment_ext_coef,
+                                       fdx_max_half_len, fdy_max_half_len,
+                                       fdz_max_len, fdz_num_surf_lay,
+                                       pair_fdx_all_info[ipair][istage],
+                                       pair_fdx_all_indx[ipair][istage],
+                                       pair_fdx_all_coef[ipair][istage],
+                                       pair_fdy_all_info[ipair][istage],
+                                       pair_fdy_all_indx[ipair][istage],
+                                       pair_fdy_all_coef[ipair][istage],
+                                       pair_fdz_all_info[ipair][istage],
+                                       pair_fdz_all_indx[ipair][istage],
+                                       pair_fdz_all_coef[ipair][istage],
+                                       myid, verbose);
+
+      // RK int
+
+      // recv mesg
+      MPI_Startall(num_of_r_reqs, r_reqs);
+
+      // start
+      if (istage==0)
+      {
+        float coef_a = rk_a[istage] * dt;
+        float coef_b = rk_b[istage] * dt;
+
+        // wavefield
+        for (size_t iptr=0; iptr<WF_EL_1ST_NVAR*siz_volume; iptr++) {
+            w_tmp[iptr] = w_pre[iptr] + coef_a * w_rhs[iptr];
+        }
+        // pack and isend
+        fd_blk_pack_mesg(w_tmp, sbuff, w3d_num_of_vars,
+                         ni1,ni2,nj1,nj2,nk1,nk2,
+                         siz_line,siz_slice,siz_volume,
+                         fdx_max_half_len, fdy_max_half_len);
+
+        MPI_Startall(num_of_s_reqs, s_reqs);
+
+        // pml_tmp
+        if (abs_itype == FD_BOUNDARY_TYPE_CFSPML)
+        {
+          for (size_t iptr=0; iptr<abs_vars_size_per_level; iptr++) {
+            abs_vars_tmp[iptr] = abs_vars_pre[iptr] + coef_a * abs_vars_rhs[iptr];
+          }
+        }
+
+        // w_end
+        for (size_t iptr=0; iptr<WF_EL_1ST_NVAR*siz_volume; iptr++) {
+            w_end[iptr] = w_pre[iptr] + coef_b * w_rhs[iptr];
+        }
+        // pml_end
+        if (abs_itype == FD_BOUNDARY_TYPE_CFSPML)
+        {
+          for (size_t iptr=0; iptr<abs_vars_size_per_level; iptr++) {
+            abs_vars_end[iptr] = abs_vars_pre[iptr] + coef_b * abs_vars_rhs[iptr];
+          }
+        }
+      }
+      else if (istage<num_rk_stages-1)
+      {
+        float coef_a = rk_a[istage] * dt;
+        float coef_b = rk_b[istage] * dt;
+
+        // wavefield
+        for (size_t iptr=0; iptr<WF_EL_1ST_NVAR*siz_volume; iptr++) {
+            w_tmp[iptr] = w_pre[iptr] + coef_a * w_rhs[iptr];
+        }
+        // pack and isend
+        fd_blk_pack_mesg(w_tmp, sbuff, w3d_num_of_vars,
+                         ni1,ni2,nj1,nj2,nk1,nk2,
+                         siz_line,siz_slice,siz_volume,
+                         fdx_max_half_len, fdy_max_half_len);
+
+        MPI_Startall(num_of_s_reqs, s_reqs);
+
+        // pml_tmp
+        if (abs_itype == FD_BOUNDARY_TYPE_CFSPML)
+        {
+          for (size_t iptr=0; iptr<abs_vars_size_per_level; iptr++) {
+            abs_vars_tmp[iptr] = abs_vars_pre[iptr] + coef_a * abs_vars_rhs[iptr];
+          }
+        }
+
+        // w_end
+        for (size_t iptr=0; iptr<WF_EL_1ST_NVAR*siz_volume; iptr++) {
+            w_end[iptr] += coef_b * w_rhs[iptr];
+        }
+        // pml_end
+        if (abs_itype == FD_BOUNDARY_TYPE_CFSPML)
+        {
+          for (size_t iptr=0; iptr<abs_vars_size_per_level; iptr++) {
+            abs_vars_end[iptr] += coef_b * abs_vars_rhs[iptr];
+          }
+        }
+      }
+      else // last stage
+      {
+        float coef_b = rk_b[istage] * dt;
+
+        // wavefield
+        for (size_t iptr=0; iptr<WF_EL_1ST_NVAR*siz_volume; iptr++) {
+            w_end[iptr] += coef_b * w_rhs[iptr];
+        }
+        // pack and isend
+        fd_blk_pack_mesg(w_end, sbuff, w3d_num_of_vars,
+                         ni1,ni2,nj1,nj2,nk1,nk2,
+                         siz_line,siz_slice,siz_volume,
+                         fdx_max_half_len, fdy_max_half_len);
+
+        MPI_Startall(num_of_s_reqs, s_reqs);
+
+        // pml_end
+        if (abs_itype == FD_BOUNDARY_TYPE_CFSPML)
+        {
+          for (size_t iptr=0; iptr<abs_vars_size_per_level; iptr++) {
+            abs_vars_end[iptr] += coef_b * abs_vars_rhs[iptr];
+          }
+        }
+      }
+
+      MPI_Waitall(num_of_s_reqs, s_reqs, MPI_STATUS_IGNORE);
+      MPI_Waitall(num_of_r_reqs, r_reqs, MPI_STATUS_IGNORE);
+
+      if (istage != num_rk_stages-1) {
+        fd_blk_unpack_mesg(rbuff, w_tmp, w3d_num_of_vars,
+                           ni1,ni2,nj1,nj2,nk1,nk2,nx,ny,
+                           siz_line,siz_slice,siz_volume);
+      } else {
+        fd_blk_unpack_mesg(rbuff, w_end, w3d_num_of_vars,
+                           ni1,ni2,nj1,nj2,nk1,nk2,nx,ny,
+                           siz_line,siz_slice,siz_volume);
+      }
+    } // RK stages
+
+    // QC
+    if (qc_check_nan_num_of_step >0  && (it % qc_check_nan_num_of_step) == 0) {
+      if (myid==0 && verbose>10) fprintf(stdout,"-> check value nan\n");
+        //wf_el_1st_check_value(w_end);
+    }
+
+    // save results
+    //-- sta by interp
+    for (int n=0; n<num_of_sta; n++)
+    {
+      int iptr =   sta_loc_indx[0+n*FD_NDIM]
+                 + sta_loc_indx[1+n*FD_NDIM] * siz_line
+                 + sta_loc_indx[2+n*FD_NDIM] * siz_slice;
+      // need to implement interp, now just take value
+      for (int ivar=0; ivar<w3d_num_of_vars; ivar++) {
+        int iptr_sta = (n * w3d_num_of_vars + ivar) * nt_total + it;
+        sta_seismo[iptr_sta] = w_end[ivar*siz_volume + iptr];
+      }
+    }
+    //-- point values
+    for (int n=0; n<num_of_point; n++)
+    {
+      int iptr = point_loc_indx[0] + point_loc_indx[1] * siz_line + point_loc_indx[2] * siz_slice;
+      for (int ivar=0; ivar<w3d_num_of_vars; ivar++) {
+        int iptr_point = (n * w3d_num_of_vars + ivar) * nt_total + it;
+        point_seismo[iptr_point] = w_end[ivar*siz_volume + iptr];
+      }
+    }
+    //-- slice x, use w_rhs as buff
+    int max_used_rhs = 0;
+    for (int n=0; n<num_of_slice_x; n++) {
+      size_t startp[] = { it, 0, 0 };
+      size_t countp[] = { 1, nk, nj};
+      size_t start_tdim = it;
+      for (int ivar=0; ivar<w3d_num_of_vars; ivar++) {
+        int iptr_var = w3d_pos[ivar];
+        int iptr_slice = 0;
+        for (int k=nk1; k<=nk2; k++) {
+          for (int j=nj1; j<=nj2; j++) {
+            int i = slice_x_indx[n];
+            int iptr = i + j * siz_line + k * siz_slice + iptr_var;
+            w_rhs[iptr_slice] = w_end[iptr];
+            iptr_slice++;
+          }
+        }
+        nc_put_var1_float(ncid_slx[n],timeid_slx,&start_tdim,&t_next);
+        nc_put_vara_float(ncid_slx[n],varid_slx[ivar],startp,countp,w_rhs);
+        max_used_rhs = (iptr_slice > max_used_rhs) ? iptr_slice : max_used_rhs;
+      }
+    }
+    // slice y
+    for (int n=0; n<num_of_slice_y; n++) {
+      size_t startp[] = { it, 0, 0 };
+      size_t countp[] = { 1, nk, ni};
+      size_t start_tdim = it;
+      for (int ivar=0; ivar<w3d_num_of_vars; ivar++) {
+        int iptr_var = w3d_pos[ivar];
+        int iptr_slice = 0;
+        for (int k=nk1; k<=nk2; k++) {
+          int j = slice_y_indx[n];
+          for (int i=ni1; i<=ni2; i++) {
+            int iptr = i + j * siz_line + k * siz_slice + iptr_var;
+            w_rhs[iptr_slice] = w_end[iptr];
+            iptr_slice++;
+          }
+        }
+        nc_put_var1_float(ncid_sly[n],timeid_sly,&start_tdim,&t_next);
+        nc_put_vara_float(ncid_sly[n],varid_sly[ivar],startp,countp,w_rhs);
+        max_used_rhs = (iptr_slice > max_used_rhs) ? iptr_slice : max_used_rhs;
+      }
+    }
+    // slice z
+    for (int n=0; n<num_of_slice_z; n++) {
+      size_t startp[] = { it, 0, 0 };
+      size_t countp[] = { 1, nj, ni};
+      size_t start_tdim = it;
+      for (int ivar=0; ivar<w3d_num_of_vars; ivar++) {
+        int iptr_var = w3d_pos[ivar];
+        int k = slice_z_indx[n];
+        int iptr_slice = 0;
+        for (int j=nj1; j<=nj2; j++) {
+          for (int i=ni1; i<=ni2; i++) {
+            int iptr = i + j * siz_line + k * siz_slice + iptr_var;
+            w_rhs[iptr_slice] = w_end[iptr];
+            iptr_slice++;
+          }
+        }
+        nc_put_var1_float(ncid_slz[n],timeid_slz,&start_tdim,&t_next);
+        nc_put_vara_float(ncid_slz[n],varid_slz[ivar],startp,countp,w_rhs);
+        max_used_rhs = (iptr_slice > max_used_rhs) ? iptr_slice : max_used_rhs;
+      }
+    }
+    // snapshot
+    for (int n=0; n<num_of_snap; n++)
+    {
+      int *cur_snap_info = snap_info + n * FD_SNAP_INFO_SIZE;
+      int snap_i1  = cur_snap_info[FD_SNAP_INFO_I1];
+      int snap_j1  = cur_snap_info[FD_SNAP_INFO_J1];
+      int snap_k1  = cur_snap_info[FD_SNAP_INFO_K1];
+      int snap_ni  = cur_snap_info[FD_SNAP_INFO_NI];
+      int snap_nj  = cur_snap_info[FD_SNAP_INFO_NJ];
+      int snap_nk  = cur_snap_info[FD_SNAP_INFO_NK];
+      int snap_di  = cur_snap_info[FD_SNAP_INFO_DI];
+      int snap_dj  = cur_snap_info[FD_SNAP_INFO_DJ];
+      int snap_dk  = cur_snap_info[FD_SNAP_INFO_DK];
+
+      int snap_it1 = cur_snap_info[FD_SNAP_INFO_IT1];
+      int snap_dit = cur_snap_info[FD_SNAP_INFO_DIT];
+      int snap_it_mod = (it - snap_it1) % snap_dit;
+      int snap_it_num = (it - snap_it1) / snap_dit;
+      int snap_nt_total = (nt_total - snap_it1) / snap_dit;
+      int snap_out_V = cur_snap_info[FD_SNAP_INFO_VEL];
+      int snap_out_T = cur_snap_info[FD_SNAP_INFO_STRESS];
+      int snap_out_E = cur_snap_info[FD_SNAP_INFO_STRAIN];
+
+      int snap_max_num = snap_ni * snap_nj * snap_nk;
+
+      if (it>=snap_it1 && snap_it_num<=snap_nt_total && snap_it_mod==0)
+      {
+        size_t startp[] = { snap_cur_it[n], 0, 0, 0 };
+        size_t countp[] = { 1, snap_nk, snap_nj, snap_ni };
+        size_t start_tdim = snap_cur_it[n];
+
+        nc_put_var1_float(ncid_snap[n],timeid_snap[n],&start_tdim,&t_next);
+
+        // vel
+        if (snap_out_V==1)
+        {
+          sv_eliso1st_curv_macdrp_snap_buff(w_end+WF_EL_1ST_SEQ_Vx*siz_volume,
+                siz_line,siz_slice,snap_i1,snap_ni,snap_di,snap_j1,snap_nj,
+                snap_dj,snap_k1,snap_nk,snap_dk,w_rhs);
+          nc_put_vara_float(ncid_snap[n],varid_snap_vel[n*FD_NDIM+0],startp,countp,w_rhs);
+
+          sv_eliso1st_curv_macdrp_snap_buff(w_end+WF_EL_1ST_SEQ_Vy*siz_volume,
+                siz_line,siz_slice,snap_i1,snap_ni,snap_di,snap_j1,snap_nj,
+                snap_dj,snap_k1,snap_nk,snap_dk,w_rhs);
+          nc_put_vara_float(ncid_snap[n],varid_snap_vel[n*FD_NDIM+1],startp,countp,w_rhs);
+
+          sv_eliso1st_curv_macdrp_snap_buff(w_end+WF_EL_1ST_SEQ_Vz*siz_volume,
+                siz_line,siz_slice,snap_i1,snap_ni,snap_di,snap_j1,snap_nj,
+                snap_dj,snap_k1,snap_nk,snap_dk,w_rhs);
+          nc_put_vara_float(ncid_snap[n],varid_snap_vel[n*FD_NDIM+2],startp,countp,w_rhs);
+        }
+        if (snap_out_T==1)
+        {
+          sv_eliso1st_curv_macdrp_snap_buff(w_end+WF_EL_1ST_SEQ_Txx*siz_volume,
+                siz_line,siz_slice,snap_i1,snap_ni,snap_di,snap_j1,snap_nj,
+                snap_dj,snap_k1,snap_nk,snap_dk,w_rhs);
+          nc_put_vara_float(ncid_snap[n],varid_snap_T[n*FD_NDIM_2+0],startp,countp,w_rhs);
+
+          sv_eliso1st_curv_macdrp_snap_buff(w_end+WF_EL_1ST_SEQ_Tyy*siz_volume,
+                siz_line,siz_slice,snap_i1,snap_ni,snap_di,snap_j1,snap_nj,
+                snap_dj,snap_k1,snap_nk,snap_dk,w_rhs);
+          nc_put_vara_float(ncid_snap[n],varid_snap_T[n*FD_NDIM_2+1],startp,countp,w_rhs);
+          
+          sv_eliso1st_curv_macdrp_snap_buff(w_end+WF_EL_1ST_SEQ_Tzz*siz_volume,
+                siz_line,siz_slice,snap_i1,snap_ni,snap_di,snap_j1,snap_nj,
+                snap_dj,snap_k1,snap_nk,snap_dk,w_rhs);
+          nc_put_vara_float(ncid_snap[n],varid_snap_T[n*FD_NDIM_2+2],startp,countp,w_rhs);
+          
+          sv_eliso1st_curv_macdrp_snap_buff(w_end+WF_EL_1ST_SEQ_Txz*siz_volume,
+                siz_line,siz_slice,snap_i1,snap_ni,snap_di,snap_j1,snap_nj,
+                snap_dj,snap_k1,snap_nk,snap_dk,w_rhs);
+          nc_put_vara_float(ncid_snap[n],varid_snap_T[n*FD_NDIM_2+3],startp,countp,w_rhs);
+
+          sv_eliso1st_curv_macdrp_snap_buff(w_end+WF_EL_1ST_SEQ_Tyz*siz_volume,
+                siz_line,siz_slice,snap_i1,snap_ni,snap_di,snap_j1,snap_nj,
+                snap_dj,snap_k1,snap_nk,snap_dk,w_rhs);
+          nc_put_vara_float(ncid_snap[n],varid_snap_T[n*FD_NDIM_2+4],startp,countp,w_rhs);
+
+          sv_eliso1st_curv_macdrp_snap_buff(w_end+WF_EL_1ST_SEQ_Txy*siz_volume,
+                siz_line,siz_slice,snap_i1,snap_ni,snap_di,snap_j1,snap_nj,
+                snap_dj,snap_k1,snap_nk,snap_dk,w_rhs);
+          nc_put_vara_float(ncid_snap[n],varid_snap_T[n*FD_NDIM_2+5],startp,countp,w_rhs);
+        }
+        if (snap_out_E==1)
+        {
+          // need to implement
+        }
+        //for (int ivar=0; ivar<w3d_num_of_vars; ivar++)
+        //{
+        //  if (snap_save_cmp[n*w3d_num_of_vars+ivar]==1)
+        //  {
+        //    int iptr_var = w3d_pos[ivar];
+        //    int iptr_snap=0;
+        //    for (int n3=0; n3<snap_nk; n3++)
+        //    {
+        //      int k = cur_snap_info[2] + n3 * cur_snap_info[8];
+        //      for (int n2=0; n2<snap_nj; n2++)
+        //      {
+        //        int j = cur_snap_info[1] + n2 * cur_snap_info[7];
+        //        for (int n1=0; n1<snap_ni; n1++)
+        //        {
+        //          int i = cur_snap_info[0] + n1 * cur_snap_info[6];
+        //          int iptr = i + j * siz_line + k * siz_slice + iptr_var;
+        //          w_rhs[iptr_snap] = w_end[iptr];
+        //          iptr_snap++;
+        //        }
+        //      }
+        //    }
+        //    size_t startp[] = { snap_cur_it[n], 0, 0, 0 };
+        //    size_t countp[] = { 1, snap_nk, snap_nj, snap_ni };
+        //    nc_put_vara_float(ncid_snap[n],varid_snap[n*w3d_num_of_vars+ivar],startp,countp,w_rhs);
+        //  }
+        //}
+        max_used_rhs = (snap_max_num > max_used_rhs) ? snap_max_num : max_used_rhs;
+        snap_cur_it[n] += 1;
+      }
+    }
+    // zero temp used w_rsh
+    for (int i=0; i<max_used_rhs; i++) w_rhs[i]=0.0;
+
+    // debug output
+    if (output_all==1) {
+        io_build_fname_time(output_dir,"w3d",".nc",myid2,it,ou_file);
+        io_var3d_export_nc(ou_file,
+                           w_end,
+                           w3d_pos,
+                           w3d_name,
+                           w3d_num_of_vars,
+                           coord_name,
+                           nx,
+                           ny,
+                           nz);
+    }
+
+    // swap w_pre and w_end, avoid copying
+    w_cur = w_pre; w_pre = w_end; w_end = w_cur;
+    abs_vars_cur = abs_vars_pre; abs_vars_pre = abs_vars_end; abs_vars_end = abs_vars_cur;
+
+  } // time loop
+
+  // postproc
+  if (force_vec_value ) free(force_vec_value );
+  if (moment_ten_value) free(moment_ten_value);
+
+  // close nc
+  for (int n=0; n<num_of_slice_x; n++) {
+    nc_close(ncid_slx[n]);
+  }
+  for (int n=0; n<num_of_slice_y; n++) {
+    nc_close(ncid_sly[n]);
+  }
+  for (int n=0; n<num_of_slice_z; n++) {
+    nc_close(ncid_slz[n]);
+  }
+  for (int n=0; n<num_of_snap; n++)
+  {
+    nc_close(ncid_snap[n]);
+  }
+}
+
+/*******************************************************************************
  * perform one stage calculation of rhs
  ******************************************************************************/
 

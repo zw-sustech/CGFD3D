@@ -764,7 +764,7 @@ int main(int argc, char** argv)
   
   time_t t_start = time(NULL);
   
-  sv_eliso1st_curv_macdrp_allstep(blk->w3d,blk->w3d_pos,blk->w3d_name,blk->w3d_num_of_vars,
+  sv_eliso1st_curv_macdrp_allstep_simplempi(blk->w3d,blk->w3d_pos,blk->w3d_name,blk->w3d_num_of_vars,
                                   blk->coord_name,
                                   blk->g3d, blk->m3d,
                                   blk->ni1,blk->ni2,blk->nj1,blk->nj2,blk->nk1,blk->nk2,
