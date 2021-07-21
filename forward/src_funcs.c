@@ -259,8 +259,11 @@ src_gen_single_point_gauss(size_t siz_line,
         {
           if (i<ni1 || i>ni2) continue;
 
+          // Note index need match coef
           int iptr = i + j * siz_line + k * siz_slice;
+          int iptr1 = (i-(si-npoint_half_ext)) + 7 * (j-(sj-npoint_half_ext)) + 7 * 7 *(k-(sk-npoint_half_ext));
           moment_ext_indx[iptr_s] = iptr;
+          moment_ext_coef[iptr_s] = moment_ext_coef[iptr1];
           iptr_s++;
         }
       }
@@ -329,8 +332,11 @@ src_gen_single_point_gauss(size_t siz_line,
         {
           if (i<ni1 || i>ni2) continue;
 
+          // Note index need match coef
           int iptr = i + j * siz_line + k * siz_slice;
+          int iptr1 = (i-(si-npoint_half_ext)) + 7 * (j-(sj-npoint_half_ext)) + 7 * 7 *(k-(sk-npoint_half_ext));
           force_ext_indx[iptr_s] = iptr;
+          force_ext_coef[iptr_s] = force_ext_coef[iptr1];
           iptr_s++;
         }
       }
@@ -1042,7 +1048,7 @@ src_read_locate_anasrc(char *pfilepath,
         for (int j=0;j<6;j++)
         {
           moment_tensor[6*i +j]=M0*temp_moment[j];
-          fprintf(stdout,"source is angle = %f\n ",moment_tensor[6*i +j]);
+          fprintf(stdout,"moment_tensor is %f \n",moment_tensor[6*i +j]);
         }
       } 
       if (strcmp("moment_tensor",moment_wavelet_mechism[i])==0)
@@ -1190,10 +1196,10 @@ src_read_locate_anasrc(char *pfilepath,
           int iptr = M_SRC_IND(icmp,it_to_it1,istage,nt_force,num_of_stages);
           float t = it * dt + t0 + rk_stage_time[istage] * dt;
           float stf_val;
-          if (strcmp(force_wavelet_name[indx], "ricker_deriv")==0) {
-            stf_val = fun_ricker_deriv(t, force_wavelet_coefs[2*indx+0], force_wavelet_coefs[2*indx+1]);
-          } else if (strcmp(force_wavelet_name[indx], "gaussian_deriv")==0) {
-            stf_val = fun_gauss_deriv(t, force_wavelet_coefs[2*indx+0], force_wavelet_coefs[2*indx+1]);
+          if (strcmp(force_wavelet_name[indx], "ricker")==0) {
+            stf_val = fun_ricker(t, force_wavelet_coefs[2*indx+0], force_wavelet_coefs[2*indx+1]);
+          } else if (strcmp(force_wavelet_name[indx], "gaussian")==0) {
+            stf_val = fun_gauss(t, force_wavelet_coefs[2*indx+0], force_wavelet_coefs[2*indx+1]);
           } else {
             fprintf(stderr,"wavelet_name=%s\n", force_wavelet_name[indx]); 
             fprintf(stderr,"   not implemented yet\n"); 
