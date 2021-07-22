@@ -461,6 +461,7 @@ int main(int argc, char** argv)
     if(strcmp(fnm_suffix,"anasrc")==0)
     {
       if (myid==0) fprintf(stdout,"***input source type is analysis***\n");
+      /*
       src_read_locate_anasrc(par->source_input_file,
                 			       blk->siz_line,
                              blk->siz_slice,
@@ -499,10 +500,12 @@ int main(int argc, char** argv)
                              &blk->moment_ext_indx,
                              &blk->moment_ext_coef,
                              verbose);
+      */
     }
     if(strcmp(fnm_suffix,"valsrc")==0)
     {
       if (myid==0) fprintf(stdout,"***input source type is value sample***\n");
+      /*
       src_read_locate_valsrc(par->source_input_file,
                 			       blk->siz_line,
                              blk->siz_slice,
@@ -541,6 +544,7 @@ int main(int argc, char** argv)
                              &blk->moment_ext_indx,
                              &blk->moment_ext_coef,
                              verbose);
+      */
     }
   }
   else
@@ -548,9 +552,7 @@ int main(int argc, char** argv)
     if (myid==0) fprintf(stdout,"set single point source term in code ...\n"); 
 
     // default
-    blk->num_of_force=0; blk->num_of_moment=0;
-    if (par->source_input_itype == PAR_SOURCE_SINGLE_FORCE)  blk->num_of_force=1;
-    if (par->source_input_itype == PAR_SOURCE_SINGLE_MOMENT) blk->num_of_moment=1;
+    blk->src->total_number=1;
 
     // set inner vars
     src_gen_single_point_gauss(blk->siz_line,
@@ -586,16 +588,7 @@ int main(int argc, char** argv)
                                par->wavelet_tend,
                                comm,
                                myid,
-                               &blk->num_of_force,
-                               &blk->force_info,
-                               &blk->force_vec_stf,
-                               &blk->force_ext_indx,
-                               &blk->force_ext_coef,
-                               &blk->num_of_moment,
-                               &blk->moment_info,
-                               &blk->moment_ten_rate,
-                               &blk->moment_ext_indx,
-                               &blk->moment_ext_coef,
+                               blk->src,
                                verbose);
   }
 
@@ -772,10 +765,7 @@ int main(int argc, char** argv)
                                   blk->abs_vars_size_per_level,
                                   blk->abs_vars_volsiz, blk->abs_vars_facepos0, blk->abs_vars,
                                   blk->matVx2Vz, blk->matVy2Vz,
-                                  blk->num_of_force, blk->force_info, blk->force_vec_stf,
-                                  blk->force_ext_indx,blk->force_ext_coef,
-                                  blk->num_of_moment, blk->moment_info, blk->moment_ten_rate,
-                                  blk->moment_ext_indx,blk->moment_ext_coef,
+                                  blk->src,
                                   blk->sta_info, blk->sta_seismo,
                                   blk->num_of_point, blk->point_loc_indx,blk->point_seismo,
                                   blk->num_of_slice_x, blk->slice_x_indx,blk->slice_x_fname,

@@ -55,25 +55,12 @@ src_gen_single_point_gauss(size_t siz_line,
                            MPI_Comm comm, 
                            int myid,
                            // following output
-                           int  *num_of_force, // inout: if force source, if in this thread
-                           int **restrict p_force_info,
-                           float  **restrict p_force_vec_stf,
-                           int    **restrict p_force_ext_indx,
-                           float  **restrict p_force_ext_coef,
-                           int  *num_of_moment, // inout: if moment source, if in this thread
-                           int    **restrict p_moment_info,
-                           float  **restrict p_moment_ten_rate,
-                           int    **restrict p_moment_ext_indx,
-                           float  **restrict p_moment_ext_coef,
+                           struct fd_src_t *src,
                            int verbose)
 {
   // get total elem of exted src region for a single point
   //int siz_ext = 7 * 7 * 7;
   int siz_ext = (2*npoint_half_ext+1)*(2*npoint_half_ext+1)*(2*npoint_half_ext+1);
-
-  // get initial number
-  int nforce  = *num_of_force;
-  int nmoment = *num_of_moment;
 
   // use local var to represent index
   int sgpi = source_gridindex[0]; // g: global, p: phys
@@ -165,16 +152,16 @@ src_gen_single_point_gauss(size_t siz_line,
   }
   else
   {  // no source in this thread
-    nforce  = 0;
-    nmoment = 0;
+    src->total_number = 0;
   }
+
   // if source here, cal wavelet series
   if (nt_total_wavelet > 0) {
     wavelet_values = (float *)fdlib_mem_calloc_1d_float(
         nt_total_wavelet*num_of_stages,0.0,"src_gen_single_point_gauss");
   }
 
-  if (nforce > 0 || nmoment > 0)
+  if (src->total_number > 0)
   {
     for (int it=it_begin; it<=it_end; it++)
     {
@@ -201,159 +188,98 @@ src_gen_single_point_gauss(size_t siz_line,
       }
     }
   }
-  // set moment
-  int *moment_info = NULL;
-  if (nmoment > 0) // source type is moment
+
+  // set default value
+  src->max_nt    = nt_total_wavelet;
+  src->max_stage = num_of_stages;
+  src->max_ext   = siz_ext;
+
+  // allocate var
+  src->si = (int *)malloc(src->total_number*sizeof(int));
+  src->sj = (int *)malloc(src->total_number*sizeof(int));
+  src->sk = (int *)malloc(src->total_number*sizeof(int));
+  src->it_begin = (int *)malloc(src->total_number*sizeof(int));
+  src->it_end   = (int *)malloc(src->total_number*sizeof(int));
+  src->ext_num  = (int *)malloc(src->total_number*sizeof(int));
+  src->ext_indx = (int *)malloc(src->total_number*siz_ext * sizeof(int  ));
+  src->ext_coef = (float *)malloc(src->total_number*siz_ext * sizeof(float));
+
+  src->Fx = (float *)malloc(src->max_stage * src->max_nt * src->total_number
+                            * sizeof(float));
+  src->Fy = (float *)malloc(src->max_stage * src->max_nt * src->total_number
+                            * sizeof(float));
+  src->Fz = (float *)malloc(src->max_stage * src->max_nt * src->total_number
+                            * sizeof(float));
+  src->Mxx= (float *)malloc(src->max_stage * src->max_nt * src->total_number
+                            * sizeof(float));
+  src->Myy= (float *)malloc(src->max_stage * src->max_nt * src->total_number
+                            * sizeof(float));
+  src->Mzz= (float *)malloc(src->max_stage * src->max_nt * src->total_number
+                            * sizeof(float));
+  src->Mxz= (float *)malloc(src->max_stage * src->max_nt * src->total_number
+                            * sizeof(float));
+  src->Myz= (float *)malloc(src->max_stage * src->max_nt * src->total_number
+                            * sizeof(float));
+  src->Mxy= (float *)malloc(src->max_stage * src->max_nt * src->total_number
+                            * sizeof(float));
+
+  // set force and moment
+  int is = 0; // only 1 src
+
+  // save values to inner var
+  src->si[is] = si;
+  src->sj[is] = sj;
+  src->sk[is] = sk;
+  src->it_begin[is] = it_begin;
+  src->it_end  [is] = it_end  ;
+
+  for (int it=it_begin; it<=it_end; it++)
   {
-    // allocate info and return to main function
-    moment_info = (int *)fdlib_mem_calloc_1d_int(nmoment*M_SRC_INFO_NVAL, 1,
-        "src_gen_single_point_gauss");
-    // alloc ten_rate
-    int nt_moment = nt_total_wavelet;
-    float *moment_ten_rate = (float *)fdlib_mem_calloc_1d_float(
-        nmoment*nt_moment*6*num_of_stages,0.0,"src_gen_single_point_gauss");
-    // ext
-    float *moment_ext_coef = (float *)malloc(nmoment*siz_ext * sizeof(float));
-    int   *moment_ext_indx = (int   *)malloc(nmoment*siz_ext * sizeof(int  ));
-
-    // save values to inner var
-    moment_info[M_SRC_INFO_SEQ_SI   ] = si;
-    moment_info[M_SRC_INFO_SEQ_SJ   ] = sj;
-    moment_info[M_SRC_INFO_SEQ_SK   ] = sk;
-    moment_info[M_SRC_INFO_SEQ_POS  ] = 0;
-    moment_info[M_SRC_INFO_SEQ_ITBEG] = it_begin;
-    moment_info[M_SRC_INFO_SEQ_ITEND] = it_end;
-
-    // for this point
-    int ipos = moment_info[M_SRC_INFO_SEQ_POS];
-    int it1  = moment_info[M_SRC_INFO_SEQ_ITBEG];
-    int it2  = moment_info[M_SRC_INFO_SEQ_ITEND];
-    float *this_ten_rate = moment_ten_rate + ipos;
-
-    for (int icmp=0; icmp<6; icmp++)
+    int it_to_it1 = (it - it_begin);
+    for (int istage=0; istage<num_of_stages; istage++)
     {
-      for (int it=it1; it<=it2; it++)
-      {
-        int it_to_it1 = (it - it1);
-        for (int istage=0; istage<num_of_stages; istage++)
-        {
-          int iptr = M_SRC_IND(icmp,it_to_it1,istage,nt_moment,num_of_stages);
-          float stf_val = wavelet_values[it_to_it1*num_of_stages+istage];
-          this_ten_rate[iptr] = stf_val * moment_tensor[icmp];
-        }
-      }
+      int iptr = it * src->max_nt * src->max_stage + istage;
+      float stf_val = wavelet_values[it_to_it1*num_of_stages+istage];
+
+      src->Fx[iptr]  = stf_val * force_vector[0];
+      src->Fy[iptr]  = stf_val * force_vector[1];
+      src->Fz[iptr]  = stf_val * force_vector[2];
+
+      src->Mxx[iptr] = stf_val * moment_tensor[0];
+      src->Myy[iptr] = stf_val * moment_tensor[1];
+      src->Mzz[iptr] = stf_val * moment_tensor[2];
+      src->Myz[iptr] = stf_val * moment_tensor[3];
+      src->Mxy[iptr] = stf_val * moment_tensor[4];
+      src->Mxy[iptr] = stf_val * moment_tensor[5];
     }
-
-    cal_norm_delt3d(moment_ext_coef, sx_inc, sy_inc, sz_inc, 1.5, 1.5, 1.5, 3);
-
-    size_t iptr_s = 0;
-    for (int k=sk-npoint_half_ext; k<=sk+npoint_half_ext; k++)
-    {
-      if (k<nk1 || k>nk2) continue;
-
-      for (int j=sj-npoint_half_ext; j<=sj+npoint_half_ext; j++)
-      {
-        if (j<nj1 || j>nj2) continue;
-
-        for (int i=si-npoint_half_ext; i<=si+npoint_half_ext; i++)
-        {
-          if (i<ni1 || i>ni2) continue;
-
-          // Note index need match coef
-          int iptr = i + j * siz_line + k * siz_slice;
-          int iptr1 = (i-(si-npoint_half_ext)) + 7 * (j-(sj-npoint_half_ext)) + 7 * 7 *(k-(sk-npoint_half_ext));
-          moment_ext_indx[iptr_s] = iptr;
-          moment_ext_coef[iptr_s] = moment_ext_coef[iptr1];
-          iptr_s++;
-        }
-      }
-    }
-    // only count index inside phys region for this thread
-    moment_info[M_SRC_INFO_SEQ_NEXT_MAX ] = siz_ext;
-    moment_info[M_SRC_INFO_SEQ_NEXT_THIS] = iptr_s;
-
-    *p_moment_ten_rate = moment_ten_rate;
-    *p_moment_ext_indx = moment_ext_indx;
-    *p_moment_ext_coef = moment_ext_coef;
-  }
-  // set force
-  int *force_info = NULL;
-  if (nforce > 0) // source type is force
-  {
-    // allocate info and return to main function
-    force_info = (int *)fdlib_mem_calloc_1d_int(nforce*M_SRC_INFO_NVAL, 1,
-        "src_gen_single_point_gauss");
-    // stf
-    int nt_force = nt_total_wavelet;
-    float *force_vec_stf = (float *)fdlib_mem_calloc_1d_float(
-        nforce*nt_force*FD_NDIM*num_of_stages,0.0,"src_gen_single_point_gauss");
-    // ext
-    float *force_ext_coef = (float *)malloc(nforce*siz_ext * sizeof(float));
-    int   *force_ext_indx = (int   *)malloc(nforce*siz_ext * sizeof(int  ));
-
-    // save values to inner var
-    force_info[M_SRC_INFO_SEQ_SI   ] = si;
-    force_info[M_SRC_INFO_SEQ_SJ   ] = sj;
-    force_info[M_SRC_INFO_SEQ_SK   ] = sk;
-    force_info[M_SRC_INFO_SEQ_POS  ] = 0;
-    force_info[M_SRC_INFO_SEQ_ITBEG] = it_begin;
-    force_info[M_SRC_INFO_SEQ_ITEND] = it_end;
-
-    int ipos = force_info[M_SRC_INFO_SEQ_POS];
-    int it1  = force_info[M_SRC_INFO_SEQ_ITBEG];
-    int it2  = force_info[M_SRC_INFO_SEQ_ITEND];
-    float *this_vec_stf = force_vec_stf + ipos;
-
-    for (int icmp=0; icmp<FD_NDIM; icmp++)
-    {
-      for (int it=it1; it<=it2; it++)
-      {
-        int it_to_it1 = (it - it1);
-        for (int istage=0; istage<num_of_stages; istage++)
-        {
-          int iptr = M_SRC_IND(icmp,it_to_it1,istage,nt_force,num_of_stages);
-          float stf_val = wavelet_values[it_to_it1*num_of_stages+istage];
-          this_vec_stf[iptr] = stf_val * force_vector[icmp];
-        }
-      }
-    }
-    cal_norm_delt3d(force_ext_coef, sx_inc, sy_inc, sz_inc, 1.5, 1.5, 1.5, 3);
-
-    size_t iptr_s = 0;
-    for (int k=sk-npoint_half_ext; k<=sk+npoint_half_ext; k++)
-    {
-      if (k<nk1 || k>nk2) continue;
-
-      for (int j=sj-npoint_half_ext; j<=sj+npoint_half_ext; j++)
-      {
-        if (j<nj1 || j>nj2) continue;
-
-        for (int i=si-npoint_half_ext; i<=si+npoint_half_ext; i++)
-        {
-          if (i<ni1 || i>ni2) continue;
-
-          // Note index need match coef
-          int iptr = i + j * siz_line + k * siz_slice;
-          int iptr1 = (i-(si-npoint_half_ext)) + 7 * (j-(sj-npoint_half_ext)) + 7 * 7 *(k-(sk-npoint_half_ext));
-          force_ext_indx[iptr_s] = iptr;
-          force_ext_coef[iptr_s] = force_ext_coef[iptr1];
-          iptr_s++;
-        }
-      }
-    }
-
-    force_info[M_SRC_INFO_SEQ_NEXT_MAX ] = siz_ext;
-    force_info[M_SRC_INFO_SEQ_NEXT_THIS] = iptr_s;
-
-    *p_force_vec_stf = force_vec_stf;
-    *p_force_ext_indx = force_ext_indx;
-    *p_force_ext_coef = force_ext_coef;
   }
 
-  *num_of_force = nforce;
-  *p_force_info = force_info;
-  *num_of_moment = nmoment;
-  *p_moment_info = moment_info;
+  cal_norm_delt3d(src->ext_coef, sx_inc, sy_inc, sz_inc, 1.5, 1.5, 1.5, 3);
+
+  size_t iptr_s = 0;
+  for (int k=sk-npoint_half_ext; k<=sk+npoint_half_ext; k++)
+  {
+    if (k<nk1 || k>nk2) continue;
+
+    for (int j=sj-npoint_half_ext; j<=sj+npoint_half_ext; j++)
+    {
+      if (j<nj1 || j>nj2) continue;
+
+      for (int i=si-npoint_half_ext; i<=si+npoint_half_ext; i++)
+      {
+        if (i<ni1 || i>ni2) continue;
+
+        // Note index need match coef
+        int iptr = i + j * siz_line + k * siz_slice;
+        int iptr1 = (i-(si-npoint_half_ext)) + 7 * (j-(sj-npoint_half_ext)) + 7 * 7 *(k-(sk-npoint_half_ext));
+        src->ext_indx[iptr_s] = iptr;
+        src->ext_coef[iptr_s] = src->ext_coef[iptr1];
+        iptr_s++;
+      }
+    }
+  }
+  // only count index inside phys region for this thread
+  src->ext_num[is] = iptr_s;
 
   if (wavelet_values!=NULL) free(wavelet_values);
 
@@ -1518,7 +1444,7 @@ fun_gauss_deriv(float t, float a, float t0)
  * get the stf and moment rate for one stage
  */
 
-  void
+void
 src_get_stage_stf(
     int num_of_force,
     int *restrict force_info, // num_of_force * 6 : si,sj,sk,start_pos_in_stf,start_it, end_it

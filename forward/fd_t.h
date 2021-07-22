@@ -260,17 +260,7 @@ struct fd_blk_t
   float *matVx2Vz, *matVy2Vz;
   
   // source term
-  int     num_of_force;
-  int    *force_info; // num_of_force * 6 : si,sj,sk,start_pos_in_stf,start_it, end_it
-  float  *force_vec_stf;
-  int    *force_ext_indx;
-  float  *force_ext_coef;
-
-  int     num_of_moment;
-  int    *moment_info; // num_of_force * 7 : si,sj,sk,start_pos_in_rate,start_it, end_it, n_ext
-  float  *moment_ten_rate; // stage, it, Mij, num
-  int    *moment_ext_indx;
-  float  *moment_ext_coef;
+  struct fd_src_t *src;
   
   //
   // abs
@@ -366,7 +356,41 @@ struct fd_blk_t
   size_t number_of_btye;
 };
 
-// all station
+/*
+ * source term structure
+ */
+struct fd_src_t
+{
+  int total_number;
+  int max_nt; // max nt of stf and mrf per src
+  int max_stage; // max number of rk stages
+  int max_ext; // max extened points
+
+  // time independent
+  int *si; // local i index 
+  int *sj; // local j index 
+  int *sk; // local k index 
+  int *it_begin; // start t index
+  int *it_end;   // end   t index
+  int   *ext_num; // valid extend points for this src
+  int   *ext_indx; // max_ext * total_number
+  float *ext_coef;
+
+  // time dependent
+  // force stf
+  float *Fx; // max_stage * max_nt * total_number;
+  float *Fy;
+  float *Fz;
+  // moment rate
+  float *Mxx; // max_stage *max_nt * total_number;
+  float *Myy;
+  float *Mzz;
+  float *Mxz;
+  float *Myz;
+  float *Mxy;
+};
+
+// output all station
 struct fd_sta_all_t
 {
   int              total_number;

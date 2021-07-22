@@ -66,7 +66,16 @@ sv_eliso1st_curv_macdrp_allstep(
     float *matVx2Vz, //
     float *matVy2Vz, //
     // source term
-    struct fd_src_t *src,
+    int num_of_force,
+    int *restrict force_info, // num_of_force * 6 : si,sj,sk,start_pos_in_stf,start_it, end_it
+    float *restrict force_vec_stf,
+    int   *restrict force_ext_indx,
+    float *restrict force_ext_coef,
+    int             num_of_moment,
+    int   *restrict moment_info, // num_of_force * 6 : si,sj,sk,start_pos_in_rate,start_it, end_it
+    float *restrict moment_ten_rate,
+    int   *restrict moment_ext_indx,
+    float *restrict moment_ext_coef,
     // io
     struct fd_sta_all_t *restrict sta_info, float *restrict sta_seismo,
     int num_of_point, int *restrict point_loc_indx, float *restrict point_seismo,
@@ -97,6 +106,8 @@ sv_eliso1st_curv_macdrp_allstep(
     const int verbose)
 {
   // local allocated array
+  float *force_vec_value  = NULL;  // num_of_force * 3
+  float *moment_ten_value = NULL;  // num_of_moment * 6
   char ou_file[FD_MAX_STRLEN];
 
   // local pointer
@@ -144,6 +155,16 @@ sv_eliso1st_curv_macdrp_allstep(
   // only x/y mpi
   int num_of_r_reqs = 4;
   int num_of_s_reqs = 4;
+
+  // alloc
+  if (num_of_force > 0) {
+    force_vec_value = (float *)fdlib_mem_malloc_1d(num_of_force*3*sizeof(float),
+                                                   "alloc force_vec_value in all step");
+  }
+  if (num_of_moment > 0) {
+    moment_ten_value = (float *)fdlib_mem_malloc_1d(num_of_moment*6*sizeof(float),
+                                                    "alloc moment_ten_value in all step");
+  }
 
   // get wavefield
   w_pre = w3d + w3d_size_per_level * 0; // previous level at n
@@ -342,7 +363,19 @@ sv_eliso1st_curv_macdrp_allstep(
 
       //  MPI_Waitall(num_of_s_reqs, s_reqs, MPI_STATUS_IGNORE);
       //}
-
+      // stf value for cur stage
+      src_get_stage_stf(num_of_force,
+                        force_info,
+                        force_vec_stf,
+                        num_of_moment,
+                        moment_info,
+                        moment_ten_rate,
+                        it,
+                        istage,
+                        num_rk_stages,
+                        force_vec_value,
+                        moment_ten_value,
+                        myid, verbose);
       // compute
       sv_eliso1st_curv_macdrp_onestage(w_cur, w_rhs, g3d, m3d, 
                                        ni1,ni2,nj1,nj2,nk1,nk2,ni,nj,nk,nx,ny,nz,
@@ -359,9 +392,10 @@ sv_eliso1st_curv_macdrp_allstep(
                                        abs_vars_cur,
                                        abs_vars_rhs,
                                        matVx2Vz, matVy2Vz,
-                                       it,
-                                       istage,
-                                       src,
+                                       num_of_force , force_info , force_vec_value,
+                                       force_ext_indx,force_ext_coef,
+                                       num_of_moment, moment_info, moment_ten_value,
+                                       moment_ext_indx,moment_ext_coef,
                                        fdx_max_half_len, fdy_max_half_len,
                                        fdz_max_len, fdz_num_surf_lay,
                                        pair_fdx_all_info[ipair][istage],
@@ -739,6 +773,10 @@ sv_eliso1st_curv_macdrp_allstep(
 
   } // time loop
 
+  // postproc
+  if (force_vec_value ) free(force_vec_value );
+  if (moment_ten_value) free(moment_ten_value);
+
   // close nc
   for (int n=0; n<num_of_slice_x; n++) {
     nc_close(ncid_slx[n]);
@@ -789,7 +827,16 @@ sv_eliso1st_curv_macdrp_allstep_simplempi(
     float *matVx2Vz, //
     float *matVy2Vz, //
     // source term
-    struct fd_src_t *src,
+    int num_of_force,
+    int *restrict force_info, // num_of_force * 6 : si,sj,sk,start_pos_in_stf,start_it, end_it
+    float *restrict force_vec_stf,
+    int   *restrict force_ext_indx,
+    float *restrict force_ext_coef,
+    int             num_of_moment,
+    int   *restrict moment_info, // num_of_force * 6 : si,sj,sk,start_pos_in_rate,start_it, end_it
+    float *restrict moment_ten_rate,
+    int   *restrict moment_ext_indx,
+    float *restrict moment_ext_coef,
     // io
     int num_of_sta, int *restrict sta_loc_indx, float *restrict sta_loc_dxyz, float *restrict sta_seismo,
     int num_of_point, int *restrict point_loc_indx, float *restrict point_seismo,
@@ -820,6 +867,8 @@ sv_eliso1st_curv_macdrp_allstep_simplempi(
     const int verbose)
 {
   // local allocated array
+  float *force_vec_value  = NULL;  // num_of_force * 3
+  float *moment_ten_value = NULL;  // num_of_moment * 6
   char ou_file[FD_MAX_STRLEN];
 
   // local pointer
@@ -867,6 +916,16 @@ sv_eliso1st_curv_macdrp_allstep_simplempi(
   // only x/y mpi
   int num_of_r_reqs = 4;
   int num_of_s_reqs = 4;
+
+  // alloc
+  if (num_of_force > 0) {
+    force_vec_value = (float *)fdlib_mem_malloc_1d(num_of_force*3*sizeof(float),
+                                                   "alloc force_vec_value in all step");
+  }
+  if (num_of_moment > 0) {
+    moment_ten_value = (float *)fdlib_mem_malloc_1d(num_of_moment*6*sizeof(float),
+                                                    "alloc moment_ten_value in all step");
+  }
 
   // get wavefield
   w_pre = w3d + w3d_size_per_level * 0; // previous level at n
@@ -1065,7 +1124,19 @@ sv_eliso1st_curv_macdrp_allstep_simplempi(
 
       //  MPI_Waitall(num_of_s_reqs, s_reqs, MPI_STATUS_IGNORE);
       //}
-      
+      // stf value for cur stage
+      src_get_stage_stf(num_of_force,
+                        force_info,
+                        force_vec_stf,
+                        num_of_moment,
+                        moment_info,
+                        moment_ten_rate,
+                        it,
+                        istage,
+                        num_rk_stages,
+                        force_vec_value,
+                        moment_ten_value,
+                        myid, verbose);
       // compute
       sv_eliso1st_curv_macdrp_onestage(w_cur, w_rhs, g3d, m3d, 
                                        ni1,ni2,nj1,nj2,nk1,nk2,ni,nj,nk,nx,ny,nz,
@@ -1082,9 +1153,10 @@ sv_eliso1st_curv_macdrp_allstep_simplempi(
                                        abs_vars_cur,
                                        abs_vars_rhs,
                                        matVx2Vz, matVy2Vz,
-                                       it,
-                                       istage,
-                                       src,
+                                       num_of_force , force_info , force_vec_value,
+                                       force_ext_indx,force_ext_coef,
+                                       num_of_moment, moment_info, moment_ten_value,
+                                       moment_ext_indx,moment_ext_coef,
                                        fdx_max_half_len, fdy_max_half_len,
                                        fdz_max_len, fdz_num_surf_lay,
                                        pair_fdx_all_info[ipair][istage],
@@ -1450,6 +1522,8 @@ sv_eliso1st_curv_macdrp_allstep_simplempi(
   } // time loop
 
   // postproc
+  if (force_vec_value ) free(force_vec_value );
+  if (moment_ten_value) free(moment_ten_value);
 
   // close nc
   for (int n=0; n<num_of_slice_x; n++) {
@@ -1492,9 +1566,16 @@ sv_eliso1st_curv_macdrp_onestage(
     float  *restrict abs_vars_rhs,
     float *matVx2Vz, float *matVy2Vz, //
     // source term
-    int it,
-    int istage,
-    struct fd_src_t *src,
+    int num_of_force,
+    int *restrict force_info,
+    float *restrict force_vec_value, // only for cur stage, size: num_of_force
+    int   *restrict force_ext_indx,
+    float *restrict force_ext_coef,
+    int             num_of_moment,
+    int   *restrict moment_info, // num_of_force * 6 : si,sj,sk,start_pos_in_rate,start_it, end_it
+    float *restrict moment_ten_value,
+    int   *restrict moment_ext_indx,
+    float *restrict moment_ext_coef,
     // include different order/stentil
     int fdx_max_half_len, int fdy_max_half_len,
     int fdz_max_len, int fdz_num_surf_lay,
@@ -1656,14 +1737,32 @@ sv_eliso1st_curv_macdrp_onestage(
     }
   }
 
-  if (src->total_number > 0)
+  // source term
+  /*
+  switch (source_itype) {
+    case SOURCE_TYPE_POINT :
+      curv_macdrp_eliso1st_src_point();
+      break;
+
+    case SOURCE_TYPE_GAUSS :
+      curv_macdrp_eliso1st_src_gauss();
+      break;
+
+    case SOURCE_TYPE_SINC :
+      curv_macdrp_eliso1st_src_sinc();
+      break;
+  }
+  */
+  if (num_of_force>0 || num_of_moment>0)
   {
     sv_eliso1st_curv_macdrp_rhs_src(hVx,hVy,hVz,hTxx,hTyy,hTzz,hTxz,hTyz,hTxy,
-                                    jac3d, slw3d, 
-                                    it, istage, src,
+                                    jac3d, slw3d, siz_line,siz_slice,
+                                    num_of_force, force_info, force_vec_value,
+                                    force_ext_indx,force_ext_coef,
+                                    num_of_moment, moment_info, moment_ten_value,
+                                    moment_ext_indx,moment_ext_coef,
                                     myid, verbose);
   }
-  // end func
 }
 
 /*******************************************************************************
@@ -3618,70 +3717,94 @@ int sv_eliso1st_curv_macdrp_apply_ablexp(float *restrict w_cur,
  * add source terms
  ******************************************************************************/
 
-int
+void
 sv_eliso1st_curv_macdrp_rhs_src(
     float *restrict hVx , float *restrict hVy , float *restrict hVz ,
     float *restrict hTxx, float *restrict hTyy, float *restrict hTzz,
     float *restrict hTxz, float *restrict hTyz, float *restrict hTxy,
     float *restrict jac3d, float *restrict slw3d,
-    int it, int istage,
-    struct fd_src_t *S, // short nation for reference member
+    size_t siz_line, size_t siz_slice,
+    int num_of_force,
+    int *restrict force_info,
+    float *restrict force_vec_value,
+    int   *restrict force_ext_indx,
+    float *restrict force_ext_coef,
+    int             num_of_moment,
+    int   *restrict moment_info,
+    float *restrict moment_ten_value, // size: num_of_moment * 6
+    int   *restrict moment_ext_indx,
+    float *restrict moment_ext_coef,
     const int myid, const int verbose)
 {
   // local var
   int si,sj,sk, iptr;
 
-  // for easy coding and efficiency
-  int max_ext = S->max_ext;
-
-  // add src; is is a commont iterater var
-  for (int is=0; is < S->total_number; is++)
+  // add force
+  for (int n=0; n<num_of_force; n++)
   {
-    int   it_start = S->it_begin[is];
-    int   it_end   = S->it_end  [is];
+    int    *ptr_force_info = force_info + n * M_SRC_INFO_NVAL;
+    // float  *ptr_force_stf = force_vec_value + ptr_force_info[M_SRC_INFO_SEQ_POS];
+    float  *ptr_force_stf = force_vec_value + n*3;
+    //-- add at single point
+    //si = ptr_force_info[0];
+    //sj = ptr_force_info[1];
+    //sk = ptr_force_info[2];
 
-    if (it >= it_start && it <= it_end)
+    //iptr = si + sj * siz_line + sk * siz_slice;
+
+    //float V = slw3d[iptr] / jac3d[iptr];
+
+    //hVx[iptr] += ptr_force_val[ 0 ] * V;
+    //hVy[iptr] += ptr_force_val[ 1 ] * V;
+    //hVz[iptr] += ptr_force_val[ 2 ] * V;
+
+    //-- add with smoothing
+    int n_ext_max  = ptr_force_info[M_SRC_INFO_SEQ_NEXT_MAX];
+    int n_ext_this = ptr_force_info[M_SRC_INFO_SEQ_NEXT_THIS];
+
+    int   *ptr_force_ext_indx = force_ext_indx + n * n_ext_max;
+    float *ptr_force_ext_coef = force_ext_coef + n * n_ext_max;
+    for (int i_ext=0; i_ext<n_ext_this; i_ext++)
     {
-      int   *ptr_ext_indx = S->ext_indx + is * max_ext;
-      float *ptr_ext_coef = S->ext_coef + is * max_ext;
-      int it_to_it_start = it - it_start;
-      int iptr_cur_stage =   is * S->max_nt * S->max_stage // skip other src
-                           + it_to_it_start * S->max_stage // skip other time step
-                           + istage;
-      float fx  = S->Fx [iptr_cur_stage];
-      float fy  = S->Fy [iptr_cur_stage];
-      float fz  = S->Fz [iptr_cur_stage];
-      float Mxx = S->Mxx[iptr_cur_stage];
-      float Myy = S->Myy[iptr_cur_stage];
-      float Mzz = S->Mzz[iptr_cur_stage];
-      float Mxz = S->Mxz[iptr_cur_stage];
-      float Myz = S->Myz[iptr_cur_stage];
-      float Mxy = S->Mxy[iptr_cur_stage];
-      
-      // for extend points
-      for (int i_ext=0; i_ext < S->ext_num[is]; i_ext++)
-      {
-        int   iptr = ptr_ext_indx[i_ext];
-        float coef = ptr_ext_coef[i_ext];
+      iptr = ptr_force_ext_indx[i_ext];
 
-        float V = coef * slw3d[iptr] / jac3d[iptr];
-        hVx[iptr] += fx * V;
-        hVy[iptr] += fy * V;
-        hVz[iptr] += fz * V;
+      float V = ptr_force_ext_coef[i_ext] * slw3d[iptr] / jac3d[iptr];
+      hVx[iptr] += ptr_force_stf[ 0 ] * V;
+      hVy[iptr] += ptr_force_stf[ 1 ] * V;
+      hVz[iptr] += ptr_force_stf[ 2 ] * V;
+    }
+  }
 
-        float rjac = coef / jac3d[iptr];
-        hTxx[iptr] -= Mxx * rjac;
-        hTyy[iptr] -= Myy * rjac;
-        hTzz[iptr] -= Mzz * rjac;
-        hTxz[iptr] -= Mxz * rjac;
-        hTyz[iptr] -= Myz * rjac;
-        hTxy[iptr] -= Mxy * rjac;
-      } // i_ext
+  // add moment source
+  for (int n=0; n<num_of_moment; n++)
+  {
+    int    *ptr_moment_info = moment_info + n * M_SRC_INFO_NVAL;
+    //float  *ptr_moment_mrf  = moment_ten_value + ptr_moment_info[M_SRC_INFO_SEQ_POS];
+    float  *ptr_moment_mrf  = moment_ten_value + n*6;
 
-    } // it
-  } // is
+    //si = ptr_moment_info[0];
+    //sj = ptr_moment_info[1];
+    //sk = ptr_moment_info[2];
+    //iptr = si + sj * siz_line + sk * siz_slice;
 
-  return(0);
+    int n_ext_max  = ptr_moment_info[M_SRC_INFO_SEQ_NEXT_MAX];
+    int n_ext_this = ptr_moment_info[M_SRC_INFO_SEQ_NEXT_THIS];
+
+    int   *ptr_moment_ext_indx = moment_ext_indx + n * n_ext_max;
+    float *ptr_moment_ext_coef = moment_ext_coef + n * n_ext_max;
+    for (int i_ext=0; i_ext<n_ext_this; i_ext++)
+    {
+      iptr = ptr_moment_ext_indx[i_ext];
+
+      float rjac = ptr_moment_ext_coef[i_ext] / jac3d[iptr];
+      hTxx[iptr] -= ptr_moment_mrf[ 0 ] * rjac;
+      hTyy[iptr] -= ptr_moment_mrf[ 1 ] * rjac;
+      hTzz[iptr] -= ptr_moment_mrf[ 2 ] * rjac;
+      hTxz[iptr] -= ptr_moment_mrf[ 3 ] * rjac;
+      hTyz[iptr] -= ptr_moment_mrf[ 4 ] * rjac;
+      hTxy[iptr] -= ptr_moment_mrf[ 5 ] * rjac;
+    }
+  }
 }
 
 /*******************************************************************************

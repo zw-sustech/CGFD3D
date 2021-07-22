@@ -1,6 +1,8 @@
 #ifndef SV_ELISO1ST_CURV_MACDRP_H
 #define SV_ELISO1ST_CURV_MACDRP_H
 
+#include "fd_t.h"
+
 void
 sv_eliso1st_curv_macdrp_allstep(
     float *restrict w3d,  // wavefield
@@ -30,16 +32,7 @@ sv_eliso1st_curv_macdrp_allstep(
     float *matVx2Vz, //
     float *matVy2Vz, //
     // source term
-    int num_of_force,
-    int *restrict force_info, // num_of_force * 6 : si,sj,sk,start_pos_in_stf,start_it, end_it
-    float *restrict force_vec_stf,
-    int   *restrict force_ext_indx,
-    float *restrict force_ext_coef,
-    int             num_of_moment,
-    int   *restrict moment_info, // num_of_force * 6 : si,sj,sk,start_pos_in_rate,start_it, end_it
-    float *restrict moment_ten_rate,
-    int   *restrict moment_ext_indx,
-    float *restrict moment_ext_coef,
+    struct fd_src_t *src,
     // io
     struct fd_sta_all_t *restrict sta_info, float *restrict sta_seismo,
     int num_of_point, int *restrict point_loc_indx, float *restrict point_seismo,
@@ -97,18 +90,9 @@ sv_eliso1st_curv_macdrp_allstep_simplempi(
     float *matVx2Vz, //
     float *matVy2Vz, //
     // source term
-    int num_of_force,
-    int *restrict force_info, // num_of_force * 6 : si,sj,sk,start_pos_in_stf,start_it, end_it
-    float *restrict force_vec_stf,
-    int   *restrict force_ext_indx,
-    float *restrict force_ext_coef,
-    int             num_of_moment,
-    int   *restrict moment_info, // num_of_force * 6 : si,sj,sk,start_pos_in_rate,start_it, end_it
-    float *restrict moment_ten_rate,
-    int   *restrict moment_ext_indx,
-    float *restrict moment_ext_coef,
+    struct fd_src_t *src,
     // io
-    int num_of_sta, int *restrict sta_loc_indx, float *restrict sta_loc_dxyz, float *restrict sta_seismo,
+    struct fd_sta_all_t *restrict sta_info, float *restrict sta_seismo,
     int num_of_point, int *restrict point_loc_indx, float *restrict point_seismo,
     int num_of_slice_x, int *restrict slice_x_indx, char **restrict slice_x_fname,
     int num_of_slice_y, int *restrict slice_y_indx, char **restrict slice_y_fname,
@@ -156,16 +140,9 @@ sv_eliso1st_curv_macdrp_onestage(
     float  *restrict abs_vars_rhs,
     float *matVx2Vz, float *matVy2Vz, //
     // source term
-    int num_of_force,
-    int *restrict force_loc_point,
-    float *restrict force_vec_value, // only for cur stage, size: num_of_force
-    int   *restrict force_ext_indx,
-    float *restrict force_ext_coef,
-    int             num_of_moment,
-    int   *restrict moment_info, // num_of_force * 6 : si,sj,sk,start_pos_in_rate,start_it, end_it
-    float *restrict moment_ten_rate,
-    int   *restrict moment_ext_indx,
-    float *restrict moment_ext_coef,
+    int it,
+    int istage,
+    struct fd_src_t *src,
     // include different order/stentil
     int fdx_max_half_len, int fdy_max_half_len,
     int fdz_max_len, int fdz_num_surf_lay,
@@ -300,23 +277,14 @@ sv_eliso1st_curv_macdrp_rhs_cfspml_vfree_z2(
     float  *restrict abs_vars_rhs,
     const int myid, const int verbose);
 
-void
+int
 sv_eliso1st_curv_macdrp_rhs_src(
     float *restrict hVx , float *restrict hVy , float *restrict hVz ,
     float *restrict hTxx, float *restrict hTyy, float *restrict hTzz,
     float *restrict hTxz, float *restrict hTyz, float *restrict hTxy,
     float *restrict jac3d, float *restrict slw3d,
-    size_t siz_line, size_t siz_slice,
-    int num_of_force,
-    int *restrict force_info,
-    float *restrict force_vec_value,
-    int   *restrict force_ext_indx,
-    float *restrict force_ext_coef,
-    int             num_of_moment,
-    int   *restrict moment_info,
-    float *restrict moment_ten_value, // size: num_of_moment * 6
-    int   *restrict moment_ext_indx,
-    float *restrict moment_ext_coef,
+    int it, int istage,
+    struct fd_src_t *S, // short nation for reference member
     const int myid, const int verbose);
 
 void

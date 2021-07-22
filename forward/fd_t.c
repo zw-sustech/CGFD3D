@@ -480,8 +480,10 @@ fd_blk_init(struct fd_blk_t *blk,
   sprintf(blk->grid_export_dir, "%s", grid_export_dir);
   sprintf(blk->media_export_dir, "%s", media_export_dir);
 
-  // alloc pointer
+  // alloc struct pointer
   blk->sta_info = (struct fd_sta_all_t *)malloc(sizeof(struct fd_sta_all_t));
+
+  blk->src = (struct fd_src_t *)malloc(sizeof(struct fd_src_t));
 
   //fprintf(stdout,"in output_dir=%s\n",output_dir);
   //fprintf(stdout,"blk output_dir=%s\n",blk->output_dir);

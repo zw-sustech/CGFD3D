@@ -59,18 +59,8 @@ src_gen_single_point_gauss(size_t siz_line,
                            MPI_Comm comm, 
                            int myid,
                            // following output
-                           int  *num_of_force, // inout: if force source, if in this thread
-                           int **restrict p_force_info,
-                           float  **restrict p_force_vec_stf,
-                           int    **restrict p_force_ext_indx,
-                           float  **restrict p_force_ext_coef,
-                           int  *num_of_moment, // inout: if moment source, if in this thread
-                           int    **restrict p_moment_info,
-                           float  **restrict p_moment_ten_rate,
-                           int    **restrict p_moment_ext_indx,
-                           float  **restrict p_moment_ext_coef,
+                           struct fd_src_t *src,
                            int verbose);
-
 
 
 int
