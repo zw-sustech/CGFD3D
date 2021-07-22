@@ -159,8 +159,14 @@ src_read_locate_anasrc(char *pfilepath,
 float 
 fun_ricker(float t, float fc, float t0);
 
+float 
+fun_ricker_deriv(float t, float fc, float t0);
+
 float
 fun_gauss(float t, float a, float t0);
+
+float
+fun_gauss_deriv(float t, float a, float t0);
 
 void
 cal_norm_delt3d(float *delt, float x0, float y0, float z0, float rx0, float ry0, float rz0, int LenDelt);

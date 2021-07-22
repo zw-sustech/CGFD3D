@@ -187,7 +187,11 @@ src_gen_single_point_gauss(size_t siz_line,
           stf_val = fun_ricker(t, wavelet_coefs[0], wavelet_coefs[1]);
         } else if (strcmp(wavelet_name, "gaussian")==0) {
           stf_val = fun_gauss(t, wavelet_coefs[0], wavelet_coefs[1]);
-        } else {
+        } else if (strcmp(wavelet_name, "ricker_deriv")==0) {
+          stf_val = fun_ricker_deriv(t, wavelet_coefs[0], wavelet_coefs[1]);
+        } else if (strcmp(wavelet_name, "gaussian_deriv")==0) {
+          stf_val = fun_gauss_deriv(t, wavelet_coefs[0], wavelet_coefs[1]);
+        } else{
           fprintf(stderr,"wavelet_name=%s\n", wavelet_name); 
           fprintf(stderr,"   not implemented yet\n"); 
           fflush(stderr);
@@ -255,8 +259,11 @@ src_gen_single_point_gauss(size_t siz_line,
         {
           if (i<ni1 || i>ni2) continue;
 
+          // Note index need match coef
           int iptr = i + j * siz_line + k * siz_slice;
+          int iptr1 = (i-(si-npoint_half_ext)) + 7 * (j-(sj-npoint_half_ext)) + 7 * 7 *(k-(sk-npoint_half_ext));
           moment_ext_indx[iptr_s] = iptr;
+          moment_ext_coef[iptr_s] = moment_ext_coef[iptr1];
           iptr_s++;
         }
       }
@@ -325,8 +332,11 @@ src_gen_single_point_gauss(size_t siz_line,
         {
           if (i<ni1 || i>ni2) continue;
 
+          // Note index need match coef
           int iptr = i + j * siz_line + k * siz_slice;
+          int iptr1 = (i-(si-npoint_half_ext)) + 7 * (j-(sj-npoint_half_ext)) + 7 * 7 *(k-(sk-npoint_half_ext));
           force_ext_indx[iptr_s] = iptr;
+          force_ext_coef[iptr_s] = force_ext_coef[iptr1];
           iptr_s++;
         }
       }
@@ -1038,8 +1048,11 @@ src_read_locate_anasrc(char *pfilepath,
         for (int j=0;j<6;j++)
         {
           moment_tensor[6*i +j]=M0*temp_moment[j];
+          fprintf(stdout,"moment_tensor is %f \n",moment_tensor[6*i +j]);
         }
-      } else {  
+      } 
+      if (strcmp("moment_tensor",moment_wavelet_mechism[i])==0)
+      {  
         fgets(str,500,fp);
         sscanf(str,"%f %f %f %f %f %f",&moment_tensor[6*i +0],&moment_tensor[6*i +1],
             &moment_tensor[6*i +2],&moment_tensor[6*i +3],&moment_tensor[6*i +4],&moment_tensor[6*i +5]);
@@ -1359,10 +1372,10 @@ src_read_locate_anasrc(char *pfilepath,
           int iptr = M_SRC_IND(icmp,it_to_it1,istage,nt_moment,num_of_stages);
           float t = it * dt + t0 + rk_stage_time[istage] * dt;
           float stf_val;
-          if (strcmp(moment_wavelet_name[indx], "ricker")==0) {
-            stf_val = fun_ricker(t, moment_wavelet_coefs[2*indx+0], moment_wavelet_coefs[2*indx+1]);
-          } else if (strcmp(moment_wavelet_name[indx], "gaussian")==0) {
-            stf_val = fun_gauss(t, moment_wavelet_coefs[2*indx+0], moment_wavelet_coefs[2*indx+1]);
+          if (strcmp(moment_wavelet_name[indx], "ricker_deriv")==0) {
+            stf_val = fun_ricker_deriv(t, moment_wavelet_coefs[2*indx+0], moment_wavelet_coefs[2*indx+1]);
+          } else if (strcmp(moment_wavelet_name[indx], "gaussian_deriv")==0) {
+            stf_val = fun_gauss_deriv(t, moment_wavelet_coefs[2*indx+0], moment_wavelet_coefs[2*indx+1]);
           } else {
             fprintf(stderr,"wavelet_name=%s\n", moment_wavelet_name[indx]); 
             fprintf(stderr,"   not implemented yet\n"); 
@@ -1465,10 +1478,21 @@ cal_norm_delt3d(float *delt, float x0, float y0, float z0, float rx0, float ry0,
   float 
 fun_ricker(float t, float fc, float t0)
 {
-  float pi = acos(-1.0);
-  float f0 = sqrtf(pi)/2.0;
-  float u = (t-t0)*2.0*pi*fc;
+  //float pi = acos(-1.0);
+  float f0 = sqrtf(PI)/2.0;
+  float u = (t-t0)*2.0*PI*fc;
   float v = (u*u/4-0.5)*exp(-u*u/4)*f0;
+
+  return v;
+}
+
+float 
+fun_ricker_deriv(float t, float fc, float t0)
+{
+  //float pi = acos(-1.0);
+  float f0 = sqrtf(PI)/2.0;
+  float u = (t-t0)*2.0*PI*fc;
+  float v = u*(1.5-u*u/4)*exp(-u*u/4)*f0*PI*fc;
 
   return v;
 }
@@ -1480,6 +1504,15 @@ fun_gauss(float t, float a, float t0)
   f = exp(-(t-t0)*(t-t0)/(a*a))/(sqrtf(PI)*a);
   return f;
 }
+
+  float
+fun_gauss_deriv(float t, float a, float t0)
+{
+  float f;
+  f = exp(-(t-t0)*(t-t0)/(a*a))/(sqrtf(PI)*a)*(-2*(t-t0)/(a*a));
+  return f;
+}
+
 
 /*
  * get the stf and moment rate for one stage
@@ -1500,9 +1533,9 @@ src_get_stage_stf(
 {
   for (int n=0; n<num_of_force; n++)
   {
-    int ipos = force_info[8*n + M_SRC_INFO_SEQ_POS];
-    int it1  = force_info[8*n + M_SRC_INFO_SEQ_ITBEG];
-    int it2  = force_info[8*n + M_SRC_INFO_SEQ_ITEND];
+    int ipos = force_info[M_SRC_INFO_NVAL*n + M_SRC_INFO_SEQ_POS];
+    int it1  = force_info[M_SRC_INFO_NVAL*n + M_SRC_INFO_SEQ_ITBEG];
+    int it2  = force_info[M_SRC_INFO_NVAL*n + M_SRC_INFO_SEQ_ITEND];
     int nt_force = it2 - it1 + 1;
 
     // point tho this force in vec_stf
@@ -1527,9 +1560,9 @@ src_get_stage_stf(
 
   for (int n=0; n<num_of_moment; n++)
   {
-    int ipos = moment_info[8*n + M_SRC_INFO_SEQ_POS];
-    int it1  = moment_info[8*n + M_SRC_INFO_SEQ_ITBEG];
-    int it2  = moment_info[8*n + M_SRC_INFO_SEQ_ITEND];
+    int ipos = moment_info[M_SRC_INFO_NVAL*n + M_SRC_INFO_SEQ_POS];
+    int it1  = moment_info[M_SRC_INFO_NVAL*n + M_SRC_INFO_SEQ_ITBEG];
+    int it2  = moment_info[M_SRC_INFO_NVAL*n + M_SRC_INFO_SEQ_ITEND];
     int nt_moment = it2 - it1 + 1;
 
     // point tho this moment in ten_rate
@@ -1602,12 +1635,14 @@ angle2moment(float strike, float dip, float rake, float* source_moment_tensor)
       - cos(2.0*dip_pi) * sin(rake_pi) * cos(strike_pi) );
 
   // attention: the order may be different with outside
-  source_moment_tensor[0] = M11 ; 
-  source_moment_tensor[1] = M22 ;   
-  source_moment_tensor[2] = M33 ;
-  source_moment_tensor[3] = M13 ;  
-  source_moment_tensor[4] = M23 ;
-  source_moment_tensor[5] = M12 ;  
+  // Mxz=-Mxz;Mxy=-Mxy !for upward positive z axis
+  // x->2 y->1 z->3
+  source_moment_tensor[0] =  M22 ;  // Mxx
+  source_moment_tensor[1] =  M11 ;  // Myy 
+  source_moment_tensor[2] =  M33 ;  // Mzz
+  source_moment_tensor[3] = -M23 ;  // Mxz 
+  source_moment_tensor[4] = -M13 ;  // Myz
+  source_moment_tensor[5] =  M12 ;  // Mxy 
 }
 
 /* 

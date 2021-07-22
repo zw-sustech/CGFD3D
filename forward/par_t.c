@@ -652,7 +652,7 @@ par_read_json_source(cJSON *item, char *wavelet_type_name,
   // coefs
 
   // ricker
-  if (strcmp(wavelet_name, "ricker")==0) {
+  if (strcmp(wavelet_name, "ricker")==0 || strcmp(wavelet_name, "ricker_deriv")==0) {
     if (subitem = cJSON_GetObjectItem(item, "ricker_center_frequency")) {
       wavelet_coefs[0] = subitem->valuedouble;
     }
@@ -662,7 +662,7 @@ par_read_json_source(cJSON *item, char *wavelet_type_name,
   }
 
   // gaussian
-  if (strcmp(wavelet_name, "gaussian")==0) {
+  if (strcmp(wavelet_name, "gaussian")==0 || strcmp(wavelet_name, "gaussian_deriv")==0) {
     if (subitem = cJSON_GetObjectItem(item, "gaussian_rms_width")) {
       wavelet_coefs[0] = subitem->valuedouble;
     }

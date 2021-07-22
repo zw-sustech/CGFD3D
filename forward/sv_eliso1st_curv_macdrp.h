@@ -69,6 +69,73 @@ sv_eliso1st_curv_macdrp_allstep(
     const int verbose);
 
 void
+sv_eliso1st_curv_macdrp_allstep_simplempi(
+    float *restrict w3d,  // wavefield
+    size_t *restrict w3d_pos,
+    char **w3d_name,
+    int   w3d_num_of_vars,
+    char **coord_name,
+    float *restrict g3d,  // grid vars
+    float *restrict m3d,  // medium vars
+    // grid size
+    int ni1, int ni2, int nj1, int nj2, int nk1, int nk2,
+    int ni, int nj, int nk, int nx, int ny, int nz,
+    size_t siz_line, size_t siz_slice, size_t siz_volume,
+    // boundary type
+    int *restrict boundary_itype,
+    // if abs
+    int              abs_itype, //
+    int    *restrict abs_num_of_layers, //
+    int *restrict abs_indx, //
+    int *restrict abs_coefs_facepos0, //
+    float  *restrict abs_coefs, //
+    int           abs_vars_size_per_level, //
+    int *restrict abs_vars_volsiz, //
+    int *restrict abs_vars_facepos0, //
+    float  *restrict abs_vars,
+    // if free surface
+    float *matVx2Vz, //
+    float *matVy2Vz, //
+    // source term
+    int num_of_force,
+    int *restrict force_info, // num_of_force * 6 : si,sj,sk,start_pos_in_stf,start_it, end_it
+    float *restrict force_vec_stf,
+    int   *restrict force_ext_indx,
+    float *restrict force_ext_coef,
+    int             num_of_moment,
+    int   *restrict moment_info, // num_of_force * 6 : si,sj,sk,start_pos_in_rate,start_it, end_it
+    float *restrict moment_ten_rate,
+    int   *restrict moment_ext_indx,
+    float *restrict moment_ext_coef,
+    // io
+    int num_of_sta, int *restrict sta_loc_indx, float *restrict sta_loc_dxyz, float *restrict sta_seismo,
+    int num_of_point, int *restrict point_loc_indx, float *restrict point_seismo,
+    int num_of_slice_x, int *restrict slice_x_indx, char **restrict slice_x_fname,
+    int num_of_slice_y, int *restrict slice_y_indx, char **restrict slice_y_fname,
+    int num_of_slice_z, int *restrict slice_z_indx, char **restrict slice_z_fname,
+    int num_of_snap, int *restrict snap_info, char **snap_fname,
+    char *ou_fname_thisid,
+    char *out_dir,
+    // scheme
+    int num_rk_stages, float *rk_a, float *rk_b, int num_of_pairs, 
+    int fdx_max_half_len, int fdy_max_half_len,
+    int fdz_max_len, int fdz_num_surf_lay,
+    int ****pair_fdx_all_info, int ***pair_fdx_all_indx, float ***pair_fdx_all_coef,
+    int ****pair_fdy_all_info, int ***pair_fdy_all_indx, float ***pair_fdy_all_coef,
+    int ****pair_fdz_all_info, int ***pair_fdz_all_indx, float ***pair_fdz_all_coef,
+    // time
+    float dt, int nt_total, float t0,
+    // mpi
+    int myid, int *myid2, MPI_Comm comm,
+    float *restrict sbuff,
+    float *restrict rbuff,
+    MPI_Request *s_reqs,
+    MPI_Request *r_reqs,
+    int qc_check_nan_num_of_step,
+    const int output_all, // qc all var
+    const int verbose);
+
+void
 sv_eliso1st_curv_macdrp_onestage(
     float *restrict w_cur, float *restrict rhs, 
     float *restrict g3d, float *restrict m3d,
