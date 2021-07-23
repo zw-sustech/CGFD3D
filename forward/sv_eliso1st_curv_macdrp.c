@@ -564,7 +564,9 @@ sv_eliso1st_curv_macdrp_allstep(
     //-- point values
     for (int n=0; n<num_of_point; n++)
     {
-      int iptr = point_loc_indx[0] + point_loc_indx[1] * siz_line + point_loc_indx[2] * siz_slice;
+      int iptr = point_loc_indx[0+n*FD_NDIM]
+               + point_loc_indx[1+n*FD_NDIM] * siz_line 
+               + point_loc_indx[2+n*FD_NDIM] * siz_slice;
       for (int ivar=0; ivar<w3d_num_of_vars; ivar++) {
         int iptr_point = (n * w3d_num_of_vars + ivar) * nt_total + it;
         point_seismo[iptr_point] = w_end[ivar*siz_volume + iptr];
