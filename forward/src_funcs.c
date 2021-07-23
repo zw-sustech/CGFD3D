@@ -109,11 +109,11 @@ src_gen_single_point_gauss(size_t siz_line,
 
     // if located in this thread
     int is_here = src_coord2index(source_coords[0],source_coords[1],source_coords[2],
-        nx, ny, nz, 
-        ni1,ni2,nj1,nj2,nk1,nk2,
-        x3d, y3d, z3d, wrk3d,
-        &si, &sj, &sk,
-        &sx_inc, &sy_inc, &sz_inc);
+                                  nx, ny, nz, 
+                                  ni1,ni2,nj1,nj2,nk1,nk2,
+                                  x3d, y3d, z3d, wrk3d,
+                                  &si, &sj, &sk,
+                                  &sx_inc, &sy_inc, &sz_inc);
     if ( is_here == 1)
     {
       // conver to global index
@@ -457,28 +457,26 @@ src_read_locate_valsrc(char *pfilepath,
   int nforce = 0;
   int *index_force = NULL;
   int *force_local_index = NULL;
-  float *force_coords_inc = NULL;
+  float *force_index_inc = NULL;
   if(num_force>0)
   {
     // judge force in this thread 
     force_global_index = (int *)malloc(3 * num_force * sizeof(int));
-    index_force = (int *)malloc(num_force * sizeof(int));
-    force_local_index = (int *)malloc(3 * num_force*sizeof(int));
-    force_coords_inc = (float *)malloc(3 * num_force*sizeof(float));
+    force_index_inc = (float *)malloc(3 * num_force*sizeof(float));
     for (int i=0; i<num_force; i++)
     {
       fprintf(stdout,"locate force by coord  ...\n"); 
-      // default local index and relative shift to -1 and 0
-      int si=-1; int sj=-1; int sk=-1;
+      // default global index and relative shift to -1 and 0
+      int si, sj, sk;
       float sx_inc = 0.0; float sy_inc = 0.0; float sz_inc = 0.0;
       int sgpi=-1; int sgpj=-1; int sgpk=-1;
       // if located in this thread
       int is_here = src_coord2index(force_coords[3*i+0],force_coords[3*i+1],force_coords[3*i+2],
-          nx, ny, nz, 
-          ni1,ni2,nj1,nj2,nk1,nk2,
-          x3d, y3d, z3d, wrk3d,
-          &si, &sj, &sk,
-          &sx_inc, &sy_inc, &sz_inc);
+                                    nx, ny, nz, 
+                                    ni1,ni2,nj1,nj2,nk1,nk2,
+                                    x3d, y3d, z3d, wrk3d,
+                                    &si, &sj, &sk,
+                                    &sx_inc, &sy_inc, &sz_inc);
       if ( is_here == 1)
       {
         // conver to global index
@@ -488,20 +486,61 @@ src_read_locate_valsrc(char *pfilepath,
         fprintf(stdout," -- located to local index = %d %d %d\n", si,sj,sk);
         fprintf(stdout," -- located to global index = %d %d %d\n", sgpi,sgpj,sgpk);
         fprintf(stdout," --  with shift = %f %f %f\n", sx_inc,sy_inc,sz_inc);
-        index_force[nforce] = i;
-        nforce++;
       } else {
         fprintf(stdout," this force not in this thread %d\n", myid);
       }
-      force_local_index[3*i+0] = si;
-      force_local_index[3*i+1] = sj; 
-      force_local_index[3*i+2] = sk;
-      force_coords_inc[3*i+0] = sx_inc;
-      force_coords_inc[3*i+1] = sy_inc;
-      force_coords_inc[3*i+2] = sz_inc;
+      force_index_inc[3*i+0] = sx_inc;
+      force_index_inc[3*i+1] = sy_inc;
+      force_index_inc[3*i+2] = sz_inc;
       force_global_index[3*i+0] = sgpi;
       force_global_index[3*i+1] = sgpj;
       force_global_index[3*i+2] = sgpk;
+    }
+
+    // reduce all source points global index and shift values
+    // Note select MPI_MAX for global index and MPI_SUM for shift value.
+    // 0 -> x, 1->y, 2->z.
+    int *reduce_force_global_index = (int*)malloc(3*num_force*sizeof(int));
+    MPI_Allreduce(force_global_index, reduce_force_global_index, 3*num_force, MPI_INT, MPI_MAX, comm);
+
+    float *reduce_force_index_inc = (float*)malloc(3*num_force*sizeof(float));
+    MPI_Allreduce(force_index_inc,reduce_force_index_inc, 3*num_force, MPI_INT, MPI_SUM, comm);
+
+    for (int i=0; i<num_force; i++)
+    {
+      fprintf(stdout,"force %d --myid=%d,index=%d %d %d,shift = %f %f %f\n",
+              i, myid,reduce_force_global_index[3*i+0],reduce_force_global_index[3*i+1],reduce_force_global_index[3*i+2],
+              reduce_force_index_inc[3*i+0],reduce_force_index_inc[3*i+1],reduce_force_index_inc[3*i+2]);
+    }
+
+    index_force = (int *)malloc(num_force*sizeof(int));
+    force_local_index = (int*)malloc(3*num_force*sizeof(int));
+    for (int i=0; i<num_force; i++)
+    {
+      // use grid index to check if in this thread after extend
+      if( reduce_force_global_index[3*i+0]-npoint_half_ext <= glob_phys_ix2 && // exted left point is less than right bdry
+          reduce_force_global_index[3*i+0]+npoint_half_ext >= glob_phys_ix1 && // exted right point is larger than left bdry
+          reduce_force_global_index[3*i+1]-npoint_half_ext <= glob_phys_iy2 && 
+          reduce_force_global_index[3*i+1]+npoint_half_ext >= glob_phys_iy1 &&
+          reduce_force_global_index[3*i+2]-npoint_half_ext <= glob_phys_iz2 && 
+          reduce_force_global_index[3*i+2]+npoint_half_ext >= glob_phys_iz1)
+      {
+        // at least one extend point in this thread
+        // convert to local index
+        force_local_index[3*i+0] = reduce_force_global_index[3*i+0] - glob_phys_ix1 + npoint_ghosts;
+        force_local_index[3*i+1] = reduce_force_global_index[3*i+1] - glob_phys_iy1 + npoint_ghosts;
+        force_local_index[3*i+2] = reduce_force_global_index[3*i+2] - glob_phys_iz1 + npoint_ghosts;
+        index_force[nforce] = i;
+        nforce++;
+        //fprintf(stdout,"myid is %d,si,sj,sk is %d,%d,%d\n",myid,force_local_index[3*i+0],force_local_index[3*i+1],force_local_index[3*i+2]);
+      }
+      else
+      {
+        //default local index is -1
+        force_local_index[3*i+0] = -1;
+        force_local_index[3*i+1] = -1; 
+        force_local_index[3*i+2] = -1;
+      }
     }
   }
 
@@ -514,23 +553,21 @@ src_read_locate_valsrc(char *pfilepath,
   {
     // judge moment in this thread
     moment_global_index = (int *)malloc(3 * num_moment*sizeof(int));
-    index_moment = (int *)malloc(num_moment*sizeof(int));
-    moment_local_index = (int *)malloc(3 * num_moment*sizeof(int));
     moment_index_inc = (float *)malloc(3 * num_moment*sizeof(float));
     for (int i =0; i<num_moment; i++)
     {
       fprintf(stdout,"locate moment by coord  ...\n"); 
-      // default local index and relative shift to -1 and 0
-      int si=-1; int sj=-1; int sk=-1;
+      // default global index and relative shift to -1 and 0
+      int si, sj, sk;
       float sx_inc = 0.0; float sy_inc = 0.0; float sz_inc = 0.0;
       int sgpi=-1; int sgpj=-1; int sgpk=-1;
       // if located in this thread
       int is_here = src_coord2index(moment_coords[3*i+0],moment_coords[3*i+1],moment_coords[3*i+2],
-          nx, ny, nz, 
-          ni1,ni2,nj1,nj2,nk1,nk2,
-          x3d, y3d, z3d, wrk3d,
-          &si, &sj, &sk,
-          &sx_inc, &sy_inc, &sz_inc);
+                                    nx, ny, nz, 
+                                    ni1,ni2,nj1,nj2,nk1,nk2,
+                                    x3d, y3d, z3d, wrk3d,
+                                    &si, &sj, &sk,
+                                    &sx_inc, &sy_inc, &sz_inc);
       if ( is_here == 1)
       {
         // conver to global index
@@ -540,14 +577,9 @@ src_read_locate_valsrc(char *pfilepath,
         fprintf(stdout," -- located to local index = %d %d %d\n", si,sj,sk);
         fprintf(stdout," -- located to global index = %d %d %d\n", sgpi,sgpj,sgpk);
         fprintf(stdout," --  with shift = %f %f %f\n", sx_inc,sy_inc,sz_inc);
-        index_moment[nmoment] = i;
-        nmoment++;
       } else {
         fprintf(stdout," this moment not in this thread %d\n", myid);
       }
-      moment_local_index[3*i+0] = si;
-      moment_local_index[3*i+1] = sj; 
-      moment_local_index[3*i+2] = sk;
       moment_index_inc[3*i+0] = sx_inc;
       moment_index_inc[3*i+1] = sy_inc;
       moment_index_inc[3*i+2] = sz_inc;
@@ -555,32 +587,52 @@ src_read_locate_valsrc(char *pfilepath,
       moment_global_index[3*i+1] = sgpj;
       moment_global_index[3*i+2] = sgpk;
     }
-  }
-  // reduce global index and shift values
-  int *recv_force_global_index = (int *)malloc(3 * num_force * sizeof(int));
-  MPI_Allreduce(force_global_index, recv_force_global_index, 3*num_force, MPI_INT, MPI_MAX, comm);
 
-  int *recv_moment_global_index = (int *)malloc(3 * num_moment * sizeof(int));
-  MPI_Allreduce(moment_global_index, recv_moment_global_index, 3*num_moment, MPI_INT, MPI_MAX, comm);
+    // reduce all source points global index and shift values
+    // Note select MPI_MAX for global index and MPI_SUM for shift value.
+    // 0 -> x, 1->y, 2->z.
+    int *reduce_moment_global_index = (int*)malloc(3*num_moment*sizeof(int));
+    MPI_Allreduce(moment_global_index, reduce_moment_global_index, 3*num_moment, MPI_INT, MPI_MAX, comm);
 
-  float *recv_force_coords_inc = (float *)malloc(3 * num_force*sizeof(float));
-  MPI_Allreduce(force_coords_inc,recv_force_coords_inc, 3*num_force, MPI_INT, MPI_SUM, comm);
+    float *reduce_moment_index_inc = (float*)malloc(3*num_moment*sizeof(float));
+    MPI_Allreduce(moment_index_inc,reduce_moment_index_inc, 3*num_moment, MPI_INT, MPI_SUM, comm);
 
-  float *recv_moment_index_inc = (float *)malloc(3 * num_moment*sizeof(float));
-  MPI_Allreduce(moment_index_inc,recv_moment_index_inc, 3*num_moment, MPI_INT, MPI_SUM, comm);
+    for (int i=0; i<num_moment; i++)
+    {
+      fprintf(stdout,"moment %d --myid=%d,index=%d %d %d,shift = %f %f %f\n",
+          i, myid,reduce_moment_global_index[3*i+0],reduce_moment_global_index[3*i+1],reduce_moment_global_index[3*i+2],
+          reduce_moment_index_inc[3*i+0],reduce_moment_index_inc[3*i+1],reduce_moment_index_inc[3*i+2]);
+    }
 
-  for (int i=0; i<num_force; i++)
-  {
-    fprintf(stdout,"force %d --myid=%d,index=%d %d %d,shift = %f %f %f\n",
-        i, myid,recv_force_global_index[3*i+0],recv_force_global_index[3*i+1],recv_force_global_index[3*i+2],
-        recv_force_coords_inc[3*i+0],recv_force_coords_inc[3*i+1],recv_force_coords_inc[3*i+2]);
-  }
-
-  for (int i=0; i<num_moment; i++)
-  {
-    fprintf(stdout,"moment %d --myid=%d,index=%d %d %d,shift = %f %f %f\n",
-        i,myid,recv_moment_global_index[3*i+0],recv_moment_global_index[3*i+1],recv_moment_global_index[3*i+2],
-        recv_moment_index_inc[3*i+0],recv_moment_index_inc[3*i+1],recv_moment_index_inc[3*i+2]);
+    index_moment = (int *)malloc(num_moment*sizeof(int));
+    moment_local_index = (int *)malloc(3 * num_moment*sizeof(int));
+    // use grid index to check if in this thread after extend
+    for(int i=0; i<num_moment; i++)
+    {
+      if (reduce_moment_global_index[3*i+0]-npoint_half_ext <= glob_phys_ix2 && // exted left point is less than right bdry
+          reduce_moment_global_index[3*i+0]+npoint_half_ext >= glob_phys_ix1 && // exted right point is larger than left bdry
+          reduce_moment_global_index[3*i+1]-npoint_half_ext <= glob_phys_iy2 && 
+          reduce_moment_global_index[3*i+1]+npoint_half_ext >= glob_phys_iy1 &&
+          reduce_moment_global_index[3*i+2]-npoint_half_ext <= glob_phys_iz2 && 
+          reduce_moment_global_index[3*i+2]+npoint_half_ext >= glob_phys_iz1)
+      {
+        // at least one extend point in this thread
+        // convert to local index
+        moment_local_index[3*i+0]= reduce_moment_global_index[3*i+0] - glob_phys_ix1 + npoint_ghosts;
+        moment_local_index[3*i+1]= reduce_moment_global_index[3*i+1] - glob_phys_iy1 + npoint_ghosts;
+        moment_local_index[3*i+2]= reduce_moment_global_index[3*i+2] - glob_phys_iz1 + npoint_ghosts;
+        index_moment[nmoment] = i;
+        nmoment++;
+        //fprintf(stdout,"myid is %d,si,sj,sk is %d,%d,%d\n",myid,moment_local_index[3*i+0],moment_local_index[3*i+1],moment_local_index[3*i+2]);
+      }
+      else
+      {
+        //default local index is -1
+        moment_local_index[3*i+0] = -1;
+        moment_local_index[3*i+1] = -1;
+        moment_local_index[3*i+2] = -1;
+      }
+    }
   }
 
   if(num_force > 0)
@@ -680,8 +732,8 @@ src_read_locate_valsrc(char *pfilepath,
           {
             fgets(str,500,fp);
             sscanf(str,"%f %f %f %f %f %f",&moment_value[0][indx*nt_in+k], &moment_value[1][indx*nt_in+k], 
-                &moment_value[2][indx*nt_in+k], &moment_value[3][indx*nt_in+k],
-                &moment_value[4][indx*nt_in+k], &moment_value[5][indx*nt_in+k]);
+                   &moment_value[2][indx*nt_in+k], &moment_value[3][indx*nt_in+k],
+                   &moment_value[4][indx*nt_in+k], &moment_value[5][indx*nt_in+k]);
           }
         }
         indx++;
@@ -727,14 +779,16 @@ src_read_locate_valsrc(char *pfilepath,
     int  it_begin = (int) (force_wavelet_tstart[i] / dt);
     int  it_end   = it_begin + nt_force - 1;
     int  indx     = index_force[i]; 
-
+    int  si = force_local_index[3 * indx + 0];
+    int  sj = force_local_index[3 * indx + 1];
+    int  sk = force_local_index[3 * indx + 2];
     // save values to inner var
-    force_info[8 * i + M_SRC_INFO_SEQ_SI   ] = force_local_index[3 * indx + 0];
-    force_info[8 * i + M_SRC_INFO_SEQ_SJ   ] = force_local_index[3 * indx + 1];
-    force_info[8 * i + M_SRC_INFO_SEQ_SK   ] = force_local_index[3 * indx + 2];
-    force_info[8 * i + M_SRC_INFO_SEQ_POS  ] = 0 + i*nt_force*FD_NDIM*num_of_stages;
-    force_info[8 * i + M_SRC_INFO_SEQ_ITBEG] = it_begin;
-    force_info[8 * i + M_SRC_INFO_SEQ_ITEND] = it_end;
+    force_info[M_SRC_INFO_NVAL * i + M_SRC_INFO_SEQ_SI   ] = si;
+    force_info[M_SRC_INFO_NVAL * i + M_SRC_INFO_SEQ_SJ   ] = sj;
+    force_info[M_SRC_INFO_NVAL * i + M_SRC_INFO_SEQ_SK   ] = sk;
+    force_info[M_SRC_INFO_NVAL * i + M_SRC_INFO_SEQ_POS  ] = 0 + i*nt_force*FD_NDIM*num_of_stages;
+    force_info[M_SRC_INFO_NVAL * i + M_SRC_INFO_SEQ_ITBEG] = it_begin;
+    force_info[M_SRC_INFO_NVAL * i + M_SRC_INFO_SEQ_ITEND] = it_end;
 
     int ipos = force_info[M_SRC_INFO_SEQ_POS];
     int it1  = force_info[M_SRC_INFO_SEQ_ITBEG];
@@ -759,35 +813,38 @@ src_read_locate_valsrc(char *pfilepath,
           float t = it * dt + t0 + rk_stage_time[istage] * dt;
           // interp1d give t to get this_vec_stf
           this_vec_stf[iptr] = LagInterp_Piecewise_1d(t_in, this_force_value, nt_in, order, force_wavelet_tstart[i], dt_in, t);
+          fprintf(stdout,"value is %f\n",this_vec_stf[iptr]);
         }
       }     
     }
     float *this_force_ext_coef = force_ext_coef + i * siz_ext;
-    cal_norm_delt3d(this_force_ext_coef, force_coords_inc[3*indx+0], force_coords_inc[3*indx+1], force_coords_inc[3*indx+2], 1.5, 1.5, 1.5, 3);
+    cal_norm_delt3d(this_force_ext_coef, force_index_inc[3*indx+0], force_index_inc[3*indx+1], force_index_inc[3*indx+2], 1.5, 1.5, 1.5, 3);
 
     size_t iptr_s = 0;
     // force_local_index si,sj,sk
-    for (int k=force_local_index[3 * indx + 2]-npoint_half_ext; k<=force_local_index[3 * indx + 2]+npoint_half_ext; k++)
+    for (int k=sk-npoint_half_ext; k<=sk+npoint_half_ext; k++)
     {
       if (k<nk1 || k>nk2) continue;
 
-      for (int j=force_local_index[3 * indx + 1]-npoint_half_ext; j<=force_local_index[3 * indx + 1]+npoint_half_ext; j++)
+      for (int j=sj-npoint_half_ext; j<=sj+npoint_half_ext; j++)
       {
         if (j<nj1 || j>nj2) continue;
 
-        for (int ii=force_local_index[3 * indx + 0]-npoint_half_ext; ii<=force_local_index[3 * indx + 0]+npoint_half_ext; ii++)
+        for (int ii=si-npoint_half_ext; ii<=si+npoint_half_ext; ii++)
         {
           if (ii<ni1 || ii>ni2) continue;
 
           int iptr = ii + j * siz_line + k * siz_slice;
+          int iptr1 = (ii-(si-npoint_half_ext)) + 7 * (j-(sj-npoint_half_ext)) + 7 * 7 *(k-(sk-npoint_half_ext));
           force_ext_indx[iptr_s + i * siz_ext] = iptr;
+          force_ext_coef[iptr_s + i * siz_ext] = this_force_ext_coef[iptr1];
           iptr_s++;
         }
       }
     }
 
-    force_info[8 * i + M_SRC_INFO_SEQ_NEXT_MAX ] = siz_ext;
-    force_info[8 * i + M_SRC_INFO_SEQ_NEXT_THIS] = iptr_s;
+    force_info[M_SRC_INFO_NVAL * i + M_SRC_INFO_SEQ_NEXT_MAX ] = siz_ext;
+    force_info[M_SRC_INFO_NVAL * i + M_SRC_INFO_SEQ_NEXT_THIS] = iptr_s;
   }
   *num_of_force = nforce;
   *p_force_info = force_info;
@@ -819,14 +876,16 @@ src_read_locate_valsrc(char *pfilepath,
     int  it_begin = (int) (moment_wavelet_tstart[i] / dt);
     int  it_end   = it_begin + nt_moment - 1;
     int  indx     = index_moment[i]; 
-
+    int  si = moment_local_index[3 * indx + 0];
+    int  sj = moment_local_index[3 * indx + 1];
+    int  sk = moment_local_index[3 * indx + 2];
     // save values to inner var
-    moment_info[8 * i + M_SRC_INFO_SEQ_SI   ] = moment_local_index[3 * indx + 0];
-    moment_info[8 * i + M_SRC_INFO_SEQ_SJ   ] = moment_local_index[3 * indx + 1];
-    moment_info[8 * i + M_SRC_INFO_SEQ_SK   ] = moment_local_index[3 * indx + 2];
-    moment_info[8 * i + M_SRC_INFO_SEQ_POS  ] = 0 + i*nt_moment*6*num_of_stages;
-    moment_info[8 * i + M_SRC_INFO_SEQ_ITBEG] = it_begin;
-    moment_info[8 * i + M_SRC_INFO_SEQ_ITEND] = it_end;
+    moment_info[M_SRC_INFO_NVAL * i + M_SRC_INFO_SEQ_SI   ] = moment_local_index[3 * indx + 0];
+    moment_info[M_SRC_INFO_NVAL * i + M_SRC_INFO_SEQ_SJ   ] = moment_local_index[3 * indx + 1];
+    moment_info[M_SRC_INFO_NVAL * i + M_SRC_INFO_SEQ_SK   ] = moment_local_index[3 * indx + 2];
+    moment_info[M_SRC_INFO_NVAL * i + M_SRC_INFO_SEQ_POS  ] = 0 + i*nt_moment*6*num_of_stages;
+    moment_info[M_SRC_INFO_NVAL * i + M_SRC_INFO_SEQ_ITBEG] = it_begin;
+    moment_info[M_SRC_INFO_NVAL * i + M_SRC_INFO_SEQ_ITEND] = it_end;
     int ipos = moment_info[M_SRC_INFO_SEQ_POS];
     int it1  = moment_info[M_SRC_INFO_SEQ_ITBEG];
     int it2  = moment_info[M_SRC_INFO_SEQ_ITEND];
@@ -854,30 +913,32 @@ src_read_locate_valsrc(char *pfilepath,
         }
       }
     }
-    float *this_moment_ext_conf = moment_ext_coef + i * siz_ext;
-    cal_norm_delt3d(this_moment_ext_conf, moment_index_inc[3*indx+0], moment_index_inc[3*indx+1], moment_index_inc[3*indx+2],1.5, 1.5, 1.5, 3);
+    float *this_moment_ext_coef = moment_ext_coef + i * siz_ext;
+    cal_norm_delt3d(this_moment_ext_coef, moment_index_inc[3*indx+0], moment_index_inc[3*indx+1], moment_index_inc[3*indx+2],1.5, 1.5, 1.5, 3);
 
     size_t iptr_s = 0;
-    for (int k=moment_local_index[3 * indx + 2]-npoint_half_ext; k<=moment_local_index[3 * indx + 2]+npoint_half_ext; k++)
+    for (int k=sk-npoint_half_ext; k<=sk+npoint_half_ext; k++)
     {
       if (k<nk1 || k>nk2) continue;
 
-      for (int j=moment_local_index[3 * indx + 1]-npoint_half_ext; j<=moment_local_index[3 * indx + 1]+npoint_half_ext; j++)
+      for (int j=sj-npoint_half_ext; j<=sj+npoint_half_ext; j++)
       {
         if (j<nj1 || j>nj2) continue;
 
-        for (int ii=moment_local_index[3 * indx + 0]-npoint_half_ext; ii<=moment_local_index[3 * indx + 0]+npoint_half_ext; ii++)
+        for (int ii=si-npoint_half_ext; ii<=si+npoint_half_ext; ii++)
         {
           if (ii<ni1 || ii>ni2) continue;
 
           int iptr = ii + j * siz_line + k * siz_slice;
+          int iptr1 = (ii-(si-npoint_half_ext)) + 7 * (j-(sj-npoint_half_ext)) + 7 * 7 *(k-(sk-npoint_half_ext));
           moment_ext_indx[iptr_s + i * siz_ext] = iptr;
+          moment_ext_coef[iptr_s + i * siz_ext] = this_moment_ext_coef[iptr1];
           iptr_s++;
         }
       }
     }
-    moment_info[8 * i + M_SRC_INFO_SEQ_NEXT_MAX ] = siz_ext;
-    moment_info[8 * i + M_SRC_INFO_SEQ_NEXT_THIS] = iptr_s;
+    moment_info[M_SRC_INFO_NVAL * i + M_SRC_INFO_SEQ_NEXT_MAX ] = siz_ext;
+    moment_info[M_SRC_INFO_NVAL * i + M_SRC_INFO_SEQ_NEXT_THIS] = iptr_s;
   }
   *num_of_moment = nmoment;
   *p_moment_info = moment_info;
@@ -891,7 +952,7 @@ src_read_locate_valsrc(char *pfilepath,
     free(force_wavelet_tstart);
     free(index_force);
     free(force_local_index);
-    free(force_coords_inc);
+    free(force_index_inc);
   }
   if(num_moment>0)
   {
@@ -1103,11 +1164,11 @@ src_read_locate_anasrc(char *pfilepath,
       int sgpi=-1; int sgpj=-1; int sgpk=-1;
       // if located in this thread
       int is_here = src_coord2index(force_coords[3*i+0],force_coords[3*i+1],force_coords[3*i+2],
-          nx, ny, nz, 
-          ni1,ni2,nj1,nj2,nk1,nk2,
-          x3d, y3d, z3d, wrk3d,
-          &si, &sj, &sk,
-          &sx_inc, &sy_inc, &sz_inc);
+                                    nx, ny, nz, 
+                                    ni1,ni2,nj1,nj2,nk1,nk2,
+                                    x3d, y3d, z3d, wrk3d,
+                                    &si, &sj, &sk,
+                                    &sx_inc, &sy_inc, &sz_inc);
       if ( is_here == 1)
       {
         // conver to global index
@@ -1299,8 +1360,6 @@ src_read_locate_anasrc(char *pfilepath,
   {
     // judge moment in this thread
     moment_global_index = (int*)malloc(3*num_moment*sizeof(int));
-    index_moment = (int *)malloc(num_moment*sizeof(int));
-    moment_local_index = (int*)malloc(3*num_moment*sizeof(int));
     moment_index_inc = (float*)malloc(3*num_moment*sizeof(float));
     for (int i =0; i<num_moment; i++)
     {
@@ -1311,11 +1370,11 @@ src_read_locate_anasrc(char *pfilepath,
       int sgpi=-1; int sgpj=-1; int sgpk=-1;
       // if located in this thread
       int is_here = src_coord2index(moment_coords[3*i+0],moment_coords[3*i+1],moment_coords[3*i+2],
-          nx, ny, nz, 
-          ni1,ni2,nj1,nj2,nk1,nk2,
-          x3d, y3d, z3d, wrk3d,
-          &si, &sj, &sk,
-          &sx_inc, &sy_inc, &sz_inc);
+                                    nx, ny, nz, 
+                                    ni1,ni2,nj1,nj2,nk1,nk2,
+                                    x3d, y3d, z3d, wrk3d,
+                                    &si, &sj, &sk,
+                                    &sx_inc, &sy_inc, &sz_inc);
       if ( is_here == 1)
       {
         // conver to global index
@@ -1352,6 +1411,8 @@ src_read_locate_anasrc(char *pfilepath,
           reduce_moment_index_inc[3*i+0],reduce_moment_index_inc[3*i+1],reduce_moment_index_inc[3*i+2]);
     }
 
+    index_moment = (int *)malloc(num_moment*sizeof(int));
+    moment_local_index = (int*)malloc(3*num_moment*sizeof(int));
     // use grid index to check if in this thread after extend
     for(int i=0; i<num_moment; i++)
     {
@@ -1558,7 +1619,7 @@ fun_ricker_deriv(float t, float fc, float t0)
 
   return v;
 }
-
+//gauss and it deriv
   float
 fun_gauss(float t, float a, float t0)
 {
