@@ -790,9 +790,9 @@ src_read_locate_valsrc(char *pfilepath,
     force_info[M_SRC_INFO_NVAL * i + M_SRC_INFO_SEQ_ITBEG] = it_begin;
     force_info[M_SRC_INFO_NVAL * i + M_SRC_INFO_SEQ_ITEND] = it_end;
 
-    int ipos = force_info[M_SRC_INFO_SEQ_POS];
-    int it1  = force_info[M_SRC_INFO_SEQ_ITBEG];
-    int it2  = force_info[M_SRC_INFO_SEQ_ITEND];
+    int ipos = force_info[M_SRC_INFO_NVAL * i + M_SRC_INFO_SEQ_POS];
+    int it1  = force_info[M_SRC_INFO_NVAL * i + M_SRC_INFO_SEQ_ITBEG];
+    int it2  = force_info[M_SRC_INFO_NVAL * i + M_SRC_INFO_SEQ_ITEND];
     float *this_vec_stf = force_vec_stf + ipos;
     float *this_force_value;
     int order = 3;
@@ -886,9 +886,9 @@ src_read_locate_valsrc(char *pfilepath,
     moment_info[M_SRC_INFO_NVAL * i + M_SRC_INFO_SEQ_POS  ] = 0 + i*nt_moment*6*num_of_stages;
     moment_info[M_SRC_INFO_NVAL * i + M_SRC_INFO_SEQ_ITBEG] = it_begin;
     moment_info[M_SRC_INFO_NVAL * i + M_SRC_INFO_SEQ_ITEND] = it_end;
-    int ipos = moment_info[M_SRC_INFO_SEQ_POS];
-    int it1  = moment_info[M_SRC_INFO_SEQ_ITBEG];
-    int it2  = moment_info[M_SRC_INFO_SEQ_ITEND];
+    int ipos = moment_info[M_SRC_INFO_NVAL * i + M_SRC_INFO_SEQ_POS];
+    int it1  = moment_info[M_SRC_INFO_NVAL * i + M_SRC_INFO_SEQ_ITBEG];
+    int it2  = moment_info[M_SRC_INFO_NVAL * i + M_SRC_INFO_SEQ_ITEND];
     float *this_ten_rate = moment_ten_rate + ipos;
     float *this_moment_value;
     int order = 3;
@@ -1270,9 +1270,9 @@ src_read_locate_anasrc(char *pfilepath,
     force_info[M_SRC_INFO_NVAL * i + M_SRC_INFO_SEQ_ITBEG] = it_begin;
     force_info[M_SRC_INFO_NVAL * i + M_SRC_INFO_SEQ_ITEND] = it_end;
 
-    int ipos = force_info[M_SRC_INFO_SEQ_POS];
-    int it1  = force_info[M_SRC_INFO_SEQ_ITBEG];
-    int it2  = force_info[M_SRC_INFO_SEQ_ITEND];
+    int ipos = force_info[M_SRC_INFO_NVAL * i + M_SRC_INFO_SEQ_POS];
+    int it1  = force_info[M_SRC_INFO_NVAL * i + M_SRC_INFO_SEQ_ITBEG];
+    int it2  = force_info[M_SRC_INFO_NVAL * i + M_SRC_INFO_SEQ_ITEND];
     float *this_vec_stf = force_vec_stf + ipos;
     float *this_force_vector = force_vector + indx*3; 
     for (int icmp=0; icmp<FD_NDIM; icmp++)
@@ -1430,7 +1430,7 @@ src_read_locate_anasrc(char *pfilepath,
         moment_local_index[3*i+2]= reduce_moment_global_index[3*i+2] - glob_phys_iz1 + npoint_ghosts;
         index_moment[nmoment] = i;
         nmoment++;
-        //fprintf(stdout,"myid is %d,si,sj,sk is %d,%d,%d\n",myid,moment_local_index[3*i+0],moment_local_index[3*i+1],moment_local_index[3*i+2]);
+        fprintf(stdout,"myid is %d,si,sj,sk is %d,%d,%d\n",myid,moment_local_index[3*i+0],moment_local_index[3*i+1],moment_local_index[3*i+2]);
       }
       else
       {
@@ -1476,9 +1476,9 @@ src_read_locate_anasrc(char *pfilepath,
     moment_info[M_SRC_INFO_NVAL * i + M_SRC_INFO_SEQ_ITBEG] = it_begin;
     moment_info[M_SRC_INFO_NVAL * i + M_SRC_INFO_SEQ_ITEND] = it_end;
 
-    int ipos = moment_info[M_SRC_INFO_SEQ_POS];
-    int it1  = moment_info[M_SRC_INFO_SEQ_ITBEG];
-    int it2  = moment_info[M_SRC_INFO_SEQ_ITEND];
+    int ipos = moment_info[M_SRC_INFO_NVAL * i + M_SRC_INFO_SEQ_POS];
+    int it1  = moment_info[M_SRC_INFO_NVAL * i + M_SRC_INFO_SEQ_ITBEG];
+    int it2  = moment_info[M_SRC_INFO_NVAL * i + M_SRC_INFO_SEQ_ITEND];
     float *this_ten_rate = moment_ten_rate + ipos;
     float *this_moment_tensor = moment_tensor + indx*6; 
     for (int icmp=0; icmp<6; icmp++)
@@ -1502,7 +1502,6 @@ src_read_locate_anasrc(char *pfilepath,
           }
           // save to vector
           this_ten_rate[iptr] = stf_val * this_moment_tensor[icmp];
-          //fprintf(stdout,"this_ten_rate is %f\n",this_ten_rate[iptr]);
         }
       }
     }
@@ -1687,7 +1686,6 @@ src_get_stage_stf(
     int it1  = moment_info[M_SRC_INFO_NVAL*n + M_SRC_INFO_SEQ_ITBEG];
     int it2  = moment_info[M_SRC_INFO_NVAL*n + M_SRC_INFO_SEQ_ITEND];
     int nt_moment = it2 - it1 + 1;
-
     // point tho this moment in ten_rate
     float *ptr_moment = moment_ten_rate + ipos;
 
