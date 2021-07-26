@@ -332,7 +332,7 @@ sv_eliso1st_curv_macdrp_allstep(
     t_cur = it * dt + t0;
     t_next = t_cur +dt;
 
-    if (myid==0 && verbose>10) fprintf(stdout,"-> it=%d, t=\%f\n", it, t_cur);
+    if (myid==0 && verbose>10) fprintf(stdout,"-> it=%d, t=%f\n", it, t_cur);
 
     ipair = it % num_of_pairs; // mod to ipair
     if (myid==0 && verbose>10) fprintf(stdout, " --> ipair=%d\n",ipair);
@@ -1096,7 +1096,7 @@ sv_eliso1st_curv_macdrp_allstep_simplempi(
     t_cur = it * dt + t0;
     t_next = t_cur +dt;
 
-    if (myid==0 && verbose>10) fprintf(stdout,"-> it=%d, t=\%f\n", it, t_cur);
+    if (myid==0 && verbose>10) fprintf(stdout,"-> it=%d, t=%f\n", it, t_cur);
 
     ipair = it % num_of_pairs; // mod to ipair
     if (myid==0 && verbose>10) fprintf(stdout, " --> ipair=%d\n",ipair);

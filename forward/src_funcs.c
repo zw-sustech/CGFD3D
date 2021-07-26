@@ -181,7 +181,7 @@ src_gen_single_point_gauss(size_t siz_line,
       int it_to_itbegin = (it - it_begin);
       for (int istage=0; istage<num_of_stages; istage++)
       {
-        float t = it * dt + t0 + rk_stage_time[istage] * dt;
+        float t = it_to_itbegin * dt + t0 + rk_stage_time[istage] * dt;
         float stf_val;
         if (strcmp(wavelet_name, "ricker")==0) {
           stf_val = fun_ricker(t, wavelet_coefs[0], wavelet_coefs[1]);
@@ -810,10 +810,10 @@ src_read_locate_valsrc(char *pfilepath,
         for (int istage=0; istage<num_of_stages; istage++)
         {
           int iptr = M_SRC_IND(icmp,it_to_it1,istage,nt_force,num_of_stages);
-          float t = it * dt + t0 + rk_stage_time[istage] * dt;
+          float t = it_to_it1 * dt + t0 + rk_stage_time[istage] * dt;
           // interp1d give t to get this_vec_stf
           this_vec_stf[iptr] = LagInterp_Piecewise_1d(t_in, this_force_value, nt_in, order, force_wavelet_tstart[i], dt_in, t);
-          fprintf(stdout,"value is %f\n",this_vec_stf[iptr]);
+          //fprintf(stdout,"value is %f\n",this_vec_stf[iptr]);
         }
       }     
     }
@@ -906,7 +906,7 @@ src_read_locate_valsrc(char *pfilepath,
         for (int istage=0; istage<num_of_stages; istage++)
         {
           int iptr = M_SRC_IND(icmp,it_to_it1,istage,nt_moment,num_of_stages);
-          float t = it * dt + t0 + rk_stage_time[istage] * dt;
+          float t = it_to_it1 * dt + t0 + rk_stage_time[istage] * dt;
           // interp give t to get this_ten_rate
           // save to vector
           this_ten_rate[iptr] = LagInterp_Piecewise_1d(t_in, this_moment_value, nt_in, order, moment_wavelet_tstart[i], dt_in, t);
@@ -1109,7 +1109,7 @@ src_read_locate_anasrc(char *pfilepath,
         for (int j=0;j<6;j++)
         {
           moment_tensor[6*i +j]=M0*temp_moment[j];
-          fprintf(stdout,"moment_tensor is %f \n",moment_tensor[6*i +j]);
+          //fprintf(stdout,"moment_tensor is %f \n",moment_tensor[6*i +j]);
         }
       } 
       if (strcmp("moment_tensor",moment_wavelet_mechism[i])==0)
@@ -1283,7 +1283,7 @@ src_read_locate_anasrc(char *pfilepath,
         for (int istage=0; istage<num_of_stages; istage++)
         {
           int iptr = M_SRC_IND(icmp,it_to_it1,istage,nt_force,num_of_stages);
-          float t = it * dt + t0 + rk_stage_time[istage] * dt;
+          float t = it_to_it1 * dt + t0 + rk_stage_time[istage] * dt;
           float stf_val;
           if (strcmp(force_wavelet_name[indx], "ricker")==0) {
             stf_val = fun_ricker(t, force_wavelet_coefs[2*indx+0], force_wavelet_coefs[2*indx+1]);
@@ -1430,7 +1430,7 @@ src_read_locate_anasrc(char *pfilepath,
         moment_local_index[3*i+2]= reduce_moment_global_index[3*i+2] - glob_phys_iz1 + npoint_ghosts;
         index_moment[nmoment] = i;
         nmoment++;
-        fprintf(stdout,"myid is %d,si,sj,sk is %d,%d,%d\n",myid,moment_local_index[3*i+0],moment_local_index[3*i+1],moment_local_index[3*i+2]);
+        //fprintf(stdout,"myid is %d,si,sj,sk is %d,%d,%d\n",myid,moment_local_index[3*i+0],moment_local_index[3*i+1],moment_local_index[3*i+2]);
       }
       else
       {
@@ -1489,7 +1489,7 @@ src_read_locate_anasrc(char *pfilepath,
         for (int istage=0; istage<num_of_stages; istage++)
         {
           int iptr = M_SRC_IND(icmp,it_to_it1,istage,nt_moment,num_of_stages);
-          float t = it * dt + t0 + rk_stage_time[istage] * dt;
+          float t = it_to_it1 * dt + t0 + rk_stage_time[istage] * dt;
           float stf_val;
           if (strcmp(moment_wavelet_name[indx], "ricker_deriv")==0) {
             stf_val = fun_ricker_deriv(t, moment_wavelet_coefs[2*indx+0], moment_wavelet_coefs[2*indx+1]);
