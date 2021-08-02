@@ -895,16 +895,16 @@ sv_eliso1st_curv_macdrp_allstep_simplempi(
 
   // io nc
   int ncid_slx[num_of_slice_x];
-  int timeid_slx;
-  int varid_slx[w3d_num_of_vars];
+  int timeid_slx[num_of_slice_x];
+  int varid_slx[num_of_slice_x*w3d_num_of_vars];
 
   int ncid_sly[num_of_slice_y];
-  int timeid_sly;
-  int varid_sly[w3d_num_of_vars];
+  int timeid_sly[num_of_slice_y];
+  int varid_sly[num_of_slice_y*w3d_num_of_vars];
 
   int ncid_slz[num_of_slice_z];
-  int timeid_slz;
-  int varid_slz[w3d_num_of_vars];
+  int timeid_slz[num_of_slice_z];
+  int varid_slz[num_of_slice_z*w3d_num_of_vars];
 
   int ncid_snap[num_of_snap];
   int timeid_snap[num_of_snap];
@@ -951,10 +951,10 @@ sv_eliso1st_curv_macdrp_allstep_simplempi(
     if (nc_def_dim(ncid_slx[n], "k", nk      , &dimid[1])) M_NCERR;
     if (nc_def_dim(ncid_slx[n], "j" , nj      , &dimid[2])) M_NCERR;
     // time var
-    if (nc_def_var(ncid_slx[n], "time", NC_FLOAT, 1, dimid+0, &timeid_slx)) M_NCERR;
+    if (nc_def_var(ncid_slx[n], "time", NC_FLOAT, 1, dimid+0, &timeid_slx[n])) M_NCERR;
     // other vars
     for (int ivar=0; ivar<w3d_num_of_vars; ivar++) {
-      if (nc_def_var(ncid_slx[n], w3d_name[ivar], NC_FLOAT, 3, dimid, &varid_slx[ivar])) M_NCERR;
+      if (nc_def_var(ncid_slx[n], w3d_name[ivar], NC_FLOAT, 3, dimid, &varid_slx[ivar+n*ivar])) M_NCERR;
     }
     // attribute: index info for plot
     nc_put_att_int(ncid_slx[n],NC_GLOBAL,"i_index_with_ghosts_in_this_thread",
@@ -972,10 +972,10 @@ sv_eliso1st_curv_macdrp_allstep_simplempi(
     if (nc_def_dim(ncid_sly[n], "k", nk      , &dimid[1])) M_NCERR;
     if (nc_def_dim(ncid_sly[n], "i" , ni      , &dimid[2])) M_NCERR;
     // time var
-    if (nc_def_var(ncid_sly[n], "time", NC_FLOAT, 1, dimid+0, &timeid_sly)) M_NCERR;
+    if (nc_def_var(ncid_sly[n], "time", NC_FLOAT, 1, dimid+0, &timeid_sly[n])) M_NCERR;
     // other vars
     for (int ivar=0; ivar<w3d_num_of_vars; ivar++) {
-      if (nc_def_var(ncid_sly[n], w3d_name[ivar], NC_FLOAT, 3, dimid, &varid_sly[ivar])) M_NCERR;
+      if (nc_def_var(ncid_sly[n], w3d_name[ivar], NC_FLOAT, 3, dimid, &varid_sly[ivar+n*ivar])) M_NCERR;
     }
     // attribute: index info for plot
     nc_put_att_int(ncid_sly[n],NC_GLOBAL,"j_index_with_ghosts_in_this_thread",
@@ -993,10 +993,10 @@ sv_eliso1st_curv_macdrp_allstep_simplempi(
     if (nc_def_dim(ncid_slz[n], "j", nj      , &dimid[1])) M_NCERR;
     if (nc_def_dim(ncid_slz[n], "i" , ni      , &dimid[2])) M_NCERR;
     // time var
-    if (nc_def_var(ncid_slz[n], "time", NC_FLOAT, 1, dimid+0, &timeid_slz)) M_NCERR;
+    if (nc_def_var(ncid_slz[n], "time", NC_FLOAT, 1, dimid+0, &timeid_slz[n])) M_NCERR;
     // other vars
     for (int ivar=0; ivar<w3d_num_of_vars; ivar++) {
-      if (nc_def_var(ncid_slz[n], w3d_name[ivar], NC_FLOAT, 3, dimid, &varid_slz[ivar])) M_NCERR;
+      if (nc_def_var(ncid_slz[n], w3d_name[ivar], NC_FLOAT, 3, dimid, &varid_slz[ivar+n*ivar])) M_NCERR;
     }
     // attribute: index info for plot
     nc_put_att_int(ncid_slz[n],NC_GLOBAL,"k_index_with_ghosts_in_this_thread",
@@ -1337,8 +1337,8 @@ sv_eliso1st_curv_macdrp_allstep_simplempi(
             iptr_slice++;
           }
         }
-        nc_put_var1_float(ncid_slx[n],timeid_slx,&start_tdim,&t_next);
-        nc_put_vara_float(ncid_slx[n],varid_slx[ivar],startp,countp,w_rhs);
+        nc_put_var1_float(ncid_slx[n],timeid_slx[n],&start_tdim,&t_next);
+        nc_put_vara_float(ncid_slx[n],varid_slx[ivar+n*ivar],startp,countp,w_rhs);
         max_used_rhs = (iptr_slice > max_used_rhs) ? iptr_slice : max_used_rhs;
       }
     }
@@ -1358,8 +1358,8 @@ sv_eliso1st_curv_macdrp_allstep_simplempi(
             iptr_slice++;
           }
         }
-        nc_put_var1_float(ncid_sly[n],timeid_sly,&start_tdim,&t_next);
-        nc_put_vara_float(ncid_sly[n],varid_sly[ivar],startp,countp,w_rhs);
+        nc_put_var1_float(ncid_sly[n],timeid_sly[n],&start_tdim,&t_next);
+        nc_put_vara_float(ncid_sly[n],varid_sly[ivar+n*ivar],startp,countp,w_rhs);
         max_used_rhs = (iptr_slice > max_used_rhs) ? iptr_slice : max_used_rhs;
       }
     }
@@ -1379,8 +1379,8 @@ sv_eliso1st_curv_macdrp_allstep_simplempi(
             iptr_slice++;
           }
         }
-        nc_put_var1_float(ncid_slz[n],timeid_slz,&start_tdim,&t_next);
-        nc_put_vara_float(ncid_slz[n],varid_slz[ivar],startp,countp,w_rhs);
+        nc_put_var1_float(ncid_slz[n],timeid_slz[n],&start_tdim,&t_next);
+        nc_put_vara_float(ncid_slz[n],varid_slz[ivar+n*ivar],startp,countp,w_rhs);
         max_used_rhs = (iptr_slice > max_used_rhs) ? iptr_slice : max_used_rhs;
       }
     }
