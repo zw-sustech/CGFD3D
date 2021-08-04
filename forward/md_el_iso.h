@@ -1,58 +1,51 @@
 #ifndef MD_EL_ISO_H
 #define MD_EL_ISO_H
 
-#define MD_EL_ISO_SEQ_RHO    0
-#define MD_EL_ISO_SEQ_LAMBDA 1
-#define MD_EL_ISO_SEQ_MU     2
+#include "gd_info.h"
 
-void
-md_el_iso_init_vars(
-    size_t siz_volume,
-    int *number_of_vars, 
-    float **p_m3d,
-    size_t **p_m3d_pos,
-    char ***p_m3d_name);
+/*************************************************
+ * structure
+ *************************************************/
 
-void
+typedef struct {
+  int n1, n2, n3, n4;
+  int nx, ny, nz, ncmp;
+  float *v4d; // allocated var
+
+  float *lambda; // pointer to var
+  float *mu;
+  float *rho;
+
+  size_t siz_iy;
+  size_t siz_iz;
+  size_t siz_icmp;
+
+  size_t *cmp_pos;
+  char  **cmp_name;
+} mdeliso_t;
+
+/*************************************************
+ * function prototype
+ *************************************************/
+
+int
+md_el_iso_init(gdinfo_t *gdinfo, mdeliso_t *mdeliso);
+
+int
 md_el_iso_import(float *restrict m3d, size_t *restrict m3d_pos, char **restrict m3d_name,
         int number_of_vars, size_t siz_volume, char *in_dir, char *fname_coords);
 
-void
-md_el_iso_export(float  *restrict m3d,
-                 size_t *restrict m3d_pos,
-                 char  **restrict m3d_name,
-                 int number_of_vars,
-                 int  nx,
-                 int  ny,
-                 int  nz,
-                 int  ni1,
-                 int  nj1,
-                 int  nk1,
-                 int  ni,
-                 int  nj,
-                 int  nk,
-                 int  gni1,
-                 int  gnj1,
-                 int  gnk1,
+int
+md_el_iso_export(gdinfo_t  *gdinfo,
+                 mdeliso_t *mdeliso,
                  char *fname_coords,
                  char *output_dir);
 
-void
-md_el_iso_gen_test(
-    float *restrict m3d,
-    float *restrict x3d,
-    float *restrict y3d,
-    float *restrict z3d,
-    int nx,
-    int ny,
-    int nz,
-    size_t siz_line,
-    size_t siz_slice,
-    size_t siz_volume);
+int
+md_el_iso_gen_test(mdeliso_t *mdeliso);
 
-void
-md_el_iso_rho_to_slow(
-    float *restrict m3d,
-    size_t siz_volume);
+int
+md_el_iso_rho_to_slow(float *restrict rho, size_t siz_volume);
+
 
 #endif

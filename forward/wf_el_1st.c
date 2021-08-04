@@ -6,101 +6,123 @@
 #include <stdio.h>
 #include <string.h>
 
-#include "netcdf.h"
-
+#include "constants.h"
 #include "fdlib_mem.h"
-#include "fd_t.h"
 #include "wf_el_1st.h"
 
-void 
-wf_el_1st_init_vars(
-    size_t siz_volume,
-    int number_of_levels,
-    int *number_of_vars,
-    float  **p_w3d,
-    size_t **p_w3d_pos,
-    char  ***p_w3d_name)
+int 
+wf_el_1st_init(gdinfo_t *gdinfo,
+               wfel1st_t *V,
+               int number_of_levels)
 {
-  const int num_wave_vars = WF_EL_1ST_NVAR; // 9
+  int ierr = 0;
+
+  V->nx   = gdinfo->nx;
+  V->ny   = gdinfo->ny;
+  V->nz   = gdinfo->nz;
+  V->ncmp = 9;
+  V->nlevel = number_of_levels;
+
+  V->siz_iy   = V->nx;
+  V->siz_iz   = V->nx * V->ny;
+  V->siz_icmp = V->nx * V->ny * V->nz;
+  V->siz_ilevel = V->siz_icmp * V->ncmp;
+
+  // vars
+  // 3 Vi, 6 Tij, 4 rk stages
+  V->v5d = (float *) fdlib_mem_calloc_1d_float(V->siz_ilevel * V->nlevel,
+                        0.0, "v5d, wf_el3d_1st");
+  // position of each var
+  size_t *cmp_pos = (size_t *) fdlib_mem_calloc_1d_sizet(
+                      V->ncmp, 0, "w3d_pos, wf_el3d_1st");
+  // name of each var
+  char **cmp_name = (char **) fdlib_mem_malloc_2l_char(
+                      V->ncmp, CONST_MAX_STRLEN, "w3d_name, wf_el3d_1st");
+  
+  // set value
+  for (int icmp=0; icmp < V->ncmp; icmp++)
+  {
+    cmp_pos[icmp] = icmp * V->siz_icmp;
+  }
+
+  // set values
+  int icmp = 0;
+
   /*
    * 0-3: Vx,Vy,Vz
    * 4-9: Txx,Tyy,Tzz,Txz,Tyz,Txy
    */
 
-  // vars
-  // 3 Vi, 6 Tij, 4 rk stages
-  float *w3d = (float *) fdlib_mem_calloc_1d_float(siz_volume * num_wave_vars * number_of_levels,
-                                                   0.0,
-                                                   "w3d, wf_el3d_1st");
+  sprintf(cmp_name[icmp],"%s","Vx");
+  V->Vx_pos = cmp_pos[icmp];
+  V->Vx_seq = 0;
+  icmp += 1;
 
-  // position of each var
-  size_t *w3d_pos = (size_t *) fdlib_mem_calloc_1d_sizet(num_wave_vars,
-                                                         0,
-                                                         "w3d_pos, wf_el3d_1st");
+  sprintf(cmp_name[icmp],"%s","Vy");
+  V->Vy_pos = cmp_pos[icmp];
+  V->Vy_seq = 1;
+  icmp += 1;
 
-  // name of each var
-  char **w3d_name = (char **) fdlib_mem_malloc_2l_char(num_wave_vars,
-                                                       FD_MAX_STRLEN,
-                                                       "w3d_name, wf_el3d_1st");
+  sprintf(cmp_name[icmp],"%s","Vz");
+  V->Vz_pos = cmp_pos[icmp];
+  V->Vz_seq = 2;
+  icmp += 1;
 
-  // set values
-  int ivar = WF_EL_1ST_SEQ_Vx;
-  w3d_pos[ivar] = ivar * siz_volume;
-  sprintf(w3d_name[ivar],"%s","Vx");
+  sprintf(cmp_name[icmp],"%s","Txx");
+  V->Txx_pos = cmp_pos[icmp];
+  V->Txx_seq = 3;
+  icmp += 1;
 
-  ivar = WF_EL_1ST_SEQ_Vy;
-  w3d_pos[ivar] = ivar * siz_volume;
-  sprintf(w3d_name[ivar],"%s","Vy");
+  sprintf(cmp_name[icmp],"%s","Tyy");
+  V->Tyy_pos = cmp_pos[icmp];
+  V->Tyy_seq = 4;
+  icmp += 1;
 
-  ivar = WF_EL_1ST_SEQ_Vz;
-  w3d_pos[ivar] = ivar * siz_volume;
-  sprintf(w3d_name[ivar],"%s","Vz");
+  sprintf(cmp_name[icmp],"%s","Tzz");
+  V->Tzz_pos = cmp_pos[icmp];
+  V->Tzz_seq = 5;
+  icmp += 1;
 
-  ivar = WF_EL_1ST_SEQ_Txx;
-  w3d_pos[ivar] = ivar * siz_volume;
-  sprintf(w3d_name[ivar],"%s","Txx");
+  sprintf(cmp_name[icmp],"%s","Txz");
+  V->Txz_pos = cmp_pos[icmp];
+  V->Txz_seq = 6;
+  icmp += 1;
 
-  ivar = WF_EL_1ST_SEQ_Tyy;
-  w3d_pos[ivar] = ivar * siz_volume;
-  sprintf(w3d_name[ivar],"%s","Tyy");
+  sprintf(cmp_name[icmp],"%s","Tyz");
+  V->Tyz_pos = cmp_pos[icmp];
+  V->Tyz_seq = 7;
+  icmp += 1;
 
-  ivar = WF_EL_1ST_SEQ_Tzz;
-  w3d_pos[ivar] = ivar * siz_volume;
-  sprintf(w3d_name[ivar],"%s","Tzz");
+  sprintf(cmp_name[icmp],"%s","Txy");
+  V->Txy_pos = cmp_pos[icmp];
+  V->Txy_seq = 8;
+  icmp += 1;
 
-  ivar = WF_EL_1ST_SEQ_Txz;
-  w3d_pos[ivar] = ivar * siz_volume;
-  sprintf(w3d_name[ivar],"%s","Txz");
+  // set pointer
+  V->cmp_pos  = cmp_pos;
+  V->cmp_name = cmp_name;
 
-  ivar = WF_EL_1ST_SEQ_Tyz;
-  w3d_pos[ivar] = ivar * siz_volume;
-  sprintf(w3d_name[ivar],"%s","Tyz");
-
-  ivar = WF_EL_1ST_SEQ_Txy;
-  w3d_pos[ivar] = ivar * siz_volume;
-  sprintf(w3d_name[ivar],"%s","Txy");
-
-  // set return values
-  *number_of_vars = num_wave_vars;
-  *p_w3d = w3d;
-  *p_w3d_pos = w3d_pos;
-  *p_w3d_name = w3d_name;
+  return ierr;
 }
 
-void
-wf_el_1st_check_value(float *restrict w, size_t siz_volume)
+int
+wf_el_1st_check_value(float *restrict w, wfel1st_t *wfel1st)
 {
-  for (int ivar=0; ivar<WF_EL_1ST_NVAR; ivar++)
+  int ierr = 0;
+
+  for (int icmp=0; icmp < wfel1st->ncmp; icmp++)
   {
-    float *ptr = w + ivar * siz_volume;
-    for (size_t iptr=0; iptr<siz_volume; iptr++)
+    float *ptr = w + icmp * wfel1st->siz_icmp;
+    for (size_t iptr=0; iptr < wfel1st->siz_icmp; iptr++)
     {
       if (ptr[iptr] != ptr[iptr])
       {
-        fprintf(stderr, "ERROR: NaN occurs at iptr=%d ivar=%d\n", iptr, ivar);
+        fprintf(stderr, "ERROR: NaN occurs at iptr=%d icmp=%d\n", iptr, icmp);
         fflush(stderr);
         exit(-1);
       }
     }
   }
+
+  return ierr;
 }

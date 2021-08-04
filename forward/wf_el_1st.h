@@ -1,44 +1,93 @@
 #ifndef WF_EL_1ST_H
 #define WF_EL_1ST_H
 
-#define WF_EL_1ST_NVAR    9
+#include "gd_info.h"
 
-#define WF_EL_1ST_SEQ_Vx  0
-#define WF_EL_1ST_SEQ_Vy  1
-#define WF_EL_1ST_SEQ_Vz  2
-#define WF_EL_1ST_SEQ_Txx 3
-#define WF_EL_1ST_SEQ_Tyy 4
-#define WF_EL_1ST_SEQ_Tzz 5
-#define WF_EL_1ST_SEQ_Txz 6
-#define WF_EL_1ST_SEQ_Tyz 7
-#define WF_EL_1ST_SEQ_Txy 8
+/*************************************************
+ * structure
+ *************************************************/
 
-// cal index of var, not finished
-#define M_WF_EL_1ST_IND(icmp,it,istage,nt,num_stage) \
-  ((icmp) * (nt) * (num_stage) + (it) * (num_stage) + (istage))
+/*
+ * wavefield structure
+ */
 
-void 
-wf_el_1st_init_vars(
-    size_t siz_volume,
-    int number_of_levels,
-    int *number_of_vars,
-    float  **p_w3d,
-    size_t **p_w3d_pos,
-    char  ***p_w3d_name);
+// wavefield variables elastic 1st eqn: vel + stress
+typedef struct {
+  float *v5d; // allocated var
 
-void
-wf_el_1st_check_value(float *restrict w, size_t siz_volume);
+  int n1, n2, n3, n4, n5;
+  int nx, ny, nz, ncmp, nlevel;
 
-static inline float *
-wf_el_1st_getptr_Vx(float *restrict w, size_t siz_volume)
+  size_t siz_iy;
+  size_t siz_iz;
+  size_t siz_icmp;
+  size_t siz_ilevel;
+
+  size_t *cmp_pos;
+  char  **cmp_name;
+  size_t *level_pos;
+
+  size_t Vx_pos;
+  size_t Vy_pos;
+  size_t Vz_pos;
+  size_t Txx_pos;
+  size_t Tyy_pos;
+  size_t Tzz_pos;
+  size_t Tyz_pos;
+  size_t Txz_pos;
+  size_t Txy_pos;
+
+  // sequential index 0-based
+  size_t Vx_seq;
+  size_t Vy_seq;
+  size_t Vz_seq;
+  size_t Txx_seq;
+  size_t Tyy_seq;
+  size_t Tzz_seq;
+  size_t Tyz_seq;
+  size_t Txz_seq;
+  size_t Txy_seq;
+} wfel1st_t;
+
+struct fd_vel_t
 {
-  return (w + WF_EL_1ST_SEQ_Vx * siz_volume);
-}
+  float *Vx;
+  float *Vy;
+  float *Vz;
+};
 
-static inline float *
-wf_el_1st_getptr_Vz(float *restrict w, size_t siz_volume)
+struct fd_stress_t
 {
-  return (w + WF_EL_1ST_SEQ_Vz * siz_volume);
-}
+  float *Txx;
+  float *Tyy;
+  float *Tzz;
+};
+
+struct var5d_t
+{
+  int n1, n2, n3, n4, n5;
+  int nx, ny, nz, ncmp, nlevel;
+  float *v5d;
+
+  size_t siz_iy;
+  size_t siz_iz;
+  size_t siz_icmp;
+  size_t siz_ilevel;
+
+  size_t *cmp_pos;
+  char  **cmp_name;
+};
+
+/*************************************************
+ * function prototype
+ *************************************************/
+
+int 
+wf_el_1st_init(gdinfo_t *gdinfo,
+               wfel1st_t *V,
+               int number_of_levels);
+
+int
+wf_el_1st_check_value(float *restrict w, wfel1st_t *wfel1st);
 
 #endif

@@ -14,18 +14,18 @@ date
 MPIDIR=/share/apps/gnu-4.8.5/mpich-3.3
 
 #-- program related dir
-EXEC_DIR=/export/home/lihl/CGFD3D-elastic
+EXEC_DIR=/home/zhangw/code/zwlab/CGFD3D-elastic
 EXEC_WAVE=$EXEC_DIR/cgfdm3d_elastic_mpi
 
 #-- conf
-PROJDIR=/export/home/lihl/CGFD3D-elastic/project
+PROJDIR=/home/zhangw/work/cgfd_arc/01run
 PAR_FILE=${PROJDIR}/test.json
 GRID_DIR=${PROJDIR}/output
 MEDIA_DIR=${PROJDIR}/output
 SOURCE_DIR=${PROJDIR}/output
 OUTPUT_DIR=${PROJDIR}/output
 #-- input file
-TEST_INPUT_DIR=/export/home/lihl/CGFD3D-elastic/test
+TEST_INPUT_DIR=/home/zhangw/code/zwlab/CGFD3D-elastic/test
 IN_STATION_LIST_FILE=${TEST_INPUT_DIR}/test_station.sta
 IN_MEDIA_3LAY_FILE=${TEST_INPUT_DIR}/test_hill3d.md3lay
 IN_SOURCE_FILE=${TEST_INPUT_DIR}/test_source.anasrc
@@ -147,7 +147,7 @@ cat << ieof > $PAR_FILE
          "end_time"   : 1.0,
          "force_vector" : [ 1e16, 1e16, 1e16]
       },
-      "single_moment" : {
+      "#single_moment" : {
          "name" : "evt_test_singel_moment",
          "location_by_grid_index" : [ 40, 40, 50 ],
          "#location_by_coords" : [ 4000, 4000, -500 ],

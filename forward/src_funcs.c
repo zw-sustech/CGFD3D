@@ -4,46 +4,40 @@
 
 // todo:
 
-#include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <stdbool.h>
 #include <math.h>
+
 #include "fdlib_math.h"
 #include "interp.h"
 #include "fdlib_mem.h"
-#include "fd_t.h"
 #include "src_funcs.h"
 #include "isPointInHexahedron.h"
- 
+
+int
+src_set_time(src_t *src, int it, int istage)
+{
+  src->it     = it;
+  src->istage = istage;
+
+  return 0;
+}
+
 /*
  * for single force or moment source term, with Gaussian spatial smoothing
  */
-void
-src_gen_single_point_gauss(size_t siz_line,
-                           size_t siz_slice,
+int
+src_gen_single_point_gauss(gdinfo_t *gdinfo,
+                           gdcurv_t *gdcurv,
+                           src_t    *src,
                            float t0,
                            float dt,
                            int   num_of_stages,
                            float *rk_stage_time,
-                           int   glob_phys_ix1, // gloabl start index along x this thread
-                           int   glob_phys_ix2, // gloabl end index along x
-                           int   glob_phys_iy1,
-                           int   glob_phys_iy2,
-                           int   glob_phys_iz1,
-                           int   glob_phys_iz2,
-                           int   ni1,
-                           int   ni2,
-                           int   nj1,
-                           int   nj2,
-                           int   nk1,
-                           int   nk2,
                            int   npoint_half_ext,
-                           int   npoint_ghosts,
-                           float *x3d,
-                           float *y3d,
-                           float *z3d,
+                           char  *source_name,
                            int   *source_gridindex,
                            float *source_coords,
                            float *force_vector,
@@ -54,10 +48,23 @@ src_gen_single_point_gauss(size_t siz_line,
                            float wavelet_tend,
                            MPI_Comm comm, 
                            int myid,
-                           // following output
-                           struct fd_src_t *src,
                            int verbose)
 {
+  int ierr = 0;
+
+  float *x3d = gdcurv->x3d;
+  float *y3d = gdcurv->y3d;
+  float *z3d = gdcurv->z3d;
+  int   ni1 = gdinfo->ni1;
+  int   ni2 = gdinfo->ni2;
+  int   nj1 = gdinfo->nj1;
+  int   nj2 = gdinfo->nj2;
+  int   nk1 = gdinfo->nk1;
+  int   nk2 = gdinfo->nk2;
+  int   npoint_ghosts = gdinfo->npoint_ghosts;
+  size_t siz_line = gdinfo->siz_iy;
+  size_t siz_slice= gdinfo->siz_iz;
+
   // get total elem of exted src region for a single point
   //int siz_ext = 7 * 7 * 7;
   int siz_ext = (2*npoint_half_ext+1)*(2*npoint_half_ext+1)*(2*npoint_half_ext+1);
@@ -104,9 +111,9 @@ src_gen_single_point_gauss(size_t siz_line,
     if ( is_here == 1)
     {
       // conver to global index
-      sgpi = si - npoint_ghosts + glob_phys_ix1;
-      sgpj = sj - npoint_ghosts + glob_phys_iy1;
-      sgpk = sk - npoint_ghosts + glob_phys_iz1;
+      sgpi = gd_info_ind_lcext2glphy_i(si, gdinfo);
+      sgpj = gd_info_ind_lcext2glphy_j(sj, gdinfo);
+      sgpk = gd_info_ind_lcext2glphy_k(sk, gdinfo);
       fprintf(stdout," -- located to local index = %d %d %d\n", si,sj,sk);
       fprintf(stdout," -- located to global index = %d %d %d\n", sgpi,sgpj,sgpk);
       fprintf(stdout," --  with shift = %f %f %f\n", sx_inc,sy_inc,sz_inc);
@@ -137,18 +144,18 @@ src_gen_single_point_gauss(size_t siz_line,
       myid,sgpi,sgpj,sgpk, sx_inc,sy_inc,sz_inc);
 
   // use grid index to check if in this thread after extend
-  if (sgpi-npoint_half_ext <= glob_phys_ix2 && // exted left point is less than right bdry
-      sgpi+npoint_half_ext >= glob_phys_ix1 && // exted right point is larger than left bdry
-      sgpj-npoint_half_ext <= glob_phys_iy2 && 
-      sgpj+npoint_half_ext >= glob_phys_iy1 &&
-      sgpk-npoint_half_ext <= glob_phys_iz2 && 
-      sgpk+npoint_half_ext >= glob_phys_iz1)
+  if (sgpi-npoint_half_ext <= gdinfo->ni2_to_glob_phys0 && // exted left point is less than right bdry
+      sgpi+npoint_half_ext >= gdinfo->ni1_to_glob_phys0 && // exted right point is larger than left bdry
+      sgpj-npoint_half_ext <= gdinfo->nj2_to_glob_phys0 && 
+      sgpj+npoint_half_ext >= gdinfo->nj1_to_glob_phys0 &&
+      sgpk-npoint_half_ext <= gdinfo->nk2_to_glob_phys0 && 
+      sgpk+npoint_half_ext >= gdinfo->nk1_to_glob_phys0)
   {
     // at least one extend point in this thread
     // convert to local index
-    si = sgpi - glob_phys_ix1 + npoint_ghosts;
-    sj = sgpj - glob_phys_iy1 + npoint_ghosts;
-    sk = sgpk - glob_phys_iz1 + npoint_ghosts;
+    si = gd_info_ind_glphy2lcext_i(sgpi, gdinfo);
+    sj = gd_info_ind_glphy2lcext_j(sgpj, gdinfo);
+    sk = gd_info_ind_glphy2lcext_k(sgpk, gdinfo);
   }
   else
   {  // no source in this thread
@@ -193,6 +200,7 @@ src_gen_single_point_gauss(size_t siz_line,
   src->max_nt    = nt_total_wavelet;
   src->max_stage = num_of_stages;
   src->max_ext   = siz_ext;
+  sprintf(src->evtnm,"%s", source_name);
 
   // allocate var
   src->si = (int *)malloc(src->total_number*sizeof(int));
@@ -283,9 +291,11 @@ src_gen_single_point_gauss(size_t siz_line,
 
   if (wavelet_values!=NULL) free(wavelet_values);
 
+  return ierr;
 }
 
 
+/*
 int
 src_read_locate_valsrc(char *pfilepath,
                        size_t siz_line,
@@ -581,7 +591,7 @@ src_read_locate_valsrc(char *pfilepath,
   char  **moment_wavelet_mechism = NULL;
   if(nforce>0)
   {
-    force_value = (float **) fdlib_mem_malloc_2l_float(FD_NDIM, nforce*nt_in, "force_value");
+    force_value = (float **) fdlib_mem_malloc_2l_float(CONST_NDIM, nforce*nt_in, "force_value");
     force_wavelet_tstart = (float *) malloc(nforce * sizeof(float));
   }
   if(nmoment>0)
@@ -694,7 +704,7 @@ src_read_locate_valsrc(char *pfilepath,
     force_info = (int *)fdlib_mem_calloc_1d_int(nforce*M_SRC_INFO_NVAL, 1,"src_read_locat_valsrc");
     // stf
     nt_force = (int) (((nt_in-1)*dt_in / dt) + 0.5) + 1;
-    force_vec_stf = (float *)fdlib_mem_calloc_1d_float(nforce*nt_force*FD_NDIM*num_of_stages,0.0,"src_read_locat_valsrc");
+    force_vec_stf = (float *)fdlib_mem_calloc_1d_float(nforce*nt_force*CONST_NDIM*num_of_stages,0.0,"src_read_locat_valsrc");
     // ext
     force_ext_coef = (float *)malloc(nforce*siz_ext * sizeof(float));
     force_ext_indx = (int   *)malloc(nforce*siz_ext * sizeof(int  ));
@@ -709,16 +719,16 @@ src_read_locate_valsrc(char *pfilepath,
     int  sj = force_local_index[3 * indx + 1];
     int  sk = force_local_index[3 * indx + 2];
     // save values to inner var
-    force_info[M_SRC_INFO_NVAL * i + M_SRC_INFO_SEQ_SI   ] = si;
-    force_info[M_SRC_INFO_NVAL * i + M_SRC_INFO_SEQ_SJ   ] = sj;
-    force_info[M_SRC_INFO_NVAL * i + M_SRC_INFO_SEQ_SK   ] = sk;
-    force_info[M_SRC_INFO_NVAL * i + M_SRC_INFO_SEQ_POS  ] = 0 + i*nt_force*FD_NDIM*num_of_stages;
-    force_info[M_SRC_INFO_NVAL * i + M_SRC_INFO_SEQ_ITBEG] = it_begin;
-    force_info[M_SRC_INFO_NVAL * i + M_SRC_INFO_SEQ_ITEND] = it_end;
+    force_info[8 * i + M_SRC_INFO_SEQ_SI   ] = force_local_index[3 * indx + 0];
+    force_info[8 * i + M_SRC_INFO_SEQ_SJ   ] = force_local_index[3 * indx + 1];
+    force_info[8 * i + M_SRC_INFO_SEQ_SK   ] = force_local_index[3 * indx + 2];
+    force_info[8 * i + M_SRC_INFO_SEQ_POS  ] = 0 + i*nt_force*CONST_NDIM*num_of_stages;
+    force_info[8 * i + M_SRC_INFO_SEQ_ITBEG] = it_begin;
+    force_info[8 * i + M_SRC_INFO_SEQ_ITEND] = it_end;
 
-    int ipos = force_info[M_SRC_INFO_NVAL * i + M_SRC_INFO_SEQ_POS];
-    int it1  = force_info[M_SRC_INFO_NVAL * i + M_SRC_INFO_SEQ_ITBEG];
-    int it2  = force_info[M_SRC_INFO_NVAL * i + M_SRC_INFO_SEQ_ITEND];
+    int ipos = force_info[M_SRC_INFO_SEQ_POS];
+    int it1  = force_info[M_SRC_INFO_SEQ_ITBEG];
+    int it2  = force_info[M_SRC_INFO_SEQ_ITEND];
     float *this_vec_stf = force_vec_stf + ipos;
     float *this_force_value;
     int order = 3;
@@ -727,7 +737,7 @@ src_read_locate_valsrc(char *pfilepath,
       t_in[it_in] = force_wavelet_tstart[i] + it_in*dt_in;
     } 
 
-    for (int icmp=0; icmp<FD_NDIM; icmp++)
+    for (int icmp=0; icmp<CONST_NDIM; icmp++)
     {
       this_force_value = *(force_value+icmp) + i * nt_in;
       for (int it=it1; it<=it2; it++)
@@ -891,8 +901,10 @@ src_read_locate_valsrc(char *pfilepath,
   }
   return 0;
 }
+*/
 
 
+/*
 int
 src_read_locate_anasrc(char *pfilepath,
                        size_t siz_line,
@@ -1173,7 +1185,7 @@ src_read_locate_anasrc(char *pfilepath,
     force_info = (int *)fdlib_mem_calloc_1d_int(nforce*M_SRC_INFO_NVAL, 1, "src_read_locat_anasrc");
     // stf
     nt_force = (int) (wavelet_tlen / dt +0.5) + 1;
-    force_vec_stf = (float *)fdlib_mem_calloc_1d_float(nforce*nt_force*FD_NDIM*num_of_stages,0.0,
+    force_vec_stf = (float *)fdlib_mem_calloc_1d_float(nforce*nt_force*CONST_NDIM*num_of_stages,0.0,
         "src_read_loact_anasrc");
     // ext
     force_ext_coef = (float *)malloc(nforce*siz_ext * sizeof(float));
@@ -1189,19 +1201,19 @@ src_read_locate_anasrc(char *pfilepath,
     int  sj = force_local_index[3 * indx + 1];
     int  sk = force_local_index[3 * indx + 2];
     // save values to inner var
-    force_info[M_SRC_INFO_NVAL * i + M_SRC_INFO_SEQ_SI   ] = si;
-    force_info[M_SRC_INFO_NVAL * i + M_SRC_INFO_SEQ_SJ   ] = sj;
-    force_info[M_SRC_INFO_NVAL * i + M_SRC_INFO_SEQ_SK   ] = sk;
-    force_info[M_SRC_INFO_NVAL * i + M_SRC_INFO_SEQ_POS  ] = 0 + i * nt_force*FD_NDIM*num_of_stages;
-    force_info[M_SRC_INFO_NVAL * i + M_SRC_INFO_SEQ_ITBEG] = it_begin;
-    force_info[M_SRC_INFO_NVAL * i + M_SRC_INFO_SEQ_ITEND] = it_end;
+    force_info[8 * i + M_SRC_INFO_SEQ_SI   ] = force_local_index[3 * indx + 0];
+    force_info[8 * i + M_SRC_INFO_SEQ_SJ   ] = force_local_index[3 * indx + 1];
+    force_info[8 * i + M_SRC_INFO_SEQ_SK   ] = force_local_index[3 * indx + 2];
+    force_info[8 * i + M_SRC_INFO_SEQ_POS  ] = 0 + i * nt_force*CONST_NDIM*num_of_stages;
+    force_info[8 * i + M_SRC_INFO_SEQ_ITBEG] = it_begin;
+    force_info[8 * i + M_SRC_INFO_SEQ_ITEND] = it_end;
 
-    int ipos = force_info[M_SRC_INFO_NVAL * i + M_SRC_INFO_SEQ_POS];
-    int it1  = force_info[M_SRC_INFO_NVAL * i + M_SRC_INFO_SEQ_ITBEG];
-    int it2  = force_info[M_SRC_INFO_NVAL * i + M_SRC_INFO_SEQ_ITEND];
+    int ipos = force_info[M_SRC_INFO_SEQ_POS];
+    int it1  = force_info[M_SRC_INFO_SEQ_ITBEG];
+    int it2  = force_info[M_SRC_INFO_SEQ_ITEND];
     float *this_vec_stf = force_vec_stf + ipos;
     float *this_force_vector = force_vector + indx*3; 
-    for (int icmp=0; icmp<FD_NDIM; icmp++)
+    for (int icmp=0; icmp<CONST_NDIM; icmp++)
     {
       for (int it=it1; it<=it2; it++)
       {
@@ -1481,6 +1493,7 @@ src_read_locate_anasrc(char *pfilepath,
   }
   return 0;
 }
+*/
 
 
 /*
@@ -1559,93 +1572,6 @@ fun_gauss_deriv(float t, float a, float t0)
   float f;
   f = exp(-(t-t0)*(t-t0)/(a*a))/(sqrtf(PI)*a)*(-2*(t-t0)/(a*a));
   return f;
-}
-
-
-/*
- * get the stf and moment rate for one stage
- */
-
-void
-src_get_stage_stf(
-    int num_of_force,
-    int *restrict force_info, // num_of_force * 6 : si,sj,sk,start_pos_in_stf,start_it, end_it
-    float *restrict force_vec_stf,
-    int num_of_moment,
-    int *restrict moment_info, // num_of_force * 6 : si,sj,sk,start_pos_in_rate,start_it, end_it
-    float *restrict moment_ten_rate,
-    int it, int istage, int num_of_stages,
-    float *restrict force_vec_value,
-    float *restrict moment_ten_value,
-    const int myid, const int verbose)
-{
-  for (int n=0; n<num_of_force; n++)
-  {
-    int ipos = force_info[M_SRC_INFO_NVAL*n + M_SRC_INFO_SEQ_POS];
-    int it1  = force_info[M_SRC_INFO_NVAL*n + M_SRC_INFO_SEQ_ITBEG];
-    int it2  = force_info[M_SRC_INFO_NVAL*n + M_SRC_INFO_SEQ_ITEND];
-    int nt_force = it2 - it1 + 1;
-
-    // point tho this force in vec_stf
-    float *ptr_force = force_vec_stf + ipos;
-
-    for (int icmp=0; icmp<FD_NDIM; icmp++)
-    {
-      int iptr_value = n * FD_NDIM + icmp;
-      if (it < it1 || it > it2)
-      {
-        force_vec_value[iptr_value] = 0.0;
-      }
-      else
-      {
-        int it_to_it1 = it - it1;
-        int iptr = M_SRC_IND(icmp,it_to_it1,istage,nt_force,num_of_stages);
-
-        force_vec_value[iptr_value] = ptr_force[iptr];
-      }
-    }
-  }
-
-  for (int n=0; n<num_of_moment; n++)
-  {
-    int ipos = moment_info[M_SRC_INFO_NVAL*n + M_SRC_INFO_SEQ_POS];
-    int it1  = moment_info[M_SRC_INFO_NVAL*n + M_SRC_INFO_SEQ_ITBEG];
-    int it2  = moment_info[M_SRC_INFO_NVAL*n + M_SRC_INFO_SEQ_ITEND];
-    int nt_moment = it2 - it1 + 1;
-    // point tho this moment in ten_rate
-    float *ptr_moment = moment_ten_rate + ipos;
-
-    for (int icmp=0; icmp<6; icmp++)
-    {
-      int iptr_value = n * 6 + icmp;
-
-      if (it < it1 || it > it2)
-      {
-        moment_ten_value[iptr_value] = 0.0;
-      }
-      else
-      {
-        int it_to_it1 = it - it1;
-        int iptr = M_SRC_IND(icmp,it_to_it1,istage,nt_moment,num_of_stages);
-        moment_ten_value[iptr_value] = ptr_moment[iptr];
-      }
-    }
-  }
-
-  // for test, reset only at it=0
-  //int n = 0;
-  //for (int icmp=0; icmp<6; icmp++)
-  //{
-  //  int iptr_value = n * 6 + icmp;
-  //  if (it==0 && icmp<3) {
-  //    moment_ten_value[iptr_value] = 1.0e9;
-  //  }
-  //  else
-  //  {
-  //    moment_ten_value[iptr_value] = 0.0;
-  //  }
-  //}
-
 }
 
 /*

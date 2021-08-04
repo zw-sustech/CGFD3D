@@ -25,10 +25,11 @@ NETCDF :=  /share/apps/gnu-4.8.5/disable-netcdf-4.4.1
 CFLAGS := -I$(NETCDF)/include -I./lib/ -I./forward/ -I./media/  $(CFLAGS)
 
 #- debug
-#CFLAGS   := -g $(CFLAGS)
+CFLAGS   := -g $(CFLAGS)
+CPPFLAGS := -g -std=c++11 $(CPPFLAGS)
 #- O3
-CFLAGS   := -O3 $(CFLAGS)
-CPPFLAGS := -O2 -std=c++11 $(CPPFLAGS)
+#CFLAGS   := -O3 $(CFLAGS)
+#CPPFLAGS := -O2 -std=c++11 $(CPPFLAGS)
 
 #- static
 #LDFLAGS := $(NETCDF)/lib/libnetcdf.a -lm -static $(LDFLAGS)
@@ -47,15 +48,15 @@ LDFLAGS := -lm  $(LDFLAGS) $(NETCDF)/lib/libnetcdf.a
 
 cgfdm3d_elastic_mpi: \
 		cJSON.o sacLib.o fdlib_mem.o fdlib_math.o  \
-		fd_t.o par_t.o interp.o\
+		fd_t.o par_t.o interp.o mympi_t.o \
 		media_utility.o \
 		media_layer2model.o \
 		media_grid2model.o \
 		media_geometry3d.o \
 		media_read_interface_file.o \
-		gd_curv.o md_el_iso.o wf_el_1st.o \
-		abs_funcs.o src_funcs.o io_funcs.o \
-		sv_eliso1st_curv_macdrp.o \
+		gd_info.o gd_curv.o md_el_iso.o wf_el_1st.o \
+		bdry_free.o bdry_pml.o src_funcs.o io_funcs.o \
+		blk_t.o sv_eliso1st_curv_macdrp.o \
 		cgfdm3d_elastic_main.o
 	$(CXX) -o $@ $^ $(LDFLAGS)
 
@@ -84,17 +85,25 @@ par_t.o: forward/par_t.c
 	${CC} -c -o $@ $(CFLAGS) $<
 interp.o: forward/interp.c
 	${CC} -c -o $@ $(CFLAGS) $<
+mympi_t.o: forward/mympi_t.c
+	${CC} -c -o $@ $(CFLAGS) $<
+gd_info.o: forward/gd_info.c
+	${CC} -c -o $@ $(CFLAGS) $<
 gd_curv.o: forward/gd_curv.c
 	${CC} -c -o $@ $(CFLAGS) $<
 md_el_iso.o: forward/md_el_iso.c
 	${CC} -c -o $@ $(CFLAGS) $<
 wf_el_1st.o: forward/wf_el_1st.c
 	${CC} -c -o $@ $(CFLAGS) $<
-abs_funcs.o: forward/abs_funcs.c
+bdry_pml.o: forward/bdry_pml.c
+	${CC} -c -o $@ $(CFLAGS) $<
+bdry_free.o: forward/bdry_free.c
 	${CC} -c -o $@ $(CFLAGS) $<
 src_funcs.o: forward/src_funcs.c
 	${CC} -c -o $@ $(CFLAGS) $<
 io_funcs.o: forward/io_funcs.c
+	${CC} -c -o $@ $(CFLAGS) $<
+blk_t.o: forward/blk_t.c
 	${CC} -c -o $@ $(CFLAGS) $<
 sv_eliso1st_curv_macdrp.o: forward/sv_eliso1st_curv_macdrp.c
 	${CC} -c -o $@ $(CFLAGS) $<

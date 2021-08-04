@@ -14,7 +14,7 @@
  * for MPI, master read, broadcast to all procs
  */
 void
-par_mpi_get(char *par_fname, int myid, MPI_Comm comm, struct par_t *par, int verbose)
+par_mpi_get(char *par_fname, int myid, MPI_Comm comm, par_t *par, int verbose)
 {
   char *str;
 
@@ -60,7 +60,7 @@ par_mpi_get(char *par_fname, int myid, MPI_Comm comm, struct par_t *par, int ver
  * for non-MPI, read from file
  */
 void
-par_read_from_file(char *par_fname, int myid, MPI_Comm comm, struct par_t *par, int verbose)
+par_read_from_file(char *par_fname, int myid, MPI_Comm comm, par_t *par, int verbose)
 {
   //
   // read whole file inot str
@@ -82,12 +82,14 @@ par_read_from_file(char *par_fname, int myid, MPI_Comm comm, struct par_t *par, 
 /*
  * funcs to get par from alread read in str
  */
-void 
-par_read_from_str(const char *str, struct par_t *par)
+int 
+par_read_from_str(const char *str, par_t *par)
 {
+  int ierr = 0;
+
   // allocate
-  par->boundary_type_name = (char **)malloc(FD_NDIM_2 * sizeof(char*));
-  for (int i=0; i<FD_NDIM_2; i++) {
+  par->boundary_type_name = (char **)malloc(CONST_NDIM_2 * sizeof(char*));
+  for (int i=0; i<CONST_NDIM_2; i++) {
     par->boundary_type_name[i] = (char *)malloc(10*sizeof(char));
   }
 
@@ -151,10 +153,21 @@ par_read_from_str(const char *str, struct par_t *par)
           par->number_of_time_steps * par->size_of_time_step;
   //int     nt_total = (int) ((par->time_end - par->time_start) / dt+0.5);
 
-  // cfspml default values
-  for (int i = 0; i < FD_NDIM_2; i++) {
+  //
+  // boundary default values
+  //
+  for (int i = 0; i < CONST_NDIM_2; i++) {
     par->abs_num_of_layers[i] = 0;
   }
+  for (int idim=0; idim < CONST_NDIM; idim++) {
+    for (int iside=0; iside < 2; iside++) {
+      par->cfspml_is_sides[idim][iside] = 0;
+      par->free_is_sides  [idim][iside] = 0;
+    }
+  }
+  par->bdry_has_cfspml = 0;
+  par->bdry_has_free   = 0;
+
   // x1 boundary, no default yet
   if (item = cJSON_GetObjectItem(root, "boundary_x_left"))
   {
@@ -165,6 +178,8 @@ par_read_from_str(const char *str, struct par_t *par)
                             par->cfspml_alpha_max +0,
                             par->cfspml_beta_max  +0,
                             par->cfspml_velocity  +0);
+      par->cfspml_is_sides[0][0] = 1;
+      par->bdry_has_cfspml = 1;
     }
   }
   // x2 boundary, no default yet
@@ -177,6 +192,8 @@ par_read_from_str(const char *str, struct par_t *par)
                             par->cfspml_alpha_max +1,
                             par->cfspml_beta_max  +1,
                             par->cfspml_velocity  +1);
+      par->cfspml_is_sides[0][1] = 1;
+      par->bdry_has_cfspml = 1;
     }
   }
   // y1 boundary, no default yet
@@ -189,6 +206,8 @@ par_read_from_str(const char *str, struct par_t *par)
                             par->cfspml_alpha_max +2,
                             par->cfspml_beta_max  +2,
                             par->cfspml_velocity  +2);
+      par->cfspml_is_sides[1][0] = 1;
+      par->bdry_has_cfspml = 1;
     }
   }
   // y2 boundary, no default yet
@@ -201,6 +220,8 @@ par_read_from_str(const char *str, struct par_t *par)
                             par->cfspml_alpha_max +3,
                             par->cfspml_beta_max  +3,
                             par->cfspml_velocity  +3);
+      par->cfspml_is_sides[1][2] = 1;
+      par->bdry_has_cfspml = 1;
     }
   }
   // z1 boundary, no default yet
@@ -213,6 +234,8 @@ par_read_from_str(const char *str, struct par_t *par)
                             par->cfspml_alpha_max +4,
                             par->cfspml_beta_max  +4,
                             par->cfspml_velocity  +4);
+      par->cfspml_is_sides[2][0] = 1;
+      par->bdry_has_cfspml = 1;
     }
   }
   // z2 boundary, no default yet
@@ -225,9 +248,13 @@ par_read_from_str(const char *str, struct par_t *par)
                             par->cfspml_alpha_max +5,
                             par->cfspml_beta_max  +5,
                             par->cfspml_velocity  +5);
+      par->cfspml_is_sides[2][1] = 1;
+      par->bdry_has_cfspml = 1;
     }
     if (subitem = cJSON_GetObjectItem(item, "free")) {
-       sprintf(par->boundary_type_name[5], "%s", "free");
+      sprintf(par->boundary_type_name[5], "%s", "free");
+      par->free_is_sides[2][1] = 1;
+      par->bdry_has_free = 1;
     }
   }
 
@@ -248,12 +275,12 @@ par_read_from_str(const char *str, struct par_t *par)
     if (subitem = cJSON_GetObjectItem(item, "cartesian")) {
        par->grid_generation_itype = PAR_GRID_CARTESIAN;
        if (thirditem = cJSON_GetObjectItem(subitem, "origin")) {
-         for (int i = 0; i < FD_NDIM; i++) {
+         for (int i = 0; i < CONST_NDIM; i++) {
            par->cartesian_grid_origin[i] = cJSON_GetArrayItem(thirditem, i)->valuedouble;
          }
        }
        if (thirditem = cJSON_GetObjectItem(subitem, "inteval")) {
-         for (int i = 0; i < FD_NDIM; i++) {
+         for (int i = 0; i < CONST_NDIM; i++) {
            par->cartesian_grid_stepsize[i] = cJSON_GetArrayItem(thirditem, i)->valuedouble;
          }
        }
@@ -265,17 +292,17 @@ par_read_from_str(const char *str, struct par_t *par)
           sprintf(par->in_grid_layer_file, "%s", thirditem->valuestring);
        }
        if (thirditem = cJSON_GetObjectItem(subitem, "refine_factor")) {
-         for (int i = 0; i < FD_NDIM; i++) {
+         for (int i = 0; i < CONST_NDIM; i++) {
            par->grid_layer_resample_factor[i] = cJSON_GetArrayItem(thirditem, i)->valueint;
          }
        }
        if (thirditem = cJSON_GetObjectItem(subitem, "horizontal_start_index")) {
-         for (int i = 0; i < FD_NDIM-1; i++) {
+         for (int i = 0; i < CONST_NDIM-1; i++) {
            par->grid_layer_start[i] = cJSON_GetArrayItem(thirditem, i)->valueint;
          }
        }
        if (thirditem = cJSON_GetObjectItem(subitem, "vertical_ToFreeSurf_resample_index")) {
-         par->grid_layer_start[FD_NDIM-1] = thirditem->valueint;
+         par->grid_layer_start[CONST_NDIM-1] = thirditem->valueint;
        }
     }
   }
@@ -348,7 +375,7 @@ par_read_from_str(const char *str, struct par_t *par)
 
   // default: grid index to negative for determine grid or loc
 
-  for (int i = 0; i < FD_NDIM; i++) par->source_gridindex[i] = -1;
+  for (int i = 0; i < CONST_NDIM; i++) par->source_gridindex[i] = -1;
   
   par->source_input_itype = PAR_SOURCE_SINGLE_FORCE;
   if (item = cJSON_GetObjectItem(root, "source_input")) {
@@ -356,7 +383,7 @@ par_read_from_str(const char *str, struct par_t *par)
     {
        par->source_input_itype = PAR_SOURCE_SINGLE_FORCE;
        if (thirditem = cJSON_GetObjectItem(subitem, "force_vector")) {
-         for (int i = 0; i < FD_NDIM; i++) {
+         for (int i = 0; i < CONST_NDIM; i++) {
            par->source_force_vector[i] = cJSON_GetArrayItem(thirditem, i)->valuedouble;
          }
        }
@@ -370,7 +397,7 @@ par_read_from_str(const char *str, struct par_t *par)
     {
        par->source_input_itype = PAR_SOURCE_SINGLE_MOMENT;
        if (thirditem = cJSON_GetObjectItem(subitem, "moment_tensor")) {
-         for (int i = 0; i < FD_NDIM_2; i++) {
+         for (int i = 0; i < CONST_NDIM_2; i++) {
            par->source_moment_tensor[i] = cJSON_GetArrayItem(thirditem, i)->valuedouble;
          }
        }
@@ -409,8 +436,8 @@ par_read_from_str(const char *str, struct par_t *par)
   if (item = cJSON_GetObjectItem(root, "receiver_line"))
   {
     par->number_of_receiver_line = cJSON_GetArraySize(item);
-    par->receiver_line_index_start  = (int *)malloc(par->number_of_receiver_line*sizeof(int)*FD_NDIM);
-    par->receiver_line_index_incre  = (int *)malloc(par->number_of_receiver_line*sizeof(int)*FD_NDIM);
+    par->receiver_line_index_start  = (int *)malloc(par->number_of_receiver_line*sizeof(int)*CONST_NDIM);
+    par->receiver_line_index_incre  = (int *)malloc(par->number_of_receiver_line*sizeof(int)*CONST_NDIM);
     par->receiver_line_count  = (int *)malloc(par->number_of_receiver_line*sizeof(int));
     //par->receiver_line_time_interval  = (int *)malloc(par->number_of_receiver_line*sizeof(int));
     par->receiver_line_name = (char **)malloc(par->number_of_receiver_line*sizeof(char*));
@@ -429,15 +456,15 @@ par_read_from_str(const char *str, struct par_t *par)
 
       if (subitem = cJSON_GetObjectItem(lineitem, "grid_index_start"))
       {
-        for (int j = 0; j < FD_NDIM; j++) {
-          par->receiver_line_index_start[i*FD_NDIM+j] = cJSON_GetArrayItem(subitem, j)->valueint;
+        for (int j = 0; j < CONST_NDIM; j++) {
+          par->receiver_line_index_start[i*CONST_NDIM+j] = cJSON_GetArrayItem(subitem, j)->valueint;
         }
       }
 
       if (subitem = cJSON_GetObjectItem(lineitem, "grid_index_incre"))
       {
-        for (int j = 0; j < FD_NDIM; j++) {
-          par->receiver_line_index_incre[i*FD_NDIM+j] = cJSON_GetArrayItem(subitem, j)->valueint;
+        for (int j = 0; j < CONST_NDIM; j++) {
+          par->receiver_line_index_incre[i*CONST_NDIM+j] = cJSON_GetArrayItem(subitem, j)->valueint;
         }
       }
 
@@ -489,15 +516,15 @@ par_read_from_str(const char *str, struct par_t *par)
   if (item = cJSON_GetObjectItem(root, "snapshot"))
   {
     par->number_of_snapshot = cJSON_GetArraySize(item);
-    //fprintf(stdout,"size=%d, %d, %d\n", par->number_of_snapshot, sizeof(int), FD_NDIM);
+    //fprintf(stdout,"size=%d, %d, %d\n", par->number_of_snapshot, sizeof(int), CONST_NDIM);
     //fflush(stdout);
-    par->snapshot_index_start  = (int *)malloc(par->number_of_snapshot*sizeof(int)*FD_NDIM);
+    par->snapshot_index_start  = (int *)malloc(par->number_of_snapshot*sizeof(int)*CONST_NDIM);
     //if (par->snapshot_index_start == NULL) {
     //  fprintf(stdout,"eror\n");
     //  fflush(stdout);
     //}
-    par->snapshot_index_count  = (int *)malloc(par->number_of_snapshot*sizeof(int)*FD_NDIM);
-    par->snapshot_index_incre = (int *)malloc(par->number_of_snapshot*sizeof(int)*FD_NDIM);
+    par->snapshot_index_count  = (int *)malloc(par->number_of_snapshot*sizeof(int)*CONST_NDIM);
+    par->snapshot_index_incre = (int *)malloc(par->number_of_snapshot*sizeof(int)*CONST_NDIM);
     par->snapshot_time_start  = (int *)malloc(par->number_of_snapshot*sizeof(int));
     par->snapshot_time_incre = (int *)malloc(par->number_of_snapshot*sizeof(int));
     par->snapshot_save_velocity = (int *)malloc(par->number_of_snapshot*sizeof(int));
@@ -521,22 +548,22 @@ par_read_from_str(const char *str, struct par_t *par)
 
       if (subitem = cJSON_GetObjectItem(snapitem, "grid_index_start"))
       {
-        for (int j = 0; j < FD_NDIM; j++) {
-          par->snapshot_index_start[i*FD_NDIM+j] = cJSON_GetArrayItem(subitem, j)->valueint;
+        for (int j = 0; j < CONST_NDIM; j++) {
+          par->snapshot_index_start[i*CONST_NDIM+j] = cJSON_GetArrayItem(subitem, j)->valueint;
         }
       }
 
       if (subitem = cJSON_GetObjectItem(snapitem, "grid_index_count"))
       {
-        for (int j = 0; j < FD_NDIM; j++) {
-          par->snapshot_index_count[i*FD_NDIM+j] = cJSON_GetArrayItem(subitem, j)->valueint;
+        for (int j = 0; j < CONST_NDIM; j++) {
+          par->snapshot_index_count[i*CONST_NDIM+j] = cJSON_GetArrayItem(subitem, j)->valueint;
         }
       }
 
       if (subitem = cJSON_GetObjectItem(snapitem, "grid_index_incre"))
       {
-        for (int j = 0; j < FD_NDIM; j++) {
-          par->snapshot_index_incre[i*FD_NDIM+j] = cJSON_GetArrayItem(subitem, j)->valueint;
+        for (int j = 0; j < CONST_NDIM; j++) {
+          par->snapshot_index_incre[i*CONST_NDIM+j] = cJSON_GetArrayItem(subitem, j)->valueint;
         }
       }
 
@@ -574,7 +601,7 @@ par_read_from_str(const char *str, struct par_t *par)
 
   // set values to default ones if no input
 
-  return;
+  return ierr;
 }
 
 /*
@@ -622,14 +649,14 @@ par_read_json_source(cJSON *item, char *wavelet_type_name,
 
   // if coordinate
   if (subitem = cJSON_GetObjectItem(item, "location_by_coords")) {
-    for (int i = 0; i < FD_NDIM; i++) {
+    for (int i = 0; i < CONST_NDIM; i++) {
       src_coord[i] = cJSON_GetArrayItem(subitem, i)->valuedouble;
     }
   }
 
   // if grid index
   if (subitem = cJSON_GetObjectItem(item, "location_by_grid_index")) {
-    for (int i = 0; i < FD_NDIM; i++) {
+    for (int i = 0; i < CONST_NDIM; i++) {
       grid_index[i] = cJSON_GetArrayItem(subitem, i)->valueint;
     }
   }
@@ -673,9 +700,11 @@ par_read_json_source(cJSON *item, char *wavelet_type_name,
   }
 }
 
-void
-par_print(struct par_t *par)
+int
+par_print(par_t *par)
 {    
+  int ierr = 0;
+
   fprintf(stdout, "-------------------------------------------------------\n");
   //fprintf(stdout, "--> ESTIMATE MEMORY INFO.\n");
   //fprintf(stdout, "-------------------------------------------------------\n");
@@ -907,5 +936,5 @@ par_print(struct par_t *par)
   fprintf(stdout, "check_nan_every_nummber_of_steps=%d\n", par->check_nan_every_nummber_of_steps);
   fprintf(stdout, "output_all=%d\n", par->output_all);
 
-  return;
+  return ierr;
 }

@@ -8,754 +8,12 @@
 #include <math.h>
 #include <mpi.h>
 
-#include "netcdf.h"
-
 #include "fdlib_mem.h"
 #include "fdlib_math.h"
-#include "fd_t.h"
-#include "par_t.h"
-#include "gd_curv.h"
-#include "md_el_iso.h"
-#include "wf_el_1st.h"
-#include "abs_funcs.h"
-#include "src_funcs.h"
-#include "io_funcs.h"
+#include "blk_t.h"
 #include "sv_eliso1st_curv_macdrp.h"
 
-//#define M_NCERR(ierr) {fprintf(stderr,"sv_ nc error: %s\n", nc_strerror(ierr)); exit(1);}
-#ifndef M_NCERR
-#define M_NCERR {fprintf(stderr,"sv_ nc error\n"); exit(1);}
-#endif
-
 //#define SV_ELISO1ST_CURV_MACDRP_DEBUG
-
-//#ifdef SV_ELISO1ST_CURV_MACDRP_DEBUG
-//#include "fd_debug.h"
-//#endif
-
-/*******************************************************************************
- * one simulation over all time steps, could be used in imaging or inversion
- ******************************************************************************/
-
-void
-sv_eliso1st_curv_macdrp_allstep(
-    float *restrict w3d,  // wavefield
-    size_t *restrict w3d_pos,
-    char **w3d_name,
-    int   w3d_num_of_vars,
-    char **coord_name,
-    float *restrict g3d,  // grid vars
-    float *restrict m3d,  // medium vars
-    // grid size
-    int ni1, int ni2, int nj1, int nj2, int nk1, int nk2,
-    int ni, int nj, int nk, int nx, int ny, int nz,
-    size_t siz_line, size_t siz_slice, size_t siz_volume,
-    // boundary type
-    int *restrict boundary_itype,
-    // if abs
-    int              abs_itype, //
-    int    *restrict abs_num_of_layers, //
-    int *restrict abs_indx, //
-    int *restrict abs_coefs_facepos0, //
-    float  *restrict abs_coefs, //
-    int           abs_vars_size_per_level, //
-    int *restrict abs_vars_volsiz, //
-    int *restrict abs_vars_facepos0, //
-    float  *restrict abs_vars,
-    // if free surface
-    float *matVx2Vz, //
-    float *matVy2Vz, //
-    // source term
-    struct fd_src_t *src,
-    // io
-    struct fd_sta_all_t *restrict sta_info, float *restrict sta_seismo,
-    int num_of_point, int *restrict point_loc_indx, float *restrict point_seismo,
-    int num_of_slice_x, int *restrict slice_x_indx, char **restrict slice_x_fname,
-    int num_of_slice_y, int *restrict slice_y_indx, char **restrict slice_y_fname,
-    int num_of_slice_z, int *restrict slice_z_indx, char **restrict slice_z_fname,
-    int num_of_snap, int *restrict snap_info, char **snap_fname,
-    char *output_fname_part,
-    char *output_dir,
-    // scheme
-    int num_rk_stages, float *rk_a, float *rk_b,
-    int num_of_pairs, 
-    int fdx_max_half_len, int fdy_max_half_len,
-    int fdz_max_len, int fdz_num_surf_lay,
-    int ****pair_fdx_all_info, int ***pair_fdx_all_indx, float ***pair_fdx_all_coef,
-    int ****pair_fdy_all_info, int ***pair_fdy_all_indx, float ***pair_fdy_all_coef,
-    int ****pair_fdz_all_info, int ***pair_fdz_all_indx, float ***pair_fdz_all_coef,
-    // time
-    float dt, int nt_total, float t0,
-    // mpi
-    int myid, int *myid2, MPI_Comm comm,
-    float *restrict sbuff,
-    float *restrict rbuff,
-    MPI_Request *s_reqs,
-    MPI_Request *r_reqs,
-    int qc_check_nan_num_of_step,
-    const int output_all, // qc all var
-    const int verbose)
-{
-  // local allocated array
-  char ou_file[FD_MAX_STRLEN];
-
-  // local pointer
-  float *restrict w_cur;
-  float *restrict w_pre;
-  float *restrict w_rhs;
-  float *restrict w_end;
-  float *restrict w_tmp;
-
-  float *restrict abs_vars_cur;
-  float *restrict abs_vars_pre;
-  float *restrict abs_vars_rhs;
-  float *restrict abs_vars_end;
-  float *restrict abs_vars_tmp;
-
-  int   ipair, istage;
-  float t_cur;
-  float t_next; // time after this loop for nc output
-
-  size_t w3d_size_per_level = WF_EL_1ST_NVAR * siz_volume;
-
-  // io nc
-  int ncid_slx[num_of_slice_x];
-  int timeid_slx;
-  int varid_slx[w3d_num_of_vars];
-
-  int ncid_sly[num_of_slice_y];
-  int timeid_sly;
-  int varid_sly[w3d_num_of_vars];
-
-  int ncid_slz[num_of_slice_z];
-  int timeid_slz;
-  int varid_slz[w3d_num_of_vars];
-
-  int ncid_snap[num_of_snap];
-  int timeid_snap[num_of_snap];
-  int varid_snap_vel[num_of_snap*FD_NDIM];
-  int varid_snap_T[num_of_snap*FD_NDIM_2];
-  int varid_snap_E[num_of_snap*FD_NDIM_2];
-  int snap_cur_it[num_of_snap];
-  for (int n=0; n<num_of_snap; n++) {
-    snap_cur_it[n] = 0;
-  }
-
-  // only x/y mpi
-  int num_of_r_reqs = 4;
-  int num_of_s_reqs = 4;
-
-  // get wavefield
-  w_pre = w3d + w3d_size_per_level * 0; // previous level at n
-  w_tmp = w3d + w3d_size_per_level * 1; // intermidate value
-  w_rhs = w3d + w3d_size_per_level * 2; // for rhs
-  w_end = w3d + w3d_size_per_level * 3; // end level at n+1
-
-  // get pml
-  abs_vars_pre = abs_vars + abs_vars_size_per_level * 0;
-  abs_vars_tmp = abs_vars + abs_vars_size_per_level * 1;
-  abs_vars_rhs = abs_vars + abs_vars_size_per_level * 2;
-  abs_vars_end = abs_vars + abs_vars_size_per_level * 3;
-
-  // create slice and snapshot nc
-  for (int n=0; n<num_of_slice_x; n++)
-  {
-    int dimid[3];
-    if (nc_create(slice_x_fname[n], NC_CLOBBER, &ncid_slx[n])) M_NCERR;
-    if (nc_def_dim(ncid_slx[n], "time", NC_UNLIMITED, &dimid[0])) M_NCERR;
-    if (nc_def_dim(ncid_slx[n], "k", nk      , &dimid[1])) M_NCERR;
-    if (nc_def_dim(ncid_slx[n], "j" , nj      , &dimid[2])) M_NCERR;
-    // time var
-    if (nc_def_var(ncid_slx[n], "time", NC_FLOAT, 1, dimid+0, &timeid_slx)) M_NCERR;
-    // other vars
-    for (int ivar=0; ivar<w3d_num_of_vars; ivar++) {
-      if (nc_def_var(ncid_slx[n], w3d_name[ivar], NC_FLOAT, 3, dimid, &varid_slx[ivar])) M_NCERR;
-    }
-    // attribute: index info for plot
-    nc_put_att_int(ncid_slx[n],NC_GLOBAL,"i_index_with_ghosts_in_this_thread",
-                   NC_INT,1,slice_x_indx+n);
-    nc_put_att_int(ncid_slx[n],NC_GLOBAL,"coords_of_mpi_topo",
-                   NC_INT,2,myid2);
-    // end def
-    if (nc_enddef(ncid_slx[n])) M_NCERR;
-  }
-  for (int n=0; n<num_of_slice_y; n++) {
-    //int sli_id = slice_y_info[n*2+0];
-    int dimid[3];
-    if (nc_create(slice_y_fname[n], NC_CLOBBER, &ncid_sly[n])) M_NCERR;
-    if (nc_def_dim(ncid_sly[n], "time", NC_UNLIMITED, &dimid[0])) M_NCERR;
-    if (nc_def_dim(ncid_sly[n], "k", nk      , &dimid[1])) M_NCERR;
-    if (nc_def_dim(ncid_sly[n], "i" , ni      , &dimid[2])) M_NCERR;
-    // time var
-    if (nc_def_var(ncid_sly[n], "time", NC_FLOAT, 1, dimid+0, &timeid_sly)) M_NCERR;
-    // other vars
-    for (int ivar=0; ivar<w3d_num_of_vars; ivar++) {
-      if (nc_def_var(ncid_sly[n], w3d_name[ivar], NC_FLOAT, 3, dimid, &varid_sly[ivar])) M_NCERR;
-    }
-    // attribute: index info for plot
-    nc_put_att_int(ncid_sly[n],NC_GLOBAL,"j_index_with_ghosts_in_this_thread",
-                   NC_INT,1,slice_y_indx+n);
-    nc_put_att_int(ncid_sly[n],NC_GLOBAL,"coords_of_mpi_topo",
-                   NC_INT,2,myid2);
-    // end def
-    if (nc_enddef(ncid_sly[n])) M_NCERR;
-  }
-  for (int n=0; n<num_of_slice_z; n++) {
-    //int sli_id = slice_z_info[n*2+0];
-    int dimid[3];
-    if (nc_create(slice_z_fname[n], NC_CLOBBER, &ncid_slz[n])) M_NCERR;
-    if (nc_def_dim(ncid_slz[n], "time", NC_UNLIMITED, &dimid[0])) M_NCERR;
-    if (nc_def_dim(ncid_slz[n], "j", nj      , &dimid[1])) M_NCERR;
-    if (nc_def_dim(ncid_slz[n], "i" , ni      , &dimid[2])) M_NCERR;
-    // time var
-    if (nc_def_var(ncid_slz[n], "time", NC_FLOAT, 1, dimid+0, &timeid_slz)) M_NCERR;
-    // other vars
-    for (int ivar=0; ivar<w3d_num_of_vars; ivar++) {
-      if (nc_def_var(ncid_slz[n], w3d_name[ivar], NC_FLOAT, 3, dimid, &varid_slz[ivar])) M_NCERR;
-    }
-    // attribute: index info for plot
-    nc_put_att_int(ncid_slz[n],NC_GLOBAL,"k_index_with_ghosts_in_this_thread",
-                   NC_INT,1,slice_z_indx+n);
-    nc_put_att_int(ncid_slz[n],NC_GLOBAL,"coords_of_mpi_topo",
-                   NC_INT,2,myid2);
-    // end def
-    if (nc_enddef(ncid_slz[n])) M_NCERR;
-  }
-  // snapshot
-  for (int n=0; n<num_of_snap; n++)
-  {
-    int dimid[4];
-    int *cur_snap_info = snap_info + n * FD_SNAP_INFO_SIZE;
-    int snap_i1  = cur_snap_info[FD_SNAP_INFO_I1];
-    int snap_j1  = cur_snap_info[FD_SNAP_INFO_J1];
-    int snap_k1  = cur_snap_info[FD_SNAP_INFO_K1];
-    int snap_ni  = cur_snap_info[FD_SNAP_INFO_NI];
-    int snap_nj  = cur_snap_info[FD_SNAP_INFO_NJ];
-    int snap_nk  = cur_snap_info[FD_SNAP_INFO_NK];
-    int snap_di  = cur_snap_info[FD_SNAP_INFO_DI];
-    int snap_dj  = cur_snap_info[FD_SNAP_INFO_DJ];
-    int snap_dk  = cur_snap_info[FD_SNAP_INFO_DK];
-
-    int snap_it1 = cur_snap_info[FD_SNAP_INFO_IT1];
-    int snap_dit = cur_snap_info[FD_SNAP_INFO_DIT];
-    int snap_nt_total = (nt_total - snap_it1) / snap_dit;
-    int snap_out_V = cur_snap_info[FD_SNAP_INFO_VEL];
-    int snap_out_T = cur_snap_info[FD_SNAP_INFO_STRESS];
-    int snap_out_E = cur_snap_info[FD_SNAP_INFO_STRAIN];
-
-    if (nc_create(snap_fname[n], NC_CLOBBER, &ncid_snap[n])) M_NCERR;
-    if (nc_def_dim(ncid_snap[n], "time", NC_UNLIMITED, &dimid[0])) M_NCERR;
-    if (nc_def_dim(ncid_snap[n], "k", snap_nk     , &dimid[1])) M_NCERR;
-    if (nc_def_dim(ncid_snap[n], "j" , snap_nj     , &dimid[2])) M_NCERR;
-    if (nc_def_dim(ncid_snap[n], "i" , snap_ni      , &dimid[3])) M_NCERR;
-    // time var
-    if (nc_def_var(ncid_snap[n], "time", NC_FLOAT, 1, dimid+0, &timeid_snap[n])) M_NCERR;
-    // other vars
-    if (snap_out_V==1) {
-       if (nc_def_var(ncid_snap[n],"Vx",NC_FLOAT,4,dimid,&varid_snap_vel[n*FD_NDIM+0])) M_NCERR;
-       if (nc_def_var(ncid_snap[n],"Vy",NC_FLOAT,4,dimid,&varid_snap_vel[n*FD_NDIM+1])) M_NCERR;
-       if (nc_def_var(ncid_snap[n],"Vz",NC_FLOAT,4,dimid,&varid_snap_vel[n*FD_NDIM+2])) M_NCERR;
-    }
-    if (snap_out_T==1) {
-       if (nc_def_var(ncid_snap[n],"Txx",NC_FLOAT,4,dimid,&varid_snap_T[n*FD_NDIM_2+0])) M_NCERR;
-       if (nc_def_var(ncid_snap[n],"Tyy",NC_FLOAT,4,dimid,&varid_snap_T[n*FD_NDIM_2+1])) M_NCERR;
-       if (nc_def_var(ncid_snap[n],"Tzz",NC_FLOAT,4,dimid,&varid_snap_T[n*FD_NDIM_2+2])) M_NCERR;
-       if (nc_def_var(ncid_snap[n],"Txz",NC_FLOAT,4,dimid,&varid_snap_T[n*FD_NDIM_2+3])) M_NCERR;
-       if (nc_def_var(ncid_snap[n],"Tyz",NC_FLOAT,4,dimid,&varid_snap_T[n*FD_NDIM_2+4])) M_NCERR;
-       if (nc_def_var(ncid_snap[n],"Txy",NC_FLOAT,4,dimid,&varid_snap_T[n*FD_NDIM_2+5])) M_NCERR;
-    }
-    if (snap_out_E==1) {
-       if (nc_def_var(ncid_snap[n],"Exx",NC_FLOAT,4,dimid,&varid_snap_E[n*FD_NDIM_2+0])) M_NCERR;
-       if (nc_def_var(ncid_snap[n],"Eyy",NC_FLOAT,4,dimid,&varid_snap_E[n*FD_NDIM_2+1])) M_NCERR;
-       if (nc_def_var(ncid_snap[n],"Ezz",NC_FLOAT,4,dimid,&varid_snap_E[n*FD_NDIM_2+2])) M_NCERR;
-       if (nc_def_var(ncid_snap[n],"Exz",NC_FLOAT,4,dimid,&varid_snap_E[n*FD_NDIM_2+3])) M_NCERR;
-       if (nc_def_var(ncid_snap[n],"Eyz",NC_FLOAT,4,dimid,&varid_snap_E[n*FD_NDIM_2+4])) M_NCERR;
-       if (nc_def_var(ncid_snap[n],"Exy",NC_FLOAT,4,dimid,&varid_snap_E[n*FD_NDIM_2+5])) M_NCERR;
-    }
-    // attribute: index in output snapshot, index w ghost in thread
-    int g_start[] = { cur_snap_info[FD_SNAP_INFO_GI1],
-                      cur_snap_info[FD_SNAP_INFO_GJ1],
-                      cur_snap_info[FD_SNAP_INFO_GK1] };
-    nc_put_att_int(ncid_snap[n],NC_GLOBAL,"first_index_to_snapshot_output",
-                   NC_INT,FD_NDIM,g_start);
-
-    nc_put_att_int(ncid_snap[n],NC_GLOBAL,"first_index_in_this_thread_with_ghosts",
-                   NC_INT,FD_NDIM,cur_snap_info+FD_SNAP_INFO_I1);
-
-    nc_put_att_int(ncid_snap[n],NC_GLOBAL,"index_stride_in_this_thread",
-                   NC_INT,FD_NDIM,cur_snap_info+FD_SNAP_INFO_DI);
-    nc_put_att_int(ncid_snap[n],NC_GLOBAL,"coords_of_mpi_topo",
-                   NC_INT,2,myid2);
-
-    if (nc_enddef(ncid_snap[n])) M_NCERR;
-
-    //sv_eliso1st_curv_macdrp_snap_create_nc(snap_fname[n],
-    //                                       snap_nt_totle,
-    //                                       snap_ni,
-    //                                       snap_nj,
-    //                                       snap_nk,
-    //                                       snap_out_vel,
-    //                                       snap_out_stress,
-    //                                       snap_out_strain,
-    //                                       ncid_snap+n,
-    //                                       varid_snap_V+n*FD_NDIM,
-    //                                       varid_snap_T+n*FD_NDIM_2,
-    //                                       varid_snap_E+n*FD_NDIM_2);
-  }
-
-  //
-  // time loop
-  //
-  for (int it=0; it<nt_total; it++)
-  {
-    t_cur = it * dt + t0;
-    t_next = t_cur +dt;
-
-    if (myid==0 && verbose>10) fprintf(stdout,"-> it=%d, t=%f\n", it, t_cur);
-
-    ipair = it % num_of_pairs; // mod to ipair
-    if (myid==0 && verbose>10) fprintf(stdout, " --> ipair=%d\n",ipair);
-
-    // loop RK stages for one step
-    for (istage=0; istage<num_rk_stages; istage++)
-    {
-      if (myid==0 && verbose>10) fprintf(stdout, " --> istage=%d\n",istage);
-
-      // use pointer to avoid 1 copy for previous level value
-      if (istage!=0) {
-        w_cur        = w_tmp;
-        abs_vars_cur = abs_vars_tmp;
-      } else {
-        w_cur        = w_pre;
-        abs_vars_cur = abs_vars_pre;
-      }
-
-      //// recv mesg
-      //if (it>0 || istage>0) {
-      //  MPI_Waitall(num_of_r_reqs, r_reqs, MPI_STATUS_IGNORE);
-
-      //  fd_blk_unpack_mesg(rbuff, w_cur, w3d_num_of_vars,
-      //                     ni1,ni2,nj1,nj2,nk1,nk2,nx,ny,
-      //                     siz_line,siz_slice,siz_volume);
-
-      //  MPI_Startall(num_of_r_reqs, r_reqs);
-
-      //  MPI_Waitall(num_of_s_reqs, s_reqs, MPI_STATUS_IGNORE);
-      //}
-
-      // compute
-      sv_eliso1st_curv_macdrp_onestage(w_cur, w_rhs, g3d, m3d, 
-                                       ni1,ni2,nj1,nj2,nk1,nk2,ni,nj,nk,nx,ny,nz,
-                                       siz_line,siz_slice,siz_volume,
-                                       boundary_itype,
-                                       abs_itype,
-                                       abs_num_of_layers,
-                                       abs_indx,
-                                       abs_coefs_facepos0,
-                                       abs_coefs,
-                                       abs_vars_size_per_level,
-                                       abs_vars_volsiz,
-                                       abs_vars_facepos0,
-                                       abs_vars_cur,
-                                       abs_vars_rhs,
-                                       matVx2Vz, matVy2Vz,
-                                       it,
-                                       istage,
-                                       src,
-                                       fdx_max_half_len, fdy_max_half_len,
-                                       fdz_max_len, fdz_num_surf_lay,
-                                       pair_fdx_all_info[ipair][istage],
-                                       pair_fdx_all_indx[ipair][istage],
-                                       pair_fdx_all_coef[ipair][istage],
-                                       pair_fdy_all_info[ipair][istage],
-                                       pair_fdy_all_indx[ipair][istage],
-                                       pair_fdy_all_coef[ipair][istage],
-                                       pair_fdz_all_info[ipair][istage],
-                                       pair_fdz_all_indx[ipair][istage],
-                                       pair_fdz_all_coef[ipair][istage],
-                                       myid, verbose);
-
-      // RK int
-
-      // cal var for send first
-      if (istage < num_rk_stages-1)
-      {
-        float coef_a = rk_a[istage] * dt;
-
-        // wavefield
-        for (size_t iptr=0; iptr<WF_EL_1ST_NVAR*siz_volume; iptr++) {
-            w_tmp[iptr] = w_pre[iptr] + coef_a * w_rhs[iptr];
-        }
-        // apply abs
-        /*
-        if (abs_has_ablexp) {
-          sv_eliso1st_curv_macdrp_ablexp(w_tmp, w3d_num_of_vars,
-                    w3d_pos, nx, ny, nz, abs_coefs_facepos0, abs_coefs);
-        }
-        */
-
-        // pack and isend
-        fd_blk_pack_mesg(w_tmp, sbuff, w3d_num_of_vars,
-                         ni1,ni2,nj1,nj2,nk1,nk2,
-                         siz_line,siz_slice,siz_volume,
-                         fdx_max_half_len, fdy_max_half_len);
-
-        MPI_Startall(num_of_s_reqs, s_reqs);
-      }
-      else // w_end for send at last stage
-      {
-        float coef_b = rk_b[istage] * dt;
-
-        // wavefield
-        for (size_t iptr=0; iptr<WF_EL_1ST_NVAR*siz_volume; iptr++) {
-            w_end[iptr] += coef_b * w_rhs[iptr];
-        }
-        /*
-        if (abs_has_ablexp) {
-          sv_eliso1st_curv_macdrp_ablexp(w_end, w3d_num_of_vars,
-                    w3d_pos, nx, ny, nz, abs_coefs_facepos0, abs_coefs);
-        }
-        */
-        // pack and isend
-        fd_blk_pack_mesg(w_end, sbuff, w3d_num_of_vars,
-                         ni1,ni2,nj1,nj2,nk1,nk2,
-                         siz_line,siz_slice,siz_volume,
-                         fdx_max_half_len, fdy_max_half_len);
-
-        MPI_Startall(num_of_s_reqs, s_reqs);
-      }
-
-      // cal rest
-      if (istage==0)
-      {
-        float coef_a = rk_a[istage] * dt;
-        float coef_b = rk_b[istage] * dt;
-
-        // w_tmp is done
-        // pml_tmp
-        if (abs_itype == FD_BOUNDARY_TYPE_CFSPML)
-        {
-          for (size_t iptr=0; iptr<abs_vars_size_per_level; iptr++) {
-            abs_vars_tmp[iptr] = abs_vars_pre[iptr] + coef_a * abs_vars_rhs[iptr];
-          }
-        }
-
-        // w_end
-        for (size_t iptr=0; iptr<WF_EL_1ST_NVAR*siz_volume; iptr++) {
-            w_end[iptr] = w_pre[iptr] + coef_b * w_rhs[iptr];
-        }
-        // pml_end
-        if (abs_itype == FD_BOUNDARY_TYPE_CFSPML)
-        {
-          for (size_t iptr=0; iptr<abs_vars_size_per_level; iptr++) {
-            abs_vars_end[iptr] = abs_vars_pre[iptr] + coef_b * abs_vars_rhs[iptr];
-          }
-        }
-      }
-      else if (istage<num_rk_stages-1)
-      {
-        float coef_a = rk_a[istage] * dt;
-        float coef_b = rk_b[istage] * dt;
-
-        // w_tmp is done
-        // pml_tmp
-        if (abs_itype == FD_BOUNDARY_TYPE_CFSPML)
-        {
-          for (size_t iptr=0; iptr<abs_vars_size_per_level; iptr++) {
-            abs_vars_tmp[iptr] = abs_vars_pre[iptr] + coef_a * abs_vars_rhs[iptr];
-          }
-        }
-
-        // w_end
-        for (size_t iptr=0; iptr<WF_EL_1ST_NVAR*siz_volume; iptr++) {
-            w_end[iptr] += coef_b * w_rhs[iptr];
-        }
-        // pml_end
-        if (abs_itype == FD_BOUNDARY_TYPE_CFSPML)
-        {
-          for (size_t iptr=0; iptr<abs_vars_size_per_level; iptr++) {
-            abs_vars_end[iptr] += coef_b * abs_vars_rhs[iptr];
-          }
-        }
-      }
-      else // last stage
-      {
-        float coef_b = rk_b[istage] * dt;
-
-        // w_end is done
-        // pml_end
-        if (abs_itype == FD_BOUNDARY_TYPE_CFSPML)
-        {
-          for (size_t iptr=0; iptr<abs_vars_size_per_level; iptr++) {
-            abs_vars_end[iptr] += coef_b * abs_vars_rhs[iptr];
-          }
-        }
-      }
-
-      // recv mesg
-      MPI_Waitall(num_of_r_reqs, r_reqs, MPI_STATUS_IGNORE);
-      if (istage != num_rk_stages-1) {
-        fd_blk_unpack_mesg(rbuff, w_tmp, w3d_num_of_vars,
-                           ni1,ni2,nj1,nj2,nk1,nk2,nx,ny,
-                           siz_line,siz_slice,siz_volume);
-      } else {
-        fd_blk_unpack_mesg(rbuff, w_end, w3d_num_of_vars,
-                           ni1,ni2,nj1,nj2,nk1,nk2,nx,ny,
-                           siz_line,siz_slice,siz_volume);
-      }
-
-      MPI_Startall(num_of_r_reqs, r_reqs);
-      MPI_Waitall(num_of_s_reqs, s_reqs, MPI_STATUS_IGNORE);
-    } // RK stages
-
-    // QC
-    if (qc_check_nan_num_of_step >0  && (it % qc_check_nan_num_of_step) == 0) {
-      if (myid==0 && verbose>10) fprintf(stdout,"-> check value nan\n");
-        //wf_el_1st_check_value(w_end);
-    }
-
-    // save results
-    //-- sta by interp
-    for (int ir=0; ir < sta_info->total_number; ir++)
-    {
-      struct fd_sta1_t *sta1 = sta_info->stas+ir;
-      int iptr = sta1->indx1d;
-      // need to implement interp, now just take value
-      for (int ivar=0; ivar<w3d_num_of_vars; ivar++) {
-        int iptr_sta = (ir * w3d_num_of_vars + ivar) * nt_total + it;
-        sta_seismo[iptr_sta] = w_end[ivar*siz_volume + iptr];
-      }
-    }
-    //-- point values
-    for (int n=0; n<num_of_point; n++)
-    {
-      int iptr = point_loc_indx[0+n*FD_NDIM]
-               + point_loc_indx[1+n*FD_NDIM] * siz_line 
-               + point_loc_indx[2+n*FD_NDIM] * siz_slice;
-      for (int ivar=0; ivar<w3d_num_of_vars; ivar++) {
-        int iptr_point = (n * w3d_num_of_vars + ivar) * nt_total + it;
-        point_seismo[iptr_point] = w_end[ivar*siz_volume + iptr];
-      }
-    }
-    //-- slice x, use w_rhs as buff
-    int max_used_rhs = 0;
-    for (int n=0; n<num_of_slice_x; n++) {
-      size_t startp[] = { it, 0, 0 };
-      size_t countp[] = { 1, nk, nj};
-      size_t start_tdim = it;
-      for (int ivar=0; ivar<w3d_num_of_vars; ivar++) {
-        int iptr_var = w3d_pos[ivar];
-        int iptr_slice = 0;
-        for (int k=nk1; k<=nk2; k++) {
-          for (int j=nj1; j<=nj2; j++) {
-            int i = slice_x_indx[n];
-            int iptr = i + j * siz_line + k * siz_slice + iptr_var;
-            w_rhs[iptr_slice] = w_end[iptr];
-            iptr_slice++;
-          }
-        }
-        nc_put_var1_float(ncid_slx[n],timeid_slx,&start_tdim,&t_next);
-        nc_put_vara_float(ncid_slx[n],varid_slx[ivar],startp,countp,w_rhs);
-        max_used_rhs = (iptr_slice > max_used_rhs) ? iptr_slice : max_used_rhs;
-      }
-    }
-    // slice y
-    for (int n=0; n<num_of_slice_y; n++) {
-      size_t startp[] = { it, 0, 0 };
-      size_t countp[] = { 1, nk, ni};
-      size_t start_tdim = it;
-      for (int ivar=0; ivar<w3d_num_of_vars; ivar++) {
-        int iptr_var = w3d_pos[ivar];
-        int iptr_slice = 0;
-        for (int k=nk1; k<=nk2; k++) {
-          int j = slice_y_indx[n];
-          for (int i=ni1; i<=ni2; i++) {
-            int iptr = i + j * siz_line + k * siz_slice + iptr_var;
-            w_rhs[iptr_slice] = w_end[iptr];
-            iptr_slice++;
-          }
-        }
-        nc_put_var1_float(ncid_sly[n],timeid_sly,&start_tdim,&t_next);
-        nc_put_vara_float(ncid_sly[n],varid_sly[ivar],startp,countp,w_rhs);
-        max_used_rhs = (iptr_slice > max_used_rhs) ? iptr_slice : max_used_rhs;
-      }
-    }
-    // slice z
-    for (int n=0; n<num_of_slice_z; n++) {
-      size_t startp[] = { it, 0, 0 };
-      size_t countp[] = { 1, nj, ni};
-      size_t start_tdim = it;
-      for (int ivar=0; ivar<w3d_num_of_vars; ivar++) {
-        int iptr_var = w3d_pos[ivar];
-        int k = slice_z_indx[n];
-        int iptr_slice = 0;
-        for (int j=nj1; j<=nj2; j++) {
-          for (int i=ni1; i<=ni2; i++) {
-            int iptr = i + j * siz_line + k * siz_slice + iptr_var;
-            w_rhs[iptr_slice] = w_end[iptr];
-            iptr_slice++;
-          }
-        }
-        nc_put_var1_float(ncid_slz[n],timeid_slz,&start_tdim,&t_next);
-        nc_put_vara_float(ncid_slz[n],varid_slz[ivar],startp,countp,w_rhs);
-        max_used_rhs = (iptr_slice > max_used_rhs) ? iptr_slice : max_used_rhs;
-      }
-    }
-    // snapshot
-    for (int n=0; n<num_of_snap; n++)
-    {
-      int *cur_snap_info = snap_info + n * FD_SNAP_INFO_SIZE;
-      int snap_i1  = cur_snap_info[FD_SNAP_INFO_I1];
-      int snap_j1  = cur_snap_info[FD_SNAP_INFO_J1];
-      int snap_k1  = cur_snap_info[FD_SNAP_INFO_K1];
-      int snap_ni  = cur_snap_info[FD_SNAP_INFO_NI];
-      int snap_nj  = cur_snap_info[FD_SNAP_INFO_NJ];
-      int snap_nk  = cur_snap_info[FD_SNAP_INFO_NK];
-      int snap_di  = cur_snap_info[FD_SNAP_INFO_DI];
-      int snap_dj  = cur_snap_info[FD_SNAP_INFO_DJ];
-      int snap_dk  = cur_snap_info[FD_SNAP_INFO_DK];
-
-      int snap_it1 = cur_snap_info[FD_SNAP_INFO_IT1];
-      int snap_dit = cur_snap_info[FD_SNAP_INFO_DIT];
-      int snap_it_mod = (it - snap_it1) % snap_dit;
-      int snap_it_num = (it - snap_it1) / snap_dit;
-      int snap_nt_total = (nt_total - snap_it1) / snap_dit;
-      int snap_out_V = cur_snap_info[FD_SNAP_INFO_VEL];
-      int snap_out_T = cur_snap_info[FD_SNAP_INFO_STRESS];
-      int snap_out_E = cur_snap_info[FD_SNAP_INFO_STRAIN];
-
-      int snap_max_num = snap_ni * snap_nj * snap_nk;
-
-      if (it>=snap_it1 && snap_it_num<=snap_nt_total && snap_it_mod==0)
-      {
-        size_t startp[] = { snap_cur_it[n], 0, 0, 0 };
-        size_t countp[] = { 1, snap_nk, snap_nj, snap_ni };
-        size_t start_tdim = snap_cur_it[n];
-
-        nc_put_var1_float(ncid_snap[n],timeid_snap[n],&start_tdim,&t_next);
-
-        // vel
-        if (snap_out_V==1)
-        {
-          sv_eliso1st_curv_macdrp_snap_buff(w_end+WF_EL_1ST_SEQ_Vx*siz_volume,
-                siz_line,siz_slice,snap_i1,snap_ni,snap_di,snap_j1,snap_nj,
-                snap_dj,snap_k1,snap_nk,snap_dk,w_rhs);
-          nc_put_vara_float(ncid_snap[n],varid_snap_vel[n*FD_NDIM+0],startp,countp,w_rhs);
-
-          sv_eliso1st_curv_macdrp_snap_buff(w_end+WF_EL_1ST_SEQ_Vy*siz_volume,
-                siz_line,siz_slice,snap_i1,snap_ni,snap_di,snap_j1,snap_nj,
-                snap_dj,snap_k1,snap_nk,snap_dk,w_rhs);
-          nc_put_vara_float(ncid_snap[n],varid_snap_vel[n*FD_NDIM+1],startp,countp,w_rhs);
-
-          sv_eliso1st_curv_macdrp_snap_buff(w_end+WF_EL_1ST_SEQ_Vz*siz_volume,
-                siz_line,siz_slice,snap_i1,snap_ni,snap_di,snap_j1,snap_nj,
-                snap_dj,snap_k1,snap_nk,snap_dk,w_rhs);
-          nc_put_vara_float(ncid_snap[n],varid_snap_vel[n*FD_NDIM+2],startp,countp,w_rhs);
-        }
-        if (snap_out_T==1)
-        {
-          sv_eliso1st_curv_macdrp_snap_buff(w_end+WF_EL_1ST_SEQ_Txx*siz_volume,
-                siz_line,siz_slice,snap_i1,snap_ni,snap_di,snap_j1,snap_nj,
-                snap_dj,snap_k1,snap_nk,snap_dk,w_rhs);
-          nc_put_vara_float(ncid_snap[n],varid_snap_T[n*FD_NDIM_2+0],startp,countp,w_rhs);
-
-          sv_eliso1st_curv_macdrp_snap_buff(w_end+WF_EL_1ST_SEQ_Tyy*siz_volume,
-                siz_line,siz_slice,snap_i1,snap_ni,snap_di,snap_j1,snap_nj,
-                snap_dj,snap_k1,snap_nk,snap_dk,w_rhs);
-          nc_put_vara_float(ncid_snap[n],varid_snap_T[n*FD_NDIM_2+1],startp,countp,w_rhs);
-          
-          sv_eliso1st_curv_macdrp_snap_buff(w_end+WF_EL_1ST_SEQ_Tzz*siz_volume,
-                siz_line,siz_slice,snap_i1,snap_ni,snap_di,snap_j1,snap_nj,
-                snap_dj,snap_k1,snap_nk,snap_dk,w_rhs);
-          nc_put_vara_float(ncid_snap[n],varid_snap_T[n*FD_NDIM_2+2],startp,countp,w_rhs);
-          
-          sv_eliso1st_curv_macdrp_snap_buff(w_end+WF_EL_1ST_SEQ_Txz*siz_volume,
-                siz_line,siz_slice,snap_i1,snap_ni,snap_di,snap_j1,snap_nj,
-                snap_dj,snap_k1,snap_nk,snap_dk,w_rhs);
-          nc_put_vara_float(ncid_snap[n],varid_snap_T[n*FD_NDIM_2+3],startp,countp,w_rhs);
-
-          sv_eliso1st_curv_macdrp_snap_buff(w_end+WF_EL_1ST_SEQ_Tyz*siz_volume,
-                siz_line,siz_slice,snap_i1,snap_ni,snap_di,snap_j1,snap_nj,
-                snap_dj,snap_k1,snap_nk,snap_dk,w_rhs);
-          nc_put_vara_float(ncid_snap[n],varid_snap_T[n*FD_NDIM_2+4],startp,countp,w_rhs);
-
-          sv_eliso1st_curv_macdrp_snap_buff(w_end+WF_EL_1ST_SEQ_Txy*siz_volume,
-                siz_line,siz_slice,snap_i1,snap_ni,snap_di,snap_j1,snap_nj,
-                snap_dj,snap_k1,snap_nk,snap_dk,w_rhs);
-          nc_put_vara_float(ncid_snap[n],varid_snap_T[n*FD_NDIM_2+5],startp,countp,w_rhs);
-        }
-        if (snap_out_E==1)
-        {
-          // need to implement
-        }
-        //for (int ivar=0; ivar<w3d_num_of_vars; ivar++)
-        //{
-        //  if (snap_save_cmp[n*w3d_num_of_vars+ivar]==1)
-        //  {
-        //    int iptr_var = w3d_pos[ivar];
-        //    int iptr_snap=0;
-        //    for (int n3=0; n3<snap_nk; n3++)
-        //    {
-        //      int k = cur_snap_info[2] + n3 * cur_snap_info[8];
-        //      for (int n2=0; n2<snap_nj; n2++)
-        //      {
-        //        int j = cur_snap_info[1] + n2 * cur_snap_info[7];
-        //        for (int n1=0; n1<snap_ni; n1++)
-        //        {
-        //          int i = cur_snap_info[0] + n1 * cur_snap_info[6];
-        //          int iptr = i + j * siz_line + k * siz_slice + iptr_var;
-        //          w_rhs[iptr_snap] = w_end[iptr];
-        //          iptr_snap++;
-        //        }
-        //      }
-        //    }
-        //    size_t startp[] = { snap_cur_it[n], 0, 0, 0 };
-        //    size_t countp[] = { 1, snap_nk, snap_nj, snap_ni };
-        //    nc_put_vara_float(ncid_snap[n],varid_snap[n*w3d_num_of_vars+ivar],startp,countp,w_rhs);
-        //  }
-        //}
-        max_used_rhs = (snap_max_num > max_used_rhs) ? snap_max_num : max_used_rhs;
-        snap_cur_it[n] += 1;
-      }
-    }
-    // zero temp used w_rsh
-    for (int i=0; i<max_used_rhs; i++) w_rhs[i]=0.0;
-
-    // debug output
-    if (output_all==1) {
-        io_build_fname_time(output_dir,"w3d",".nc",myid2,it,ou_file);
-        io_var3d_export_nc(ou_file,
-                           w_end,
-                           w3d_pos,
-                           w3d_name,
-                           w3d_num_of_vars,
-                           coord_name,
-                           nx,
-                           ny,
-                           nz);
-    }
-
-    // swap w_pre and w_end, avoid copying
-    w_cur = w_pre; w_pre = w_end; w_end = w_cur;
-    abs_vars_cur = abs_vars_pre; abs_vars_pre = abs_vars_end; abs_vars_end = abs_vars_cur;
-
-  } // time loop
-
-  // close nc
-  for (int n=0; n<num_of_slice_x; n++) {
-    nc_close(ncid_slx[n]);
-  }
-  for (int n=0; n<num_of_slice_y; n++) {
-    nc_close(ncid_sly[n]);
-  }
-  for (int n=0; n<num_of_slice_z; n++) {
-    nc_close(ncid_slz[n]);
-  }
-  for (int n=0; n<num_of_snap; n++)
-  {
-    nc_close(ncid_snap[n]);
-  }
-}
 
 /*******************************************************************************
  * one simulation over all time steps, could be used in imaging or inversion
@@ -763,66 +21,50 @@ sv_eliso1st_curv_macdrp_allstep(
  ******************************************************************************/
 
 void
-sv_eliso1st_curv_macdrp_allstep_simplempi(
-    float *restrict w3d,  // wavefield
-    size_t *restrict w3d_pos,
-    char **w3d_name,
-    int   w3d_num_of_vars,
-    char **coord_name,
-    float *restrict g3d,  // grid vars
-    float *restrict m3d,  // medium vars
-    // grid size
-    int ni1, int ni2, int nj1, int nj2, int nk1, int nk2,
-    int ni, int nj, int nk, int nx, int ny, int nz,
-    size_t siz_line, size_t siz_slice, size_t siz_volume,
-    // boundary type
-    int *restrict boundary_itype,
-    // if abs
-    int              abs_itype, //
-    int    *restrict abs_num_of_layers, //
-    int *restrict abs_indx, //
-    int *restrict abs_coefs_facepos0, //
-    float  *restrict abs_coefs, //
-    int           abs_vars_size_per_level, //
-    int *restrict abs_vars_volsiz, //
-    int *restrict abs_vars_facepos0, //
-    float  *restrict abs_vars,
-    // if free surface
-    float *matVx2Vz, //
-    float *matVy2Vz, //
-    // source term
-    struct fd_src_t *src,
-    // io
-    int num_of_sta, int *restrict sta_loc_indx, float *restrict sta_loc_dxyz, float *restrict sta_seismo,
-    int num_of_point, int *restrict point_loc_indx, float *restrict point_seismo,
-    int num_of_slice_x, int *restrict slice_x_indx, char **restrict slice_x_fname,
-    int num_of_slice_y, int *restrict slice_y_indx, char **restrict slice_y_fname,
-    int num_of_slice_z, int *restrict slice_z_indx, char **restrict slice_z_fname,
-    int num_of_snap, int *restrict snap_info, char **snap_fname,
-    char *output_fname_part,
-    char *output_dir,
-    // scheme
-    int num_rk_stages, float *rk_a, float *rk_b,
-    int num_of_pairs, 
-    int fdx_max_half_len, int fdy_max_half_len,
-    int fdz_max_len, int fdz_num_surf_lay,
-    int ****pair_fdx_all_info, int ***pair_fdx_all_indx, float ***pair_fdx_all_coef,
-    int ****pair_fdy_all_info, int ***pair_fdy_all_indx, float ***pair_fdy_all_coef,
-    int ****pair_fdz_all_info, int ***pair_fdz_all_indx, float ***pair_fdz_all_coef,
-    // time
-    float dt, int nt_total, float t0,
-    // mpi
-    int myid, int *myid2, MPI_Comm comm,
-    float *restrict sbuff,
-    float *restrict rbuff,
-    MPI_Request *s_reqs,
-    MPI_Request *r_reqs,
-    int qc_check_nan_num_of_step,
-    const int output_all, // qc all var
-    const int verbose)
+sv_eliso1st_curv_macdrp_allstep(
+  fd_t            *fd,
+  gdinfo_t        *gdinfo,
+  gdcurv_metric_t *metric,
+  mdeliso_t      *mdeliso,
+  src_t      *src,
+  bdryfree_t *bdryfree,
+  bdrypml_t  *bdrypml,
+  wfel1st_t  *wfel1st,
+  mympi_t    *mympi,
+  iorecv_t   *iorecv,
+  ioline_t   *ioline,
+  ioslice_t  *ioslice,
+  iosnap_t   *iosnap,
+  // time
+  float dt, int nt_total, float t0,
+  char *output_fname_part,
+  char *output_dir,
+  int qc_check_nan_num_of_step,
+  const int output_all, // qc all var
+  const int verbose)
 {
+  // retrieve from struct
+  int num_rk_stages = fd->num_rk_stages;
+  float *rk_a = fd->rk_a;
+  float *rk_b = fd->rk_b;
+
+  int num_of_pairs     = fd->num_of_pairs;
+  int fdx_max_half_len = fd->fdx_max_half_len;
+  int fdy_max_half_len = fd->fdy_max_half_len;
+  int fdz_max_len      = fd->fdz_max_len;
+  int num_of_fdz_op    = fd->num_of_fdz_op;
+
+  // mpi
+  int myid = mympi->myid;
+  int *topoid = mympi->topoid;
+  MPI_Comm comm = mympi->comm;
+  float *restrict sbuff = mympi->sbuff;
+  float *restrict rbuff = mympi->rbuff;
+  MPI_Request *s_reqs = mympi->s_reqs;
+  MPI_Request *r_reqs = mympi->r_reqs;
+
   // local allocated array
-  char ou_file[FD_MAX_STRLEN];
+  char ou_file[CONST_MAX_STRLEN];
 
   // local pointer
   float *restrict w_cur;
@@ -831,214 +73,60 @@ sv_eliso1st_curv_macdrp_allstep_simplempi(
   float *restrict w_end;
   float *restrict w_tmp;
 
-  float *restrict abs_vars_cur;
-  float *restrict abs_vars_pre;
-  float *restrict abs_vars_rhs;
-  float *restrict abs_vars_end;
-  float *restrict abs_vars_tmp;
-
   int   ipair, istage;
   float t_cur;
-  float t_next; // time after this loop for nc output
+  float t_end; // time after this loop for nc output
 
-  size_t w3d_size_per_level = WF_EL_1ST_NVAR * siz_volume;
+  // create slice nc output files
+  if (myid==0 && verbose>0) fprintf(stdout,"prepare slice nc output ...\n"); 
+  ioslice_nc_t ioslice_nc;
+  io_slice_nc_create(ioslice, wfel1st->ncmp, wfel1st->cmp_name,
+                     gdinfo->ni, gdinfo->nj, gdinfo->nk, topoid,
+                     &ioslice_nc);
 
-  // io nc
-  int ncid_slx[num_of_slice_x];
-  int timeid_slx[num_of_slice_x];
-  int varid_slx[num_of_slice_x*w3d_num_of_vars];
-
-  int ncid_sly[num_of_slice_y];
-  int timeid_sly[num_of_slice_y];
-  int varid_sly[num_of_slice_y*w3d_num_of_vars];
-
-  int ncid_slz[num_of_slice_z];
-  int timeid_slz[num_of_slice_z];
-  int varid_slz[num_of_slice_z*w3d_num_of_vars];
-
-  int ncid_snap[num_of_snap];
-  int timeid_snap[num_of_snap];
-  int varid_snap_vel[num_of_snap*FD_NDIM];
-  int varid_snap_T[num_of_snap*FD_NDIM_2];
-  int varid_snap_E[num_of_snap*FD_NDIM_2];
-  int snap_cur_it[num_of_snap];
-  for (int n=0; n<num_of_snap; n++) {
-    snap_cur_it[n] = 0;
-  }
+  // create snapshot nc output files
+  if (myid==0 && verbose>0) fprintf(stdout,"prepare snap nc output ...\n"); 
+  iosnap_nc_t  iosnap_nc;
+  io_snap_nc_create(iosnap, &iosnap_nc, topoid);
 
   // only x/y mpi
   int num_of_r_reqs = 4;
   int num_of_s_reqs = 4;
 
   // get wavefield
-  w_pre = w3d + w3d_size_per_level * 0; // previous level at n
-  w_tmp = w3d + w3d_size_per_level * 1; // intermidate value
-  w_rhs = w3d + w3d_size_per_level * 2; // for rhs
-  w_end = w3d + w3d_size_per_level * 3; // end level at n+1
+  w_pre = wfel1st->v5d + wfel1st->siz_ilevel * 0; // previous level at n
+  w_tmp = wfel1st->v5d + wfel1st->siz_ilevel * 1; // intermidate value
+  w_rhs = wfel1st->v5d + wfel1st->siz_ilevel * 2; // for rhs
+  w_end = wfel1st->v5d + wfel1st->siz_ilevel * 3; // end level at n+1
 
-  // get pml
-  abs_vars_pre = abs_vars + abs_vars_size_per_level * 0;
-  abs_vars_tmp = abs_vars + abs_vars_size_per_level * 1;
-  abs_vars_rhs = abs_vars + abs_vars_size_per_level * 2;
-  abs_vars_end = abs_vars + abs_vars_size_per_level * 3;
-
-  // create slice and snapshot nc
-  for (int n=0; n<num_of_slice_x; n++)
-  {
-    int dimid[3];
-    if (nc_create(slice_x_fname[n], NC_CLOBBER, &ncid_slx[n])) M_NCERR;
-    if (nc_def_dim(ncid_slx[n], "time", NC_UNLIMITED, &dimid[0])) M_NCERR;
-    if (nc_def_dim(ncid_slx[n], "k", nk      , &dimid[1])) M_NCERR;
-    if (nc_def_dim(ncid_slx[n], "j" , nj      , &dimid[2])) M_NCERR;
-    // time var
-    if (nc_def_var(ncid_slx[n], "time", NC_FLOAT, 1, dimid+0, &timeid_slx[n])) M_NCERR;
-    // other vars
-    for (int ivar=0; ivar<w3d_num_of_vars; ivar++) {
-      if (nc_def_var(ncid_slx[n], w3d_name[ivar], NC_FLOAT, 3, dimid, &varid_slx[ivar+n*ivar])) M_NCERR;
+  // set pml for rk
+  for (int idim=0; idim<CONST_NDIM; idim++) {
+    for (int iside=0; iside<2; iside++) {
+      if (bdrypml->is_at_sides[idim][iside]==1) {
+        bdrypml_auxvar_t *auxvar = &(bdrypml->auxvar[idim][iside]);
+        auxvar->pre = auxvar->var + auxvar->siz_ilevel * 0;
+        auxvar->tmp = auxvar->var + auxvar->siz_ilevel * 1;
+        auxvar->rhs = auxvar->var + auxvar->siz_ilevel * 2;
+        auxvar->end = auxvar->var + auxvar->siz_ilevel * 3;
+      }
     }
-    // attribute: index info for plot
-    nc_put_att_int(ncid_slx[n],NC_GLOBAL,"i_index_with_ghosts_in_this_thread",
-                   NC_INT,1,slice_x_indx+n);
-    nc_put_att_int(ncid_slx[n],NC_GLOBAL,"coords_of_mpi_topo",
-                   NC_INT,2,myid2);
-    // end def
-    if (nc_enddef(ncid_slx[n])) M_NCERR;
-  }
-  for (int n=0; n<num_of_slice_y; n++) {
-    //int sli_id = slice_y_info[n*2+0];
-    int dimid[3];
-    if (nc_create(slice_y_fname[n], NC_CLOBBER, &ncid_sly[n])) M_NCERR;
-    if (nc_def_dim(ncid_sly[n], "time", NC_UNLIMITED, &dimid[0])) M_NCERR;
-    if (nc_def_dim(ncid_sly[n], "k", nk      , &dimid[1])) M_NCERR;
-    if (nc_def_dim(ncid_sly[n], "i" , ni      , &dimid[2])) M_NCERR;
-    // time var
-    if (nc_def_var(ncid_sly[n], "time", NC_FLOAT, 1, dimid+0, &timeid_sly[n])) M_NCERR;
-    // other vars
-    for (int ivar=0; ivar<w3d_num_of_vars; ivar++) {
-      if (nc_def_var(ncid_sly[n], w3d_name[ivar], NC_FLOAT, 3, dimid, &varid_sly[ivar+n*ivar])) M_NCERR;
-    }
-    // attribute: index info for plot
-    nc_put_att_int(ncid_sly[n],NC_GLOBAL,"j_index_with_ghosts_in_this_thread",
-                   NC_INT,1,slice_y_indx+n);
-    nc_put_att_int(ncid_sly[n],NC_GLOBAL,"coords_of_mpi_topo",
-                   NC_INT,2,myid2);
-    // end def
-    if (nc_enddef(ncid_sly[n])) M_NCERR;
-  }
-  for (int n=0; n<num_of_slice_z; n++) {
-    //int sli_id = slice_z_info[n*2+0];
-    int dimid[3];
-    if (nc_create(slice_z_fname[n], NC_CLOBBER, &ncid_slz[n])) M_NCERR;
-    if (nc_def_dim(ncid_slz[n], "time", NC_UNLIMITED, &dimid[0])) M_NCERR;
-    if (nc_def_dim(ncid_slz[n], "j", nj      , &dimid[1])) M_NCERR;
-    if (nc_def_dim(ncid_slz[n], "i" , ni      , &dimid[2])) M_NCERR;
-    // time var
-    if (nc_def_var(ncid_slz[n], "time", NC_FLOAT, 1, dimid+0, &timeid_slz[n])) M_NCERR;
-    // other vars
-    for (int ivar=0; ivar<w3d_num_of_vars; ivar++) {
-      if (nc_def_var(ncid_slz[n], w3d_name[ivar], NC_FLOAT, 3, dimid, &varid_slz[ivar+n*ivar])) M_NCERR;
-    }
-    // attribute: index info for plot
-    nc_put_att_int(ncid_slz[n],NC_GLOBAL,"k_index_with_ghosts_in_this_thread",
-                   NC_INT,1,slice_z_indx+n);
-    nc_put_att_int(ncid_slz[n],NC_GLOBAL,"coords_of_mpi_topo",
-                   NC_INT,2,myid2);
-    // end def
-    if (nc_enddef(ncid_slz[n])) M_NCERR;
-  }
-  // snapshot
-  for (int n=0; n<num_of_snap; n++)
-  {
-    int dimid[4];
-    int *cur_snap_info = snap_info + n * FD_SNAP_INFO_SIZE;
-    int snap_i1  = cur_snap_info[FD_SNAP_INFO_I1];
-    int snap_j1  = cur_snap_info[FD_SNAP_INFO_J1];
-    int snap_k1  = cur_snap_info[FD_SNAP_INFO_K1];
-    int snap_ni  = cur_snap_info[FD_SNAP_INFO_NI];
-    int snap_nj  = cur_snap_info[FD_SNAP_INFO_NJ];
-    int snap_nk  = cur_snap_info[FD_SNAP_INFO_NK];
-    int snap_di  = cur_snap_info[FD_SNAP_INFO_DI];
-    int snap_dj  = cur_snap_info[FD_SNAP_INFO_DJ];
-    int snap_dk  = cur_snap_info[FD_SNAP_INFO_DK];
-
-    int snap_it1 = cur_snap_info[FD_SNAP_INFO_IT1];
-    int snap_dit = cur_snap_info[FD_SNAP_INFO_DIT];
-    int snap_nt_total = (nt_total - snap_it1) / snap_dit;
-    int snap_out_V = cur_snap_info[FD_SNAP_INFO_VEL];
-    int snap_out_T = cur_snap_info[FD_SNAP_INFO_STRESS];
-    int snap_out_E = cur_snap_info[FD_SNAP_INFO_STRAIN];
-
-    if (nc_create(snap_fname[n], NC_CLOBBER, &ncid_snap[n])) M_NCERR;
-    if (nc_def_dim(ncid_snap[n], "time", NC_UNLIMITED, &dimid[0])) M_NCERR;
-    if (nc_def_dim(ncid_snap[n], "k", snap_nk     , &dimid[1])) M_NCERR;
-    if (nc_def_dim(ncid_snap[n], "j" , snap_nj     , &dimid[2])) M_NCERR;
-    if (nc_def_dim(ncid_snap[n], "i" , snap_ni      , &dimid[3])) M_NCERR;
-    // time var
-    if (nc_def_var(ncid_snap[n], "time", NC_FLOAT, 1, dimid+0, &timeid_snap[n])) M_NCERR;
-    // other vars
-    if (snap_out_V==1) {
-       if (nc_def_var(ncid_snap[n],"Vx",NC_FLOAT,4,dimid,&varid_snap_vel[n*FD_NDIM+0])) M_NCERR;
-       if (nc_def_var(ncid_snap[n],"Vy",NC_FLOAT,4,dimid,&varid_snap_vel[n*FD_NDIM+1])) M_NCERR;
-       if (nc_def_var(ncid_snap[n],"Vz",NC_FLOAT,4,dimid,&varid_snap_vel[n*FD_NDIM+2])) M_NCERR;
-    }
-    if (snap_out_T==1) {
-       if (nc_def_var(ncid_snap[n],"Txx",NC_FLOAT,4,dimid,&varid_snap_T[n*FD_NDIM_2+0])) M_NCERR;
-       if (nc_def_var(ncid_snap[n],"Tyy",NC_FLOAT,4,dimid,&varid_snap_T[n*FD_NDIM_2+1])) M_NCERR;
-       if (nc_def_var(ncid_snap[n],"Tzz",NC_FLOAT,4,dimid,&varid_snap_T[n*FD_NDIM_2+2])) M_NCERR;
-       if (nc_def_var(ncid_snap[n],"Txz",NC_FLOAT,4,dimid,&varid_snap_T[n*FD_NDIM_2+3])) M_NCERR;
-       if (nc_def_var(ncid_snap[n],"Tyz",NC_FLOAT,4,dimid,&varid_snap_T[n*FD_NDIM_2+4])) M_NCERR;
-       if (nc_def_var(ncid_snap[n],"Txy",NC_FLOAT,4,dimid,&varid_snap_T[n*FD_NDIM_2+5])) M_NCERR;
-    }
-    if (snap_out_E==1) {
-       if (nc_def_var(ncid_snap[n],"Exx",NC_FLOAT,4,dimid,&varid_snap_E[n*FD_NDIM_2+0])) M_NCERR;
-       if (nc_def_var(ncid_snap[n],"Eyy",NC_FLOAT,4,dimid,&varid_snap_E[n*FD_NDIM_2+1])) M_NCERR;
-       if (nc_def_var(ncid_snap[n],"Ezz",NC_FLOAT,4,dimid,&varid_snap_E[n*FD_NDIM_2+2])) M_NCERR;
-       if (nc_def_var(ncid_snap[n],"Exz",NC_FLOAT,4,dimid,&varid_snap_E[n*FD_NDIM_2+3])) M_NCERR;
-       if (nc_def_var(ncid_snap[n],"Eyz",NC_FLOAT,4,dimid,&varid_snap_E[n*FD_NDIM_2+4])) M_NCERR;
-       if (nc_def_var(ncid_snap[n],"Exy",NC_FLOAT,4,dimid,&varid_snap_E[n*FD_NDIM_2+5])) M_NCERR;
-    }
-    // attribute: index in output snapshot, index w ghost in thread
-    int g_start[] = { cur_snap_info[FD_SNAP_INFO_GI1],
-                      cur_snap_info[FD_SNAP_INFO_GJ1],
-                      cur_snap_info[FD_SNAP_INFO_GK1] };
-    nc_put_att_int(ncid_snap[n],NC_GLOBAL,"first_index_to_snapshot_output",
-                   NC_INT,FD_NDIM,g_start);
-
-    nc_put_att_int(ncid_snap[n],NC_GLOBAL,"first_index_in_this_thread_with_ghosts",
-                   NC_INT,FD_NDIM,cur_snap_info+FD_SNAP_INFO_I1);
-
-    nc_put_att_int(ncid_snap[n],NC_GLOBAL,"index_stride_in_this_thread",
-                   NC_INT,FD_NDIM,cur_snap_info+FD_SNAP_INFO_DI);
-    nc_put_att_int(ncid_snap[n],NC_GLOBAL,"coords_of_mpi_topo",
-                   NC_INT,2,myid2);
-
-    if (nc_enddef(ncid_snap[n])) M_NCERR;
-
-    //sv_eliso1st_curv_macdrp_snap_create_nc(snap_fname[n],
-    //                                       snap_nt_totle,
-    //                                       snap_ni,
-    //                                       snap_nj,
-    //                                       snap_nk,
-    //                                       snap_out_vel,
-    //                                       snap_out_stress,
-    //                                       snap_out_strain,
-    //                                       ncid_snap+n,
-    //                                       varid_snap_V+n*FD_NDIM,
-    //                                       varid_snap_T+n*FD_NDIM_2,
-    //                                       varid_snap_E+n*FD_NDIM_2);
   }
 
-  //
+  //--------------------------------------------------------
   // time loop
-  //
+  //--------------------------------------------------------
+
+  if (myid==0 && verbose>0) fprintf(stdout,"start time loop ...\n"); 
+
   for (int it=0; it<nt_total; it++)
   {
-    t_cur = it * dt + t0;
-    t_next = t_cur +dt;
+    t_cur  = it * dt + t0;
+    t_end = t_cur +dt;
 
     if (myid==0 && verbose>10) fprintf(stdout,"-> it=%d, t=%f\n", it, t_cur);
 
-    ipair = it % num_of_pairs; // mod to ipair
+    // mod to get ipair
+    ipair = it % num_of_pairs;
     if (myid==0 && verbose>10) fprintf(stdout, " --> ipair=%d\n",ipair);
 
     // loop RK stages for one step
@@ -1047,99 +135,81 @@ sv_eliso1st_curv_macdrp_allstep_simplempi(
       if (myid==0 && verbose>10) fprintf(stdout, " --> istage=%d\n",istage);
 
       // use pointer to avoid 1 copy for previous level value
-      if (istage!=0) {
-        w_cur        = w_tmp;
-        abs_vars_cur = abs_vars_tmp;
-      } else {
-        w_cur        = w_pre;
-        abs_vars_cur = abs_vars_pre;
+      if (istage==0) {
+        w_cur = w_pre;
+        for (int idim=0; idim<CONST_NDIM; idim++) {
+          for (int iside=0; iside<2; iside++) {
+            bdrypml->auxvar[idim][iside].cur = bdrypml->auxvar[idim][iside].pre;
+          }
+        }
+      }
+      else
+      {
+        w_cur = w_tmp;
+        for (int idim=0; idim<CONST_NDIM; idim++) {
+          for (int iside=0; iside<2; iside++) {
+            bdrypml->auxvar[idim][iside].cur = bdrypml->auxvar[idim][iside].tmp;
+          }
+        }
       }
 
-      //// recv mesg
-      //if (it>0 || istage>0) {
-      //  MPI_Waitall(num_of_r_reqs, r_reqs, MPI_STATUS_IGNORE);
+      // set src_t time
+      src_set_time(src, it, istage);
 
-      //  fd_blk_unpack_mesg(rbuff, w_cur, w3d_num_of_vars,
-      //                     ni1,ni2,nj1,nj2,nk1,nk2,nx,ny,
-      //                     siz_line,siz_slice,siz_volume);
-
-      //  MPI_Startall(num_of_r_reqs, r_reqs);
-
-      //  MPI_Waitall(num_of_s_reqs, s_reqs, MPI_STATUS_IGNORE);
-      //}
-      
-      // compute
-      sv_eliso1st_curv_macdrp_onestage(w_cur, w_rhs, g3d, m3d, 
-                                       ni1,ni2,nj1,nj2,nk1,nk2,ni,nj,nk,nx,ny,nz,
-                                       siz_line,siz_slice,siz_volume,
-                                       boundary_itype,
-                                       abs_itype,
-                                       abs_num_of_layers,
-                                       abs_indx,
-                                       abs_coefs_facepos0,
-                                       abs_coefs,
-                                       abs_vars_size_per_level,
-                                       abs_vars_volsiz,
-                                       abs_vars_facepos0,
-                                       abs_vars_cur,
-                                       abs_vars_rhs,
-                                       matVx2Vz, matVy2Vz,
-                                       it,
-                                       istage,
-                                       src,
-                                       fdx_max_half_len, fdy_max_half_len,
-                                       fdz_max_len, fdz_num_surf_lay,
-                                       pair_fdx_all_info[ipair][istage],
-                                       pair_fdx_all_indx[ipair][istage],
-                                       pair_fdx_all_coef[ipair][istage],
-                                       pair_fdy_all_info[ipair][istage],
-                                       pair_fdy_all_indx[ipair][istage],
-                                       pair_fdy_all_coef[ipair][istage],
-                                       pair_fdz_all_info[ipair][istage],
-                                       pair_fdz_all_indx[ipair][istage],
-                                       pair_fdz_all_coef[ipair][istage],
-                                       myid, verbose);
-
-      // RK int
+      // compute rhs
+      sv_eliso1st_curv_macdrp_onestage(
+          w_cur,w_rhs,wfel1st,
+          gdinfo, metric, mdeliso, bdryfree, bdrypml, src,
+          fd->num_of_fdx_op, fd->pair_fdx_op[ipair][istage],
+          fd->num_of_fdy_op, fd->pair_fdy_op[ipair][istage],
+          fd->num_of_fdz_op, fd->pair_fdz_op[ipair][istage],
+          fd->fdz_max_len,
+          myid, verbose);
 
       // recv mesg
       MPI_Startall(num_of_r_reqs, r_reqs);
 
-      // start
+      // rk start
       if (istage==0)
       {
         float coef_a = rk_a[istage] * dt;
         float coef_b = rk_b[istage] * dt;
 
         // wavefield
-        for (size_t iptr=0; iptr<WF_EL_1ST_NVAR*siz_volume; iptr++) {
+        for (size_t iptr=0; iptr < wfel1st->siz_ilevel; iptr++) {
             w_tmp[iptr] = w_pre[iptr] + coef_a * w_rhs[iptr];
         }
         // pack and isend
-        fd_blk_pack_mesg(w_tmp, sbuff, w3d_num_of_vars,
-                         ni1,ni2,nj1,nj2,nk1,nk2,
-                         siz_line,siz_slice,siz_volume,
+        blk_pack_mesg(w_tmp, sbuff, wfel1st->ncmp, gdinfo,
                          fdx_max_half_len, fdy_max_half_len);
 
         MPI_Startall(num_of_s_reqs, s_reqs);
 
         // pml_tmp
-        if (abs_itype == FD_BOUNDARY_TYPE_CFSPML)
-        {
-          for (size_t iptr=0; iptr<abs_vars_size_per_level; iptr++) {
-            abs_vars_tmp[iptr] = abs_vars_pre[iptr] + coef_a * abs_vars_rhs[iptr];
+        for (int idim=0; idim<CONST_NDIM; idim++) {
+          for (int iside=0; iside<2; iside++) {
+            if (bdrypml->is_at_sides[idim][iside]==1) {
+              bdrypml_auxvar_t *auxvar = &(bdrypml->auxvar[idim][iside]);
+              for (size_t iptr=0; iptr < auxvar->siz_ilevel; iptr++) {
+                auxvar->tmp[iptr] = auxvar->pre[iptr] + coef_a * auxvar->rhs[iptr];
+              }
+            }
           }
         }
 
         // w_end
-        for (size_t iptr=0; iptr<WF_EL_1ST_NVAR*siz_volume; iptr++) {
+        for (size_t iptr=0; iptr < wfel1st->siz_ilevel; iptr++) {
             w_end[iptr] = w_pre[iptr] + coef_b * w_rhs[iptr];
         }
         // pml_end
-        if (abs_itype == FD_BOUNDARY_TYPE_CFSPML)
-        {
-          for (size_t iptr=0; iptr<abs_vars_size_per_level; iptr++) {
-            abs_vars_end[iptr] = abs_vars_pre[iptr] + coef_b * abs_vars_rhs[iptr];
+        for (int idim=0; idim<CONST_NDIM; idim++) {
+          for (int iside=0; iside<2; iside++) {
+            if (bdrypml->is_at_sides[idim][iside]==1) {
+              bdrypml_auxvar_t *auxvar = &(bdrypml->auxvar[idim][iside]);
+              for (size_t iptr=0; iptr < auxvar->siz_ilevel; iptr++) {
+                auxvar->end[iptr] = auxvar->pre[iptr] + coef_b * auxvar->rhs[iptr];
+              }
+            }
           }
         }
       }
@@ -1149,34 +219,40 @@ sv_eliso1st_curv_macdrp_allstep_simplempi(
         float coef_b = rk_b[istage] * dt;
 
         // wavefield
-        for (size_t iptr=0; iptr<WF_EL_1ST_NVAR*siz_volume; iptr++) {
+        for (size_t iptr=0; iptr < wfel1st->siz_ilevel; iptr++) {
             w_tmp[iptr] = w_pre[iptr] + coef_a * w_rhs[iptr];
         }
         // pack and isend
-        fd_blk_pack_mesg(w_tmp, sbuff, w3d_num_of_vars,
-                         ni1,ni2,nj1,nj2,nk1,nk2,
-                         siz_line,siz_slice,siz_volume,
+        blk_pack_mesg(w_tmp, sbuff, wfel1st->ncmp, gdinfo,
                          fdx_max_half_len, fdy_max_half_len);
 
         MPI_Startall(num_of_s_reqs, s_reqs);
 
         // pml_tmp
-        if (abs_itype == FD_BOUNDARY_TYPE_CFSPML)
-        {
-          for (size_t iptr=0; iptr<abs_vars_size_per_level; iptr++) {
-            abs_vars_tmp[iptr] = abs_vars_pre[iptr] + coef_a * abs_vars_rhs[iptr];
+        for (int idim=0; idim<CONST_NDIM; idim++) {
+          for (int iside=0; iside<2; iside++) {
+            if (bdrypml->is_at_sides[idim][iside]==1) {
+              bdrypml_auxvar_t *auxvar = &(bdrypml->auxvar[idim][iside]);
+              for (size_t iptr=0; iptr < auxvar->siz_ilevel; iptr++) {
+                auxvar->tmp[iptr] = auxvar->pre[iptr] + coef_a * auxvar->rhs[iptr];
+              }
+            }
           }
         }
 
         // w_end
-        for (size_t iptr=0; iptr<WF_EL_1ST_NVAR*siz_volume; iptr++) {
+        for (size_t iptr=0; iptr < wfel1st->siz_ilevel; iptr++) {
             w_end[iptr] += coef_b * w_rhs[iptr];
         }
         // pml_end
-        if (abs_itype == FD_BOUNDARY_TYPE_CFSPML)
-        {
-          for (size_t iptr=0; iptr<abs_vars_size_per_level; iptr++) {
-            abs_vars_end[iptr] += coef_b * abs_vars_rhs[iptr];
+        for (int idim=0; idim<CONST_NDIM; idim++) {
+          for (int iside=0; iside<2; iside++) {
+            if (bdrypml->is_at_sides[idim][iside]==1) {
+              bdrypml_auxvar_t *auxvar = &(bdrypml->auxvar[idim][iside]);
+              for (size_t iptr=0; iptr < auxvar->siz_ilevel; iptr++) {
+                auxvar->end[iptr] += coef_b * auxvar->rhs[iptr];
+              }
+            }
           }
         }
       }
@@ -1185,22 +261,24 @@ sv_eliso1st_curv_macdrp_allstep_simplempi(
         float coef_b = rk_b[istage] * dt;
 
         // wavefield
-        for (size_t iptr=0; iptr<WF_EL_1ST_NVAR*siz_volume; iptr++) {
+        for (size_t iptr=0; iptr < wfel1st->siz_ilevel; iptr++) {
             w_end[iptr] += coef_b * w_rhs[iptr];
         }
         // pack and isend
-        fd_blk_pack_mesg(w_end, sbuff, w3d_num_of_vars,
-                         ni1,ni2,nj1,nj2,nk1,nk2,
-                         siz_line,siz_slice,siz_volume,
+        blk_pack_mesg(w_end, sbuff, wfel1st->ncmp, gdinfo,
                          fdx_max_half_len, fdy_max_half_len);
 
         MPI_Startall(num_of_s_reqs, s_reqs);
 
         // pml_end
-        if (abs_itype == FD_BOUNDARY_TYPE_CFSPML)
-        {
-          for (size_t iptr=0; iptr<abs_vars_size_per_level; iptr++) {
-            abs_vars_end[iptr] += coef_b * abs_vars_rhs[iptr];
+        for (int idim=0; idim<CONST_NDIM; idim++) {
+          for (int iside=0; iside<2; iside++) {
+            if (bdrypml->is_at_sides[idim][iside]==1) {
+              bdrypml_auxvar_t *auxvar = &(bdrypml->auxvar[idim][iside]);
+              for (size_t iptr=0; iptr < auxvar->siz_ilevel; iptr++) {
+                auxvar->end[iptr] += coef_b * auxvar->rhs[iptr];
+              }
+            }
           }
         }
       }
@@ -1209,264 +287,78 @@ sv_eliso1st_curv_macdrp_allstep_simplempi(
       MPI_Waitall(num_of_r_reqs, r_reqs, MPI_STATUS_IGNORE);
 
       if (istage != num_rk_stages-1) {
-        fd_blk_unpack_mesg(rbuff, w_tmp, w3d_num_of_vars,
-                           ni1,ni2,nj1,nj2,nk1,nk2,nx,ny,
-                           siz_line,siz_slice,siz_volume);
-      } else {
-        fd_blk_unpack_mesg(rbuff, w_end, w3d_num_of_vars,
-                           ni1,ni2,nj1,nj2,nk1,nk2,nx,ny,
-                           siz_line,siz_slice,siz_volume);
-      }
+        blk_unpack_mesg(rbuff, w_tmp,  wfel1st->ncmp, gdinfo,
+                         fdx_max_half_len, fdy_max_half_len);
+     } else {
+        blk_unpack_mesg(rbuff, w_end,  wfel1st->ncmp, gdinfo,
+                         fdx_max_half_len, fdy_max_half_len);
+     }
     } // RK stages
 
+    //--------------------------------------------
     // QC
+    //--------------------------------------------
+
     if (qc_check_nan_num_of_step >0  && (it % qc_check_nan_num_of_step) == 0) {
       if (myid==0 && verbose>10) fprintf(stdout,"-> check value nan\n");
         //wf_el_1st_check_value(w_end);
     }
 
+    //--------------------------------------------
     // save results
-    //-- sta by interp
-    for (int n=0; n<num_of_sta; n++)
-    {
-      int iptr =   sta_loc_indx[0+n*FD_NDIM]
-                 + sta_loc_indx[1+n*FD_NDIM] * siz_line
-                 + sta_loc_indx[2+n*FD_NDIM] * siz_slice;
-      // need to implement interp, now just take value
-      for (int ivar=0; ivar<w3d_num_of_vars; ivar++) {
-        int iptr_sta = (n * w3d_num_of_vars + ivar) * nt_total + it;
-        sta_seismo[iptr_sta] = w_end[ivar*siz_volume + iptr];
-      }
-    }
-    //-- point values
-    for (int n=0; n<num_of_point; n++)
-    {
-      int iptr = point_loc_indx[0] + point_loc_indx[1] * siz_line + point_loc_indx[2] * siz_slice;
-      for (int ivar=0; ivar<w3d_num_of_vars; ivar++) {
-        int iptr_point = (n * w3d_num_of_vars + ivar) * nt_total + it;
-        point_seismo[iptr_point] = w_end[ivar*siz_volume + iptr];
-      }
-    }
-    //-- slice x, use w_rhs as buff
-    int max_used_rhs = 0;
-    for (int n=0; n<num_of_slice_x; n++) {
-      size_t startp[] = { it, 0, 0 };
-      size_t countp[] = { 1, nk, nj};
-      size_t start_tdim = it;
-      for (int ivar=0; ivar<w3d_num_of_vars; ivar++) {
-        int iptr_var = w3d_pos[ivar];
-        int iptr_slice = 0;
-        for (int k=nk1; k<=nk2; k++) {
-          for (int j=nj1; j<=nj2; j++) {
-            int i = slice_x_indx[n];
-            int iptr = i + j * siz_line + k * siz_slice + iptr_var;
-            w_rhs[iptr_slice] = w_end[iptr];
-            iptr_slice++;
-          }
-        }
-        nc_put_var1_float(ncid_slx[n],timeid_slx[n],&start_tdim,&t_next);
-        nc_put_vara_float(ncid_slx[n],varid_slx[ivar+n*ivar],startp,countp,w_rhs);
-        max_used_rhs = (iptr_slice > max_used_rhs) ? iptr_slice : max_used_rhs;
-      }
-    }
-    // slice y
-    for (int n=0; n<num_of_slice_y; n++) {
-      size_t startp[] = { it, 0, 0 };
-      size_t countp[] = { 1, nk, ni};
-      size_t start_tdim = it;
-      for (int ivar=0; ivar<w3d_num_of_vars; ivar++) {
-        int iptr_var = w3d_pos[ivar];
-        int iptr_slice = 0;
-        for (int k=nk1; k<=nk2; k++) {
-          int j = slice_y_indx[n];
-          for (int i=ni1; i<=ni2; i++) {
-            int iptr = i + j * siz_line + k * siz_slice + iptr_var;
-            w_rhs[iptr_slice] = w_end[iptr];
-            iptr_slice++;
-          }
-        }
-        nc_put_var1_float(ncid_sly[n],timeid_sly[n],&start_tdim,&t_next);
-        nc_put_vara_float(ncid_sly[n],varid_sly[ivar+n*ivar],startp,countp,w_rhs);
-        max_used_rhs = (iptr_slice > max_used_rhs) ? iptr_slice : max_used_rhs;
-      }
-    }
-    // slice z
-    for (int n=0; n<num_of_slice_z; n++) {
-      size_t startp[] = { it, 0, 0 };
-      size_t countp[] = { 1, nj, ni};
-      size_t start_tdim = it;
-      for (int ivar=0; ivar<w3d_num_of_vars; ivar++) {
-        int iptr_var = w3d_pos[ivar];
-        int k = slice_z_indx[n];
-        int iptr_slice = 0;
-        for (int j=nj1; j<=nj2; j++) {
-          for (int i=ni1; i<=ni2; i++) {
-            int iptr = i + j * siz_line + k * siz_slice + iptr_var;
-            w_rhs[iptr_slice] = w_end[iptr];
-            iptr_slice++;
-          }
-        }
-        nc_put_var1_float(ncid_slz[n],timeid_slz[n],&start_tdim,&t_next);
-        nc_put_vara_float(ncid_slz[n],varid_slz[ivar+n*ivar],startp,countp,w_rhs);
-        max_used_rhs = (iptr_slice > max_used_rhs) ? iptr_slice : max_used_rhs;
-      }
-    }
+    //--------------------------------------------
+
+    //-- recv by interp
+    io_recv_keep(iorecv, w_end, it, wfel1st->ncmp, wfel1st->siz_icmp);
+
+    //-- line values
+    io_line_keep(ioline, w_end, it, wfel1st->ncmp, wfel1st->siz_icmp);
+
+    // write slice, use w_rhs as buff
+    io_slice_nc_put(ioslice,&ioslice_nc,gdinfo,w_end,w_rhs,it,t_end,wfel1st->ncmp);
+
     // snapshot
-    for (int n=0; n<num_of_snap; n++)
-    {
-      int *cur_snap_info = snap_info + n * FD_SNAP_INFO_SIZE;
-      int snap_i1  = cur_snap_info[FD_SNAP_INFO_I1];
-      int snap_j1  = cur_snap_info[FD_SNAP_INFO_J1];
-      int snap_k1  = cur_snap_info[FD_SNAP_INFO_K1];
-      int snap_ni  = cur_snap_info[FD_SNAP_INFO_NI];
-      int snap_nj  = cur_snap_info[FD_SNAP_INFO_NJ];
-      int snap_nk  = cur_snap_info[FD_SNAP_INFO_NK];
-      int snap_di  = cur_snap_info[FD_SNAP_INFO_DI];
-      int snap_dj  = cur_snap_info[FD_SNAP_INFO_DJ];
-      int snap_dk  = cur_snap_info[FD_SNAP_INFO_DK];
+    io_snap_nc_put(iosnap, &iosnap_nc, gdinfo, wfel1st, 
+                   w_end, w_rhs, nt_total, it, t_end);
 
-      int snap_it1 = cur_snap_info[FD_SNAP_INFO_IT1];
-      int snap_dit = cur_snap_info[FD_SNAP_INFO_DIT];
-      int snap_it_mod = (it - snap_it1) % snap_dit;
-      int snap_it_num = (it - snap_it1) / snap_dit;
-      int snap_nt_total = (nt_total - snap_it1) / snap_dit;
-      int snap_out_V = cur_snap_info[FD_SNAP_INFO_VEL];
-      int snap_out_T = cur_snap_info[FD_SNAP_INFO_STRESS];
-      int snap_out_E = cur_snap_info[FD_SNAP_INFO_STRAIN];
-
-      int snap_max_num = snap_ni * snap_nj * snap_nk;
-
-      if (it>=snap_it1 && snap_it_num<=snap_nt_total && snap_it_mod==0)
-      {
-        size_t startp[] = { snap_cur_it[n], 0, 0, 0 };
-        size_t countp[] = { 1, snap_nk, snap_nj, snap_ni };
-        size_t start_tdim = snap_cur_it[n];
-
-        nc_put_var1_float(ncid_snap[n],timeid_snap[n],&start_tdim,&t_next);
-
-        // vel
-        if (snap_out_V==1)
-        {
-          sv_eliso1st_curv_macdrp_snap_buff(w_end+WF_EL_1ST_SEQ_Vx*siz_volume,
-                siz_line,siz_slice,snap_i1,snap_ni,snap_di,snap_j1,snap_nj,
-                snap_dj,snap_k1,snap_nk,snap_dk,w_rhs);
-          nc_put_vara_float(ncid_snap[n],varid_snap_vel[n*FD_NDIM+0],startp,countp,w_rhs);
-
-          sv_eliso1st_curv_macdrp_snap_buff(w_end+WF_EL_1ST_SEQ_Vy*siz_volume,
-                siz_line,siz_slice,snap_i1,snap_ni,snap_di,snap_j1,snap_nj,
-                snap_dj,snap_k1,snap_nk,snap_dk,w_rhs);
-          nc_put_vara_float(ncid_snap[n],varid_snap_vel[n*FD_NDIM+1],startp,countp,w_rhs);
-
-          sv_eliso1st_curv_macdrp_snap_buff(w_end+WF_EL_1ST_SEQ_Vz*siz_volume,
-                siz_line,siz_slice,snap_i1,snap_ni,snap_di,snap_j1,snap_nj,
-                snap_dj,snap_k1,snap_nk,snap_dk,w_rhs);
-          nc_put_vara_float(ncid_snap[n],varid_snap_vel[n*FD_NDIM+2],startp,countp,w_rhs);
-        }
-        if (snap_out_T==1)
-        {
-          sv_eliso1st_curv_macdrp_snap_buff(w_end+WF_EL_1ST_SEQ_Txx*siz_volume,
-                siz_line,siz_slice,snap_i1,snap_ni,snap_di,snap_j1,snap_nj,
-                snap_dj,snap_k1,snap_nk,snap_dk,w_rhs);
-          nc_put_vara_float(ncid_snap[n],varid_snap_T[n*FD_NDIM_2+0],startp,countp,w_rhs);
-
-          sv_eliso1st_curv_macdrp_snap_buff(w_end+WF_EL_1ST_SEQ_Tyy*siz_volume,
-                siz_line,siz_slice,snap_i1,snap_ni,snap_di,snap_j1,snap_nj,
-                snap_dj,snap_k1,snap_nk,snap_dk,w_rhs);
-          nc_put_vara_float(ncid_snap[n],varid_snap_T[n*FD_NDIM_2+1],startp,countp,w_rhs);
-          
-          sv_eliso1st_curv_macdrp_snap_buff(w_end+WF_EL_1ST_SEQ_Tzz*siz_volume,
-                siz_line,siz_slice,snap_i1,snap_ni,snap_di,snap_j1,snap_nj,
-                snap_dj,snap_k1,snap_nk,snap_dk,w_rhs);
-          nc_put_vara_float(ncid_snap[n],varid_snap_T[n*FD_NDIM_2+2],startp,countp,w_rhs);
-          
-          sv_eliso1st_curv_macdrp_snap_buff(w_end+WF_EL_1ST_SEQ_Txz*siz_volume,
-                siz_line,siz_slice,snap_i1,snap_ni,snap_di,snap_j1,snap_nj,
-                snap_dj,snap_k1,snap_nk,snap_dk,w_rhs);
-          nc_put_vara_float(ncid_snap[n],varid_snap_T[n*FD_NDIM_2+3],startp,countp,w_rhs);
-
-          sv_eliso1st_curv_macdrp_snap_buff(w_end+WF_EL_1ST_SEQ_Tyz*siz_volume,
-                siz_line,siz_slice,snap_i1,snap_ni,snap_di,snap_j1,snap_nj,
-                snap_dj,snap_k1,snap_nk,snap_dk,w_rhs);
-          nc_put_vara_float(ncid_snap[n],varid_snap_T[n*FD_NDIM_2+4],startp,countp,w_rhs);
-
-          sv_eliso1st_curv_macdrp_snap_buff(w_end+WF_EL_1ST_SEQ_Txy*siz_volume,
-                siz_line,siz_slice,snap_i1,snap_ni,snap_di,snap_j1,snap_nj,
-                snap_dj,snap_k1,snap_nk,snap_dk,w_rhs);
-          nc_put_vara_float(ncid_snap[n],varid_snap_T[n*FD_NDIM_2+5],startp,countp,w_rhs);
-        }
-        if (snap_out_E==1)
-        {
-          // need to implement
-        }
-        //for (int ivar=0; ivar<w3d_num_of_vars; ivar++)
-        //{
-        //  if (snap_save_cmp[n*w3d_num_of_vars+ivar]==1)
-        //  {
-        //    int iptr_var = w3d_pos[ivar];
-        //    int iptr_snap=0;
-        //    for (int n3=0; n3<snap_nk; n3++)
-        //    {
-        //      int k = cur_snap_info[2] + n3 * cur_snap_info[8];
-        //      for (int n2=0; n2<snap_nj; n2++)
-        //      {
-        //        int j = cur_snap_info[1] + n2 * cur_snap_info[7];
-        //        for (int n1=0; n1<snap_ni; n1++)
-        //        {
-        //          int i = cur_snap_info[0] + n1 * cur_snap_info[6];
-        //          int iptr = i + j * siz_line + k * siz_slice + iptr_var;
-        //          w_rhs[iptr_snap] = w_end[iptr];
-        //          iptr_snap++;
-        //        }
-        //      }
-        //    }
-        //    size_t startp[] = { snap_cur_it[n], 0, 0, 0 };
-        //    size_t countp[] = { 1, snap_nk, snap_nj, snap_ni };
-        //    nc_put_vara_float(ncid_snap[n],varid_snap[n*w3d_num_of_vars+ivar],startp,countp,w_rhs);
-        //  }
-        //}
-        max_used_rhs = (snap_max_num > max_used_rhs) ? snap_max_num : max_used_rhs;
-        snap_cur_it[n] += 1;
-      }
-    }
     // zero temp used w_rsh
-    for (int i=0; i<max_used_rhs; i++) w_rhs[i]=0.0;
+    sv_eliso1st_curv_macdrp_zero_edge(gdinfo, wfel1st, w_rhs);
 
     // debug output
-    if (output_all==1) {
-        io_build_fname_time(output_dir,"w3d",".nc",myid2,it,ou_file);
+    if (output_all==1)
+    {
+        io_build_fname_time(output_dir,"w3d",".nc",topoid,it,ou_file);
         io_var3d_export_nc(ou_file,
                            w_end,
-                           w3d_pos,
-                           w3d_name,
-                           w3d_num_of_vars,
-                           coord_name,
-                           nx,
-                           ny,
-                           nz);
+                           wfel1st->cmp_pos,
+                           wfel1st->cmp_name,
+                           wfel1st->ncmp,
+                           gdinfo->index_name,
+                           gdinfo->nx,
+                           gdinfo->ny,
+                           gdinfo->nz);
     }
 
     // swap w_pre and w_end, avoid copying
     w_cur = w_pre; w_pre = w_end; w_end = w_cur;
-    abs_vars_cur = abs_vars_pre; abs_vars_pre = abs_vars_end; abs_vars_end = abs_vars_cur;
+
+    for (int idim=0; idim<CONST_NDIM; idim++) {
+      for (int iside=0; iside<2; iside++) {
+        bdrypml_auxvar_t *auxvar = &(bdrypml->auxvar[idim][iside]);
+        auxvar->cur = auxvar->pre;
+        auxvar->pre = auxvar->end;
+        auxvar->end = auxvar->cur;
+      }
+    }
 
   } // time loop
 
   // postproc
 
   // close nc
-  for (int n=0; n<num_of_slice_x; n++) {
-    nc_close(ncid_slx[n]);
-  }
-  for (int n=0; n<num_of_slice_y; n++) {
-    nc_close(ncid_sly[n]);
-  }
-  for (int n=0; n<num_of_slice_z; n++) {
-    nc_close(ncid_slz[n]);
-  }
-  for (int n=0; n<num_of_snap; n++)
-  {
-    nc_close(ncid_snap[n]);
-  }
+  io_slice_nc_close(&ioslice_nc);
+  io_snap_nc_close(&iosnap_nc);
+
 }
 
 /*******************************************************************************
@@ -1475,101 +367,102 @@ sv_eliso1st_curv_macdrp_allstep_simplempi(
 
 void
 sv_eliso1st_curv_macdrp_onestage(
-    float *restrict w_cur, float *restrict rhs, 
-    float *restrict g3d, float *restrict m3d,
-    // grid size
-    int ni1, int ni2, int nj1, int nj2, int nk1, int nk2,
-    int ni, int nj, int nk, int nx, int ny, int nz,
-    size_t siz_line, size_t siz_slice, size_t siz_volume,
-    int *restrict boundary_itype,
-    int              abs_itype,
-    int    *restrict abs_num_of_layers,
-    int *restrict abs_indx,
-    int *restrict abs_coefs_facepos0,
-    float  *restrict abs_coefs,
-    int           abs_vars_size_per_level,
-    int *restrict abs_vars_volsiz,
-    int *restrict abs_vars_facepos0, //
-    float  *restrict abs_vars_cur,
-    float  *restrict abs_vars_rhs,
-    float *matVx2Vz, float *matVy2Vz, //
-    // source term
-    int it,
-    int istage,
-    struct fd_src_t *src,
-    // include different order/stentil
-    int fdx_max_half_len, int fdy_max_half_len,
-    int fdz_max_len, int fdz_num_surf_lay,
-    int **restrict fdx_all_info, int *restrict fdx_all_indx,float *restrict fdx_all_coef,
-    int **restrict fdy_all_info, int *restrict fdy_all_indx,float *restrict fdy_all_coef,
-    int **restrict fdz_all_info, int *restrict fdz_all_indx,float *restrict fdz_all_coef,
-    const int myid, const int verbose)
+  float *restrict w_cur,
+  float *restrict rhs, 
+  wfel1st_t  *wfel1st,
+  gdinfo_t   *gdinfo,
+  gdcurv_metric_t  *metric,
+  mdeliso_t *mdeliso,
+  bdryfree_t *bdryfree,
+  bdrypml_t  *bdrypml,
+  src_t *src,
+  // include different order/stentil
+  int num_of_fdx_op, fd_op_t *fdx_op,
+  int num_of_fdy_op, fd_op_t *fdy_op,
+  int num_of_fdz_op, fd_op_t *fdz_op,
+  int fdz_max_len, 
+  const int myid, const int verbose)
 {
-  int i,j,k;
-
   // local pointer get each vars
-  float *restrict Vx    = w_cur + WF_EL_1ST_SEQ_Vx    * siz_volume;
-  float *restrict Vy    = w_cur + WF_EL_1ST_SEQ_Vy    * siz_volume;
-  float *restrict Vz    = w_cur + WF_EL_1ST_SEQ_Vz    * siz_volume;
-  float *restrict Txx   = w_cur + WF_EL_1ST_SEQ_Txx   * siz_volume;
-  float *restrict Tyy   = w_cur + WF_EL_1ST_SEQ_Tyy   * siz_volume;
-  float *restrict Tzz   = w_cur + WF_EL_1ST_SEQ_Tzz   * siz_volume;
-  float *restrict Txz   = w_cur + WF_EL_1ST_SEQ_Txz   * siz_volume;
-  float *restrict Tyz   = w_cur + WF_EL_1ST_SEQ_Tyz   * siz_volume;
-  float *restrict Txy   = w_cur + WF_EL_1ST_SEQ_Txy   * siz_volume;
-  float *restrict hVx   = rhs + WF_EL_1ST_SEQ_Vx    * siz_volume;
-  float *restrict hVy   = rhs + WF_EL_1ST_SEQ_Vy    * siz_volume;
-  float *restrict hVz   = rhs + WF_EL_1ST_SEQ_Vz    * siz_volume;
-  float *restrict hTxx  = rhs + WF_EL_1ST_SEQ_Txx   * siz_volume;
-  float *restrict hTyy  = rhs + WF_EL_1ST_SEQ_Tyy   * siz_volume;
-  float *restrict hTzz  = rhs + WF_EL_1ST_SEQ_Tzz   * siz_volume;
-  float *restrict hTxz  = rhs + WF_EL_1ST_SEQ_Txz   * siz_volume;
-  float *restrict hTyz  = rhs + WF_EL_1ST_SEQ_Tyz   * siz_volume;
-  float *restrict hTxy  = rhs + WF_EL_1ST_SEQ_Txy   * siz_volume;
-  float *restrict xi_x  = g3d   + GD_CURV_SEQ_XIX   * siz_volume;
-  float *restrict xi_y  = g3d   + GD_CURV_SEQ_XIY   * siz_volume;
-  float *restrict xi_z  = g3d   + GD_CURV_SEQ_XIZ   * siz_volume;
-  float *restrict et_x  = g3d   + GD_CURV_SEQ_ETX   * siz_volume;
-  float *restrict et_y  = g3d   + GD_CURV_SEQ_ETY   * siz_volume;
-  float *restrict et_z  = g3d   + GD_CURV_SEQ_ETZ   * siz_volume;
-  float *restrict zt_x  = g3d   + GD_CURV_SEQ_ZTX   * siz_volume;
-  float *restrict zt_y  = g3d   + GD_CURV_SEQ_ZTY   * siz_volume;
-  float *restrict zt_z  = g3d   + GD_CURV_SEQ_ZTZ   * siz_volume;
-  float *restrict jac3d = g3d   + GD_CURV_SEQ_JAC   * siz_volume;
-  float *restrict lam3d = m3d   + MD_EL_ISO_SEQ_LAMBDA * siz_volume;
-  float *restrict  mu3d = m3d   + MD_EL_ISO_SEQ_MU     * siz_volume;
-  float *restrict slw3d = m3d   + MD_EL_ISO_SEQ_RHO    * siz_volume;
+  float *restrict Vx    = w_cur + wfel1st->Vx_pos ;
+  float *restrict Vy    = w_cur + wfel1st->Vy_pos ;
+  float *restrict Vz    = w_cur + wfel1st->Vz_pos ;
+  float *restrict Txx   = w_cur + wfel1st->Txx_pos;
+  float *restrict Tyy   = w_cur + wfel1st->Tyy_pos;
+  float *restrict Tzz   = w_cur + wfel1st->Tzz_pos;
+  float *restrict Txz   = w_cur + wfel1st->Tyz_pos;
+  float *restrict Tyz   = w_cur + wfel1st->Txz_pos;
+  float *restrict Txy   = w_cur + wfel1st->Txy_pos;
+  float *restrict hVx   = rhs   + wfel1st->Vx_pos ; 
+  float *restrict hVy   = rhs   + wfel1st->Vy_pos ; 
+  float *restrict hVz   = rhs   + wfel1st->Vz_pos ; 
+  float *restrict hTxx  = rhs   + wfel1st->Txx_pos; 
+  float *restrict hTyy  = rhs   + wfel1st->Tyy_pos; 
+  float *restrict hTzz  = rhs   + wfel1st->Tzz_pos; 
+  float *restrict hTxz  = rhs   + wfel1st->Tyz_pos; 
+  float *restrict hTyz  = rhs   + wfel1st->Txz_pos; 
+  float *restrict hTxy  = rhs   + wfel1st->Txy_pos; 
 
-  // fd op
-  int           fdx_inn_len;
-  int           fdx_inn_pos;
-  int *restrict fdx_inn_indx;
-  float  *restrict fdx_inn_coef;
-  int           fdy_inn_len;
-  int           fdy_inn_pos;
-  int *restrict fdy_inn_indx;
+  float *restrict xi_x  = metric->xi_x;
+  float *restrict xi_y  = metric->xi_y;
+  float *restrict xi_z  = metric->xi_z;
+  float *restrict et_x  = metric->eta_x;
+  float *restrict et_y  = metric->eta_x;
+  float *restrict et_z  = metric->eta_x;
+  float *restrict zt_x  = metric->zeta_x;
+  float *restrict zt_y  = metric->zeta_x;
+  float *restrict zt_z  = metric->zeta_x;
+  float *restrict jac3d = metric->jac;
+
+  float *restrict lam3d = mdeliso->lambda;
+  float *restrict  mu3d = mdeliso->mu;
+  float *restrict slw3d = mdeliso->rho;
+
+  // grid size
+  int ni1 = gdinfo->ni1;
+  int ni2 = gdinfo->ni2;
+  int nj1 = gdinfo->nj1;
+  int nj2 = gdinfo->nj2;
+  int nk1 = gdinfo->nk1;
+  int nk2 = gdinfo->nk2;
+
+  int ni  = gdinfo->ni;
+  int nj  = gdinfo->nj;
+  int nk  = gdinfo->nk;
+  int nx  = gdinfo->nx;
+  int ny  = gdinfo->ny;
+  int nz  = gdinfo->nz;
+  size_t siz_line   = gdinfo->siz_line;
+  size_t siz_slice  = gdinfo->siz_slice;
+  size_t siz_volume = gdinfo->siz_volume;
+
+  float *matVx2Vz = bdryfree->matVx2Vz2;
+  float *matVy2Vz = bdryfree->matVy2Vz2;
+
+  // local fd op
+  int              fdx_inn_len;
+  int    *restrict fdx_inn_indx;
+  float *restrict fdx_inn_coef;
+  int              fdy_inn_len;
+  int    *restrict fdy_inn_indx;
   float  *restrict fdy_inn_coef;
-  int           fdz_inn_len;
-  int           fdz_inn_pos;
-  int *restrict fdz_inn_indx;
+  int              fdz_inn_len;
+  int    *restrict fdz_inn_indx;
   float  *restrict fdz_inn_coef;
 
-  // for get a op from 1d array, currently use fdz_num_surf_lay as index
-  fdx_inn_pos  = fdx_all_info[fdx_max_half_len][FD_INFO_POS_OF_INDX];
+  // for get a op from 1d array, currently use num_of_fdz_op as index
   // length, index, coef of a op
-  fdx_inn_len  = fdx_all_info[fdx_max_half_len][FD_INFO_LENGTH_TOTAL];
-  fdx_inn_indx = fdx_all_indx + fdx_inn_pos;
-  fdx_inn_coef = fdx_all_coef + fdx_inn_pos;
+  fdx_inn_len  = fdx_op[num_of_fdx_op-1].total_len;
+  fdx_inn_indx = fdx_op[num_of_fdx_op-1].indx;
+  fdx_inn_coef = fdx_op[num_of_fdx_op-1].coef;
 
-  fdy_inn_pos  = fdy_all_info[fdy_max_half_len][FD_INFO_POS_OF_INDX];
-  fdy_inn_len  = fdy_all_info[fdy_max_half_len][FD_INFO_LENGTH_TOTAL];
-  fdy_inn_indx = fdy_all_indx + fdy_inn_pos;
-  fdy_inn_coef = fdy_all_coef + fdy_inn_pos;
+  fdy_inn_len  = fdy_op[num_of_fdy_op-1].total_len;
+  fdy_inn_indx = fdy_op[num_of_fdy_op-1].indx;
+  fdy_inn_coef = fdy_op[num_of_fdy_op-1].coef;
 
-  fdz_inn_pos  = fdz_all_info[fdz_num_surf_lay][FD_INFO_POS_OF_INDX];
-  fdz_inn_len  = fdz_all_info[fdz_num_surf_lay][FD_INFO_LENGTH_TOTAL];
-  fdz_inn_indx = fdz_all_indx + fdz_inn_pos;
-  fdz_inn_coef = fdz_all_coef + fdz_inn_pos;
+  fdz_inn_len  = fdz_op[num_of_fdz_op-1].total_len;
+  fdz_inn_indx = fdz_op[num_of_fdz_op-1].indx;
+  fdz_inn_coef = fdz_op[num_of_fdz_op-1].coef;
 
   // inner points
   sv_eliso1st_curv_macdrp_rhs_inner(Vx,Vy,Vz,Txx,Tyy,Tzz,Txz,Tyz,Txy,
@@ -1585,7 +478,7 @@ sv_eliso1st_curv_macdrp_onestage(
   // free, abs, source in turn
 
   // free surface at z2
-  if (boundary_itype[5] == FD_BOUNDARY_TYPE_FREE)
+  if (bdryfree->is_at_sides[2][1] == 1)
   {
     // tractiong
     sv_eliso1st_curv_macdrp_rhs_timg_z2(Txx,Tyy,Tzz,Txz,Tyz,Txy,hVx,hVy,hVz,
@@ -1600,69 +493,37 @@ sv_eliso1st_curv_macdrp_onestage(
     // velocity: vlow
     sv_eliso1st_curv_macdrp_rhs_vlow_z2(Vx,Vy,Vz,hTxx,hTyy,hTzz,hTxz,hTyz,hTxy,
                                         xi_x, xi_y, xi_z, et_x, et_y, et_z, zt_x, zt_y, zt_z,
-                                        lam3d, mu3d, slw3d,matVx2Vz,matVy2Vz,
+                                        lam3d, mu3d, slw3d,
+                                        matVx2Vz,matVy2Vz,
                                         ni1,ni2,nj1,nj2,nk1,nk2,siz_line,siz_slice,
                                         fdx_inn_len, fdx_inn_indx, fdx_inn_coef,
                                         fdy_inn_len, fdy_inn_indx, fdy_inn_coef,
-                                        fdz_num_surf_lay,fdz_max_len,
-                                        fdz_all_info,fdz_all_indx,fdz_all_coef,
+                                        num_of_fdz_op,fdz_op,fdz_max_len,
                                         myid, verbose);
   }
 
   // cfs-pml, loop face inside
-  if (abs_itype == FD_BOUNDARY_TYPE_CFSPML)
+  if (bdrypml->is_enable == 1)
   {
     sv_eliso1st_curv_macdrp_rhs_cfspml(Vx,Vy,Vz,Txx,Tyy,Tzz,Txz,Tyz,Txy,
                                        hVx,hVy,hVz,hTxx,hTyy,hTzz,hTxz,hTyz,hTxy,
                                        xi_x, xi_y, xi_z, et_x, et_y, et_z, zt_x, zt_y, zt_z,
                                        lam3d, mu3d, slw3d,
-                                       siz_line,siz_slice,
+                                       nk2, siz_line,siz_slice,
                                        fdx_inn_len, fdx_inn_indx, fdx_inn_coef,
                                        fdy_inn_len, fdy_inn_indx, fdy_inn_coef,
                                        fdz_inn_len, fdz_inn_indx, fdz_inn_coef,
-                                       boundary_itype, abs_num_of_layers, abs_indx,
-                                       abs_coefs_facepos0, abs_coefs,
-                                       abs_vars_volsiz, abs_vars_facepos0,
-                                       abs_vars_cur, abs_vars_rhs,
+                                       bdrypml, bdryfree,
                                        myid, verbose);
     
-    // if free surface,  modified 
-    if (boundary_itype[5] == FD_BOUNDARY_TYPE_FREE)
-    {
-      // cfs-pml modified for timg: can't used, double corr with main cfspml
-      //sv_eliso1st_curv_macdrp_rhs_cfspml_timg_z2(Txx,Tyy,Tzz,Txz,Tyz,Txy,hVx,hVy,hVz,
-      //                                           xi_x, xi_y, xi_z,
-      //                                           et_x, et_y, et_z, zt_x, zt_y, zt_z,
-      //                                           jac3d, slw3d, nk2, siz_line,siz_slice,
-      //                                           fdx_inn_len, fdx_inn_indx, fdx_inn_coef,
-      //                                           fdy_inn_len, fdy_inn_indx, fdy_inn_coef,
-      //                                           fdz_inn_len, fdz_inn_indx, fdz_inn_coef,
-      //                                           boundary_itype, abs_num_of_layers, abs_indx,
-      //                                           abs_coefs_facepos0, abs_coefs,
-      //                                           abs_vars_volsiz, abs_vars_facepos0,
-      //                                           abs_vars_cur, abs_vars_rhs,
-      //                                           myid, verbose);
-      
-      // cfs-pml modified for vfree; vlow at points below surface doesn't affect pml
-      sv_eliso1st_curv_macdrp_rhs_cfspml_vfree_z2(Vx,Vy,Vz,hTxx,hTyy,hTzz,hTxz,hTyz,hTxy,
-                                                  zt_x, zt_y, zt_z,
-                                                  lam3d, mu3d, matVx2Vz, matVy2Vz,
-                                                  nk2,siz_line,siz_slice,
-                                                  fdx_inn_len, fdx_inn_indx, fdx_inn_coef,
-                                                  fdy_inn_len, fdy_inn_indx, fdy_inn_coef,
-                                                  boundary_itype, abs_num_of_layers, abs_indx,
-                                                  abs_coefs_facepos0, abs_coefs,
-                                                  abs_vars_volsiz, abs_vars_facepos0,
-                                                  abs_vars_cur, abs_vars_rhs,
-                                                  myid, verbose);
-    }
   }
 
+  // add source term
   if (src->total_number > 0)
   {
     sv_eliso1st_curv_macdrp_rhs_src(hVx,hVy,hVz,hTxx,hTyy,hTzz,hTxz,hTyz,hTxy,
                                     jac3d, slw3d, 
-                                    it, istage, src,
+                                    src,
                                     myid, verbose);
   }
   // end func
@@ -1693,11 +554,11 @@ sv_eliso1st_curv_macdrp_rhs_inner(
 {
   // use local stack array for speedup
   float  lfdx_coef [fdx_len];
-  int lfdx_shift[fdx_len];
+  int    lfdx_shift[fdx_len];
   float  lfdy_coef [fdy_len];
-  int lfdy_shift[fdy_len];
+  int    lfdy_shift[fdy_len];
   float  lfdz_coef [fdz_len];
-  int lfdz_shift[fdz_len];
+  int    lfdz_shift[fdz_len];
 
   // loop var for fd
   int n_fd; // loop var for fd
@@ -2199,21 +1060,18 @@ sv_eliso1st_curv_macdrp_rhs_vlow_z2(
     size_t siz_line, size_t siz_slice,
     int fdx_len, int *restrict fdx_indx, float *restrict fdx_coef,
     int fdy_len, int *restrict fdy_indx, float *restrict fdy_coef,
-    int fdz_num_surf_lay, int fdz_max_len,
-    int  **restrict fdz_all_info,
-    int   *restrict fdz_all_indx,
-    float *restrict fdz_all_coef,
+    int num_of_fdz_op, fd_op_t *fdz_op, int fdz_max_len,
     const int myid, const int verbose)
 {
   // use local stack array for speedup
   float  lfdx_coef [fdx_len];
-  int lfdx_shift[fdx_len];
+  int    lfdx_shift[fdx_len];
   float  lfdy_coef [fdy_len];
-  int lfdy_shift[fdy_len];
+  int    lfdy_shift[fdy_len];
 
   // allocate max_len because fdz may have different lens
   float  lfdz_coef [fdz_max_len];
-  int lfdz_shift[fdz_max_len];
+  int    lfdz_shift[fdz_max_len];
 
   // local var
   int i,j,k;
@@ -2239,17 +1097,16 @@ sv_eliso1st_curv_macdrp_rhs_vlow_z2(
 
   // loop near surface layers
   //for (size_t n=0; n < 1; n++)
-  for (size_t n=0; n < fdz_num_surf_lay; n++)
+  for (size_t n=0; n < num_of_fdz_op-1; n++)
   {
     // conver to k index, from surface to inner
     k = nk2 - n;
 
     // get pos and len for this point
-    int  lfdz_pos0 = fdz_all_info[n][FD_INFO_POS_OF_INDX];
-    int  lfdz_len  = fdz_all_info[n][FD_INFO_LENGTH_TOTAL];
+    int  lfdz_len  = fdz_op[n].total_len;
     // point to indx/coef for this point
-    int   *p_fdz_indx  = fdz_all_indx+lfdz_pos0;
-    float *p_fdz_coef  = fdz_all_coef+lfdz_pos0;
+    int   *p_fdz_indx  = fdz_op[n].indx;
+    float *p_fdz_coef  = fdz_op[n].coef;
     for (n_fd = 0; n_fd < lfdz_len ; n_fd++) {
       lfdz_shift[n_fd] = p_fdz_indx[n_fd] * siz_slice;
       lfdz_coef[n_fd]  = p_fdz_coef[n_fd];
@@ -2381,30 +1238,26 @@ sv_eliso1st_curv_macdrp_rhs_cfspml(
     float *restrict et_x, float *restrict et_y, float *restrict et_z,
     float *restrict zt_x, float *restrict zt_y, float *restrict zt_z,
     float *restrict lam3d, float *restrict  mu3d, float *restrict slw3d,
-    size_t siz_line, size_t siz_slice,
+    int nk2, size_t siz_line, size_t siz_slice,
     int fdx_len, int *restrict fdx_indx, float *restrict fdx_coef,
     int fdy_len, int *restrict fdy_indx, float *restrict fdy_coef,
     int fdz_len, int *restrict fdz_indx, float *restrict fdz_coef,
-    int *restrict boundary_itype,
-    int *restrict abs_num_of_layers,
-    int *restrict abs_indx, // pml range of each face
-    int *restrict abs_coefs_facepos0, // pos of 0 elem of each face
-    float  *restrict abs_coefs,
-    int *restrict abs_vars_volsiz, // size of single var in abs_blk_vars for each block
-    int *restrict abs_vars_facepos0, // start pos of each blk in first level; other level similar
-    float  *restrict abs_vars_cur, //
-    float  *restrict abs_vars_rhs,
+    bdrypml_t *bdrypml, bdryfree_t *bdryfree,
     const int myid, const int verbose)
 {
+
+  float *matVx2Vz = bdryfree->matVx2Vz2;
+  float *matVy2Vz = bdryfree->matVy2Vz2;
+
   // loop var for fd
   int n_fd; // loop var for fd
   // use local stack array for better speed
   float  lfdx_coef [fdx_len];
-  int lfdx_shift[fdx_len];
+  int    lfdx_shift[fdx_len];
   float  lfdy_coef [fdy_len];
-  int lfdy_shift[fdy_len];
+  int    lfdy_shift[fdy_len];
   float  lfdz_coef [fdz_len];
-  int lfdz_shift[fdz_len];
+  int    lfdz_shift[fdz_len];
 
   // val on point
   float DxTxx,DxTyy,DxTzz,DxTxy,DxTxz,DxTyz,DxVx,DxVy,DxVz;
@@ -2414,6 +1267,8 @@ sv_eliso1st_curv_macdrp_rhs_cfspml(
   float xix,xiy,xiz,etx,ety,etz,ztx,zty,ztz;
   float hVx_rhs,hVy_rhs,hVz_rhs;
   float hTxx_rhs,hTyy_rhs,hTzz_rhs,hTxz_rhs,hTyz_rhs,hTxy_rhs;
+  // for free surface
+  float Dx_DzVx,Dy_DzVx,Dx_DzVy,Dy_DzVy,Dx_DzVz,Dy_DzVz;
 
   // local
   int i,j,k;
@@ -2434,19 +1289,21 @@ sv_eliso1st_curv_macdrp_rhs_cfspml(
     lfdz_shift[k] = fdz_indx[k] * siz_slice;
   }
 
-  // loop each face
-  for (int iface=0; iface<FD_NDIM_2; iface++)
+  // check each side
+  for (int idim=0; idim<CONST_NDIM; idim++)
   {
-    // skip to next face if not cfspml
-    if (boundary_itype[iface] != FD_BOUNDARY_TYPE_CFSPML) continue;
+    for (int iside=0; iside<2; iside++)
+    {
+      // skip to next face if not cfspml
+      if (bdrypml->is_at_sides[idim][iside] == 0) continue;
 
-    // get index into local var
-    int abs_ni1 = abs_indx[iface*FD_NDIM_2+0];
-    int abs_ni2 = abs_indx[iface*FD_NDIM_2+1];
-    int abs_nj1 = abs_indx[iface*FD_NDIM_2+2];
-    int abs_nj2 = abs_indx[iface*FD_NDIM_2+3];
-    int abs_nk1 = abs_indx[iface*FD_NDIM_2+4];
-    int abs_nk2 = abs_indx[iface*FD_NDIM_2+5];
+      // get index into local var
+      int abs_ni1 = bdrypml->ni1[idim][iside];
+      int abs_ni2 = bdrypml->ni2[idim][iside];
+      int abs_nj1 = bdrypml->nj1[idim][iside];
+      int abs_nj2 = bdrypml->nj2[idim][iside];
+      int abs_nk1 = bdrypml->nk1[idim][iside];
+      int abs_nk2 = bdrypml->nk2[idim][iside];
 
 #ifdef SV_ELISO1ST_CURV_MACDRP_DEBUG
     //fprintf(stdout," iface=%d,ni1=%d,ni2=%d,nj1=%d,nj2=%d,nk1=%d,nk2=%d\n",
@@ -2454,1061 +1311,413 @@ sv_eliso1st_curv_macdrp_rhs_cfspml(
     //fflush(stdout);
 #endif
 
-    // get coef for this face
-    float *restrict ptr_coef_A = abs_coefs + abs_coefs_facepos0[iface];
-    float *restrict ptr_coef_B = ptr_coef_A + abs_num_of_layers[iface];
-    float *restrict ptr_coef_D = ptr_coef_B + abs_num_of_layers[iface];
+      // get coef for this face
+      float *restrict ptr_coef_A = bdrypml->A[idim][iside];
+      float *restrict ptr_coef_B = bdrypml->B[idim][iside];
+      float *restrict ptr_coef_D = bdrypml->D[idim][iside];
 
-    // get pml vars
-    int pos_cur_face = abs_vars_facepos0[iface];
-    int pml_volsiz   = abs_vars_volsiz[iface];
-    float *restrict pml_Vx  = abs_vars_cur + pos_cur_face + WF_EL_1ST_SEQ_Vx  * pml_volsiz;
-    float *restrict pml_Vy  = abs_vars_cur + pos_cur_face + WF_EL_1ST_SEQ_Vy  * pml_volsiz;
-    float *restrict pml_Vz  = abs_vars_cur + pos_cur_face + WF_EL_1ST_SEQ_Vz  * pml_volsiz;
-    float *restrict pml_Txx = abs_vars_cur + pos_cur_face + WF_EL_1ST_SEQ_Txx * pml_volsiz;
-    float *restrict pml_Tyy = abs_vars_cur + pos_cur_face + WF_EL_1ST_SEQ_Tyy * pml_volsiz;
-    float *restrict pml_Tzz = abs_vars_cur + pos_cur_face + WF_EL_1ST_SEQ_Tzz * pml_volsiz;
-    float *restrict pml_Txz = abs_vars_cur + pos_cur_face + WF_EL_1ST_SEQ_Txz * pml_volsiz;
-    float *restrict pml_Tyz = abs_vars_cur + pos_cur_face + WF_EL_1ST_SEQ_Tyz * pml_volsiz;
-    float *restrict pml_Txy = abs_vars_cur + pos_cur_face + WF_EL_1ST_SEQ_Txy * pml_volsiz;
-    float *restrict pml_hVx  = abs_vars_rhs + pos_cur_face + WF_EL_1ST_SEQ_Vx  * pml_volsiz;
-    float *restrict pml_hVy  = abs_vars_rhs + pos_cur_face + WF_EL_1ST_SEQ_Vy  * pml_volsiz;
-    float *restrict pml_hVz  = abs_vars_rhs + pos_cur_face + WF_EL_1ST_SEQ_Vz  * pml_volsiz;
-    float *restrict pml_hTxx = abs_vars_rhs + pos_cur_face + WF_EL_1ST_SEQ_Txx * pml_volsiz;
-    float *restrict pml_hTyy = abs_vars_rhs + pos_cur_face + WF_EL_1ST_SEQ_Tyy * pml_volsiz;
-    float *restrict pml_hTzz = abs_vars_rhs + pos_cur_face + WF_EL_1ST_SEQ_Tzz * pml_volsiz;
-    float *restrict pml_hTxz = abs_vars_rhs + pos_cur_face + WF_EL_1ST_SEQ_Txz * pml_volsiz;
-    float *restrict pml_hTyz = abs_vars_rhs + pos_cur_face + WF_EL_1ST_SEQ_Tyz * pml_volsiz;
-    float *restrict pml_hTxy = abs_vars_rhs + pos_cur_face + WF_EL_1ST_SEQ_Txy * pml_volsiz;
+      bdrypml_auxvar_t *auxvar = &(bdrypml->auxvar[idim][iside]);
 
-    // for each dim
-    if (iface < 2) // x direction
-    {
-      iptr_a = 0;
-      for (k=abs_nk1; k<=abs_nk2; k++)
+      // get pml vars
+      float *restrict abs_vars_cur = auxvar->cur;
+      float *restrict abs_vars_rhs = auxvar->rhs;
+
+      float *restrict pml_Vx   = abs_vars_cur + auxvar->Vx_pos;
+      float *restrict pml_Vy   = abs_vars_cur + auxvar->Vy_pos;
+      float *restrict pml_Vz   = abs_vars_cur + auxvar->Vz_pos;
+      float *restrict pml_Txx  = abs_vars_cur + auxvar->Txx_pos;
+      float *restrict pml_Tyy  = abs_vars_cur + auxvar->Tyy_pos;
+      float *restrict pml_Tzz  = abs_vars_cur + auxvar->Tzz_pos;
+      float *restrict pml_Txz  = abs_vars_cur + auxvar->Txz_pos;
+      float *restrict pml_Tyz  = abs_vars_cur + auxvar->Tyz_pos;
+      float *restrict pml_Txy  = abs_vars_cur + auxvar->Txy_pos;
+      float *restrict pml_hVx  = abs_vars_rhs + auxvar->Vx_pos;
+      float *restrict pml_hVy  = abs_vars_rhs + auxvar->Vy_pos;
+      float *restrict pml_hVz  = abs_vars_rhs + auxvar->Vz_pos;
+      float *restrict pml_hTxx = abs_vars_rhs + auxvar->Txx_pos;
+      float *restrict pml_hTyy = abs_vars_rhs + auxvar->Tyy_pos;
+      float *restrict pml_hTzz = abs_vars_rhs + auxvar->Tzz_pos;
+      float *restrict pml_hTxz = abs_vars_rhs + auxvar->Txz_pos;
+      float *restrict pml_hTyz = abs_vars_rhs + auxvar->Tyz_pos;
+      float *restrict pml_hTxy = abs_vars_rhs + auxvar->Txy_pos;
+
+      // for each dim
+      if (idim == 0 ) // x direction
       {
-        iptr_k = k * siz_slice;
-        for (j=abs_nj1; j<=abs_nj2; j++)
+        iptr_a = 0;
+        for (k=abs_nk1; k<=abs_nk2; k++)
         {
-          iptr_j = iptr_k + j * siz_line;
-          iptr = iptr_j + abs_ni1;
-          for (i=abs_ni1; i<=abs_ni2; i++)
+          iptr_k = k * siz_slice;
+          for (j=abs_nj1; j<=abs_nj2; j++)
           {
+            iptr_j = iptr_k + j * siz_line;
+            iptr = iptr_j + abs_ni1;
+            for (i=abs_ni1; i<=abs_ni2; i++)
+            {
+              // pml coefs
+              int abs_i = i - abs_ni1;
+              coef_D = ptr_coef_D[abs_i];
+              coef_A = ptr_coef_A[abs_i];
+              coef_B = ptr_coef_B[abs_i];
+              coef_B_minus_1 = coef_B - 1.0;
+
+              // metric
+              xix = xi_x[iptr];
+              xiy = xi_y[iptr];
+              xiz = xi_z[iptr];
+
+              // medium
+              lam = lam3d[iptr];
+              mu  =  mu3d[iptr];
+              slw = slw3d[iptr];
+              lam2mu = lam + 2.0 * mu;
+
+              // xi derivatives
+              M_FD_SHIFT(DxVx , Vx , iptr, fdx_len, lfdx_shift, lfdx_coef, n_fd);
+              M_FD_SHIFT(DxVy , Vy , iptr, fdx_len, lfdx_shift, lfdx_coef, n_fd);
+              M_FD_SHIFT(DxVz , Vz , iptr, fdx_len, lfdx_shift, lfdx_coef, n_fd);
+              M_FD_SHIFT(DxTxx, Txx, iptr, fdx_len, lfdx_shift, lfdx_coef, n_fd);
+              M_FD_SHIFT(DxTyy, Tyy, iptr, fdx_len, lfdx_shift, lfdx_coef, n_fd);
+              M_FD_SHIFT(DxTzz, Tzz, iptr, fdx_len, lfdx_shift, lfdx_coef, n_fd);
+              M_FD_SHIFT(DxTxz, Txz, iptr, fdx_len, lfdx_shift, lfdx_coef, n_fd);
+              M_FD_SHIFT(DxTyz, Tyz, iptr, fdx_len, lfdx_shift, lfdx_coef, n_fd);
+              M_FD_SHIFT(DxTxy, Txy, iptr, fdx_len, lfdx_shift, lfdx_coef, n_fd);
+
+              // combine for corr and aux vars
+               hVx_rhs = slw * ( xix*DxTxx + xiy*DxTxy + xiz*DxTxz );
+               hVy_rhs = slw * ( xix*DxTxy + xiy*DxTyy + xiz*DxTyz );
+               hVz_rhs = slw * ( xix*DxTxz + xiy*DxTyz + xiz*DxTzz );
+              hTxx_rhs = lam2mu*xix*DxVx + lam*xiy*DxVy + lam*xiz*DxVz;
+              hTyy_rhs = lam*xix*DxVx + lam2mu*xiy*DxVy + lam*xiz*DxVz;
+              hTzz_rhs = lam*xix*DxVx + lam*xiy*DxVy + lam2mu*xiz*DxVz;
+              hTxy_rhs = mu*( xiy*DxVx + xix*DxVy );
+              hTxz_rhs = mu*( xiz*DxVx + xix*DxVz );
+              hTyz_rhs = mu*( xiz*DxVy + xiy*DxVz );
+
+              // 1: make corr to moment equation
+              hVx[iptr] += coef_B_minus_1 * hVx_rhs - coef_B * pml_Vx[iptr_a];
+              hVy[iptr] += coef_B_minus_1 * hVy_rhs - coef_B * pml_Vy[iptr_a];
+              hVz[iptr] += coef_B_minus_1 * hVz_rhs - coef_B * pml_Vz[iptr_a];
+
+              // make corr to Hooke's equatoin
+              hTxx[iptr] += coef_B_minus_1 * hTxx_rhs - coef_B * pml_Txx[iptr_a];
+              hTyy[iptr] += coef_B_minus_1 * hTyy_rhs - coef_B * pml_Tyy[iptr_a];
+              hTzz[iptr] += coef_B_minus_1 * hTzz_rhs - coef_B * pml_Tzz[iptr_a];
+              hTxz[iptr] += coef_B_minus_1 * hTxz_rhs - coef_B * pml_Txz[iptr_a];
+              hTyz[iptr] += coef_B_minus_1 * hTyz_rhs - coef_B * pml_Tyz[iptr_a];
+              hTxy[iptr] += coef_B_minus_1 * hTxy_rhs - coef_B * pml_Txy[iptr_a];
+              
+              // 2: aux var
+              //   a1 = alpha + d / beta, dealt in abs_set_cfspml
+              pml_hVx[iptr_a]  = coef_D * hVx_rhs  - coef_A * pml_Vx[iptr_a];
+              pml_hVy[iptr_a]  = coef_D * hVy_rhs  - coef_A * pml_Vy[iptr_a];
+              pml_hVz[iptr_a]  = coef_D * hVz_rhs  - coef_A * pml_Vz[iptr_a];
+              pml_hTxx[iptr_a] = coef_D * hTxx_rhs - coef_A * pml_Txx[iptr_a];
+              pml_hTyy[iptr_a] = coef_D * hTyy_rhs - coef_A * pml_Tyy[iptr_a];
+              pml_hTzz[iptr_a] = coef_D * hTzz_rhs - coef_A * pml_Tzz[iptr_a];
+              pml_hTxz[iptr_a] = coef_D * hTxz_rhs - coef_A * pml_Txz[iptr_a];
+              pml_hTyz[iptr_a] = coef_D * hTyz_rhs - coef_A * pml_Tyz[iptr_a];
+              pml_hTxy[iptr_a] = coef_D * hTxy_rhs - coef_A * pml_Txy[iptr_a];
+
+              // add contributions from free surface condition
+              //  not consider timg because conflict with main cfspml,
+              //     need to revise in the future if required
+              if (bdryfree->is_at_sides[idim][iside]==1 && k==nk2)
+              {
+                // zeta derivatives
+                int ij = (i + j * siz_line)*9;
+                Dx_DzVx = matVx2Vz[ij+3*0+0] * DxVx
+                        + matVx2Vz[ij+3*0+1] * DxVy
+                        + matVx2Vz[ij+3*0+2] * DxVz;
+
+                Dx_DzVy = matVx2Vz[ij+3*1+0] * DxVx
+                        + matVx2Vz[ij+3*1+1] * DxVy
+                        + matVx2Vz[ij+3*1+2] * DxVz;
+
+                Dx_DzVz = matVx2Vz[ij+3*2+0] * DxVx
+                        + matVx2Vz[ij+3*2+1] * DxVy
+                        + matVx2Vz[ij+3*2+2] * DxVz;
+
+                // keep xi derivative terms, including free surface convered
+                hTxx_rhs =    lam2mu * (            ztx*Dx_DzVx)
+                            + lam    * (            zty*Dx_DzVy
+                                        +           ztz*Dx_DzVz);
+
+                hTyy_rhs =   lam2mu * (            zty*Dx_DzVy)
+                            +lam    * (            ztx*Dx_DzVx
+                                                  +ztz*Dx_DzVz);
+
+                hTzz_rhs =   lam2mu * (            ztz*Dx_DzVz)
+                            +lam    * (            ztx*Dx_DzVx
+                                                  +zty*Dx_DzVy);
+
+                hTxy_rhs = mu *(
+                             zty*Dx_DzVx + ztx*Dx_DzVy
+                            );
+                hTxz_rhs = mu *(
+                             ztz*Dx_DzVx + ztx*Dx_DzVz
+                            );
+                hTyz_rhs = mu *(
+                             ztz*Dx_DzVy + zty*Dx_DzVz
+                            );
+
+                // make corr to Hooke's equatoin
+                hTxx[iptr] += (coef_B - 1.0) * hTxx_rhs;
+                hTyy[iptr] += (coef_B - 1.0) * hTyy_rhs;
+                hTzz[iptr] += (coef_B - 1.0) * hTzz_rhs;
+                hTxz[iptr] += (coef_B - 1.0) * hTxz_rhs;
+                hTyz[iptr] += (coef_B - 1.0) * hTyz_rhs;
+                hTxy[iptr] += (coef_B - 1.0) * hTxy_rhs;
+
+                // aux var
+                //   a1 = alpha + d / beta, dealt in abs_set_cfspml
+                pml_hTxx[iptr_a] += coef_D * hTxx_rhs;
+                pml_hTyy[iptr_a] += coef_D * hTyy_rhs;
+                pml_hTzz[iptr_a] += coef_D * hTzz_rhs;
+                pml_hTxz[iptr_a] += coef_D * hTxz_rhs;
+                pml_hTyz[iptr_a] += coef_D * hTyz_rhs;
+                pml_hTxy[iptr_a] += coef_D * hTxy_rhs;
+              }
+
+              // incr index
+              iptr   += 1;
+              iptr_a += 1;
+            } // i
+          } // j
+        } // k
+      }
+      else if (idim == 1) // y direction
+      {
+        iptr_a = 0;
+        for (k=abs_nk1; k<=abs_nk2; k++)
+        {
+          iptr_k = k * siz_slice;
+          for (j=abs_nj1; j<=abs_nj2; j++)
+          {
+            iptr_j = iptr_k + j * siz_line;
+            iptr = iptr_j + abs_ni1;
+
             // pml coefs
-            int abs_i = i - abs_ni1;
-            coef_D = ptr_coef_D[abs_i];
-            coef_A = ptr_coef_A[abs_i];
-            coef_B = ptr_coef_B[abs_i];
+            int abs_j = j - abs_nj1;
+            coef_D = ptr_coef_D[abs_j];
+            coef_A = ptr_coef_A[abs_j];
+            coef_B = ptr_coef_B[abs_j];
             coef_B_minus_1 = coef_B - 1.0;
 
-            // metric
-            xix = xi_x[iptr];
-            xiy = xi_y[iptr];
-            xiz = xi_z[iptr];
+            for (i=abs_ni1; i<=abs_ni2; i++)
+            {
+              // metric
+              etx = et_x[iptr];
+              ety = et_y[iptr];
+              etz = et_z[iptr];
 
-            // medium
-            lam = lam3d[iptr];
-            mu  =  mu3d[iptr];
-            slw = slw3d[iptr];
-            lam2mu = lam + 2.0 * mu;
+              // medium
+              lam = lam3d[iptr];
+              mu  =  mu3d[iptr];
+              slw = slw3d[iptr];
+              lam2mu = lam + 2.0 * mu;
 
-            // xi derivatives
-            M_FD_SHIFT(DxVx , Vx , iptr, fdx_len, lfdx_shift, lfdx_coef, n_fd);
-            M_FD_SHIFT(DxVy , Vy , iptr, fdx_len, lfdx_shift, lfdx_coef, n_fd);
-            M_FD_SHIFT(DxVz , Vz , iptr, fdx_len, lfdx_shift, lfdx_coef, n_fd);
-            M_FD_SHIFT(DxTxx, Txx, iptr, fdx_len, lfdx_shift, lfdx_coef, n_fd);
-            M_FD_SHIFT(DxTyy, Tyy, iptr, fdx_len, lfdx_shift, lfdx_coef, n_fd);
-            M_FD_SHIFT(DxTzz, Tzz, iptr, fdx_len, lfdx_shift, lfdx_coef, n_fd);
-            M_FD_SHIFT(DxTxz, Txz, iptr, fdx_len, lfdx_shift, lfdx_coef, n_fd);
-            M_FD_SHIFT(DxTyz, Tyz, iptr, fdx_len, lfdx_shift, lfdx_coef, n_fd);
-            M_FD_SHIFT(DxTxy, Txy, iptr, fdx_len, lfdx_shift, lfdx_coef, n_fd);
+              // et derivatives
+              M_FD_SHIFT(DyVx , Vx , iptr, fdy_len, lfdy_shift, lfdy_coef, n_fd);
+              M_FD_SHIFT(DyVy , Vy , iptr, fdy_len, lfdy_shift, lfdy_coef, n_fd);
+              M_FD_SHIFT(DyVz , Vz , iptr, fdy_len, lfdy_shift, lfdy_coef, n_fd);
+              M_FD_SHIFT(DyTxx, Txx, iptr, fdy_len, lfdy_shift, lfdy_coef, n_fd);
+              M_FD_SHIFT(DyTyy, Tyy, iptr, fdy_len, lfdy_shift, lfdy_coef, n_fd);
+              M_FD_SHIFT(DyTzz, Tzz, iptr, fdy_len, lfdy_shift, lfdy_coef, n_fd);
+              M_FD_SHIFT(DyTxz, Txz, iptr, fdy_len, lfdy_shift, lfdy_coef, n_fd);
+              M_FD_SHIFT(DyTyz, Tyz, iptr, fdy_len, lfdy_shift, lfdy_coef, n_fd);
+              M_FD_SHIFT(DyTxy, Txy, iptr, fdy_len, lfdy_shift, lfdy_coef, n_fd);
 
-            // combine for corr and aux vars
-             hVx_rhs = slw * ( xix*DxTxx + xiy*DxTxy + xiz*DxTxz );
-             hVy_rhs = slw * ( xix*DxTxy + xiy*DxTyy + xiz*DxTyz );
-             hVz_rhs = slw * ( xix*DxTxz + xiy*DxTyz + xiz*DxTzz );
-            hTxx_rhs = lam2mu*xix*DxVx + lam*xiy*DxVy + lam*xiz*DxVz;
-            hTyy_rhs = lam*xix*DxVx + lam2mu*xiy*DxVy + lam*xiz*DxVz;
-            hTzz_rhs = lam*xix*DxVx + lam*xiy*DxVy + lam2mu*xiz*DxVz;
-            hTxy_rhs = mu*( xiy*DxVx + xix*DxVy );
-            hTxz_rhs = mu*( xiz*DxVx + xix*DxVz );
-            hTyz_rhs = mu*( xiz*DxVy + xiy*DxVz );
+              // combine for corr and aux vars
+               hVx_rhs = slw * ( etx*DyTxx + ety*DyTxy + etz*DyTxz );
+               hVy_rhs = slw * ( etx*DyTxy + ety*DyTyy + etz*DyTyz );
+               hVz_rhs = slw * ( etx*DyTxz + ety*DyTyz + etz*DyTzz );
+              hTxx_rhs = lam2mu*etx*DyVx + lam*ety*DyVy + lam*etz*DyVz;
+              hTyy_rhs = lam*etx*DyVx + lam2mu*ety*DyVy + lam*etz*DyVz;
+              hTzz_rhs = lam*etx*DyVx + lam*ety*DyVy + lam2mu*etz*DyVz;
+              hTxy_rhs = mu*( ety*DyVx + etx*DyVy );
+              hTxz_rhs = mu*( etz*DyVx + etx*DyVz );
+              hTyz_rhs = mu*( etz*DyVy + ety*DyVz );
 
-            // 1: make corr to moment equation
-            hVx[iptr] += coef_B_minus_1 * hVx_rhs - coef_B * pml_Vx[iptr_a];
-            hVy[iptr] += coef_B_minus_1 * hVy_rhs - coef_B * pml_Vy[iptr_a];
-            hVz[iptr] += coef_B_minus_1 * hVz_rhs - coef_B * pml_Vz[iptr_a];
+              // 1: make corr to moment equation
+              hVx[iptr] += coef_B_minus_1 * hVx_rhs - coef_B * pml_Vx[iptr_a];
+              hVy[iptr] += coef_B_minus_1 * hVy_rhs - coef_B * pml_Vy[iptr_a];
+              hVz[iptr] += coef_B_minus_1 * hVz_rhs - coef_B * pml_Vz[iptr_a];
 
-            // make corr to Hooke's equatoin
-            hTxx[iptr] += coef_B_minus_1 * hTxx_rhs - coef_B * pml_Txx[iptr_a];
-            hTyy[iptr] += coef_B_minus_1 * hTyy_rhs - coef_B * pml_Tyy[iptr_a];
-            hTzz[iptr] += coef_B_minus_1 * hTzz_rhs - coef_B * pml_Tzz[iptr_a];
-            hTxz[iptr] += coef_B_minus_1 * hTxz_rhs - coef_B * pml_Txz[iptr_a];
-            hTyz[iptr] += coef_B_minus_1 * hTyz_rhs - coef_B * pml_Tyz[iptr_a];
-            hTxy[iptr] += coef_B_minus_1 * hTxy_rhs - coef_B * pml_Txy[iptr_a];
-            
-            // 2: aux var
-            //   a1 = alpha + d / beta, dealt in abs_set_cfspml
-            pml_hVx[iptr_a]  = coef_D * hVx_rhs  - coef_A * pml_Vx[iptr_a];
-            pml_hVy[iptr_a]  = coef_D * hVy_rhs  - coef_A * pml_Vy[iptr_a];
-            pml_hVz[iptr_a]  = coef_D * hVz_rhs  - coef_A * pml_Vz[iptr_a];
-            pml_hTxx[iptr_a] = coef_D * hTxx_rhs - coef_A * pml_Txx[iptr_a];
-            pml_hTyy[iptr_a] = coef_D * hTyy_rhs - coef_A * pml_Tyy[iptr_a];
-            pml_hTzz[iptr_a] = coef_D * hTzz_rhs - coef_A * pml_Tzz[iptr_a];
-            pml_hTxz[iptr_a] = coef_D * hTxz_rhs - coef_A * pml_Txz[iptr_a];
-            pml_hTyz[iptr_a] = coef_D * hTyz_rhs - coef_A * pml_Tyz[iptr_a];
-            pml_hTxy[iptr_a] = coef_D * hTxy_rhs - coef_A * pml_Txy[iptr_a];
+              // make corr to Hooke's equatoin
+              hTxx[iptr] += coef_B_minus_1 * hTxx_rhs - coef_B * pml_Txx[iptr_a];
+              hTyy[iptr] += coef_B_minus_1 * hTyy_rhs - coef_B * pml_Tyy[iptr_a];
+              hTzz[iptr] += coef_B_minus_1 * hTzz_rhs - coef_B * pml_Tzz[iptr_a];
+              hTxz[iptr] += coef_B_minus_1 * hTxz_rhs - coef_B * pml_Txz[iptr_a];
+              hTyz[iptr] += coef_B_minus_1 * hTyz_rhs - coef_B * pml_Tyz[iptr_a];
+              hTxy[iptr] += coef_B_minus_1 * hTxy_rhs - coef_B * pml_Txy[iptr_a];
+              
+              // 2: aux var
+              //   a1 = alpha + d / beta, dealt in abs_set_cfspml
+              pml_hVx[iptr_a]  = coef_D * hVx_rhs  - coef_A * pml_Vx[iptr_a];
+              pml_hVy[iptr_a]  = coef_D * hVy_rhs  - coef_A * pml_Vy[iptr_a];
+              pml_hVz[iptr_a]  = coef_D * hVz_rhs  - coef_A * pml_Vz[iptr_a];
+              pml_hTxx[iptr_a] = coef_D * hTxx_rhs - coef_A * pml_Txx[iptr_a];
+              pml_hTyy[iptr_a] = coef_D * hTyy_rhs - coef_A * pml_Tyy[iptr_a];
+              pml_hTzz[iptr_a] = coef_D * hTzz_rhs - coef_A * pml_Tzz[iptr_a];
+              pml_hTxz[iptr_a] = coef_D * hTxz_rhs - coef_A * pml_Txz[iptr_a];
+              pml_hTyz[iptr_a] = coef_D * hTyz_rhs - coef_A * pml_Tyz[iptr_a];
+              pml_hTxy[iptr_a] = coef_D * hTxy_rhs - coef_A * pml_Txy[iptr_a];
 
-            // incr index
-            iptr   += 1;
-            iptr_a += 1;
-          } // i
-        } // j
-      } // k
-    }
-    else if (iface < 4) // y direction
-    {
-      iptr_a = 0;
-      for (k=abs_nk1; k<=abs_nk2; k++)
+              // add contributions from free surface condition
+              if (bdryfree->is_at_sides[idim][iside]==1 && k==nk2)
+              {
+                // zeta derivatives
+                int ij = (i + j * siz_line)*9;
+                Dy_DzVx = matVy2Vz[ij+3*0+0] * DyVx
+                        + matVy2Vz[ij+3*0+1] * DyVy
+                        + matVy2Vz[ij+3*0+2] * DyVz;
+
+                Dy_DzVy = matVy2Vz[ij+3*1+0] * DyVx
+                        + matVy2Vz[ij+3*1+1] * DyVy
+                        + matVy2Vz[ij+3*1+2] * DyVz;
+
+                Dy_DzVz = matVy2Vz[ij+3*2+0] * DyVx
+                        + matVy2Vz[ij+3*2+1] * DyVy
+                        + matVy2Vz[ij+3*2+2] * DyVz;
+
+                hTxx_rhs =    lam2mu * (             ztx*Dy_DzVx)
+                            + lam    * (             zty*Dy_DzVy
+                                                    +ztz*Dy_DzVz);
+
+                hTyy_rhs =   lam2mu * (             zty*Dy_DzVy)
+                            +lam    * (             ztx*Dy_DzVx
+                                                   +ztz*Dy_DzVz);
+
+                hTzz_rhs =   lam2mu * (             ztz*Dy_DzVz)
+                            +lam    * (             ztx*Dy_DzVx
+                                                   +zty*Dy_DzVy);
+
+                hTxy_rhs = mu *(
+                             zty*Dy_DzVx + ztx*Dy_DzVy
+                            );
+                hTxz_rhs = mu *(
+                             ztz*Dy_DzVx + ztx*Dy_DzVz
+                            );
+                hTyz_rhs = mu *(
+                             ztz*Dy_DzVy + zty*Dy_DzVz
+                          );
+
+                // make corr to Hooke's equatoin
+                hTxx[iptr] += (coef_B - 1.0) * hTxx_rhs;
+                hTyy[iptr] += (coef_B - 1.0) * hTyy_rhs;
+                hTzz[iptr] += (coef_B - 1.0) * hTzz_rhs;
+                hTxz[iptr] += (coef_B - 1.0) * hTxz_rhs;
+                hTyz[iptr] += (coef_B - 1.0) * hTyz_rhs;
+                hTxy[iptr] += (coef_B - 1.0) * hTxy_rhs;
+
+                // aux var
+                //   a1 = alpha + d / beta, dealt in abs_set_cfspml
+                pml_hTxx[iptr_a] += coef_D * hTxx_rhs;
+                pml_hTyy[iptr_a] += coef_D * hTyy_rhs;
+                pml_hTzz[iptr_a] += coef_D * hTzz_rhs;
+                pml_hTxz[iptr_a] += coef_D * hTxz_rhs;
+                pml_hTyz[iptr_a] += coef_D * hTyz_rhs;
+                pml_hTxy[iptr_a] += coef_D * hTxy_rhs;
+              }
+
+              // incr index
+              iptr   += 1;
+              iptr_a += 1;
+            } // i
+          } // j
+        } // k
+      }
+      else // z direction
       {
-        iptr_k = k * siz_slice;
-        for (j=abs_nj1; j<=abs_nj2; j++)
+        iptr_a = 0;
+        for (k=abs_nk1; k<=abs_nk2; k++)
         {
-          iptr_j = iptr_k + j * siz_line;
-          iptr = iptr_j + abs_ni1;
+          iptr_k = k * siz_slice;
 
           // pml coefs
-          int abs_j = j - abs_nj1;
-          coef_D = ptr_coef_D[abs_j];
-          coef_A = ptr_coef_A[abs_j];
-          coef_B = ptr_coef_B[abs_j];
+          int abs_k = k - abs_nk1;
+          coef_D = ptr_coef_D[abs_k];
+          coef_A = ptr_coef_A[abs_k];
+          coef_B = ptr_coef_B[abs_k];
           coef_B_minus_1 = coef_B - 1.0;
 
-          for (i=abs_ni1; i<=abs_ni2; i++)
+          for (j=abs_nj1; j<=abs_nj2; j++)
           {
-            // metric
-            etx = et_x[iptr];
-            ety = et_y[iptr];
-            etz = et_z[iptr];
+            iptr_j = iptr_k + j * siz_line;
+            iptr = iptr_j + abs_ni1;
+            for (i=abs_ni1; i<=abs_ni2; i++)
+            {
+              // metric
+              ztx = zt_x[iptr];
+              zty = zt_y[iptr];
+              ztz = zt_z[iptr];
 
-            // medium
-            lam = lam3d[iptr];
-            mu  =  mu3d[iptr];
-            slw = slw3d[iptr];
-            lam2mu = lam + 2.0 * mu;
+              // medium
+              lam = lam3d[iptr];
+              mu  =  mu3d[iptr];
+              slw = slw3d[iptr];
+              lam2mu = lam + 2.0 * mu;
 
-            // et derivatives
-            M_FD_SHIFT(DyVx , Vx , iptr, fdy_len, lfdy_shift, lfdy_coef, n_fd);
-            M_FD_SHIFT(DyVy , Vy , iptr, fdy_len, lfdy_shift, lfdy_coef, n_fd);
-            M_FD_SHIFT(DyVz , Vz , iptr, fdy_len, lfdy_shift, lfdy_coef, n_fd);
-            M_FD_SHIFT(DyTxx, Txx, iptr, fdy_len, lfdy_shift, lfdy_coef, n_fd);
-            M_FD_SHIFT(DyTyy, Tyy, iptr, fdy_len, lfdy_shift, lfdy_coef, n_fd);
-            M_FD_SHIFT(DyTzz, Tzz, iptr, fdy_len, lfdy_shift, lfdy_coef, n_fd);
-            M_FD_SHIFT(DyTxz, Txz, iptr, fdy_len, lfdy_shift, lfdy_coef, n_fd);
-            M_FD_SHIFT(DyTyz, Tyz, iptr, fdy_len, lfdy_shift, lfdy_coef, n_fd);
-            M_FD_SHIFT(DyTxy, Txy, iptr, fdy_len, lfdy_shift, lfdy_coef, n_fd);
+              // zt derivatives
+              M_FD_SHIFT(DzVx , Vx , iptr, fdz_len, lfdz_shift, lfdz_coef, n_fd);
+              M_FD_SHIFT(DzVy , Vy , iptr, fdz_len, lfdz_shift, lfdz_coef, n_fd);
+              M_FD_SHIFT(DzVz , Vz , iptr, fdz_len, lfdz_shift, lfdz_coef, n_fd);
+              M_FD_SHIFT(DzTxx, Txx, iptr, fdz_len, lfdz_shift, lfdz_coef, n_fd);
+              M_FD_SHIFT(DzTyy, Tyy, iptr, fdz_len, lfdz_shift, lfdz_coef, n_fd);
+              M_FD_SHIFT(DzTzz, Tzz, iptr, fdz_len, lfdz_shift, lfdz_coef, n_fd);
+              M_FD_SHIFT(DzTxz, Txz, iptr, fdz_len, lfdz_shift, lfdz_coef, n_fd);
+              M_FD_SHIFT(DzTyz, Tyz, iptr, fdz_len, lfdz_shift, lfdz_coef, n_fd);
+              M_FD_SHIFT(DzTxy, Txy, iptr, fdz_len, lfdz_shift, lfdz_coef, n_fd);
 
-            // combine for corr and aux vars
-             hVx_rhs = slw * ( etx*DyTxx + ety*DyTxy + etz*DyTxz );
-             hVy_rhs = slw * ( etx*DyTxy + ety*DyTyy + etz*DyTyz );
-             hVz_rhs = slw * ( etx*DyTxz + ety*DyTyz + etz*DyTzz );
-            hTxx_rhs = lam2mu*etx*DyVx + lam*ety*DyVy + lam*etz*DyVz;
-            hTyy_rhs = lam*etx*DyVx + lam2mu*ety*DyVy + lam*etz*DyVz;
-            hTzz_rhs = lam*etx*DyVx + lam*ety*DyVy + lam2mu*etz*DyVz;
-            hTxy_rhs = mu*( ety*DyVx + etx*DyVy );
-            hTxz_rhs = mu*( etz*DyVx + etx*DyVz );
-            hTyz_rhs = mu*( etz*DyVy + ety*DyVz );
+              // combine for corr and aux vars
+               hVx_rhs = slw * ( ztx*DzTxx + zty*DzTxy + ztz*DzTxz );
+               hVy_rhs = slw * ( ztx*DzTxy + zty*DzTyy + ztz*DzTyz );
+               hVz_rhs = slw * ( ztx*DzTxz + zty*DzTyz + ztz*DzTzz );
+              hTxx_rhs = lam2mu*ztx*DzVx + lam*zty*DzVy + lam*ztz*DzVz;
+              hTyy_rhs = lam*ztx*DzVx + lam2mu*zty*DzVy + lam*ztz*DzVz;
+              hTzz_rhs = lam*ztx*DzVx + lam*zty*DzVy + lam2mu*ztz*DzVz;
+              hTxy_rhs = mu*( zty*DzVx + ztx*DzVy );
+              hTxz_rhs = mu*( ztz*DzVx + ztx*DzVz );
+              hTyz_rhs = mu*( ztz*DzVy + zty*DzVz );
 
-            // 1: make corr to moment equation
-            hVx[iptr] += coef_B_minus_1 * hVx_rhs - coef_B * pml_Vx[iptr_a];
-            hVy[iptr] += coef_B_minus_1 * hVy_rhs - coef_B * pml_Vy[iptr_a];
-            hVz[iptr] += coef_B_minus_1 * hVz_rhs - coef_B * pml_Vz[iptr_a];
+              // 1: make corr to moment equation
+              hVx[iptr] += coef_B_minus_1 * hVx_rhs - coef_B * pml_Vx[iptr_a];
+              hVy[iptr] += coef_B_minus_1 * hVy_rhs - coef_B * pml_Vy[iptr_a];
+              hVz[iptr] += coef_B_minus_1 * hVz_rhs - coef_B * pml_Vz[iptr_a];
 
-            // make corr to Hooke's equatoin
-            hTxx[iptr] += coef_B_minus_1 * hTxx_rhs - coef_B * pml_Txx[iptr_a];
-            hTyy[iptr] += coef_B_minus_1 * hTyy_rhs - coef_B * pml_Tyy[iptr_a];
-            hTzz[iptr] += coef_B_minus_1 * hTzz_rhs - coef_B * pml_Tzz[iptr_a];
-            hTxz[iptr] += coef_B_minus_1 * hTxz_rhs - coef_B * pml_Txz[iptr_a];
-            hTyz[iptr] += coef_B_minus_1 * hTyz_rhs - coef_B * pml_Tyz[iptr_a];
-            hTxy[iptr] += coef_B_minus_1 * hTxy_rhs - coef_B * pml_Txy[iptr_a];
-            
-            // 2: aux var
-            //   a1 = alpha + d / beta, dealt in abs_set_cfspml
-            pml_hVx[iptr_a]  = coef_D * hVx_rhs  - coef_A * pml_Vx[iptr_a];
-            pml_hVy[iptr_a]  = coef_D * hVy_rhs  - coef_A * pml_Vy[iptr_a];
-            pml_hVz[iptr_a]  = coef_D * hVz_rhs  - coef_A * pml_Vz[iptr_a];
-            pml_hTxx[iptr_a] = coef_D * hTxx_rhs - coef_A * pml_Txx[iptr_a];
-            pml_hTyy[iptr_a] = coef_D * hTyy_rhs - coef_A * pml_Tyy[iptr_a];
-            pml_hTzz[iptr_a] = coef_D * hTzz_rhs - coef_A * pml_Tzz[iptr_a];
-            pml_hTxz[iptr_a] = coef_D * hTxz_rhs - coef_A * pml_Txz[iptr_a];
-            pml_hTyz[iptr_a] = coef_D * hTyz_rhs - coef_A * pml_Tyz[iptr_a];
-            pml_hTxy[iptr_a] = coef_D * hTxy_rhs - coef_A * pml_Txy[iptr_a];
+              // make corr to Hooke's equatoin
+              hTxx[iptr] += coef_B_minus_1 * hTxx_rhs - coef_B * pml_Txx[iptr_a];
+              hTyy[iptr] += coef_B_minus_1 * hTyy_rhs - coef_B * pml_Tyy[iptr_a];
+              hTzz[iptr] += coef_B_minus_1 * hTzz_rhs - coef_B * pml_Tzz[iptr_a];
+              hTxz[iptr] += coef_B_minus_1 * hTxz_rhs - coef_B * pml_Txz[iptr_a];
+              hTyz[iptr] += coef_B_minus_1 * hTyz_rhs - coef_B * pml_Tyz[iptr_a];
+              hTxy[iptr] += coef_B_minus_1 * hTxy_rhs - coef_B * pml_Txy[iptr_a];
+              
+              // 2: aux var
+              //   a1 = alpha + d / beta, dealt in abs_set_cfspml
+              pml_hVx[iptr_a]  = coef_D * hVx_rhs  - coef_A * pml_Vx[iptr_a];
+              pml_hVy[iptr_a]  = coef_D * hVy_rhs  - coef_A * pml_Vy[iptr_a];
+              pml_hVz[iptr_a]  = coef_D * hVz_rhs  - coef_A * pml_Vz[iptr_a];
+              pml_hTxx[iptr_a] = coef_D * hTxx_rhs - coef_A * pml_Txx[iptr_a];
+              pml_hTyy[iptr_a] = coef_D * hTyy_rhs - coef_A * pml_Tyy[iptr_a];
+              pml_hTzz[iptr_a] = coef_D * hTzz_rhs - coef_A * pml_Tzz[iptr_a];
+              pml_hTxz[iptr_a] = coef_D * hTxz_rhs - coef_A * pml_Txz[iptr_a];
+              pml_hTyz[iptr_a] = coef_D * hTyz_rhs - coef_A * pml_Tyz[iptr_a];
+              pml_hTxy[iptr_a] = coef_D * hTxy_rhs - coef_A * pml_Txy[iptr_a];
 
-            // incr index
-            iptr   += 1;
-            iptr_a += 1;
-          } // i
-        } // j
-      } // k
-    }
-    else // z direction
-    {
-      iptr_a = 0;
-      for (k=abs_nk1; k<=abs_nk2; k++)
-      {
-        iptr_k = k * siz_slice;
+              // incr index
+              iptr   += 1;
+              iptr_a += 1;
+            } // i
+          } // j
+        } // k
+      } // if which dim
+    } // iside
+  } // idim
 
-        // pml coefs
-        int abs_k = k - abs_nk1;
-        coef_D = ptr_coef_D[abs_k];
-        coef_A = ptr_coef_A[abs_k];
-        coef_B = ptr_coef_B[abs_k];
-        coef_B_minus_1 = coef_B - 1.0;
-
-        for (j=abs_nj1; j<=abs_nj2; j++)
-        {
-          iptr_j = iptr_k + j * siz_line;
-          iptr = iptr_j + abs_ni1;
-          for (i=abs_ni1; i<=abs_ni2; i++)
-          {
-            // metric
-            ztx = zt_x[iptr];
-            zty = zt_y[iptr];
-            ztz = zt_z[iptr];
-
-            // medium
-            lam = lam3d[iptr];
-            mu  =  mu3d[iptr];
-            slw = slw3d[iptr];
-            lam2mu = lam + 2.0 * mu;
-
-            // zt derivatives
-            M_FD_SHIFT(DzVx , Vx , iptr, fdz_len, lfdz_shift, lfdz_coef, n_fd);
-            M_FD_SHIFT(DzVy , Vy , iptr, fdz_len, lfdz_shift, lfdz_coef, n_fd);
-            M_FD_SHIFT(DzVz , Vz , iptr, fdz_len, lfdz_shift, lfdz_coef, n_fd);
-            M_FD_SHIFT(DzTxx, Txx, iptr, fdz_len, lfdz_shift, lfdz_coef, n_fd);
-            M_FD_SHIFT(DzTyy, Tyy, iptr, fdz_len, lfdz_shift, lfdz_coef, n_fd);
-            M_FD_SHIFT(DzTzz, Tzz, iptr, fdz_len, lfdz_shift, lfdz_coef, n_fd);
-            M_FD_SHIFT(DzTxz, Txz, iptr, fdz_len, lfdz_shift, lfdz_coef, n_fd);
-            M_FD_SHIFT(DzTyz, Tyz, iptr, fdz_len, lfdz_shift, lfdz_coef, n_fd);
-            M_FD_SHIFT(DzTxy, Txy, iptr, fdz_len, lfdz_shift, lfdz_coef, n_fd);
-
-            // combine for corr and aux vars
-             hVx_rhs = slw * ( ztx*DzTxx + zty*DzTxy + ztz*DzTxz );
-             hVy_rhs = slw * ( ztx*DzTxy + zty*DzTyy + ztz*DzTyz );
-             hVz_rhs = slw * ( ztx*DzTxz + zty*DzTyz + ztz*DzTzz );
-            hTxx_rhs = lam2mu*ztx*DzVx + lam*zty*DzVy + lam*ztz*DzVz;
-            hTyy_rhs = lam*ztx*DzVx + lam2mu*zty*DzVy + lam*ztz*DzVz;
-            hTzz_rhs = lam*ztx*DzVx + lam*zty*DzVy + lam2mu*ztz*DzVz;
-            hTxy_rhs = mu*( zty*DzVx + ztx*DzVy );
-            hTxz_rhs = mu*( ztz*DzVx + ztx*DzVz );
-            hTyz_rhs = mu*( ztz*DzVy + zty*DzVz );
-
-            // 1: make corr to moment equation
-            hVx[iptr] += coef_B_minus_1 * hVx_rhs - coef_B * pml_Vx[iptr_a];
-            hVy[iptr] += coef_B_minus_1 * hVy_rhs - coef_B * pml_Vy[iptr_a];
-            hVz[iptr] += coef_B_minus_1 * hVz_rhs - coef_B * pml_Vz[iptr_a];
-
-            // make corr to Hooke's equatoin
-            hTxx[iptr] += coef_B_minus_1 * hTxx_rhs - coef_B * pml_Txx[iptr_a];
-            hTyy[iptr] += coef_B_minus_1 * hTyy_rhs - coef_B * pml_Tyy[iptr_a];
-            hTzz[iptr] += coef_B_minus_1 * hTzz_rhs - coef_B * pml_Tzz[iptr_a];
-            hTxz[iptr] += coef_B_minus_1 * hTxz_rhs - coef_B * pml_Txz[iptr_a];
-            hTyz[iptr] += coef_B_minus_1 * hTyz_rhs - coef_B * pml_Tyz[iptr_a];
-            hTxy[iptr] += coef_B_minus_1 * hTxy_rhs - coef_B * pml_Txy[iptr_a];
-            
-            // 2: aux var
-            //   a1 = alpha + d / beta, dealt in abs_set_cfspml
-            pml_hVx[iptr_a]  = coef_D * hVx_rhs  - coef_A * pml_Vx[iptr_a];
-            pml_hVy[iptr_a]  = coef_D * hVy_rhs  - coef_A * pml_Vy[iptr_a];
-            pml_hVz[iptr_a]  = coef_D * hVz_rhs  - coef_A * pml_Vz[iptr_a];
-            pml_hTxx[iptr_a] = coef_D * hTxx_rhs - coef_A * pml_Txx[iptr_a];
-            pml_hTyy[iptr_a] = coef_D * hTyy_rhs - coef_A * pml_Tyy[iptr_a];
-            pml_hTzz[iptr_a] = coef_D * hTzz_rhs - coef_A * pml_Tzz[iptr_a];
-            pml_hTxz[iptr_a] = coef_D * hTxz_rhs - coef_A * pml_Txz[iptr_a];
-            pml_hTyz[iptr_a] = coef_D * hTyz_rhs - coef_A * pml_Tyz[iptr_a];
-            pml_hTxy[iptr_a] = coef_D * hTxy_rhs - coef_A * pml_Txy[iptr_a];
-
-            // incr index
-            iptr   += 1;
-            iptr_a += 1;
-          } // i
-        } // j
-      } // k
-    }
-  }
+  return;
 }
-
-// considering timg free surface in cfs-pml: conflict with main cfspml, need to revise
-//  in the future if required
-/*
-void
-sv_eliso1st_curv_macdrp_rhs_cfspml_timg_z2(
-    float *restrict  Txx, float *restrict  Tyy, float *restrict  Tzz,
-    float *restrict  Txz, float *restrict  Tyz, float *restrict  Txy,
-    float *restrict hVx , float *restrict hVy , float *restrict hVz ,
-    float *restrict xi_x, float *restrict xi_y, float *restrict xi_z,
-    float *restrict et_x, float *restrict et_y, float *restrict et_z,
-    float *restrict zt_x, float *restrict zt_y, float *restrict zt_z,
-    float *restrict jac3d, float *restrict slw3d,
-    int nk2, size_t siz_line, size_t siz_slice,
-    int fdx_len, int *restrict fdx_indx, float *restrict fdx_coef,
-    int fdy_len, int *restrict fdy_indx, float *restrict fdy_coef,
-    int fdz_len, int *restrict fdz_indx, float *restrict fdz_coef,
-    int *restrict boundary_itype,
-    int *restrict abs_num_of_layers,
-    int *restrict abs_indx, // pml range of each face
-    int *restrict abs_coefs_facepos0, // pos of 0 elem of each face
-    float  *restrict abs_coefs,
-    int *restrict abs_vars_volsiz, // size of single var in abs_blk_vars for each block
-    int *restrict abs_vars_facepos0, // start pos of each blk in first level; other level similar
-    float  *restrict abs_vars_cur, //
-    float  *restrict abs_vars_rhs,
-    const int myid, const int verbose)
-{
-  // loop var for fd
-  int n_fd; // loop var for fd
-  // use local stack array for better speed
-  float  lfdx_coef [fdx_len];
-  int lfdx_shift[fdx_len];
-  float  lfdy_coef [fdy_len];
-  int lfdy_shift[fdy_len];
-  float  lfdz_coef [fdz_len];
-  int lfdz_shift[fdz_len];
-  
-  // val on point
-  float slw, slwjac;
-
-  // local
-  float DxCx, DyCy;
-  float coef_A, coef_B, coef_D;
-  float hVx_rhs,hVy_rhs,hVz_rhs;
-
-  // to save traction and other two dir force var
-  float vecxi[fdz_len];
-  float vecet[fdz_len];
-  float veczt[fdz_len];
-  int n, iptr4vec;
-  int iptr, iptr_j, iptr_k, iptr_a;
-
-  // put fd op into local array
-  for (int i=0; i < fdx_len; i++) {
-    lfdx_coef [i] = fdx_coef[i];
-    lfdx_shift[i] = fdx_indx[i];
-  }
-  for (int j=0; j < fdy_len; j++) {
-    lfdy_coef [j] = fdy_coef[j];
-    lfdy_shift[j] = fdy_indx[j] * siz_line;
-  }
-  for (int k=0; k < fdz_len; k++) {
-    lfdz_coef [k] = fdz_coef[k];
-    lfdz_shift[k] = fdz_indx[k] * siz_slice;
-  }
-
-  // last indx, free surface force Tx/Ty/Tz to 0 in cal
-  int k_min = nk2 - fdz_indx[fdz_len-1];
-
-  // loop x/y face
-  //for (int iface=0; iface<2; iface++)
-  //for (int iface=3; iface<4; iface++)
-  for (int iface=0; iface<4; iface++)
-  {
-    // skip to next face if not cfspml
-    if (boundary_itype[iface] != FD_BOUNDARY_TYPE_CFSPML) continue;
-
-    // get index into local var
-    int abs_ni1 = abs_indx[iface*FD_NDIM_2+0];
-    int abs_ni2 = abs_indx[iface*FD_NDIM_2+1];
-    int abs_nj1 = abs_indx[iface*FD_NDIM_2+2];
-    int abs_nj2 = abs_indx[iface*FD_NDIM_2+3];
-    int abs_nk1 = abs_indx[iface*FD_NDIM_2+4];
-    int abs_nk2 = abs_indx[iface*FD_NDIM_2+5];
-
-    // max of two values
-    int abs_nk1_kmin = (k_min > abs_nk1 ) ? k_min : abs_nk1;
-
-    // get coef for this face
-    float *restrict ptr_coef_A = abs_coefs + abs_coefs_facepos0[iface];
-    float *restrict ptr_coef_B = ptr_coef_A + abs_num_of_layers[iface];
-    float *restrict ptr_coef_D = ptr_coef_B + abs_num_of_layers[iface];
-
-    // get pml vars
-    int pos_cur_face = abs_vars_facepos0[iface];
-    int pml_volsiz   = abs_vars_volsiz[iface];
-    float *restrict pml_Vx  = abs_vars_cur + pos_cur_face + WF_EL_1ST_SEQ_Vx  * pml_volsiz;
-    float *restrict pml_Vy  = abs_vars_cur + pos_cur_face + WF_EL_1ST_SEQ_Vy  * pml_volsiz;
-    float *restrict pml_Vz  = abs_vars_cur + pos_cur_face + WF_EL_1ST_SEQ_Vz  * pml_volsiz;
-    float *restrict pml_hVx  = abs_vars_rhs + pos_cur_face + WF_EL_1ST_SEQ_Vx  * pml_volsiz;
-    float *restrict pml_hVy  = abs_vars_rhs + pos_cur_face + WF_EL_1ST_SEQ_Vy  * pml_volsiz;
-    float *restrict pml_hVz  = abs_vars_rhs + pos_cur_face + WF_EL_1ST_SEQ_Vz  * pml_volsiz;
-
-    // for each dim
-    if (iface < 2) // x direction
-    {
-      iptr_a = (abs_nk1_kmin-abs_nk1) * (abs_nj2-abs_nj1+1) * (abs_ni2-abs_ni1+1);
-      for (int k=abs_nk1_kmin; k<=abs_nk2; k++)
-      {
-        iptr_k = k * siz_slice;
-        for (int j=abs_nj1; j<=abs_nj2; j++)
-        {
-          iptr_j = iptr_k + j * siz_line;
-          iptr = iptr_j + abs_ni1;
-          for (int i=abs_ni1; i<=abs_ni2; i++)
-          {
-            // pml coefs
-            int abs_i = i - abs_ni1;
-            coef_D = ptr_coef_D[abs_i];
-            coef_A = ptr_coef_A[abs_i];
-            coef_B = ptr_coef_B[abs_i];
-
-            // slowness and jac
-            slwjac = slw3d[iptr] / jac3d[iptr];
-
-            // for hVx
-            // transform to conservative vars
-            for (n=0; n<fdx_len; n++) {
-              iptr4vec = iptr + fdx_indx[n];
-              vecxi[n] = jac3d[iptr4vec] * (  xi_x[iptr4vec] * Txx[iptr4vec]
-                                            + xi_y[iptr4vec] * Txy[iptr4vec]
-                                            + xi_z[iptr4vec] * Txz[iptr4vec] );
-            }
-            // fd
-            M_FD_NOINDX(DxCx, vecxi, fdx_len, lfdx_coef, n_fd);
-            // combine for corr and aux vars
-            hVx_rhs = DxCx * slwjac;
-            // make corr to moment equation
-            hVx[iptr] += (coef_B - 1.0) * hVx_rhs - coef_B * pml_Vx[iptr_a];
-            // aux var
-            //   a1 = alpha + d / beta, dealt in abs_set_cfspml
-            pml_hVx[iptr_a] = coef_D * hVx_rhs - coef_A * pml_Vx[iptr_a];
-
-            // for hVy
-            // transform to conservative vars
-            for (n=0; n<fdx_len; n++) {
-              iptr4vec = iptr + fdx_indx[n];
-              vecxi[n] = jac3d[iptr4vec] * (  xi_x[iptr4vec] * Txy[iptr4vec]
-                                            + xi_y[iptr4vec] * Tyy[iptr4vec]
-                                            + xi_z[iptr4vec] * Tyz[iptr4vec] );
-            }
-            // fd
-            M_FD_NOINDX(DxCx, vecxi, fdx_len, lfdx_coef, n_fd);
-            // combine for corr and aux vars
-            hVy_rhs = DxCx * slwjac;
-            // make corr to moment equation
-            hVy[iptr] += (coef_B - 1.0) * hVy_rhs - coef_B * pml_Vy[iptr_a];
-            // aux var
-            //   a1 = alpha + d / beta, dealt in abs_set_cfspml
-            pml_hVy[iptr_a] = coef_D * hVy_rhs - coef_A * pml_Vy[iptr_a];
-
-            //
-            // for hVz
-            // transform to conservative vars
-            for (n=0; n<fdx_len; n++) {
-              iptr4vec = iptr + fdx_indx[n];
-              vecxi[n] = jac3d[iptr4vec] * (  xi_x[iptr4vec] * Txz[iptr4vec]
-                                            + xi_y[iptr4vec] * Tyz[iptr4vec]
-                                            + xi_z[iptr4vec] * Tzz[iptr4vec] );
-            }
-            // fd
-            M_FD_NOINDX(DxCx, vecxi, fdx_len, lfdx_coef, n_fd);
-            // combine for corr and aux vars
-            hVz_rhs = DxCx * slwjac;
-            // make corr to moment equation
-            hVz[iptr] += (coef_B - 1.0) * hVz_rhs - coef_B * pml_Vz[iptr_a];
-            // aux var
-            //   a1 = alpha + d / beta, dealt in abs_set_cfspml
-            pml_hVz[iptr_a] = coef_D * hVz_rhs - coef_A * pml_Vz[iptr_a];
-
-            // incr index
-            iptr   += 1;
-            iptr_a += 1;
-          } // i
-        } // j
-      } // k
-    }
-    else // y direction
-    {
-      iptr_a = (abs_nk1_kmin-abs_nk1) * (abs_nj2-abs_nj1+1) * (abs_ni2-abs_ni1+1);
-      for (int k=abs_nk1_kmin; k<=abs_nk2; k++)
-      {
-        iptr_k = k * siz_slice;
-        for (int j=abs_nj1; j<=abs_nj2; j++)
-        {
-          iptr_j = iptr_k + j * siz_line;
-          iptr = iptr_j + abs_ni1;
-
-          // pml coefs
-          int abs_j = j - abs_nj1;
-          coef_D = ptr_coef_D[abs_j];
-          coef_A = ptr_coef_A[abs_j];
-          coef_B = ptr_coef_B[abs_j];
-
-          for (int i=abs_ni1; i<=abs_ni2; i++)
-          {
-            // slowness and jac
-            slwjac = slw3d[iptr] / jac3d[iptr];
-
-            // for hVx
-            // transform to conservative vars
-            for (n=0; n<fdy_len; n++) {
-              iptr4vec = iptr + fdy_indx[n] * siz_line;
-              vecet[n] = jac3d[iptr4vec] * (  et_x[iptr4vec] * Txx[iptr4vec]
-                                            + et_y[iptr4vec] * Txy[iptr4vec]
-                                            + et_z[iptr4vec] * Txz[iptr4vec] );
-            }
-            // fd
-            M_FD_NOINDX(DyCy, vecet, fdy_len, lfdy_coef, n_fd);
-            // combine for corr and aux vars
-            hVx_rhs = DyCy * slwjac;
-            // make corr to moment equation
-            hVx[iptr] += (coef_B - 1.0) * hVx_rhs - coef_B * pml_Vx[iptr_a];
-            // aux var
-            //   a1 = alpha + d / beta, dealt in abs_set_cfspml
-            pml_hVx[iptr_a] = coef_D * hVx_rhs - coef_A * pml_Vx[iptr_a];
-
-            // for hVy
-            // transform to conservative vars
-            for (n=0; n<fdy_len; n++) {
-              iptr4vec = iptr + fdy_indx[n] * siz_line;
-              vecet[n] = jac3d[iptr4vec] * (  et_x[iptr4vec] * Txy[iptr4vec]
-                                            + et_y[iptr4vec] * Tyy[iptr4vec]
-                                            + et_z[iptr4vec] * Tyz[iptr4vec] );
-            }
-            // fd
-            M_FD_NOINDX(DyCy, vecet, fdy_len, lfdy_coef, n_fd);
-            // combine for corr and aux vars
-            hVy_rhs = DyCy * slwjac;
-            // make corr to moment equation
-            hVy[iptr] += (coef_B - 1.0) * hVy_rhs - coef_B * pml_Vy[iptr_a];
-            // aux var
-            //   a1 = alpha + d / beta, dealt in abs_set_cfspml
-            pml_hVy[iptr_a] = coef_D * hVy_rhs - coef_A * pml_Vy[iptr_a];
-
-            // for hVz
-            // transform to conservative vars
-            for (n=0; n<fdy_len; n++) {
-              iptr4vec = iptr + fdy_indx[n] * siz_line;
-              vecet[n] = jac3d[iptr4vec] * (  et_x[iptr4vec] * Txz[iptr4vec]
-                                            + et_y[iptr4vec] * Tyz[iptr4vec]
-                                            + et_z[iptr4vec] * Tzz[iptr4vec] );
-            }
-            // fd
-            M_FD_NOINDX(DyCy, vecet, fdy_len, lfdy_coef, n_fd);
-            // combine for corr and aux vars
-            hVz_rhs = DyCy * slwjac;
-            // make corr to moment equation
-            hVz[iptr] += (coef_B - 1.0) * hVz_rhs - coef_B * pml_Vz[iptr_a];
-            // aux var
-            //   a1 = alpha + d / beta, dealt in abs_set_cfspml
-            pml_hVz[iptr_a] = coef_D * hVz_rhs - coef_A * pml_Vz[iptr_a];
-
-            // incr index
-            iptr   += 1;
-            iptr_a += 1;
-          } // i
-        } // j
-      } // k
-    } // if x or y dim
-  } // face
-}
-*/
-
-// considering velocity free surface condition in cfs-pml
-void
-sv_eliso1st_curv_macdrp_rhs_cfspml_vfree_z2(
-    float *restrict  Vx , float *restrict  Vy , float *restrict  Vz ,
-    float *restrict hTxx, float *restrict hTyy, float *restrict hTzz,
-    float *restrict hTxz, float *restrict hTyz, float *restrict hTxy,
-    float *restrict zt_x, float *restrict zt_y, float *restrict zt_z,
-    float *restrict lam3d, float *restrict mu3d,
-    float *restrict matVx2Vz, float *restrict matVy2Vz,
-    int nk2, size_t siz_line, size_t siz_slice,
-    int fdx_len, int *restrict fdx_indx, float *restrict fdx_coef,
-    int fdy_len, int *restrict fdy_indx, float *restrict fdy_coef,
-    int *restrict boundary_itype,
-    int *restrict abs_num_of_layers,
-    int *restrict abs_indx, // pml range of each face
-    int *restrict abs_coefs_facepos0, // pos of 0 elem of each face
-    float  *restrict abs_coefs,
-    int *restrict abs_vars_volsiz, // size of single var in abs_blk_vars for each block
-    int *restrict abs_vars_facepos0, // start pos of each blk in first level; other level similar
-    float  *restrict abs_vars_cur, //
-    float  *restrict abs_vars_rhs,
-    const int myid, const int verbose)
-{
-  // loop var for fd
-  int n_fd; // loop var for fd
-  // use local stack array for better speed
-  float  lfdx_coef [fdx_len];
-  int lfdx_shift[fdx_len];
-  float  lfdy_coef [fdy_len];
-  int lfdy_shift[fdy_len];
-
-  // val on point
-  float lam,mu,lam2mu;
-
-  // local
-  int i,j,k;
-  int iptr, iptr_j, iptr_k, iptr_a;
-  float coef_A, coef_B, coef_D;
-  float DxVx,DxVy,DxVz;
-  float DyVx,DyVy,DyVz;
-  float Dx_DzVx,Dy_DzVx,Dx_DzVy,Dy_DzVy,Dx_DzVz,Dy_DzVz;
-  float hTxx_rhs,hTyy_rhs,hTzz_rhs,hTxz_rhs,hTyz_rhs,hTxy_rhs;
-
-  // put fd op into local array
-  for (int i=0; i < fdx_len; i++) {
-    lfdx_coef [i] = fdx_coef[i];
-    lfdx_shift[i] = fdx_indx[i];
-  }
-  for (int j=0; j < fdy_len; j++) {
-    lfdy_coef [j] = fdy_coef[j];
-    lfdy_shift[j] = fdy_indx[j] * siz_line;
-  }
-
-  // loop x/y face
-  for (int iface=0; iface<4; iface++)
-  {
-    // skip to next face if not cfspml
-    if (boundary_itype[iface] != FD_BOUNDARY_TYPE_CFSPML) continue;
-
-    // get index into local var
-    int abs_ni1 = abs_indx[iface*FD_NDIM_2+0];
-    int abs_ni2 = abs_indx[iface*FD_NDIM_2+1];
-    int abs_nj1 = abs_indx[iface*FD_NDIM_2+2];
-    int abs_nj2 = abs_indx[iface*FD_NDIM_2+3];
-    int abs_nk1 = abs_indx[iface*FD_NDIM_2+4];
-    int abs_nk2 = abs_indx[iface*FD_NDIM_2+5];
-
-    // get coef for this face
-    float *restrict ptr_coef_A = abs_coefs + abs_coefs_facepos0[iface];
-    float *restrict ptr_coef_B = ptr_coef_A + abs_num_of_layers[iface];
-    float *restrict ptr_coef_D = ptr_coef_B + abs_num_of_layers[iface];
-
-    // get pml vars
-    int pos_cur_face = abs_vars_facepos0[iface];
-    int pml_volsiz = abs_vars_volsiz[iface];
-    float *restrict pml_Txx = abs_vars_cur + pos_cur_face + WF_EL_1ST_SEQ_Txx * pml_volsiz;
-    float *restrict pml_Tyy = abs_vars_cur + pos_cur_face + WF_EL_1ST_SEQ_Tyy * pml_volsiz;
-    float *restrict pml_Tzz = abs_vars_cur + pos_cur_face + WF_EL_1ST_SEQ_Tzz * pml_volsiz;
-    float *restrict pml_Txz = abs_vars_cur + pos_cur_face + WF_EL_1ST_SEQ_Txz * pml_volsiz;
-    float *restrict pml_Tyz = abs_vars_cur + pos_cur_face + WF_EL_1ST_SEQ_Tyz * pml_volsiz;
-    float *restrict pml_Txy = abs_vars_cur + pos_cur_face + WF_EL_1ST_SEQ_Txy * pml_volsiz;
-    float *restrict pml_hTxx = abs_vars_rhs + pos_cur_face + WF_EL_1ST_SEQ_Txx * pml_volsiz;
-    float *restrict pml_hTyy = abs_vars_rhs + pos_cur_face + WF_EL_1ST_SEQ_Tyy * pml_volsiz;
-    float *restrict pml_hTzz = abs_vars_rhs + pos_cur_face + WF_EL_1ST_SEQ_Tzz * pml_volsiz;
-    float *restrict pml_hTxz = abs_vars_rhs + pos_cur_face + WF_EL_1ST_SEQ_Txz * pml_volsiz;
-    float *restrict pml_hTyz = abs_vars_rhs + pos_cur_face + WF_EL_1ST_SEQ_Tyz * pml_volsiz;
-    float *restrict pml_hTxy = abs_vars_rhs + pos_cur_face + WF_EL_1ST_SEQ_Txy * pml_volsiz;
-
-    // for each dim
-    if (iface < 2) // x direction
-    {
-      if (nk2 > abs_nk2) continue;
-
-      // set k to free surface
-      k = nk2;
-      iptr_k = k * siz_slice;
-      iptr_a = (k-abs_nk1) * (abs_nj2-abs_nj1+1) * (abs_ni2-abs_ni1+1);
-
-      for (j=abs_nj1; j<=abs_nj2; j++)
-      {
-        iptr_j = iptr_k + j * siz_line;
-        iptr = iptr_j + abs_ni1;
-        for (i=abs_ni1; i<=abs_ni2; i++)
-        {
-          // pml coefs
-          int abs_i = i - abs_ni1;
-          coef_D = ptr_coef_D[abs_i];
-          coef_A = ptr_coef_A[abs_i];
-          coef_B = ptr_coef_B[abs_i];
-
-          // metric
-          float ztx = zt_x[iptr];
-          float zty = zt_y[iptr];
-          float ztz = zt_z[iptr];
-
-          // medium
-          lam = lam3d[iptr];
-          mu  =  mu3d[iptr];
-          lam2mu = lam + 2.0 * mu;
-
-          // Vx derivatives
-          M_FD_SHIFT(DxVx, Vx, iptr, fdx_len, lfdx_shift, lfdx_coef, n_fd);
-          // Vy derivatives
-          M_FD_SHIFT(DxVy, Vy, iptr, fdx_len, lfdx_shift, lfdx_coef, n_fd);
-          // Vz derivatives
-          M_FD_SHIFT(DxVz, Vz, iptr, fdx_len, lfdx_shift, lfdx_coef, n_fd);
-
-          // zeta derivatives
-          int ij = (i + j * siz_line)*9;
-          Dx_DzVx = matVx2Vz[ij+3*0+0] * DxVx
-                  + matVx2Vz[ij+3*0+1] * DxVy
-                  + matVx2Vz[ij+3*0+2] * DxVz;
-
-          Dx_DzVy = matVx2Vz[ij+3*1+0] * DxVx
-                  + matVx2Vz[ij+3*1+1] * DxVy
-                  + matVx2Vz[ij+3*1+2] * DxVz;
-
-          Dx_DzVz = matVx2Vz[ij+3*2+0] * DxVx
-                  + matVx2Vz[ij+3*2+1] * DxVy
-                  + matVx2Vz[ij+3*2+2] * DxVz;
-
-          // keep xi derivative terms, including free surface convered
-          hTxx_rhs =    lam2mu * (            ztx*Dx_DzVx)
-                      + lam    * (            zty*Dx_DzVy
-                                  +           ztz*Dx_DzVz);
-
-          hTyy_rhs =   lam2mu * (            zty*Dx_DzVy)
-                      +lam    * (            ztx*Dx_DzVx
-                                            +ztz*Dx_DzVz);
-
-          hTzz_rhs =   lam2mu * (            ztz*Dx_DzVz)
-                      +lam    * (            ztx*Dx_DzVx
-                                            +zty*Dx_DzVy);
-
-          hTxy_rhs = mu *(
-                       zty*Dx_DzVx + ztx*Dx_DzVy
-                      );
-          hTxz_rhs = mu *(
-                       ztz*Dx_DzVx + ztx*Dx_DzVz
-                      );
-          hTyz_rhs = mu *(
-                       ztz*Dx_DzVy + zty*Dx_DzVz
-                      );
-
-          //// make corr to Hooke's equatoin
-          //hTxx[iptr] += (coef_B - 1.0) * hTxx_rhs - coef_B * pml_Txx[iptr_a];
-          //hTyy[iptr] += (coef_B - 1.0) * hTyy_rhs - coef_B * pml_Tyy[iptr_a];
-          //hTzz[iptr] += (coef_B - 1.0) * hTzz_rhs - coef_B * pml_Tzz[iptr_a];
-          //hTxz[iptr] += (coef_B - 1.0) * hTxz_rhs - coef_B * pml_Txz[iptr_a];
-          //hTyz[iptr] += (coef_B - 1.0) * hTyz_rhs - coef_B * pml_Tyz[iptr_a];
-          //hTxy[iptr] += (coef_B - 1.0) * hTxy_rhs - coef_B * pml_Txy[iptr_a];
-
-          //// aux var
-          ////   a1 = alpha + d / beta, dealt in abs_set_cfspml
-          //pml_hTxx[iptr_a] = coef_D * hTxx_rhs - coef_A * pml_Txx[iptr_a];
-          //pml_hTyy[iptr_a] = coef_D * hTyy_rhs - coef_A * pml_Tyy[iptr_a];
-          //pml_hTzz[iptr_a] = coef_D * hTzz_rhs - coef_A * pml_Tzz[iptr_a];
-          //pml_hTxz[iptr_a] = coef_D * hTxz_rhs - coef_A * pml_Txz[iptr_a];
-          //pml_hTyz[iptr_a] = coef_D * hTyz_rhs - coef_A * pml_Tyz[iptr_a];
-          //pml_hTxy[iptr_a] = coef_D * hTxy_rhs - coef_A * pml_Txy[iptr_a];
-
-          // make corr to Hooke's equatoin
-          hTxx[iptr] += (coef_B - 1.0) * hTxx_rhs;
-          hTyy[iptr] += (coef_B - 1.0) * hTyy_rhs;
-          hTzz[iptr] += (coef_B - 1.0) * hTzz_rhs;
-          hTxz[iptr] += (coef_B - 1.0) * hTxz_rhs;
-          hTyz[iptr] += (coef_B - 1.0) * hTyz_rhs;
-          hTxy[iptr] += (coef_B - 1.0) * hTxy_rhs;
-
-          // aux var
-          //   a1 = alpha + d / beta, dealt in abs_set_cfspml
-          pml_hTxx[iptr_a] += coef_D * hTxx_rhs;
-          pml_hTyy[iptr_a] += coef_D * hTyy_rhs;
-          pml_hTzz[iptr_a] += coef_D * hTzz_rhs;
-          pml_hTxz[iptr_a] += coef_D * hTxz_rhs;
-          pml_hTyz[iptr_a] += coef_D * hTyz_rhs;
-          pml_hTxy[iptr_a] += coef_D * hTxy_rhs;
-
-          // incr index
-          iptr   += 1;
-          iptr_a += 1;
-        } // i
-      } // j
-    }
-    else // y direction
-    {
-      if (nk2 > abs_nk2) continue;
-
-      // set k to free surface
-      k = nk2;
-      iptr_k = k * siz_slice;
-      iptr_a = (k-abs_nk1) * (abs_nj2-abs_nj1+1) * (abs_ni2-abs_ni1+1);
-
-      for (j=abs_nj1; j<=abs_nj2; j++)
-      {
-        iptr_j = iptr_k + j * siz_line;
-        iptr = iptr_j + abs_ni1;
-
-        // pml coefs
-        int abs_j = j - abs_nj1;
-        coef_D = ptr_coef_D[abs_j];
-        coef_A = ptr_coef_A[abs_j];
-        coef_B = ptr_coef_B[abs_j];
-
-        for (i=abs_ni1; i<=abs_ni2; i++)
-        {
-          // metric
-          float ztx = zt_x[iptr];
-          float zty = zt_y[iptr];
-          float ztz = zt_z[iptr];
-
-          // medium
-          lam = lam3d[iptr];
-          mu  =  mu3d[iptr];
-          lam2mu = lam + 2.0 * mu;
-
-          // Vx derivatives
-          M_FD_SHIFT(DyVx, Vx, iptr, fdy_len, lfdy_shift, lfdy_coef, n_fd);
-          // Vy derivatives
-          M_FD_SHIFT(DyVy, Vy, iptr, fdy_len, lfdy_shift, lfdy_coef, n_fd);
-          // Vz derivatives
-          M_FD_SHIFT(DyVz, Vz, iptr, fdy_len, lfdy_shift, lfdy_coef, n_fd);
-
-          // zeta derivatives
-          int ij = (i + j * siz_line)*9;
-          Dy_DzVx = matVy2Vz[ij+3*0+0] * DyVx
-                  + matVy2Vz[ij+3*0+1] * DyVy
-                  + matVy2Vz[ij+3*0+2] * DyVz;
-
-          Dy_DzVy = matVy2Vz[ij+3*1+0] * DyVx
-                  + matVy2Vz[ij+3*1+1] * DyVy
-                  + matVy2Vz[ij+3*1+2] * DyVz;
-
-          Dy_DzVz = matVy2Vz[ij+3*2+0] * DyVx
-                  + matVy2Vz[ij+3*2+1] * DyVy
-                  + matVy2Vz[ij+3*2+2] * DyVz;
-
-          hTxx_rhs =    lam2mu * (             ztx*Dy_DzVx)
-                      + lam    * (             zty*Dy_DzVy
-                                              +ztz*Dy_DzVz);
-
-          hTyy_rhs =   lam2mu * (             zty*Dy_DzVy)
-                      +lam    * (             ztx*Dy_DzVx
-                                             +ztz*Dy_DzVz);
-
-          hTzz_rhs =   lam2mu * (             ztz*Dy_DzVz)
-                      +lam    * (             ztx*Dy_DzVx
-                                             +zty*Dy_DzVy);
-
-          hTxy_rhs = mu *(
-                       zty*Dy_DzVx + ztx*Dy_DzVy
-                      );
-          hTxz_rhs = mu *(
-                       ztz*Dy_DzVx + ztx*Dy_DzVz
-                      );
-          hTyz_rhs = mu *(
-                       ztz*Dy_DzVy + zty*Dy_DzVz
-                    );
-
-          //// make corr to Hooke's equatoin
-          //hTxx[iptr] += (coef_B - 1.0) * hTxx_rhs - coef_B * pml_Txx[iptr_a];
-          //hTyy[iptr] += (coef_B - 1.0) * hTyy_rhs - coef_B * pml_Tyy[iptr_a];
-          //hTzz[iptr] += (coef_B - 1.0) * hTzz_rhs - coef_B * pml_Tzz[iptr_a];
-          //hTxz[iptr] += (coef_B - 1.0) * hTxz_rhs - coef_B * pml_Txz[iptr_a];
-          //hTyz[iptr] += (coef_B - 1.0) * hTyz_rhs - coef_B * pml_Tyz[iptr_a];
-          //hTxy[iptr] += (coef_B - 1.0) * hTxy_rhs - coef_B * pml_Txy[iptr_a];
-
-          //// aux var
-          ////   a1 = alpha + d / beta, dealt in abs_set_cfspml
-          //pml_hTxx[iptr_a] = coef_D * hTxx_rhs - coef_A * pml_Txx[iptr_a];
-          //pml_hTyy[iptr_a] = coef_D * hTyy_rhs - coef_A * pml_Tyy[iptr_a];
-          //pml_hTzz[iptr_a] = coef_D * hTzz_rhs - coef_A * pml_Tzz[iptr_a];
-          //pml_hTxz[iptr_a] = coef_D * hTxz_rhs - coef_A * pml_Txz[iptr_a];
-          //pml_hTyz[iptr_a] = coef_D * hTyz_rhs - coef_A * pml_Tyz[iptr_a];
-          //pml_hTxy[iptr_a] = coef_D * hTxy_rhs - coef_A * pml_Txy[iptr_a];
-
-          // make corr to Hooke's equatoin
-          hTxx[iptr] += (coef_B - 1.0) * hTxx_rhs;
-          hTyy[iptr] += (coef_B - 1.0) * hTyy_rhs;
-          hTzz[iptr] += (coef_B - 1.0) * hTzz_rhs;
-          hTxz[iptr] += (coef_B - 1.0) * hTxz_rhs;
-          hTyz[iptr] += (coef_B - 1.0) * hTyz_rhs;
-          hTxy[iptr] += (coef_B - 1.0) * hTxy_rhs;
-
-          // aux var
-          //   a1 = alpha + d / beta, dealt in abs_set_cfspml
-          pml_hTxx[iptr_a] += coef_D * hTxx_rhs;
-          pml_hTyy[iptr_a] += coef_D * hTyy_rhs;
-          pml_hTzz[iptr_a] += coef_D * hTzz_rhs;
-          pml_hTxz[iptr_a] += coef_D * hTxz_rhs;
-          pml_hTyz[iptr_a] += coef_D * hTyz_rhs;
-          pml_hTxy[iptr_a] += coef_D * hTxy_rhs;
-
-          // incr index
-          iptr   += 1;
-          iptr_a += 1;
-        } // i
-      } // j
-    } // if x or y dim
-  } // face
-}
-
-// considering vlow free surface in cfs-pml, no need to deal with points below free
-/*
-int
-sv_eliso1st_curv_macdrp_rhs_cfspml_vlow_z2(
-    float *restrict  Vx , float *restrict  Vy , float *restrict  Vz ,
-    float *restrict hTxx, float *restrict hTyy, float *restrict hTzz,
-    float *restrict hTxz, float *restrict hTyz, float *restrict hTxy,
-    float *restrict xi_x, float *restrict xi_y, float *restrict xi_z,
-    float *restrict et_x, float *restrict et_y, float *restrict et_z,
-    float *restrict zt_x, float *restrict zt_y, float *restrict zt_z,
-    float *restrict lam3d, float *restrict mu3d, float *restrict slw3d,
-    float *restrict matVx2Vz, float *restrict matVy2Vz,
-    int nk2, size_t siz_line, size_t siz_slice,
-    int fdx_len, int *restrict fdx_indx, float *restrict fdx_coef,
-    int fdy_len, int *restrict fdy_indx, float *restrict fdy_coef,
-    int fdz_num_surf_lay, int fdz_max_len, int **restrict fdz_all_info,
-    int *restrict fdz_all_indx, float *restrict fdz_all_coef,
-    int *restrict boundary_itype,
-    int *restrict abs_num_of_layers,
-    int *restrict abs_indx, // pml range of each face
-    int *restrict abs_coefs_facepos0, // pos of 0 elem of each face
-    float  *restrict abs_coefs,
-    int *restrict abs_vars_volsiz, // size of single var in abs_blk_vars for each block
-    int *restrict abs_vars_facepos0, // start pos of each blk in first level; other level similar
-    float  *restrict abs_vars_cur, //
-    float  *restrict abs_vars_rhs)
-{
-  // use local stack array for better speed
-  float  lfdx_coef [fdx_len];
-  int lfdx_shift[fdx_len];
-  float  lfdy_coef [fdy_len];
-  int lfdy_shift[fdy_len];
-  float  lfdz_coef [fdz_len];
-  int lfdz_shift[fdz_len];
-
-  // loop var for fd
-  int i,j,k;
-  int n_fd; // loop var for fd
-  int fdz_len;
-
-  // local var
-  float DxTxx,DxTyy,DxTzz,DxTxy,DxTxz,DxTyz,DxVx,DxVy,DxVz;
-  float DyTxx,DyTyy,DyTzz,DyTxy,DyTxz,DyTyz,DyVx,DyVy,DyVz;
-  float DzTxx,DzTyy,DzTzz,DzTxy,DzTxz,DzTyz,DzVx,DzVy,DzVz;
-  float lam,mu,lam2mu,slw;
-  float xix,xiy,xiz,etx,ety,etz,ztx,zty,ztz;
-
-  // put fd op into local array
-  for (int i=0; i < fdx_len; i++) {
-    lfdx_coef [i] = fdx_coef[i];
-    lfdx_shift[i] = fdx_indx[i];
-  }
-  for (int j=0; j < fdy_len; j++) {
-    lfdy_coef [j] = fdy_coef[j];
-    lfdy_shift[j] = fdy_indx[j] * siz_line;
-  }
-  for (int k=0; k < fdz_len; k++) {
-    lfdz_coef [k] = fdz_coef[k];
-    lfdz_shift[k] = fdz_indx[k] * siz_slice;
-  }
-
-  // loop x/y face
-  for (int iface=0; iface<4; iface++)
-  {
-    // skip to next face if not cfspml
-    if (boundary_itype[iface] != FD_BOUNDARY_TYPE_CFSPML) continue;
-
-    // get index into local var
-    int abs_ni1 = abs_indx[iface][0];
-    int abs_ni2 = abs_indx[iface][1];
-    int abs_nj1 = abs_indx[iface][2];
-    int abs_nj2 = abs_indx[iface][3];
-    int abs_nk1 = abs_indx[iface][4];
-    int abs_nk2 = abs_indx[iface][5];
-
-    // get coef for this face
-    float *restrict ptr_coef_A = abs_coefs + abs_coefs_facepos0[iface];
-    float *restrict ptr_coef_B = ptr_coef_A + abs_num_of_layers[iface];
-    float *restrict ptr_coef_D = ptr_coef_B + abs_num_of_layers[iface];
-
-    // get pml vars
-    int pos_cur_face = abs_vars_facepos0[iface];
-    int pml_volsiz = abs_vars_volsiz[iface];
-    float *restrict pml_Vx  = abs_vars_cur + pos_cur_face + WF_EL_1ST_SEQ_Vx  * pml_volsiz;
-    float *restrict pml_Vy  = abs_vars_cur + pos_cur_face + WF_EL_1ST_SEQ_Vy  * pml_volsiz;
-    float *restrict pml_Vz  = abs_vars_cur + pos_cur_face + WF_EL_1ST_SEQ_Vz  * pml_volsiz;
-    float *restrict pml_hVx  = abs_vars_rhs + pos_cur_face + WF_EL_1ST_SEQ_Vx  * pml_volsiz;
-    float *restrict pml_hVy  = abs_vars_rhs + pos_cur_face + WF_EL_1ST_SEQ_Vy  * pml_volsiz;
-    float *restrict pml_hVz  = abs_vars_rhs + pos_cur_face + WF_EL_1ST_SEQ_Vz  * pml_volsiz;
-
-    // for each dim
-    if (iface < 2) // x direction
-    {
-      iptr_a = 0;
-      for (size_t n=0; n < fdz_num_surf_lay; n++)
-      {
-        // conver to k index, from surface to inner
-        k = nk2 - n;
-        iptr_k = k * siz_slice;
-
-        // get different hlen fz near surface
-        int  lfdz_pos0 = fdz_info[n][FD_INFO_POS_OF_INDX];
-        int  lfdz_len  = fdz_info[n][FD_INFO_LENGTH_TOTAL];
-        int  *p_fdz_indx  = fdz_all_indx[lfdz_pos0];
-        float   *p_fdz_coef  = fdz_all_coef[lfdz_pos0];
-        for (n_fd = 0; n_fd < lfdz_len ; n_fd++) {
-          lfdz_shift[n_fd] = p_fdz_indx[n_fd] * siz_slice;
-          lfdz_coef[n_fd]  = p_fdz_coef[n_fd];
-        }
-
-        for (j=abs_nj1; j<=abs_nj2; j++)
-        {
-          iptr_j = iptr_k + j * siz_line;
-          iptr = iptr_j + abs_ni1;
-          for (i=abs_ni1; i<=abs_ni2; i++)
-          {
-            // pml coefs
-            int abs_i = i - abs_ni1;
-            coef_D = ptr_coef_D[abs_i];
-            coef_A = ptr_coef_A[abs_i];
-            coef_B = ptr_coef_B[abs_i];
-
-            // metric
-            xix = xi_x[iptr];
-            xiy = xi_y[iptr];
-            xiz = xi_z[iptr];
-
-            // medium
-            lam = lam3d[iptr];
-            mu  =  mu3d[iptr];
-            slw = slw3d[iptr];
-            lam2mu = lam + 2.0 * mu;
-
-            // incr index
-            iptr   += 1;
-            iptr_a += 1;
-          } // i
-        } // j
-      } // k
-    }
-    else // y direction
-    {
-      iptr_a = 0;
-      for (k=abs_nk1; k<=abs_nk2; k++)
-      {
-        iptr_k = k * siz_slice;
-        for (j=abs_nj1; j<=abs_nj2; j++)
-        {
-          iptr_j = iptr_k + j * siz_line;
-          iptr = iptr_j + abs_ni1;
-
-          // pml coefs
-          int abs_j = j - abs_nj1;
-          coef_D = ptr_coef_D[abs_j];
-          coef_A = ptr_coef_A[abs_j];
-          coef_B = ptr_coef_B[abs_j];
-
-          for (i=abs_ni1; i<=abs_ni2; i++)
-          {
-            // metric
-            etx = et_x[iptr];
-            ety = et_y[iptr];
-            etz = et_z[iptr];
-
-            // incr index
-            iptr   += 1;
-            iptr_a += 1;
-          } // i
-        } // j
-      } // k
-    } // if x or y dim
-  } // face
-}
-*/
 
 /*******************************************************************************
  * ABL-EXP boundary
@@ -3626,42 +1835,46 @@ sv_eliso1st_curv_macdrp_rhs_src(
     float *restrict hTxx, float *restrict hTyy, float *restrict hTzz,
     float *restrict hTxz, float *restrict hTyz, float *restrict hTxy,
     float *restrict jac3d, float *restrict slw3d,
-    int it, int istage,
-    struct fd_src_t *S, // short nation for reference member
+    src_t *src, // short nation for reference member
     const int myid, const int verbose)
 {
+  int ierr = 0;
+
   // local var
   int si,sj,sk, iptr;
 
   // for easy coding and efficiency
-  int max_ext = S->max_ext;
+  int max_ext = src->max_ext;
+
+  int it     = src->it;
+  int istage = src->istage;
 
   // add src; is is a commont iterater var
-  for (int is=0; is < S->total_number; is++)
+  for (int is=0; is < src->total_number; is++)
   {
-    int   it_start = S->it_begin[is];
-    int   it_end   = S->it_end  [is];
+    int   it_start = src->it_begin[is];
+    int   it_end   = src->it_end  [is];
 
     if (it >= it_start && it <= it_end)
     {
-      int   *ptr_ext_indx = S->ext_indx + is * max_ext;
-      float *ptr_ext_coef = S->ext_coef + is * max_ext;
+      int   *ptr_ext_indx = src->ext_indx + is * max_ext;
+      float *ptr_ext_coef = src->ext_coef + is * max_ext;
       int it_to_it_start = it - it_start;
-      int iptr_cur_stage =   is * S->max_nt * S->max_stage // skip other src
-                           + it_to_it_start * S->max_stage // skip other time step
+      int iptr_cur_stage =   is * src->max_nt * src->max_stage // skip other src
+                           + it_to_it_start * src->max_stage // skip other time step
                            + istage;
-      float fx  = S->Fx [iptr_cur_stage];
-      float fy  = S->Fy [iptr_cur_stage];
-      float fz  = S->Fz [iptr_cur_stage];
-      float Mxx = S->Mxx[iptr_cur_stage];
-      float Myy = S->Myy[iptr_cur_stage];
-      float Mzz = S->Mzz[iptr_cur_stage];
-      float Mxz = S->Mxz[iptr_cur_stage];
-      float Myz = S->Myz[iptr_cur_stage];
-      float Mxy = S->Mxy[iptr_cur_stage];
+      float fx  = src->Fx [iptr_cur_stage];
+      float fy  = src->Fy [iptr_cur_stage];
+      float fz  = src->Fz [iptr_cur_stage];
+      float Mxx = src->Mxx[iptr_cur_stage];
+      float Myy = src->Myy[iptr_cur_stage];
+      float Mzz = src->Mzz[iptr_cur_stage];
+      float Mxz = src->Mxz[iptr_cur_stage];
+      float Myz = src->Myz[iptr_cur_stage];
+      float Mxy = src->Mxy[iptr_cur_stage];
       
       // for extend points
-      for (int i_ext=0; i_ext < S->ext_num[is]; i_ext++)
+      for (int i_ext=0; i_ext < src->ext_num[is]; i_ext++)
       {
         int   iptr = ptr_ext_indx[i_ext];
         float coef = ptr_ext_coef[i_ext];
@@ -3683,154 +1896,12 @@ sv_eliso1st_curv_macdrp_rhs_src(
     } // it
   } // is
 
-  return(0);
+  return ierr;
 }
 
 /*******************************************************************************
  * related functions
  ******************************************************************************/
-
-void
-sv_eliso1st_curv_macdrp_vel_dxy2dz(
-    float *restrict g3d,
-    float *restrict m3d,
-    int ni1, int ni2, int nj1, int nj2, int nk1, int nk2,
-    size_t siz_line, size_t siz_slice, size_t siz_volume,
-    float **restrict p_matVx2Vz,
-    float **restrict p_matVy2Vz,
-    const int myid, const int verbose)
-{
-  float e11, e12, e13, e21, e22, e23, e31, e32, e33;
-  float lam2mu, lam, mu;
-  float A[3][3], B[3][3], C[3][3];
-  float AB[3][3], AC[3][3];
-
-  float *matVx2Vz = (float *)fdlib_mem_calloc_1d_float(
-                                      siz_slice * FD_NDIM * FD_NDIM,
-                                      0.0,
-                                      "sv_eliso1st_curv_macdrp_vel_dxy2dz");
-
-  float *matVy2Vz = (float *)fdlib_mem_calloc_1d_float(
-                                      siz_slice * FD_NDIM * FD_NDIM,
-                                      0.0,
-                                      "sv_eliso1st_curv_macdrp_vel_dxy2dz");
-
-  float *restrict xi_x = g3d + GD_CURV_SEQ_XIX * siz_volume;
-  float *restrict xi_y = g3d + GD_CURV_SEQ_XIY * siz_volume;
-  float *restrict xi_z = g3d + GD_CURV_SEQ_XIZ * siz_volume;
-  float *restrict et_x = g3d + GD_CURV_SEQ_ETX * siz_volume;
-  float *restrict et_y = g3d + GD_CURV_SEQ_ETY * siz_volume;
-  float *restrict et_z = g3d + GD_CURV_SEQ_ETZ * siz_volume;
-  float *restrict zt_x = g3d + GD_CURV_SEQ_ZTX * siz_volume;
-  float *restrict zt_y = g3d + GD_CURV_SEQ_ZTY * siz_volume;
-  float *restrict zt_z = g3d + GD_CURV_SEQ_ZTZ * siz_volume;
-  float *restrict lam3d = m3d + MD_EL_ISO_SEQ_LAMBDA * siz_volume;
-  float *restrict  mu3d = m3d + MD_EL_ISO_SEQ_MU     * siz_volume;
-
-  int k = nk2;
-
-  for (size_t j = nj1; j <= nj2; j++)
-  {
-    for (size_t i = ni1; i <= ni2; i++)
-    {
-      size_t iptr = i + j * siz_line + k * siz_slice;
-
-      e11 = xi_x[iptr];
-      e12 = xi_y[iptr];
-      e13 = xi_z[iptr];
-      e21 = et_x[iptr];
-      e22 = et_y[iptr];
-      e23 = et_z[iptr];
-      e31 = zt_x[iptr];
-      e32 = zt_y[iptr];
-      e33 = zt_z[iptr];
-
-      lam    = lam3d[iptr];
-      mu     =  mu3d[iptr];
-      lam2mu = lam + 2.0f * mu;
-
-      // first dim: irow; sec dim: jcol, as Fortran code
-      A[0][0] = lam2mu*e31*e31 + mu*(e32*e32+e33*e33);
-      A[0][1] = lam*e31*e32 + mu*e32*e31;
-      A[0][2] = lam*e31*e33 + mu*e33*e31;
-      A[1][0] = lam*e32*e31 + mu*e31*e32;
-      A[1][1] = lam2mu*e32*e32 + mu*(e31*e31+e33*e33);
-      A[1][2] = lam*e32*e33 + mu*e33*e32;
-      A[2][0] = lam*e33*e31 + mu*e31*e33;
-      A[2][1] = lam*e33*e32 + mu*e32*e33;
-      A[2][2] = lam2mu*e33*e33 + mu*(e31*e31+e32*e32);
-      fdlib_math_invert3x3(A);
-
-      B[0][0] = -lam2mu*e31*e11 - mu*(e32*e12+e33*e13);
-      B[0][1] = -lam*e31*e12 - mu*e32*e11;
-      B[0][2] = -lam*e31*e13 - mu*e33*e11;
-      B[1][0] = -lam*e32*e11 - mu*e31*e12;
-      B[1][1] = -lam2mu*e32*e12 - mu*(e31*e11+e33*e13);
-      B[1][2] = -lam*e32*e13 - mu*e33*e12;
-      B[2][0] = -lam*e33*e11 - mu*e31*e13;
-      B[2][1] = -lam*e33*e12 - mu*e32*e13;
-      B[2][2] = -lam2mu*e33*e13 - mu*(e31*e11+e32*e12);
-
-      C[0][0] = -lam2mu*e31*e21 - mu*(e32*e22+e33*e23);
-      C[0][1] = -lam*e31*e22 - mu*e32*e21;
-      C[0][2] = -lam*e31*e23 - mu*e33*e21;
-      C[1][0] = -lam*e32*e21 - mu*e31*e22;
-      C[1][1] = -lam2mu*e32*e22 - mu*(e31*e21+e33*e23);
-      C[1][2] = -lam*e32*e23 - mu*e33*e22;
-      C[2][0] = -lam*e33*e21 - mu*e31*e23;
-      C[2][1] = -lam*e33*e22 - mu*e32*e23;
-      C[2][2] = -lam2mu*e33*e23 - mu*(e31*e21+e32*e22);
-
-      fdlib_math_matmul3x3(A, B, AB);
-      fdlib_math_matmul3x3(A, C, AC);
-
-      size_t ij = (j * siz_line + i) * 9;
-
-      // save into mat
-      for(int irow = 0; irow < 3; irow++)
-        for(int jcol = 0; jcol < 3; jcol++){
-          matVx2Vz[ij + irow*3 + jcol] = AB[irow][jcol];
-          matVy2Vz[ij + irow*3 + jcol] = AC[irow][jcol];
-        }
-    }
-  }
-
-  *p_matVx2Vz = matVx2Vz;
-  *p_matVy2Vz = matVy2Vz;
-}
-
-void
-sv_eliso1st_curv_macdrp_snap_buff(float *restrict var,
-                                  size_t siz_line,
-                                  size_t siz_slice,
-                                  int starti,
-                                  int counti,
-                                  int increi,
-                                  int startj,
-                                  int countj,
-                                  int increj,
-                                  int startk,
-                                  int countk,
-                                  int increk,
-                                  float *restrict buff)
-{
-  int iptr_snap=0;
-  for (int n3=0; n3<countk; n3++)
-  {
-    int k = startk + n3 * increk;
-    for (int n2=0; n2<countj; n2++)
-    {
-      int j = startj + n2 * increj;
-      for (int n1=0; n1<counti; n1++)
-      {
-        int i = starti + n1 * increi;
-        int iptr = i + j * siz_line + k * siz_slice;
-        buff[iptr_snap] = var[iptr];
-        iptr_snap++;
-      }
-    }
-  }
-}
 
 void
 sv_eliso1st_curv_macdrp_snap_buff_strain(float *restrict var,
@@ -3865,33 +1936,119 @@ sv_eliso1st_curv_macdrp_snap_buff_strain(float *restrict var,
   }
 }
 
-//void
-//sv_eliso1st_curv_macdrp_snap_create_nc(char *ou_file,
-//                                       int   snap_nt_total,
-//                                       int   snap_ni,
-//                                       int   snap_nj,
-//                                       int   snap_nk,
-//                                       int   snap_out_vel,
-//                                       int   snap_out_stress,
-//                                       int   snap_out_strain,
-//                                       int  *ncid,
-//                                       int  *varid_V,
-//                                       int  *varid_T,
-//                                       int  *varid_E)
-//{
-//    int dimid[4];
-//    //sprintf(ou_file,"%s/%s_%s.nc", output_dir,snap_name[n],output_fname_part);
-//
-//    int snap_ni  = cur_snap_info[FD_NDIM  ];
-//    int snap_nj  = cur_snap_info[FD_NDIM+1];
-//    int snap_nk  = cur_snap_info[FD_NDIM+2];
-//    int snap_it1 = cur_snap_info[FD_NDIM*3+0];
-//    int snap_dit = cur_snap_info[FD_NDIM*3+1];
-//    int snap_nt_total = (nt_total - snap_it1) / snap_it;
-//    int snap_out_vel    = cur_snap_info[FD_NDIM*3+2+0];
-//    int snap_out_stress = cur_snap_info[FD_NDIM*3+2+1];
-//    int snap_out_strain = cur_snap_info[FD_NDIM*3+2+2];
-//
-//    //if (strcmp(strrchr(snap_fname[n],'.'),".nc")==0) 
-//
-//}
+int
+sv_eliso1st_curv_macdrp_zero_edge(gdinfo_t *gdinfo, wfel1st_t *wfel1st,
+                                  float *restrict w4d)
+{
+  int ierr = 0;
+
+  for (int icmp=0; icmp < wfel1st->ncmp; icmp++)
+  {
+    float *restrict var = w4d + wfel1st->cmp_pos[icmp];
+
+    // z1
+    for (int k=0; k < gdinfo->nk1; k++)
+    {
+      size_t iptr_k = k * gdinfo->siz_iz;
+      for (int j=0; j < gdinfo->ny; j++)
+      {
+        size_t iptr_j = iptr_k + j * gdinfo->siz_iy;
+        for (int i=0; i < gdinfo->nx; i++)
+        {
+          size_t iptr = iptr_j + i;
+          var[iptr] = 0.0; 
+        }
+      }
+    }
+
+    // z2
+    for (int k=gdinfo->nk2+1; k < gdinfo->nz; k++)
+    {
+      size_t iptr_k = k * gdinfo->siz_iz;
+      for (int j=0; j < gdinfo->ny; j++)
+      {
+        size_t iptr_j = iptr_k + j * gdinfo->siz_iy;
+        for (int i=0; i < gdinfo->nx; i++)
+        {
+          size_t iptr = iptr_j + i;
+          var[iptr] = 0.0; 
+        }
+      }
+    }
+
+    // y1
+    for (int k = gdinfo->nk1; k <= gdinfo->nk2; k++)
+    {
+      size_t iptr_k = k * gdinfo->siz_iz;
+      for (int j=0; j < gdinfo->nj1; j++)
+      {
+        size_t iptr_j = iptr_k + j * gdinfo->siz_iy;
+        for (int i=0; i < gdinfo->nx; i++)
+        {
+          size_t iptr = iptr_j + i;
+          var[iptr] = 0.0; 
+        }
+      }
+    }
+
+    // y2
+    for (int k = gdinfo->nk1; k <= gdinfo->nk2; k++)
+    {
+      size_t iptr_k = k * gdinfo->siz_iz;
+      for (int j = gdinfo->nj2+1; j < gdinfo->ny; j++)
+      {
+        size_t iptr_j = iptr_k + j * gdinfo->siz_iy;
+        for (int i=0; i < gdinfo->nx; i++)
+        {
+          size_t iptr = iptr_j + i;
+          var[iptr] = 0.0; 
+        }
+      }
+    }
+
+    // x1
+    for (int k = gdinfo->nk1; k <= gdinfo->nk2; k++)
+    {
+      size_t iptr_k = k * gdinfo->siz_iz;
+      for (int j = gdinfo->nj1; j <= gdinfo->nj2; j++)
+      {
+        size_t iptr_j = iptr_k + j * gdinfo->siz_iy;
+        for (int i=0; i < gdinfo->ni1; i++)
+        {
+          size_t iptr = iptr_j + i;
+          var[iptr] = 0.0; 
+        }
+      }
+    } 
+
+    // x2
+    for (int k = gdinfo->nk1; k <= gdinfo->nk2; k++)
+    {
+      size_t iptr_k = k * gdinfo->siz_iz;
+      for (int j = gdinfo->nj1; j <= gdinfo->nj2; j++)
+      {
+        size_t iptr_j = iptr_k + j * gdinfo->siz_iy;
+        for (int i = gdinfo->ni2+1; i < gdinfo->nx; i++)
+        {
+          size_t iptr = iptr_j + i;
+          var[iptr] = 0.0; 
+        }
+      }
+    } 
+
+  } // icmp
+
+  return ierr;
+}
+
+// code spool
+/*
+        for (int idim=0; idim<CONST_NDIM; idim++) {
+          for (int iside=0; iside<2; iside++) {
+            if (bdrypml->is_at_sides[idim][iside]==1) {
+              bdrypml_auxvar_t *auxvar = &(bdrypml->auxvar[idim][iside]);
+              auxvar->cur = auxvar->tmp;
+            }
+          }
+        }
+*/

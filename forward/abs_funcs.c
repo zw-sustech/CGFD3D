@@ -87,7 +87,7 @@ abs_set_cfspml(
 
   // coef size
   int    size_of_coef = 0;
-  for (int i=0; i<FD_NDIM_2; i++)
+  for (int i=0; i<CONST_NDIM_2; i++)
   {
     // facepos starts from previous end
     abs_coefs_facepos0[i] = size_of_coef;
@@ -102,15 +102,15 @@ abs_set_cfspml(
   float *abs_coefs = (float *) fdlib_mem_malloc_1d(size_of_coef*sizeof(float),"abs_set_cfspml");
 
   // for each face
-  for (int i_dim=0; i_dim<FD_NDIM_2; i_dim++)
+  for (int i_dim=0; i_dim<CONST_NDIM_2; i_dim++)
   {
     // set default indx to 0
-    for (int j=0; j<FD_NDIM_2; j++)
+    for (int j=0; j<CONST_NDIM_2; j++)
     {
-      abs_indx[i_dim * FD_NDIM_2 + j] = 0;
+      abs_indx[i_dim * CONST_NDIM_2 + j] = 0;
 
       // end size
-      if (j%2==1) abs_indx[i_dim * FD_NDIM_2 + j] = -1;
+      if (j%2==1) abs_indx[i_dim * CONST_NDIM_2 + j] = -1;
     }
 
     if (boundary_itype[i_dim] == FD_BOUNDARY_TYPE_CFSPML && abs_num_of_layers[i_dim]>0)
@@ -121,25 +121,25 @@ abs_set_cfspml(
       float *this_coefs = abs_coefs + abs_coefs_facepos0[i_dim];
 
       // indx
-      abs_indx[i_dim*FD_NDIM_2+0] = ni1;
-      abs_indx[i_dim*FD_NDIM_2+1] = ni2;
-      abs_indx[i_dim*FD_NDIM_2+2] = nj1;
-      abs_indx[i_dim*FD_NDIM_2+3] = nj2;
-      abs_indx[i_dim*FD_NDIM_2+4] = nk1;
-      abs_indx[i_dim*FD_NDIM_2+5] = nk2;
+      abs_indx[i_dim*CONST_NDIM_2+0] = ni1;
+      abs_indx[i_dim*CONST_NDIM_2+1] = ni2;
+      abs_indx[i_dim*CONST_NDIM_2+2] = nj1;
+      abs_indx[i_dim*CONST_NDIM_2+3] = nj2;
+      abs_indx[i_dim*CONST_NDIM_2+4] = nk1;
+      abs_indx[i_dim*CONST_NDIM_2+5] = nk2;
 
       if        (i_dim==0) {
-        abs_indx[i_dim*FD_NDIM_2+1] = ni1 + num_lay - 1;
+        abs_indx[i_dim*CONST_NDIM_2+1] = ni1 + num_lay - 1;
       } else if (i_dim==1) {
-        abs_indx[i_dim*FD_NDIM_2+0] = ni2 - num_lay + 1;
+        abs_indx[i_dim*CONST_NDIM_2+0] = ni2 - num_lay + 1;
       } else if (i_dim==2) {
-        abs_indx[i_dim*FD_NDIM_2+3] = nj1 + num_lay - 1;
+        abs_indx[i_dim*CONST_NDIM_2+3] = nj1 + num_lay - 1;
       } else if (i_dim==3) {
-        abs_indx[i_dim*FD_NDIM_2+2] = nj2 - num_lay + 1;
+        abs_indx[i_dim*CONST_NDIM_2+2] = nj2 - num_lay + 1;
       } else if (i_dim==4) {
-        abs_indx[i_dim*FD_NDIM_2+5] = nk1 + num_lay - 1;
+        abs_indx[i_dim*CONST_NDIM_2+5] = nk1 + num_lay - 1;
       } else { // 5
-        abs_indx[i_dim*FD_NDIM_2+4] = nk2 - num_lay + 1;
+        abs_indx[i_dim*CONST_NDIM_2+4] = nk2 - num_lay + 1;
       }
 
       float *A = this_coefs;
@@ -196,7 +196,7 @@ abs_init_vars_cfspml(
 {
     int    siz_level = 0;
 
-    for (int i=0; i < FD_NDIM_2; i++)
+    for (int i=0; i < CONST_NDIM_2; i++)
     {
       abs_vars_facepos0[i] = siz_level;
 
@@ -206,9 +206,9 @@ abs_init_vars_cfspml(
       // set if pml
       if (boundary_itype[i] == FD_BOUNDARY_TYPE_CFSPML)
       {
-        abs_vars_volsiz[i] =   (abs_indx[i*FD_NDIM_2+1] - abs_indx[i*FD_NDIM_2+0] + 1)
-                             * (abs_indx[i*FD_NDIM_2+3] - abs_indx[i*FD_NDIM_2+2] + 1)
-                             * (abs_indx[i*FD_NDIM_2+5] - abs_indx[i*FD_NDIM_2+4] + 1);
+        abs_vars_volsiz[i] =   (abs_indx[i*CONST_NDIM_2+1] - abs_indx[i*CONST_NDIM_2+0] + 1)
+                             * (abs_indx[i*CONST_NDIM_2+3] - abs_indx[i*CONST_NDIM_2+2] + 1)
+                             * (abs_indx[i*CONST_NDIM_2+5] - abs_indx[i*CONST_NDIM_2+4] + 1);
 
         // add to total size
         siz_level += abs_vars_volsiz[i] * number_of_vars;
@@ -250,7 +250,7 @@ int abs_set_ablexp(size_t nx, size_t ny, size_t nz,
   size_t abs_ceofs_size = 0;
   
   // copy input to struct
-  memcpy(abs_numbers, in_abs_numbers, FD_NDIM_2 * sizeof(int));
+  memcpy(abs_numbers, in_abs_numbers, CONST_NDIM_2 * sizeof(int));
 
   // size
   for (i=0; i<2; i++) { // x1,x2

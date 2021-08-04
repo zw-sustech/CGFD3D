@@ -6,6 +6,30 @@
 //#define M_ABS_IND(icmp,it,istage,nt,num_stage) \
 //  ((icmp) * (nt) * (num_stage) + (it) * (num_stage) + (istage))
 
+struct bdrypml_t
+{
+  // only support one type each run, may combine in the future
+  //  which requires different vars in blk_t
+  int  abs_itype;
+  
+  // only for this block, may diff with global values from input par
+  int  abs_num_of_layers[ CONST_NDIM_2 ];
+  
+  // grid index of each face
+  int    abs_indx[CONST_NDIM_2 * CONST_NDIM_2];
+  
+  int      abs_coefs_facepos0[CONST_NDIM_2];  // 
+  float   *abs_coefs; // all coefs all faces 
+  
+  // may add abs_numb_of_vars later for mpml
+  //   may not need it since 
+  
+  int     abs_vars_volsiz[CONST_NDIM_2]; // size of single var in abs_blk_vars for each block
+  int     abs_vars_facepos0[CONST_NDIM_2]; // start pos of each blk in first level; other level similar
+  int     abs_vars_size_per_level; // size of vars per level
+  float   *abs_vars; //  order: vars_one_block -> all block -> one level -> 4 levels
+};
+
 float
 abs_cal_pml_R(int N);
 

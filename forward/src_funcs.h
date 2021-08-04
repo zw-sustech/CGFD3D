@@ -3,51 +3,70 @@
 
 #include <mpi.h>
 
-#ifndef PI
-#define PI 3.1415926535898
-#endif
-
-#define M_SRC_INFO_SEQ_SI 0
-#define M_SRC_INFO_SEQ_SJ 1
-#define M_SRC_INFO_SEQ_SK 2
-// position in stf or mvf vector for this source
-#define M_SRC_INFO_SEQ_POS 3
-#define M_SRC_INFO_SEQ_ITBEG 4
-#define M_SRC_INFO_SEQ_ITEND 5
-#define M_SRC_INFO_SEQ_NEXT_MAX 6
-#define M_SRC_INFO_SEQ_NEXT_THIS 7
-
-#define M_SRC_INFO_NVAL 8
+#include "constants.h"
+#include "gd_info.h"
+#include "gd_curv.h"
 
 // cal force_vec_stf/moment_ten_rate 1d index for icmp,it,istage
 //  with respect to the start pointer of this source point
 #define M_SRC_IND(icmp,it,istage,nt,num_stage) \
   ((icmp) * (nt) * (num_stage) + (it) * (num_stage) + (istage))
 
-void
-src_gen_single_point_gauss(size_t siz_line,
-                           size_t siz_slice,
+/*************************************************
+ * structure
+ *************************************************/
+
+typedef struct {
+  int total_number;
+  int max_nt; // max nt of stf and mrf per src
+  int max_stage; // max number of rk stages
+  int max_ext; // max extened points
+
+  // for getting value in calculation
+  int it;
+  int istage;
+
+  // for output
+  char evtnm[CONST_MAX_STRLEN];
+
+  // time independent
+  int *si; // local i index 
+  int *sj; // local j index 
+  int *sk; // local k index 
+  int *it_begin; // start t index
+  int *it_end;   // end   t index
+  int   *ext_num; // valid extend points for this src
+  int   *ext_indx; // max_ext * total_number
+  float *ext_coef;
+
+  // time dependent
+  // force stf
+  float *Fx; // max_stage * max_nt * total_number;
+  float *Fy;
+  float *Fz;
+  // moment rate
+  float *Mxx; // max_stage *max_nt * total_number;
+  float *Myy;
+  float *Mzz;
+  float *Mxz;
+  float *Myz;
+  float *Mxy;
+} src_t;
+
+/*************************************************
+ * function prototype
+ *************************************************/
+
+int
+src_gen_single_point_gauss(gdinfo_t *gdinfo,
+                           gdcurv_t *gdcurv,
+                           src_t    *src,
                            float t0,
                            float dt,
                            int   num_of_stages,
                            float *rk_stage_time,
-                           int   glob_phys_ix1, // gloabl start index along x this thread
-                           int   glob_phys_ix2, // gloabl end index along x
-                           int   glob_phys_iy1,
-                           int   glob_phys_iy2,
-                           int   glob_phys_iz1,
-                           int   glob_phys_iz2,
-                           int   ni1,
-                           int   ni2,
-                           int   nj1,
-                           int   nj2,
-                           int   nk1,
-                           int   nk2,
                            int   npoint_half_ext,
-                           int   npoint_ghosts,
-                           float *x3d,
-                           float *y3d,
-                           float *z3d,
+                           char  *source_name,
                            int   *source_gridindex,
                            float *source_coords,
                            float *force_vector,
@@ -58,10 +77,7 @@ src_gen_single_point_gauss(size_t siz_line,
                            float wavelet_tend,
                            MPI_Comm comm, 
                            int myid,
-                           // following output
-                           struct fd_src_t *src,
                            int verbose);
-
 
 int
 src_read_locate_valsrc(char *pfilepath,
@@ -161,19 +177,6 @@ fun_gauss_deriv(float t, float a, float t0);
 void
 cal_norm_delt3d(float *delt, float x0, float y0, float z0, float rx0, float ry0, float rz0, int LenDelt);
 
-void
-src_get_stage_stf(
-                  int num_of_force,
-                  int  *restrict force_info, // num_of_force * 6 : si,sj,sk,start_pos_in_stf,start_it, end_it
-                  float *restrict force_vec_stf,
-                  int num_of_moment,
-                  int  *restrict moment_info, // num_of_force * 6 : si,sj,sk,start_pos_in_rate,start_it, end_it
-                  float *restrict moment_ten_rate,
-                  int it, int istage, int num_of_stages,
-                  float *restrict force_vec_value,
-                  float *restrict moment_ten_value,
-                  const int myid, const int verbose);
-
 void 
 angle2moment(float strike, float dip, float rake, float* source_moment_tensor);
 
@@ -216,5 +219,8 @@ src_cart2curv_sample(float sx, float sy, float sz,
                      float *si_curv, // interped curv coord
                      float *sj_curv,
                      float *sk_curv);
+
+int
+src_set_time(src_t *src, int it, int istage);
 
 #endif
