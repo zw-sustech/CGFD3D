@@ -12,36 +12,35 @@ Date:
 
 
 + --- Scripts to plot
-+ draw_snap_pcolor.m
++ draw_snap_pcolor.py
     Plot and save the seismic wavefield snapshot across a cross-section in pcolor style
-+ draw_slice_pcolor.m
++ draw_slice_pcolor.py
     Plot and save the seismic wavefield snapshot on a slice in pcolor style
-+ draw_media_pcolor.m
++ draw_media_pcolor.py
     Plot and save the media across a cross-section in pcolor style
-+ draw_metric_pcolor.m
++ draw_metric_pcolor.py
     Plot and save the metric data across a cross-section in pcolor style
-+ draw_seismo_line.m
++ draw_seismo_line.py
     Plot and save the seismograms at the receivers and the whole line
-+ draw_grid_coord.m
++ draw_grid_coord.py
     Plot and save the grid/mesh generation and spacing
 
 
 + --- Necessary subfunctions to locate and gather data for the above drawing scripts
-+ locate_snap.m
++ locate_snap.py
     Locate the processors/threads for the specific snapshot profile
-+ locate_media.m
++ locate_media.py
     Locate the processors/threads for the specific medium profile
-+ locate_metric.m
++ locate_metric.py
     Locate the processors/threads for the specific metric profile
-+ locate_coord.m
++ locate_coord.py
     Locate the processors/threads for the specific coordinates
-+ gather_snap.m
++ gather_snap.py
     Gather and load the snapshot data
-+ gather_media.m
++ gather_media.py
     Gather and load the media data
-+ gather_metric.m
++ gather_metric.py
     Gather and load the metric data
-+ gather_coord.m
++ gather_coord.py
     Gather and load the coordinate data
  
-
