@@ -67,7 +67,7 @@ bdry_free_set(gdinfo_t        *gdinfo,
   {
     for (int iside=0; iside<2; iside++)
     {
-      int ind_1d = iside + idim * CONST_NDIM;
+      int ind_1d = iside + idim * 2;
 
       bdryfree->is_at_sides  [idim][iside] = in_is_sides[idim][iside];
 

@@ -390,8 +390,8 @@ sv_eliso1st_curv_macdrp_onestage(
   float *restrict Txx   = w_cur + wfel1st->Txx_pos;
   float *restrict Tyy   = w_cur + wfel1st->Tyy_pos;
   float *restrict Tzz   = w_cur + wfel1st->Tzz_pos;
-  float *restrict Txz   = w_cur + wfel1st->Tyz_pos;
-  float *restrict Tyz   = w_cur + wfel1st->Txz_pos;
+  float *restrict Txz   = w_cur + wfel1st->Txz_pos;
+  float *restrict Tyz   = w_cur + wfel1st->Tyz_pos;
   float *restrict Txy   = w_cur + wfel1st->Txy_pos;
   float *restrict hVx   = rhs   + wfel1st->Vx_pos ; 
   float *restrict hVy   = rhs   + wfel1st->Vy_pos ; 
@@ -399,19 +399,19 @@ sv_eliso1st_curv_macdrp_onestage(
   float *restrict hTxx  = rhs   + wfel1st->Txx_pos; 
   float *restrict hTyy  = rhs   + wfel1st->Tyy_pos; 
   float *restrict hTzz  = rhs   + wfel1st->Tzz_pos; 
-  float *restrict hTxz  = rhs   + wfel1st->Tyz_pos; 
-  float *restrict hTyz  = rhs   + wfel1st->Txz_pos; 
+  float *restrict hTxz  = rhs   + wfel1st->Txz_pos; 
+  float *restrict hTyz  = rhs   + wfel1st->Tyz_pos; 
   float *restrict hTxy  = rhs   + wfel1st->Txy_pos; 
 
   float *restrict xi_x  = metric->xi_x;
   float *restrict xi_y  = metric->xi_y;
   float *restrict xi_z  = metric->xi_z;
   float *restrict et_x  = metric->eta_x;
-  float *restrict et_y  = metric->eta_x;
-  float *restrict et_z  = metric->eta_x;
+  float *restrict et_y  = metric->eta_y;
+  float *restrict et_z  = metric->eta_z;
   float *restrict zt_x  = metric->zeta_x;
-  float *restrict zt_y  = metric->zeta_x;
-  float *restrict zt_z  = metric->zeta_x;
+  float *restrict zt_y  = metric->zeta_y;
+  float *restrict zt_z  = metric->zeta_z;
   float *restrict jac3d = metric->jac;
 
   float *restrict lam3d = mdeliso->lambda;
@@ -1846,6 +1846,10 @@ sv_eliso1st_curv_macdrp_rhs_src(
   // for easy coding and efficiency
   int max_ext = src->max_ext;
 
+  // get fi / mij
+  float fx, fy, fz;
+  float Mxx,Myy,Mzz,Mxz,Myz,Mxy;
+
   int it     = src->it;
   int istage = src->istage;
 
@@ -1863,15 +1867,19 @@ sv_eliso1st_curv_macdrp_rhs_src(
       int iptr_cur_stage =   is * src->max_nt * src->max_stage // skip other src
                            + it_to_it_start * src->max_stage // skip other time step
                            + istage;
-      float fx  = src->Fx [iptr_cur_stage];
-      float fy  = src->Fy [iptr_cur_stage];
-      float fz  = src->Fz [iptr_cur_stage];
-      float Mxx = src->Mxx[iptr_cur_stage];
-      float Myy = src->Myy[iptr_cur_stage];
-      float Mzz = src->Mzz[iptr_cur_stage];
-      float Mxz = src->Mxz[iptr_cur_stage];
-      float Myz = src->Myz[iptr_cur_stage];
-      float Mxy = src->Mxy[iptr_cur_stage];
+      if (src->force_actived == 1) {
+        fx  = src->Fx [iptr_cur_stage];
+        fy  = src->Fy [iptr_cur_stage];
+        fz  = src->Fz [iptr_cur_stage];
+      }
+      if (src->moment_actived == 1) {
+        Mxx = src->Mxx[iptr_cur_stage];
+        Myy = src->Myy[iptr_cur_stage];
+        Mzz = src->Mzz[iptr_cur_stage];
+        Mxz = src->Mxz[iptr_cur_stage];
+        Myz = src->Myz[iptr_cur_stage];
+        Mxy = src->Mxy[iptr_cur_stage];
+      }
       
       // for extend points
       for (int i_ext=0; i_ext < src->ext_num[is]; i_ext++)
@@ -1879,18 +1887,22 @@ sv_eliso1st_curv_macdrp_rhs_src(
         int   iptr = ptr_ext_indx[i_ext];
         float coef = ptr_ext_coef[i_ext];
 
-        float V = coef * slw3d[iptr] / jac3d[iptr];
-        hVx[iptr] += fx * V;
-        hVy[iptr] += fy * V;
-        hVz[iptr] += fz * V;
+        if (src->force_actived == 1) {
+          float V = coef * slw3d[iptr] / jac3d[iptr];
+          hVx[iptr] += fx * V;
+          hVy[iptr] += fy * V;
+          hVz[iptr] += fz * V;
+        }
 
-        float rjac = coef / jac3d[iptr];
-        hTxx[iptr] -= Mxx * rjac;
-        hTyy[iptr] -= Myy * rjac;
-        hTzz[iptr] -= Mzz * rjac;
-        hTxz[iptr] -= Mxz * rjac;
-        hTyz[iptr] -= Myz * rjac;
-        hTxy[iptr] -= Mxy * rjac;
+        if (src->moment_actived == 1) {
+          float rjac = coef / jac3d[iptr];
+          hTxx[iptr] -= Mxx * rjac;
+          hTyy[iptr] -= Myy * rjac;
+          hTzz[iptr] -= Mzz * rjac;
+          hTxz[iptr] -= Mxz * rjac;
+          hTyz[iptr] -= Myz * rjac;
+          hTxy[iptr] -= Mxy * rjac;
+        }
       } // i_ext
 
     } // it

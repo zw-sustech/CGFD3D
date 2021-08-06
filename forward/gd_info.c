@@ -152,6 +152,9 @@ gd_info_set(gdinfo_t *const gdinfo,
   gdinfo->siz_iz   = gdinfo->siz_slice;
   gdinfo->siz_icmp = gdinfo->siz_volume;
 
+  // set npoint_ghosts according to fdz_nghosts
+  gdinfo->npoint_ghosts = fdz_nghosts;
+
   gdinfo->index_name = fdlib_mem_malloc_2l_char(
                         CONST_NDIM, CONST_MAX_STRLEN, "gdinfo name");
 
@@ -164,11 +167,30 @@ gd_info_set(gdinfo_t *const gdinfo,
 }
 
 /*
+ * give a local index ref, check if in this thread
+ */
+
+int
+gd_info_lindx_is_inner(int i, int j, int k, gdinfo_t *gdinfo)
+{
+  int is_in = 0;
+
+  if (   i >= gdinfo->ni1 && i <= gdinfo->ni2
+      && j >= gdinfo->nj1 && j <= gdinfo->nj2
+      && k >= gdinfo->nk1 && k <= gdinfo->nk2)
+  {
+    is_in = 1;
+  }
+
+  return is_in;
+}  
+
+/*
  * give a global index ref to phys0, check if in this thread
  */
 
 int
-gd_info_ind_glphy_ishere(int gi, int gj, int gk, gdinfo_t *gdinfo)
+gd_info_gindx_is_inner(int gi, int gj, int gk, gdinfo_t *gdinfo)
 {
   int ishere = 0;
 
@@ -193,7 +215,7 @@ gd_info_ind_glphy_ishere(int gi, int gj, int gk, gdinfo_t *gdinfo)
  */
 
 int
-gd_info_ind_glphy_ishere_i(int gi, gdinfo_t *gdinfo)
+gd_info_gindx_is_inner_i(int gi, gdinfo_t *gdinfo)
 {
   int ishere = 0;
 
@@ -206,7 +228,7 @@ gd_info_ind_glphy_ishere_i(int gi, gdinfo_t *gdinfo)
 }
 
 int
-gd_info_ind_glphy_ishere_j(int gj, gdinfo_t *gdinfo)
+gd_info_gindx_is_inner_j(int gj, gdinfo_t *gdinfo)
 {
   int ishere = 0;
 
@@ -219,7 +241,7 @@ gd_info_ind_glphy_ishere_j(int gj, gdinfo_t *gdinfo)
 }
 
 int
-gd_info_ind_glphy_ishere_k(int gk, gdinfo_t *gdinfo)
+gd_info_gindx_is_inner_k(int gk, gdinfo_t *gdinfo)
 {
   int ishere = 0;
 

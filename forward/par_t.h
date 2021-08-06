@@ -24,9 +24,8 @@
 #define PAR_MEDIA_3LAY   3
 #define PAR_MEDIA_3GRD   4
 
-#define PAR_SOURCE_SINGLE_FORCE  1
-#define PAR_SOURCE_SINGLE_MOMENT 2
-#define PAR_SOURCE_FILE          3
+#define PAR_SOURCE_JSON  1
+#define PAR_SOURCE_FILE  3
 
 typedef struct{
 
@@ -111,15 +110,29 @@ typedef struct{
   int is_export_source;
   char source_export_dir[PAR_MAX_STRLEN];
 
-  float source_coords[CONST_NDIM];
-  int   source_gridindex[CONST_NDIM];
+  //float source_coords[CONST_NDIM];
+  //int   source_index[CONST_NDIM];
+  //char  source_name[PAR_MAX_STRLEN];
+  //char  wavelet_name[PAR_MAX_STRLEN];
+  //float wavelet_coefs[10]; // maximum 10 coefficients for wavelet
+  //float wavelet_tstart;
+  //float wavelet_tend;
+  //float source_force_vector[CONST_NDIM];
+  //float source_moment_tensor[CONST_NDIM_2];
+
   char  source_name[PAR_MAX_STRLEN];
-  char  wavelet_name[PAR_MAX_STRLEN];
-  float wavelet_coefs[10]; // maximum 10 coefficients for wavelet
-  float wavelet_tstart;
-  float wavelet_tend;
-  float source_force_vector[CONST_NDIM];
-  float source_moment_tensor[CONST_NDIM_2];
+  int   source_number;
+  float **source_coords;
+  int   **source_index;
+  float **source_inc; // for index with shift
+  char  **wavelet_name;
+  float **wavelet_coefs; // maximum 10 coefficients for wavelet
+  float *wavelet_tstart;
+  float *wavelet_tend;
+  float **source_force_vector;
+  float **source_moment_tensor;
+  int   *source_force_actived;
+  int   *source_moment_actived;
 
   // output
   // receiver
@@ -169,8 +182,10 @@ void
 par_read_json_cfspml(cJSON *item,
       int *nlay, float *amax, float *bmax, float *vel);
 void 
-par_read_json_source(cJSON *item, char *wavelet_type_name,
-      char *src_name, float *src_coord, int *grid_index,
+par_read_json_source(cJSON *item,
+      float *src_coord, int *grid_index, float *grid_inc,
+      float *force_vector,  int *force_actived,
+      float *moment_vector, int *moment_actived,
       char *wavelet_name, float *wavelet_coefs, float *t_start, float *t_end);
 
 int

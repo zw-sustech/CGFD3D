@@ -39,6 +39,10 @@ typedef struct {
   int   *ext_indx; // max_ext * total_number
   float *ext_coef;
 
+  // force and/or moment
+  int force_actived;
+  int moment_actived;
+
   // time dependent
   // force stf
   float *Fx; // max_stage * max_nt * total_number;
@@ -58,26 +62,53 @@ typedef struct {
  *************************************************/
 
 int
-src_gen_single_point_gauss(gdinfo_t *gdinfo,
-                           gdcurv_t *gdcurv,
-                           src_t    *src,
-                           float t0,
-                           float dt,
-                           int   num_of_stages,
-                           float *rk_stage_time,
-                           int   npoint_half_ext,
-                           char  *source_name,
-                           int   *source_gridindex,
-                           float *source_coords,
-                           float *force_vector,
-                           float *moment_tensor,
-                           char  *wavelet_name,
-                           float *wavelet_coefs,
-                           float wavelet_tstart,
-                           float wavelet_tend,
-                           MPI_Comm comm, 
-                           int myid,
-                           int verbose);
+src_coord_to_glob_indx(gdinfo_t *gdinfo,
+                       gdcurv_t *gdcurv,
+                       float sx,
+                       float sy,
+                       float sz,
+                       MPI_Comm comm,
+                       int myid,
+                       int   *ou_si, int *ou_sj, int *ou_sk,
+                       float *ou_sx_inc, float *ou_sy_inc, float *ou_sz_inc,
+                       float *restrict wrk3d);
+
+int
+src_glob_ext_ishere(int si, int sj, int sk, int half_ext, gdinfo_t *gdinfo);
+
+int
+src_coord_to_local_indx(gdinfo_t *gdinfo,
+                        gdcurv_t *gdcurv,
+                        float sx, float sy, float sz,
+                        int *si, int *sj, int *sk,
+                        float *sx_inc, float *sy_inc, float *sz_inc,
+                        float *restrict wrk3d);
+
+int
+src_set_by_par(gdinfo_t *gdinfo,
+               gdcurv_t *gdcurv,
+               src_t    *src,
+               float t0,
+               float dt,
+               int   max_stage,
+               float *rk_stage_time,
+               int   npoint_half_ext,
+               char  *in_source_name,
+               int   in_num_of_src,
+               int   **source_index,
+               float **source_inc,
+               float **source_coords,
+               float **force_vector, 
+               int   *source_force_actived,
+               float **moment_tensor,
+               int   *source_moment_actived,
+               char  **wavelet_name,
+               float **wavelet_coefs,
+               float *wavelet_tstart,
+               float *wavelet_tend,
+               MPI_Comm comm, 
+               int myid,
+               int verbose);
 
 int
 src_read_locate_valsrc(char *pfilepath,
@@ -174,9 +205,6 @@ fun_gauss(float t, float a, float t0);
 float
 fun_gauss_deriv(float t, float a, float t0);
 
-void
-cal_norm_delt3d(float *delt, float x0, float y0, float z0, float rx0, float ry0, float rz0, int LenDelt);
-
 void 
 angle2moment(float strike, float dip, float rake, float* source_moment_tensor);
 
@@ -222,5 +250,9 @@ src_cart2curv_sample(float sx, float sy, float sz,
 
 int
 src_set_time(src_t *src, int it, int istage);
+
+void
+src_cal_norm_delt3d(float *delt, float x0, float y0, float z0,
+                    float rx0, float ry0, float rz0, int LenDelt);
 
 #endif

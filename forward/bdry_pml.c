@@ -95,7 +95,7 @@ bdry_pml_set(gdinfo_t *gdinfo,
   {
     for (int iside=0; iside<2; iside++)
     {
-      int ind_1d = iside + idim * CONST_NDIM;
+      int ind_1d = iside + idim * 2;
 
       // default set to input
       bdrypml->is_at_sides  [idim][iside] = in_is_sides[idim][iside];
@@ -157,10 +157,16 @@ bdry_pml_set(gdinfo_t *gdinfo,
 
     for (int iside=0; iside<2; iside++)
     {
-      int nlay = bdrypml->num_of_layers[idim][iside];
-      bdrypml->A[idim][iside] = (float *)malloc( nlay * sizeof(float));
-      bdrypml->B[idim][iside] = (float *)malloc( nlay * sizeof(float));
-      bdrypml->D[idim][iside] = (float *)malloc( nlay * sizeof(float));
+      if (bdrypml->is_at_sides[idim][iside] == 1) {
+        int nlay = bdrypml->num_of_layers[idim][iside];
+        bdrypml->A[idim][iside] = (float *)malloc( nlay * sizeof(float));
+        bdrypml->B[idim][iside] = (float *)malloc( nlay * sizeof(float));
+        bdrypml->D[idim][iside] = (float *)malloc( nlay * sizeof(float));
+      } else {
+        bdrypml->A[idim][iside] = NULL;
+        bdrypml->B[idim][iside] = NULL;
+        bdrypml->D[idim][iside] = NULL;
+      }
     }
   }
 
@@ -169,7 +175,8 @@ bdry_pml_set(gdinfo_t *gdinfo,
   {
     for (int iside=0; iside<2; iside++)
     {
-      int ind_1d = iside + idim * CONST_NDIM;
+      // skip if not pml
+      if (bdrypml->is_at_sides[idim][iside] == 0) continue;
 
       int num_lay = bdrypml->num_of_layers[idim][iside];
 
@@ -191,11 +198,17 @@ bdry_pml_set(gdinfo_t *gdinfo,
         if (idim==1) j = bdrypml->nj1[idim][iside] + ilay; 
         if (idim==2) k = bdrypml->nk1[idim][iside] + ilay; 
 
+        iptr = i + j * siz_line + k * siz_slice;
+
         float x1 = x3d[iptr];
         float y1 = y3d[iptr];
         float z1 = z3d[iptr];
 
         L0 += sqrtf( (x1-x0)*(x1-x0) + (y1-y0)*(y1-y0) + (z1-z0)*(z1-z0) );
+
+        x0 = x1;
+        y0 = y1;
+        z0 = z1;
       }
 
       // estimate spacing
@@ -288,9 +301,13 @@ bdry_pml_auxvar_init(int nx, int ny, int nz,
 
   // vars
   // contain all vars at each side, include rk scheme 4 levels vars
-  auxvar->var = (float *) fdlib_mem_calloc_1d_float( 
-               auxvar->siz_ilevel * auxvar->nlevel,
-               0.0, "bdry_pml_auxvar_init");
+  if (auxvar->siz_icmp > 0 ) { // valid pml layer
+    auxvar->var = (float *) fdlib_mem_calloc_1d_float( 
+                 auxvar->siz_ilevel * auxvar->nlevel,
+                 0.0, "bdry_pml_auxvar_init");
+  } else { // nx,ny,nz has 0
+    auxvar->var = NULL;
+  }
 }
 
 //

@@ -84,16 +84,19 @@ gd_info_set(gdinfo_t *const gdinfo,
             const int verbose);
 
 int
-gd_info_ind_glphy_ishere(int gi, int gj, int gk, gdinfo_t *gdinfo);
+gd_info_lindx_is_inner(int i, int j, int k, gdinfo_t *gdinfo);
 
 int
-gd_info_ind_glphy_ishere_i(int gi, gdinfo_t *gdinfo);
+gd_info_gindx_is_inner(int gi, int gj, int gk, gdinfo_t *gdinfo);
 
 int
-gd_info_ind_glphy_ishere_j(int gj, gdinfo_t *gdinfo);
+gd_info_gindx_is_inner_i(int gi, gdinfo_t *gdinfo);
 
 int
-gd_info_ind_glphy_ishere_k(int gk, gdinfo_t *gdinfo);
+gd_info_gindx_is_inner_j(int gj, gdinfo_t *gdinfo);
+
+int
+gd_info_gindx_is_inner_k(int gk, gdinfo_t *gdinfo);
 
 int
 gd_info_ind_glphy2lcext_i(int gi, gdinfo_t *gdinfo);

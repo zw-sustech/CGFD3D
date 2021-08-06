@@ -313,7 +313,7 @@ io_recv_read_locate(gdinfo_t *gdinfo,
     //fprintf(stdout,"== in: %s %d %d %d\n", sta_name[ir],ix,iy,iz); fflush(stdout);
     // locate
     int ptr_this = nr_this * CONST_NDIM;
-    if (gd_info_ind_glphy_ishere(ix,iy,iz,gdinfo) == 1)
+    if (gd_info_gindx_is_inner(ix,iy,iz,gdinfo) == 1)
     {
       // convert to local index w ghost
       int i_local = gd_info_ind_glphy2lcext_i(ix,gdinfo);
@@ -406,7 +406,7 @@ io_line_locate(gdinfo_t *gdinfo,
       int gk = receiver_line_index_start[n*CONST_NDIM+2] 
                  + ipt * receiver_line_index_incre[n*CONST_NDIM+2];
 
-      if (gd_info_ind_glphy_ishere(gi,gj,gk,gdinfo) == 1)
+      if (gd_info_gindx_is_inner(gi,gj,gk,gdinfo) == 1)
       {
         nr += 1;
       }
@@ -464,7 +464,7 @@ io_line_locate(gdinfo_t *gdinfo,
       int gj = receiver_line_index_start[n*CONST_NDIM+1] + ipt * receiver_line_index_incre[n*CONST_NDIM+1];
       int gk = receiver_line_index_start[n*CONST_NDIM+2] + ipt * receiver_line_index_incre[n*CONST_NDIM+2];
 
-      if (gd_info_ind_glphy_ishere(gi,gj,gk,gdinfo) == 1)
+      if (gd_info_gindx_is_inner(gi,gj,gk,gdinfo) == 1)
       {
         int i = gd_info_ind_glphy2lcext_i(gi,gdinfo);
         int j = gd_info_ind_glphy2lcext_j(gj,gdinfo);
@@ -529,7 +529,7 @@ io_slice_locate(gdinfo_t  *gdinfo,
   for (int n=0; n < number_of_slice_x; n++)
   {
     int gi = slice_x_index[n];
-    if (gd_info_ind_glphy_ishere_i(gi, gdinfo)==1)
+    if (gd_info_gindx_is_inner_i(gi, gdinfo)==1)
     {
       int islc = ioslice->num_of_slice_x;
 
@@ -545,7 +545,7 @@ io_slice_locate(gdinfo_t  *gdinfo,
   for (int n=0; n < number_of_slice_y; n++)
   {
     int gj = slice_y_index[n];
-    if (gd_info_ind_glphy_ishere_j(gj, gdinfo)==1)
+    if (gd_info_gindx_is_inner_j(gj, gdinfo)==1)
     {
       int islc = ioslice->num_of_slice_y;
 
@@ -561,7 +561,7 @@ io_slice_locate(gdinfo_t  *gdinfo,
   for (int n=0; n < number_of_slice_z; n++)
   {
     int gk = slice_z_index[n];
-    if (gd_info_ind_glphy_ishere_k(gk, gdinfo)==1)
+    if (gd_info_gindx_is_inner_k(gk, gdinfo)==1)
     {
       int islc = ioslice->num_of_slice_z;
 
@@ -630,7 +630,7 @@ io_snapshot_locate(gdinfo_t *gdinfo,
     for (int n3=0; n3<snapshot_index_count[iptr0+2]; n3++)
     {
       int gk = snapshot_index_start[iptr0+2] + n3 * snapshot_index_incre[iptr0+2];
-      if (gd_info_ind_glphy_ishere_k(gk,gdinfo) == 1)
+      if (gd_info_gindx_is_inner_k(gk,gdinfo) == 1)
       {
         if (gk1 == -1) {
           gk1 = gk;
@@ -646,7 +646,7 @@ io_snapshot_locate(gdinfo_t *gdinfo,
     for (int n2=0; n2<snapshot_index_count[iptr0+1]; n2++)
     {
       int gj = snapshot_index_start[iptr0+1] + n2 * snapshot_index_incre[iptr0+1];
-      if (gd_info_ind_glphy_ishere_j(gj,gdinfo) == 1)
+      if (gd_info_gindx_is_inner_j(gj,gdinfo) == 1)
       {
         if (gj1 == -1) {
           gj1 = gj;
@@ -662,7 +662,7 @@ io_snapshot_locate(gdinfo_t *gdinfo,
     for (int n1=0; n1<snapshot_index_count[iptr0+0]; n1++)
     {
       int gi = snapshot_index_start[iptr0+0] + n1 * snapshot_index_incre[iptr0+0];
-      if (gd_info_ind_glphy_ishere_i(gi,gdinfo) == 1)
+      if (gd_info_gindx_is_inner_i(gi,gdinfo) == 1)
       {
         if (gi1 == -1) {
           gi1 = gi;

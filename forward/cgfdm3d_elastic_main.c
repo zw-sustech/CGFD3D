@@ -478,30 +478,26 @@ int main(int argc, char** argv)
   }
   else
   {
-    if (myid==0) fprintf(stdout,"set single point source term in code ...\n"); 
+    if (myid==0) fprintf(stdout,"set source using info from par file ...\n"); 
 
-    src->total_number=1;
-
-    src_gen_single_point_gauss(gdinfo,
-                               gdcurv,
-                               src,
-                               t0,
-                               dt,
-                               fd->num_rk_stages,
-                               fd->rk_rhs_time,
-                               fd->fdx_max_half_len,
-                               par->source_name,
-                               par->source_gridindex,
-                               par->source_coords,
-                               par->source_force_vector,
-                               par->source_moment_tensor,
-                               par->wavelet_name,
-                               par->wavelet_coefs,
-                               par->wavelet_tstart,
-                               par->wavelet_tend,
-                               comm,
-                               myid,
-                               verbose);
+    src_set_by_par(gdinfo, gdcurv, src,
+                   t0, dt,
+                   fd->num_rk_stages, fd->rk_rhs_time,
+                   fd->fdx_max_half_len,
+                   par->source_name,
+                   par->source_number,
+                   par->source_index,
+                   par->source_inc,
+                   par->source_coords,
+                   par->source_force_vector,
+                   par->source_force_actived,
+                   par->source_moment_tensor,
+                   par->source_moment_actived,
+                   par->wavelet_name,
+                   par->wavelet_coefs,
+                   par->wavelet_tstart,
+                   par->wavelet_tend,
+                   comm, myid, verbose);
   }
 
   /*

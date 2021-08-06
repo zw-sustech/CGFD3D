@@ -18,7 +18,7 @@ EXEC_DIR=/home/zhangw/code/zwlab/CGFD3D-elastic
 EXEC_WAVE=$EXEC_DIR/cgfdm3d_elastic_mpi
 
 #-- conf
-PROJDIR=/home/zhangw/work/cgfd_arc/01run
+PROJDIR=/home/zhangw/work/cgfd_arc/06
 PAR_FILE=${PROJDIR}/test.json
 GRID_DIR=${PROJDIR}/output
 MEDIA_DIR=${PROJDIR}/output
@@ -55,8 +55,9 @@ cat << ieof > $PAR_FILE
   "number_of_mpiprocs_x" : 1,
   "number_of_mpiprocs_y" : 1,
 
-  "size_of_time_step" : 0.008,
-  "number_of_time_steps" : 100,
+  "#size_of_time_step" : 0.008,
+  "size_of_time_step" : 0.015,
+  "number_of_time_steps" : 500,
 
   "boundary_x_left" : {
       "cfspml" : {
@@ -108,7 +109,7 @@ cat << ieof > $PAR_FILE
         "origin"  : [0.0, 0.0, -6000.0 ],
         "inteval" : [ 100.0, 100.0, 100.0 ]
       },
-      "layer_interp" : {
+      "#layer_interp" : {
         "in_grid_layer_file" : "$EXEC_DIR/test/test_grid.gdlay",
         "refine_factor" : [ 1, 1, 2 ],
         "horizontal_start_index" : [ 50, 50 ],
@@ -135,28 +136,24 @@ cat << ieof > $PAR_FILE
   "media_export_dir"  : "$MEDIA_DIR",
 
   "source_input" : {
-      "single_force" : {
-         "name" : "evt_test_singel_force",
-         "location_by_grid_index" : [ 40, 40, 50 ],
-         "#location_by_coords" : [ 4050, 4010, -1020 ],
-         "#location_by_coords" : [ 4000, 4000, -1000 ],
-         "source_time_functon" : "ricker",
-         "ricker_center_frequency" : 2.0,
-         "ricker_peak_time" : 0.5,
-         "start_time" : 0.0,
-         "end_time"   : 1.0,
-         "force_vector" : [ 1e16, 1e16, 1e16]
-      },
-      "#single_moment" : {
-         "name" : "evt_test_singel_moment",
-         "location_by_grid_index" : [ 40, 40, 50 ],
-         "#location_by_coords" : [ 4000, 4000, -500 ],
-         "moment_rate_functon" : "gaussian",
-         "gaussian_rms_width" : 2.0,
-         "gaussian_peak_time" : 0.5,
-         "start_time" : 0.0,
-         "end_time"   : 1.0,
-         "moment_tensor" : [ 1e13, 1e13, 1e13, 1e15, 1e15, 1e15]
+      "in_par" : {
+         "name" : "evt_by_par",
+         "source" : [
+            {
+                "index" : [ 40, 40, 50 ],
+                "#coord" : [ 4000, 4000, -1000 ],
+                "wavelet_name" : "ricker",
+                "ricker_center_frequency" : 2.0,
+                "ricker_peak_time" : 0.5,
+                "#wavelet_name" : "gaussian",
+                "#gaussian_rms_width" : 2.0,
+                "#gaussian_peak_time" : 0.5,
+                "start_time" : 0.0,
+                "end_time"   : 1.0,
+                "#force_vector" : [ 0.0, 0.0, 1e16],
+                "moment_tensor" : [ 1e16, 1e16, 1e16, 0.0, 0.0, 0.0]
+            }
+         ]
       },
       "#in_source_file" : "$IN_SOURCE_FILE"
   },
@@ -192,7 +189,7 @@ cat << ieof > $PAR_FILE
     {
       "name" : "volume_vel",
       "grid_index_start" : [ 0, 0, 0 ],
-      "grid_index_count" : [ 199,199, 59 ],
+      "grid_index_count" : [ 100,100, 60 ],
       "grid_index_incre" : [  1, 1, 1 ],
       "time_index_start" : 0,
       "time_index_incre" : 1,
