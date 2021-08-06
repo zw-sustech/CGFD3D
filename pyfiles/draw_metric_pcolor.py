@@ -17,18 +17,20 @@ from gather_coord import *
 
 # ----------------------------- paremeters input -------------------------- #
 # file and path name
-parfnm='./project/test.json'
-metric_dir='./project/output'
+#parfnm='./project/test.json'
+#metric_dir='./project/output'
+parfnm= '/home/zhangw/work/cgfd_arc/02src/test.json'
+metric_dir='/home/zhangw/work/cgfd_arc/02src/output'
 
 # which metric profile to plot
-subs=[10,5,1]       # start from index '1'
-subc=[-1,-1,1]      # '-1' to plot all points in this dimension
-subt=[2,1,2]
+subs=[41,1,1]       # start from index '1'
+subc=[1,-1,-1]      # '-1' to plot all points in this dimension
+subt=[1,1,1]
 
 # variable to plot
 # 'jac', 'xi_x', 'xi_y', 'xi_z', 'eta_x', 'eta_y', 'eta_z',
 # 'zeta_x', 'zeta_y', 'zeta_z'
-varnm='xi_x'
+varnm='jac'
 
 # figure control parameters
 # 1

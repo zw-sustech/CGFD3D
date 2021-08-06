@@ -11,7 +11,7 @@ MPIDIR=/export/apps/gnu-4.8.5/mpich-3.3
 EXEC_DIR=/home/zhangw/code/zwlab/CGFD3D-elastic
 EXEC_WAVE=$EXEC_DIR/cgfdm3d_elastic_mpi
 
-PROJDIR=/home/zhangw/work/cgfd_arc/01run
+PROJDIR=/home/zhangw/work/cgfd_arc/05pml
 
 parfile=${PROJDIR}/test.json
 

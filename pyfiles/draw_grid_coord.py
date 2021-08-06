@@ -16,11 +16,13 @@ from gather_coord import *
 
 # ---------------------------- parameters input --------------------------- #
 # file and path name
-parfnm='./project/test.json'
-coord_dir='./project/output'
+#parfnm='./project/test.json'
+#coord_dir='./project/output'
+parfnm= '/home/zhangw/work/cgfd_arc/02src/test.json'
+coord_dir='/home/zhangw/work/cgfd_arc/02src/output'
 
 # which grid profile to plot
-subs=[5,5,1]        # start from index '1'
+subs=[1,1,50]        # start from index '1'
 subc=[-1,-1,1]      # '-1' to plot all points in this dimension
 subt=[1,1,1]
 
