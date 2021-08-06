@@ -1331,6 +1331,7 @@ sv_eliso1st_curv_macdrp_rhs_cfspml(
       float *restrict pml_Txz  = abs_vars_cur + auxvar->Txz_pos;
       float *restrict pml_Tyz  = abs_vars_cur + auxvar->Tyz_pos;
       float *restrict pml_Txy  = abs_vars_cur + auxvar->Txy_pos;
+
       float *restrict pml_hVx  = abs_vars_rhs + auxvar->Vx_pos;
       float *restrict pml_hVy  = abs_vars_rhs + auxvar->Vy_pos;
       float *restrict pml_hVz  = abs_vars_rhs + auxvar->Vz_pos;
@@ -1422,7 +1423,7 @@ sv_eliso1st_curv_macdrp_rhs_cfspml(
               // add contributions from free surface condition
               //  not consider timg because conflict with main cfspml,
               //     need to revise in the future if required
-              if (bdryfree->is_at_sides[idim][iside]==1 && k==nk2)
+              if (bdryfree->is_at_sides[CONST_NDIM-1][1]==1 && k==nk2)
               {
                 // zeta derivatives
                 int ij = (i + j * siz_line)*9;
@@ -1437,6 +1438,11 @@ sv_eliso1st_curv_macdrp_rhs_cfspml(
                 Dx_DzVz = matVx2Vz[ij+3*2+0] * DxVx
                         + matVx2Vz[ij+3*2+1] * DxVy
                         + matVx2Vz[ij+3*2+2] * DxVz;
+
+                // metric
+                ztx = zt_x[iptr];
+                zty = zt_y[iptr];
+                ztz = zt_z[iptr];
 
                 // keep xi derivative terms, including free surface convered
                 hTxx_rhs =    lam2mu * (            ztx*Dx_DzVx)
@@ -1565,7 +1571,7 @@ sv_eliso1st_curv_macdrp_rhs_cfspml(
               pml_hTxy[iptr_a] = coef_D * hTxy_rhs - coef_A * pml_Txy[iptr_a];
 
               // add contributions from free surface condition
-              if (bdryfree->is_at_sides[idim][iside]==1 && k==nk2)
+              if (bdryfree->is_at_sides[CONST_NDIM-1][1]==1 && k==nk2)
               {
                 // zeta derivatives
                 int ij = (i + j * siz_line)*9;
@@ -1580,6 +1586,11 @@ sv_eliso1st_curv_macdrp_rhs_cfspml(
                 Dy_DzVz = matVy2Vz[ij+3*2+0] * DyVx
                         + matVy2Vz[ij+3*2+1] * DyVy
                         + matVy2Vz[ij+3*2+2] * DyVz;
+
+                // metric
+                ztx = zt_x[iptr];
+                zty = zt_y[iptr];
+                ztz = zt_z[iptr];
 
                 hTxx_rhs =    lam2mu * (             ztx*Dy_DzVx)
                             + lam    * (             zty*Dy_DzVy
