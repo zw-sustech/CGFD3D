@@ -25,11 +25,11 @@ NETCDF :=  /share/apps/gnu-4.8.5/disable-netcdf-4.4.1
 CFLAGS := -I$(NETCDF)/include -I./lib/ -I./forward/ -I./media/  $(CFLAGS)
 
 #- debug
-CFLAGS   := -g $(CFLAGS)
-CPPFLAGS := -g -std=c++11 $(CPPFLAGS)
+#CFLAGS   := -g $(CFLAGS)
+#CPPFLAGS := -g -std=c++11 $(CPPFLAGS)
 #- O3
-#CFLAGS   := -O3 $(CFLAGS)
-#CPPFLAGS := -O2 -std=c++11 $(CPPFLAGS)
+CFLAGS   := -O3 $(CFLAGS)
+CPPFLAGS := -O2 -std=c++11 $(CPPFLAGS)
 
 #- static
 #LDFLAGS := $(NETCDF)/lib/libnetcdf.a -lm -static $(LDFLAGS)
@@ -55,7 +55,7 @@ cgfdm3d_elastic_mpi: \
 		media_geometry3d.o \
 		media_read_interface_file.o \
 		gd_info.o gd_curv.o md_el_iso.o wf_el_1st.o \
-		bdry_free.o bdry_pml.o src_funcs.o io_funcs.o \
+		bdry_free.o bdry_pml.o src_t.o io_funcs.o \
 		blk_t.o sv_eliso1st_curv_macdrp.o \
 		cgfdm3d_elastic_main.o
 	$(CXX) -o $@ $^ $(LDFLAGS)
@@ -99,7 +99,7 @@ bdry_pml.o: forward/bdry_pml.c
 	${CC} -c -o $@ $(CFLAGS) $<
 bdry_free.o: forward/bdry_free.c
 	${CC} -c -o $@ $(CFLAGS) $<
-src_funcs.o: forward/src_funcs.c
+src_t.o: forward/src_t.c
 	${CC} -c -o $@ $(CFLAGS) $<
 io_funcs.o: forward/io_funcs.c
 	${CC} -c -o $@ $(CFLAGS) $<

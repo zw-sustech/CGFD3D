@@ -8,7 +8,7 @@
 #include "gd_curv.h"
 #include "md_el_iso.h"
 #include "wf_el_1st.h"
-#include "src_funcs.h"
+#include "src_t.h"
 #include "bdry_free.h"
 #include "bdry_pml.h"
 #include "io_funcs.h"

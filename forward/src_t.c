@@ -13,7 +13,7 @@
 #include "fdlib_math.h"
 #include "interp.h"
 #include "fdlib_mem.h"
-#include "src_funcs.h"
+#include "src_t.h"
 #include "isPointInHexahedron.h"
 
 /*
