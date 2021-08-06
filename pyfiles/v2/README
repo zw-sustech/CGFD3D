@@ -7,7 +7,7 @@ Affiliation:
     University of Science and Technology of China
     Southern University of Science and Technology
 Date:
-    2021.06.26
+    2021.08.05
 # ---
 
 
@@ -43,13 +43,13 @@ Date:
     Gather and load the metric data
 + gather_coord.py
     Gather and load the coordinate data
- 
 
+ 
 * Usage for the drawing scripts:
-    'python draw_xxx_xxx.py' in the terminal.
+    'python draw_xxx_xxx.py -h' in the terminal for the specific usage.
 
 * Environment requirements:
     * python3.0+
-    * modules: numpy, matplotlib, argparse, obspy, imageio,\
+    * modules: numpy, matplotlib, subprocess, argparse, obspy, imageio,\
                glob, netCDF4, os, sys, json
 

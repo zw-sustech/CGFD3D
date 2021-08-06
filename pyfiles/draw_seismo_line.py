@@ -8,6 +8,7 @@ Date:        2021.06.25
 
 import numpy as np
 import matplotlib.pyplot as plt
+import subprocess
 import json
 import sys
 sys.path.append(".")
@@ -31,7 +32,8 @@ varnm='Vz'
 # 1
 flag_show    = 1
 # 2
-flag_figsave = 0
+flag_figsave = 1
+figpath      = './fig'
 fignm_rec    = 'seismo_rec.png'
 figsize_rec  = [8,4]
 fignm_line   = 'seismo_line.png'
@@ -77,7 +79,9 @@ plt.title(varnm + ' at No.' + str(recid+1) + ' Receiver of No.' + str(lineid) + 
           linenm + ')')
 plt.xlim([np.min(seismot[recid,:]),np.max(seismot[recid,:])])
 if flag_figsave:
-    plt.savefig(fignm_rec)
+    subprocess.call('mkdir -p {}'.format(figpath),shell=True)
+    figfullnm_rec=figpath + '/' + fignm_rec
+    plt.savefig(figfullnm_rec)
 
 # plot receiver line
 scl=np.max(np.abs(seismodata))
@@ -94,7 +98,9 @@ plt.xlim([np.min(seismot[-1,:]),np.max(seismot[-1,:])])
 plt.ylim([-(1+0.5)*(2*scl),(nrec+0.5)*(2*scl)])
 plt.yticks(np.arange(0,nrec,ytickincre)*(2*scl),np.arange(1,nrec+1,ytickincre))
 if flag_figsave:
-    plt.savefig(fignm_line)
+    subprocess.call('mkdir -p {}'.format(figpath),shell=True)
+    figfullnm_line=figpath + '/' + fignm_line
+    plt.savefig(figfullnm_line)
 
 if flag_show:
     plt.show()

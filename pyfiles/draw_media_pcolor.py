@@ -8,6 +8,7 @@ Date:        2021.06.23
 
 import numpy as np
 import matplotlib.pyplot as plt
+import subprocess
 import sys
 sys.path.append(".")
 from locate_media import *
@@ -33,6 +34,7 @@ varnm='Vp'
 flag_show    = 1
 # 2
 flag_figsave = 1
+figpath      = './fig'
 fignm        = 'media.png'
 figsize      = [4,4]
 figdpi       = 300
@@ -145,7 +147,9 @@ if flag_title:
     plt.title(varnm)
 
 if flag_figsave:
-    plt.savefig(fignm)
+    subprocess.call('mkdir -p {}'.format(figpath),shell=True)
+    figfullnm=figpath + '/' + fignm
+    plt.savefig(figfullnm)
 
 if flag_show:
     plt.show()

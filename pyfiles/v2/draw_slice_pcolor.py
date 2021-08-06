@@ -10,6 +10,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import imageio
 import subprocess
+import argparse
 import json
 import glob
 import sys
@@ -17,35 +18,97 @@ sys.path.append(".")
 from netCDF4 import Dataset
 
 # ---------------------------- parameters input --------------------------- #
-# file and path name
-parfnm='./project/test.json'
-slice_dir='./project/output'
+parin=argparse.ArgumentParser(description='Introduction to the drawing script')
+parin.add_argument('--parfnm',type=str,required=True,help='parameter json filename with path')
+parin.add_argument('--slice_dir',type=str,required=True,help='slice snapshot nc file path')
+parin.add_argument('--slicedir',type=str,required=True,help='which direction of slice to path')
+parin.add_argument('--sliceid',type=int,required=True,help='slice id')
+parin.add_argument('--varnm',type=str,required=True,help="variable to plot, e.g., 'Vx','Tzz'")
+parin.add_argument('--ns',type=int,required=True,help='starting time step to plot')
+parin.add_argument('--ne',type=int,required=True,help='ending time step to plot')
+parin.add_argument('--nt',type=int,required=True,help='time stride to plot')
+parin.add_argument('--flag_show',type=int,default=1,help='show snapshot or not, default=1')
+parin.add_argument('--taut',type=float,default=0.5,help='plotting pause time (in second) between two time steps, default=0.5')
+parin.add_argument('--flag_imgsave',type=int,default=1,help='save snapshot figure or not, default=1')
+parin.add_argument('--flag_gifsave',type=int,default=1,help='save snapshot gif or not, default=1')
+parin.add_argument('--figpath',type=str,default='./fig',help='figure path to save, default=./fig')
+parin.add_argument('--fignm',type=str,default='fd3dsnap_slice.png',help='figure name to save, default=fd3dsnap_slice.png')
+parin.add_argument('--figsize',type=str,default='[4,4]',help='figure size to save, default=[4,4]')
+parin.add_argument('--figdpi',type=int,default=300,help='figure resolution to save, default=300')
+parin.add_argument('--flag_km',type=int,default=1,help='figure axis unit in km or not, default=1')
+parin.add_argument('--clbtype',type=str,default='seismic',help='colorbar type, default=seismic')
+parin.add_argument('--clbrange',type=str,default='[None,None]',help='colorbar range, default=[None,None]')
 
-# which slice to plot
-slicedir='y'
-sliceid=60
+# get all input parameters
+par=parin.parse_args()
 
-# which variable and time to plot
-varnm='Vz'
-ns=1
-ne=500
-nt=50
+# parameter json filename with path
+parfnm=par.parfnm
+# slice snapshot nc file path
+slice_dir=par.slice_dir
 
-# figure control parameters
-# 1
-flag_show    = 1
-taut         = 0.5
-# 2
-flag_imgsave = 1
-flag_gifsave = 1
-figpath      = './fig'
-fignm        = 'fd3dsnap_slice.png'
-figsize      = [4,4]
-figdpi       = 150
-# 3
-flag_km      = 1
-clbtype      = 'seismic'
-clbrange     = [None,None]
+# slice direction to plot
+slicedir=par.slicedir
+# slice id
+sliceid=par.sliceid
+
+# variable name to plot
+varnm=par.varnm
+# starting time step to plot
+ns=par.ns
+# ending time step to plot
+ne=par.ne
+# time stride to plot
+nt=par.nt
+
+# show figure or not
+flag_show=par.flag_show
+# plotting pause time in second
+taut=par.taut
+# save figure or not
+flag_imgsave=par.flag_imgsave
+# save gif or not
+flag_gifsave=par.flag_gifsave
+# figure path to save
+figpath=par.figpath
+# figure name to save
+fignm=par.fignm
+# figure size to save
+figsizestr=par.figsize.split(',')
+figsize=[int(figsizestr[0][1:]),int(figsizestr[1][:-1])]
+# figure resolution to save
+figdpi=par.figdpi
+# axis unit km or m
+flag_km=par.flag_km
+# colorbar type
+clbtype=par.clbtype
+# colorbar range
+clbrangestr=par.clbrange.split(',')
+if clbrangestr[0][1:] == 'None' and clbrangestr[1][:-1] == 'None':
+    clbrange=[None,None]
+else:
+    clbrange=[float(clbrangestr[0][1:]),float(clbrangestr[1][:-1])]
+
+## print input parameters for QC
+#print(parfnm,type(parfnm))
+#print(slice_dir,type(slice_dir))
+#print(slicedir,type(slicedir))
+#print(sliceid,type(sliceid))
+#print(varnm,type(varnm))
+#print(ns,type(ns))
+#print(ne,type(ne))
+#print(nt,type(nt))
+#print(flag_show,type(flag_show))
+#print(taut,type(taut))
+#print(flag_imgsave,type(flag_imgsave))
+#print(flag_gifsave,type(flag_gifsave))
+#print(figpath,type(figpath))
+#print(fignm,type(fignm))
+#print(figsize,type(figsize))
+#print(figdpi,type(figdpi))
+#print(flag_km,type(flag_km))
+#print(clbtype,type(clbtype))
+#print(clbrange,type(clbrange))
 # ------------------------------------------------------------------------- #
 
 
@@ -274,5 +337,4 @@ if flag_imgsave == 0 and flag_gifsave == 1:
 if flag_show:
     plt.show()
                 
-
 
