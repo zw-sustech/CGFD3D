@@ -8,6 +8,7 @@ Date:        2021.06.24
 
 import numpy as np
 import matplotlib.pyplot as plt
+import subprocess
 import argparse
 import sys
 sys.path.append(".")
@@ -25,6 +26,7 @@ parin.add_argument('--subt',type=str,required=True,help='stride number (i,j,k) o
 parin.add_argument('--varnm',type=str,required=True,help="variable to plot, e.g., 'xi_x','zeta_z'")
 parin.add_argument('--flag_show',type=int,default=1,help='show metric or not, default=1')
 parin.add_argument('--flag_figsave',type=int,default=1,help='save metric figure or not, default=1')
+parin.add_argument('--figpath',type=str,default='./fig',help='figure path to save, default=./fig')
 parin.add_argument('--fignm',type=str,default='metric.png',help='figure name to save, default=metric.png')
 parin.add_argument('--figsize',type=str,default='[4,4]',help='figure size to save, default=[4,4]')
 parin.add_argument('--figdpi',type=int,default=300,help='figure resolution to save, default=300')
@@ -58,6 +60,8 @@ varnm=par.varnm
 flag_show=par.flag_show
 # save figure or not
 flag_figsave=par.flag_figsave
+# figure path to save
+figpath=par.figpath
 # figure name to save
 fignm=par.fignm
 # figure size to save
@@ -87,6 +91,7 @@ else:
 #print(varnm,type(varnm))
 #print(flag_show,type(flag_show))
 #print(flag_figsave,type(flag_figsave))
+#print(figpath,type(figpath))
 #print(fignm,type(fignm))
 #print(figsize,type(figsize))
 #print(figdpi,type(figdpi))
@@ -180,7 +185,9 @@ if flag_title:
     plt.title(varnm)
 
 if flag_figsave:
-    plt.savefig(fignm)
+    subprocess.call('mkdir -p {}'.format(figpath),shell=True)
+    figfullnm=figpath + '/' + fignm
+    plt.savefig(figfullnm)
 
 if flag_show:
     plt.show()

@@ -44,3 +44,12 @@ Date:
 + gather_coord.py
     Gather and load the coordinate data
  
+
+* Usage for the drawing scripts:
+    'python draw_xxx_xxx.py' in the terminal.
+
+* Environment requirements:
+    * python3.0+
+    * modules: numpy, matplotlib, argparse, obspy, imageio,\
+               glob, netCDF4, os, sys, json
+

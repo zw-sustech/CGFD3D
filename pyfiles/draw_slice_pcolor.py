@@ -36,11 +36,12 @@ nt=50
 flag_show    = 1
 taut         = 0.5
 # 2
-flag_imgsave = 0
+flag_imgsave = 1
 flag_gifsave = 1
+figpath      = './fig'
 fignm        = 'fd3dsnap_slice.png'
 figsize      = [4,4]
-figdpi       = 300
+figdpi       = 150
 # 3
 flag_km      = 1
 clbtype      = 'seismic'
@@ -110,7 +111,7 @@ for nlayer in range(ns,ne+nt,nt):
             str_unit='km'
 
         # show
-        print("Drawing " + str(nlayer) + "th time step (t = " + "{:.4f}".format(t) + "s")
+        print("Drawing " + str(nlayer) + "th time step (t = " + "{:.4f}".format(t) + " s)")
         plt.clf()
         plt.cla()
         plt.pcolor(Y,Z,V,cmap=clbtype,vmin=clbrange[0],vmax=clbrange[1])
@@ -169,7 +170,7 @@ for nlayer in range(ns,ne+nt,nt):
             str_unit='km'
 
         # show
-        print("Drawing " + str(nlayer) + "th time step (t = " + "{:.4f}".format(t) + "s")
+        print("Drawing " + str(nlayer) + "th time step (t = " + "{:.4f}".format(t) + " s)")
         plt.clf()
         plt.cla()
         plt.pcolor(X,Z,V,cmap=clbtype,vmin=clbrange[0],vmax=clbrange[1])
@@ -238,7 +239,7 @@ for nlayer in range(ns,ne+nt,nt):
             str_unit='km'
 
         # show
-        print("Drawing " + str(nlayer) + "th time step (t = " + "{:.4f}".format(t) + "s")
+        print("Drawing " + str(nlayer) + "th time step (t = " + "{:.4f}".format(t) + " s)")
         plt.clf()
         plt.cla()
         plt.pcolor(X,Y,V,cmap=clbtype,vmin=clbrange[0],vmax=clbrange[1])
@@ -253,63 +254,25 @@ for nlayer in range(ns,ne+nt,nt):
 
     # save figure and GIF
     if flag_imgsave or flag_gifsave:
+        subprocess.call('mkdir -p {}'.format(figpath),shell=True)
         imgnm=fignm[:-(len(fignm.split('.')[-1])+1)]
         imgfmt=fignm.split('.')[-1]
-        imgfullnm='{}_timestep_{}.{}'.format(imgnm,nlayer,imgfmt)
+        imgfullnm='{}/{}_timestep_{}.{}'.format(figpath,imgnm,nlayer,imgfmt)
         plt.savefig(imgfullnm)
 
 if flag_gifsave:
     frames=[]
     for nlayer in range(ns,ne+nt,nt):
-        imgfullnm='{}_timestep_{}.{}'.format(imgnm,nlayer,imgfmt)
+        imgfullnm='{}/{}_timestep_{}.{}'.format(figpath,imgnm,nlayer,imgfmt)
         frames.append(imageio.imread(imgfullnm))
-    imageio.mimsave('{}.gif'.format(imgnm),frames,'GIF',duration=taut)
+    imageio.mimsave('{}/{}.gif'.format(figpath,imgnm),frames,'GIF',duration=taut)
 
 if flag_imgsave == 0 and flag_gifsave == 1:
-    subprocess.call('rm {}_timestep_*.{}'.format(imgnm,imgfmt),shell=True)
+    subprocess.call('rm {}/{}_timestep_*.{}'.format(figpath,imgnm,imgfmt),shell=True)
 
 
 if flag_show:
     plt.show()
                 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 

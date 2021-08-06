@@ -8,6 +8,7 @@ Date:        2021.06.25
 
 import numpy as np
 import matplotlib.pyplot as plt
+import subprocess
 import json
 import argparse
 import sys
@@ -23,6 +24,7 @@ parin.add_argument('--recid',type=int,required=True,help='receiver id of the lin
 parin.add_argument('--varnm',type=str,required=True,help="variable to plot, e.g., 'Vp','Tzz'")
 parin.add_argument('--flag_show',type=int,default=1,help='show seismogram or not, default=1')
 parin.add_argument('--flag_figsave',type=int,default=1,help='save seismo figure or not, default=1')
+parin.add_argument('--figpath',type=str,default='./fig',help='figure path to save, default=./fig')
 parin.add_argument('--fignm_rec',type=str,default='seismo_rec.png',help='figure name of receiver seismo to save, default=seismo_rec.png')
 parin.add_argument('--figsize_rec',type=str,default='[8,4]',help='figure size of receiver seismo to save, default=[8,4]')
 parin.add_argument('--fignm_line',type=str,default='seismo_line.png',help='figure name of line seismo to save, default=seismo_line.png')
@@ -49,6 +51,8 @@ varnm=par.varnm
 flag_show=par.flag_show
 # save figure or not
 flag_figsave=par.flag_figsave
+# figure path to save
+figpath=par.figpath
 # figure name of receiver seismo to save
 fignm_rec=par.fignm_rec
 # figure size of receiver seismo to save
@@ -70,6 +74,7 @@ figdpi=par.figdpi
 #print(varnm,type(varnm))
 #print(flag_show,type(flag_show))
 #print(flag_figsave,type(flag_figsave))
+#print(figpath,type(figpath))
 #print(fignm_rec,type(fignm_rec))
 #print(figsize_rec,type(figsize_rec))
 #print(fignm_line,type(fignm_line))
@@ -116,7 +121,9 @@ plt.title(varnm + ' at No.' + str(recid+1) + ' Receiver of No.' + str(lineid) + 
           linenm + ')')
 plt.xlim([np.min(seismot[recid,:]),np.max(seismot[recid,:])])
 if flag_figsave:
-    plt.savefig(fignm_rec)
+    subprocess.call('mkdir -p {}'.format(figpath),shell=True)
+    figfullnm_rec=figpath + '/' + fignm_rec
+    plt.savefig(figfullnm_rec)
 
 # plot receiver line
 scl=np.max(np.abs(seismodata))
@@ -133,7 +140,9 @@ plt.xlim([np.min(seismot[-1,:]),np.max(seismot[-1,:])])
 plt.ylim([-(1+0.5)*(2*scl),(nrec+0.5)*(2*scl)])
 plt.yticks(np.arange(0,nrec,ytickincre)*(2*scl),np.arange(1,nrec+1,ytickincre))
 if flag_figsave:
-    plt.savefig(fignm_line)
+    subprocess.call('mkdir -p {}'.format(figpath),shell=True)
+    figfullnm_line=figpath + '/' + fignm_line
+    plt.savefig(figfullnm_line)
 
 if flag_show:
     plt.show()

@@ -25,9 +25,6 @@ Date:
 + draw_grid_coord.py
     Plot and save the grid/mesh generation and spacing
 
-* Usage for the drawing scripts:
-    'python draw_xxx_xxx.py -h' in the terminal for the specific usage.
-
 
 + --- Necessary subfunctions to locate and gather data for the above drawing scripts
 + locate_snap.py
@@ -46,4 +43,13 @@ Date:
     Gather and load the metric data
 + gather_coord.py
     Gather and load the coordinate data
+
  
+* Usage for the drawing scripts:
+    'python draw_xxx_xxx.py -h' in the terminal for the specific usage.
+
+* Environment requirements:
+    * python3.0+
+    * modules: numpy, matplotlib, subprocess, argparse, obspy, imageio,\
+               glob, netCDF4, os, sys, json
+

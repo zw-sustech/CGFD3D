@@ -31,6 +31,7 @@ parin.add_argument('--flag_show',type=int,default=1,help='show snapshot or not, 
 parin.add_argument('--taut',type=float,default=0.5,help='plotting pause time (in second) between two time steps, default=0.5')
 parin.add_argument('--flag_imgsave',type=int,default=1,help='save snapshot figure or not, default=1')
 parin.add_argument('--flag_gifsave',type=int,default=1,help='save snapshot gif or not, default=1')
+parin.add_argument('--figpath',type=str,default='./fig',help='figure path to save, default=./fig')
 parin.add_argument('--fignm',type=str,default='fd3dsnap_slice.png',help='figure name to save, default=fd3dsnap_slice.png')
 parin.add_argument('--figsize',type=str,default='[4,4]',help='figure size to save, default=[4,4]')
 parin.add_argument('--figdpi',type=int,default=300,help='figure resolution to save, default=300')
@@ -68,6 +69,8 @@ taut=par.taut
 flag_imgsave=par.flag_imgsave
 # save gif or not
 flag_gifsave=par.flag_gifsave
+# figure path to save
+figpath=par.figpath
 # figure name to save
 fignm=par.fignm
 # figure size to save
@@ -99,6 +102,7 @@ else:
 #print(taut,type(taut))
 #print(flag_imgsave,type(flag_imgsave))
 #print(flag_gifsave,type(flag_gifsave))
+#print(figpath,type(figpath))
 #print(fignm,type(fignm))
 #print(figsize,type(figsize))
 #print(figdpi,type(figdpi))
@@ -170,7 +174,7 @@ for nlayer in range(ns,ne+nt,nt):
             str_unit='km'
 
         # show
-        print("Drawing " + str(nlayer) + "th time step (t = " + "{:.4f}".format(t) + "s")
+        print("Drawing " + str(nlayer) + "th time step (t = " + "{:.4f}".format(t) + " s)")
         plt.clf()
         plt.cla()
         plt.pcolor(Y,Z,V,cmap=clbtype,vmin=clbrange[0],vmax=clbrange[1])
@@ -229,7 +233,7 @@ for nlayer in range(ns,ne+nt,nt):
             str_unit='km'
 
         # show
-        print("Drawing " + str(nlayer) + "th time step (t = " + "{:.4f}".format(t) + "s")
+        print("Drawing " + str(nlayer) + "th time step (t = " + "{:.4f}".format(t) + " s)")
         plt.clf()
         plt.cla()
         plt.pcolor(X,Z,V,cmap=clbtype,vmin=clbrange[0],vmax=clbrange[1])
@@ -298,7 +302,7 @@ for nlayer in range(ns,ne+nt,nt):
             str_unit='km'
 
         # show
-        print("Drawing " + str(nlayer) + "th time step (t = " + "{:.4f}".format(t) + "s")
+        print("Drawing " + str(nlayer) + "th time step (t = " + "{:.4f}".format(t) + " s)")
         plt.clf()
         plt.cla()
         plt.pcolor(X,Y,V,cmap=clbtype,vmin=clbrange[0],vmax=clbrange[1])
@@ -313,20 +317,21 @@ for nlayer in range(ns,ne+nt,nt):
 
     # save figure and GIF
     if flag_imgsave or flag_gifsave:
+        subprocess.call('mkdir -p {}'.format(figpath),shell=True)
         imgnm=fignm[:-(len(fignm.split('.')[-1])+1)]
         imgfmt=fignm.split('.')[-1]
-        imgfullnm='{}_timestep_{}.{}'.format(imgnm,nlayer,imgfmt)
+        imgfullnm='{}/{}_timestep_{}.{}'.format(figpath,imgnm,nlayer,imgfmt)
         plt.savefig(imgfullnm)
 
 if flag_gifsave:
     frames=[]
     for nlayer in range(ns,ne+nt,nt):
-        imgfullnm='{}_timestep_{}.{}'.format(imgnm,nlayer,imgfmt)
+        imgfullnm='{}/{}_timestep_{}.{}'.format(figpath,imgnm,nlayer,imgfmt)
         frames.append(imageio.imread(imgfullnm))
-    imageio.mimsave('{}.gif'.format(imgnm),frames,'GIF',duration=taut)
+    imageio.mimsave('{}/{}.gif'.format(figpath,imgnm),frames,'GIF',duration=taut)
 
 if flag_imgsave == 0 and flag_gifsave == 1:
-    subprocess.call('rm {}_timestep_*.{}'.format(imgnm,imgfmt),shell=True)
+    subprocess.call('rm {}/{}_timestep_*.{}'.format(figpath,imgnm,imgfmt),shell=True)
 
 
 if flag_show:
