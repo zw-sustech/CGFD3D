@@ -92,10 +92,10 @@ bdry_pml_set(gdinfo_t *gdinfo,
              bdrypml_t *bdrypml,
              int   *neighid, 
              int   in_is_sides[][2],
-             int   *in_num_layers,
-             float *in_alpha_max, //
-             float *in_beta_max, //
-             float *in_velocity, //
+             int   in_num_layers[][2],
+             float in_alpha_max[][2], //
+             float in_beta_max[][2], //
+             float in_velocity[][2], //
              int verbose);
 
 // alloc auxvar

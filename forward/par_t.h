@@ -59,17 +59,22 @@ typedef struct{
   int  number_of_total_grid_points_y;
   int  number_of_total_grid_points_z;
 
+  // dis grid
+  int disg_num_level;
+  int *disg_at_zindx;
+  int *disg_factor;
+
   // boundary, CONST_NDIM_2
   char **boundary_type_name;
   
   // abs layer-based, for pml or exp
-  int   abs_num_of_layers[CONST_NDIM_2];
+  int   abs_num_of_layers[CONST_NDIM][2];
 
   // pml
   int   cfspml_is_sides[CONST_NDIM][2];
-  float cfspml_alpha_max[CONST_NDIM_2];
-  float cfspml_beta_max[CONST_NDIM_2];
-  float cfspml_velocity[CONST_NDIM_2];
+  float cfspml_alpha_max[CONST_NDIM][2];
+  float cfspml_beta_max[CONST_NDIM][2];
+  float cfspml_velocity[CONST_NDIM][2];
   int   bdry_has_cfspml;
 
   // free

@@ -114,6 +114,26 @@ par_read_from_str(const char *str, par_t *par)
     par->number_of_total_grid_points_z = item->valueint;
   }
 
+  // dis grid
+  par->disg_num_level = 0;
+  if (item = cJSON_GetObjectItem(root, "dis_grid_at_zindx")) {
+    par->disg_num_level = cJSON_GetArraySize(item);
+    par->disg_at_zindx = (int *)malloc(par->disg_num_level * sizeof(int));
+    for (int n=0; n < par->disg_num_level; n++) {
+      par->disg_at_zindx[n] = cJSON_GetArrayItem(item, n)->valueint;
+    }
+  }
+  if (item = cJSON_GetObjectItem(root, "dis_grid_factor")) {
+    // should be improved to allow input order change
+    if (par->disg_num_level != cJSON_GetArraySize(item)) {
+      fprintf(stderr,"ERROR: input size of dis_grid_at_zindx and dis_grid_factor diff\n");
+    }
+    par->disg_factor = (int *)malloc(par->disg_num_level * sizeof(int));
+    for (int n=0; n < par->disg_num_level; n++) {
+      par->disg_factor[n] = cJSON_GetArrayItem(item, n)->valueint;
+    }
+  }
+
   // default mpi threads
   par->number_of_mpiprocs_x = 1;
   par->number_of_mpiprocs_y = 1;
@@ -156,11 +176,9 @@ par_read_from_str(const char *str, par_t *par)
   //
   // boundary default values
   //
-  for (int i = 0; i < CONST_NDIM_2; i++) {
-    par->abs_num_of_layers[i] = 0;
-  }
   for (int idim=0; idim < CONST_NDIM; idim++) {
     for (int iside=0; iside < 2; iside++) {
+      par->abs_num_of_layers[idim][iside] = 0;
       par->cfspml_is_sides[idim][iside] = 0;
       par->free_is_sides  [idim][iside] = 0;
     }
@@ -174,10 +192,10 @@ par_read_from_str(const char *str, par_t *par)
     if (subitem = cJSON_GetObjectItem(item, "cfspml")) {
        sprintf(par->boundary_type_name[0], "%s", "cfspml");
        par_read_json_cfspml(subitem,
-                            par->abs_num_of_layers+0,
-                            par->cfspml_alpha_max +0,
-                            par->cfspml_beta_max  +0,
-                            par->cfspml_velocity  +0);
+                            &(par->abs_num_of_layers[0][0]),
+                            &(par->cfspml_alpha_max [0][0]),
+                            &(par->cfspml_beta_max  [0][0]),
+                            &(par->cfspml_velocity  [0][0]));
       par->cfspml_is_sides[0][0] = 1;
       par->bdry_has_cfspml = 1;
     }
@@ -188,10 +206,10 @@ par_read_from_str(const char *str, par_t *par)
     if (subitem = cJSON_GetObjectItem(item, "cfspml")) {
        sprintf(par->boundary_type_name[1], "%s", "cfspml");
        par_read_json_cfspml(subitem,
-                            par->abs_num_of_layers+1,
-                            par->cfspml_alpha_max +1,
-                            par->cfspml_beta_max  +1,
-                            par->cfspml_velocity  +1);
+                            &(par->abs_num_of_layers[0][1]),
+                            &(par->cfspml_alpha_max [0][1]),
+                            &(par->cfspml_beta_max  [0][1]),
+                            &(par->cfspml_velocity  [0][1]));
       par->cfspml_is_sides[0][1] = 1;
       par->bdry_has_cfspml = 1;
     }
@@ -202,10 +220,10 @@ par_read_from_str(const char *str, par_t *par)
     if (subitem = cJSON_GetObjectItem(item, "cfspml")) {
        sprintf(par->boundary_type_name[2], "%s", "cfspml");
        par_read_json_cfspml(subitem,
-                            par->abs_num_of_layers+2,
-                            par->cfspml_alpha_max +2,
-                            par->cfspml_beta_max  +2,
-                            par->cfspml_velocity  +2);
+                            &(par->abs_num_of_layers[1][0]),
+                            &(par->cfspml_alpha_max [1][0]),
+                            &(par->cfspml_beta_max  [1][0]),
+                            &(par->cfspml_velocity  [1][0]));
       par->cfspml_is_sides[1][0] = 1;
       par->bdry_has_cfspml = 1;
     }
@@ -216,11 +234,11 @@ par_read_from_str(const char *str, par_t *par)
     if (subitem = cJSON_GetObjectItem(item, "cfspml")) {
        sprintf(par->boundary_type_name[3], "%s", "cfspml");
        par_read_json_cfspml(subitem,
-                            par->abs_num_of_layers+3,
-                            par->cfspml_alpha_max +3,
-                            par->cfspml_beta_max  +3,
-                            par->cfspml_velocity  +3);
-      par->cfspml_is_sides[1][2] = 1;
+                            &(par->abs_num_of_layers[1][1]),
+                            &(par->cfspml_alpha_max [1][1]),
+                            &(par->cfspml_beta_max  [1][1]),
+                            &(par->cfspml_velocity  [1][1]));
+      par->cfspml_is_sides[1][1] = 1;
       par->bdry_has_cfspml = 1;
     }
   }
@@ -230,10 +248,10 @@ par_read_from_str(const char *str, par_t *par)
     if (subitem = cJSON_GetObjectItem(item, "cfspml")) {
        sprintf(par->boundary_type_name[4], "%s", "cfspml");
        par_read_json_cfspml(subitem,
-                            par->abs_num_of_layers+4,
-                            par->cfspml_alpha_max +4,
-                            par->cfspml_beta_max  +4,
-                            par->cfspml_velocity  +4);
+                            &(par->abs_num_of_layers[2][0]),
+                            &(par->cfspml_alpha_max [2][0]),
+                            &(par->cfspml_beta_max  [2][0]),
+                            &(par->cfspml_velocity  [2][0]));
       par->cfspml_is_sides[2][0] = 1;
       par->bdry_has_cfspml = 1;
     }
@@ -244,10 +262,10 @@ par_read_from_str(const char *str, par_t *par)
     if (subitem = cJSON_GetObjectItem(item, "cfspml")) {
        sprintf(par->boundary_type_name[5], "%s", "cfspml");
        par_read_json_cfspml(subitem,
-                            par->abs_num_of_layers+5,
-                            par->cfspml_alpha_max +5,
-                            par->cfspml_beta_max  +5,
-                            par->cfspml_velocity  +5);
+                            &(par->abs_num_of_layers[2][1]),
+                            &(par->cfspml_alpha_max [2][1]),
+                            &(par->cfspml_beta_max  [2][1]),
+                            &(par->cfspml_velocity  [2][1]));
       par->cfspml_is_sides[2][1] = 1;
       par->bdry_has_cfspml = 1;
     }
@@ -792,34 +810,21 @@ par_print(par_t *par)
           par->boundary_type_name[3],
           par->boundary_type_name[4],
           par->boundary_type_name[5]);
-  fprintf(stdout, " abs_num_of_layers = %10d%10d%10d%10d%10d%10d\n", 
-          par->abs_num_of_layers[0],
-          par->abs_num_of_layers[1],
-          par->abs_num_of_layers[2],
-          par->abs_num_of_layers[3],
-          par->abs_num_of_layers[4],
-          par->abs_num_of_layers[5]);
-  fprintf(stdout, " cfspml_velocity = %10.2f%10.2f%10.2f%10.2f%10.2f%10.2f\n", 
-          par->cfspml_velocity[0],
-          par->cfspml_velocity[1],
-          par->cfspml_velocity[2],
-          par->cfspml_velocity[3],
-          par->cfspml_velocity[4],
-          par->cfspml_velocity[5]);
-  fprintf(stdout, " cfspml_alpha_max = %10.2f%10.2f%10.2f%10.2f%10.2f%10.2f\n", 
-          par->cfspml_alpha_max[0],
-          par->cfspml_alpha_max[1],
-          par->cfspml_alpha_max[2],
-          par->cfspml_alpha_max[3],
-          par->cfspml_alpha_max[4],
-          par->cfspml_alpha_max[5]);
-  fprintf(stdout, " cfspml_beta_max = %10.2f%10.2f%10.2f%10.2f%10.2f%10.2f\n", 
-          par->cfspml_beta_max[0],
-          par->cfspml_beta_max[1],
-          par->cfspml_beta_max[2],
-          par->cfspml_beta_max[3],
-          par->cfspml_beta_max[4],
-          par->cfspml_beta_max[5]);
+  fprintf(stdout, " cfspml:\n");
+  for (int idim=0; idim < CONST_NDIM; idim++)
+  {
+    for (int iside=0; iside < 2; iside++)
+    {
+      fprintf(stdout, "   idim=%d,iside=%d: nlay = %d,"
+              " vel=%f, alpha_max=%f, beta_max=%f\n",
+              idim, iside, 
+              par->abs_num_of_layers[idim][iside],
+              par->cfspml_velocity[idim][iside],
+              par->cfspml_alpha_max[idim][iside],
+              par->cfspml_beta_max[idim][iside]
+              );
+    }
+  }
   fprintf(stdout, "\n");
 
   fprintf(stdout, "-------------------------------------------------------\n");
@@ -829,6 +834,12 @@ par_print(par_t *par)
   fprintf(stdout, " number_of_total_grid_points_x = %-10d\n", par->number_of_total_grid_points_x);
   fprintf(stdout, " number_of_total_grid_points_y = %-10d\n", par->number_of_total_grid_points_y);
   fprintf(stdout, " number_of_total_grid_points_z = %-10d\n", par->number_of_total_grid_points_z);
+
+  fprintf(stdout, " disg_num_level = %-10d\n", par->disg_num_level);
+  for (int n; n < par->disg_num_level; n++) {
+    fprintf(stdout, "    #%d: at %d, factor=%d\n",
+          n, par->disg_at_zindx[n], par->disg_factor[n]);
+  }
 
   fprintf(stdout, " grid_generation_itype = %d\n", par->grid_generation_itype);
   if (par->grid_generation_itype==PAR_GRID_CARTESIAN) {

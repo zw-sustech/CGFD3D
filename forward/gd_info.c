@@ -20,7 +20,7 @@ gd_info_set(gdinfo_t *const gdinfo,
             const int number_of_total_grid_points_x,
             const int number_of_total_grid_points_y,
             const int number_of_total_grid_points_z,
-            const int *const abs_num_of_layers,
+                  int abs_num_of_layers[][2],
             const int fdx_nghosts,
             int const fdy_nghosts,
             const int fdz_nghosts,
@@ -32,7 +32,7 @@ gd_info_set(gdinfo_t *const gdinfo,
   int nx_et = number_of_total_grid_points_x;
 
   // double cfspml load
-  nx_et += abs_num_of_layers[0] + abs_num_of_layers[1];
+  nx_et += abs_num_of_layers[0][0] + abs_num_of_layers[0][1];
 
   // partition into average plus left at last
   int nx_avg  = nx_et / mympi->nprocx;
@@ -44,7 +44,7 @@ gd_info_set(gdinfo_t *const gdinfo,
   }
 
   // should not be less than abs_num_of_layers
-  if (nx_avg<abs_num_of_layers[0] || nx_avg<abs_num_of_layers[1]) {
+  if (nx_avg<abs_num_of_layers[0][0] || nx_avg<abs_num_of_layers[0][1]) {
     // error
   }
 
@@ -52,10 +52,10 @@ gd_info_set(gdinfo_t *const gdinfo,
   int ni = nx_avg;
   // subtract nlay for pml node
   if (mympi->neighid[0] == MPI_PROC_NULL) {
-    ni -= abs_num_of_layers[0];
+    ni -= abs_num_of_layers[0][0];
   }
   if (mympi->neighid[1] == MPI_PROC_NULL) {
-    ni -= abs_num_of_layers[1];
+    ni -= abs_num_of_layers[0][1];
   }
   // first nx_left node add one more point
   if (mympi->topoid[0] < nx_left) {
@@ -65,7 +65,7 @@ gd_info_set(gdinfo_t *const gdinfo,
   if (mympi->topoid[0]==0) {
     gdinfo->gni1 = 0;
   } else {
-    gdinfo->gni1 = mympi->topoid[0] * nx_avg - abs_num_of_layers[0];
+    gdinfo->gni1 = mympi->topoid[0] * nx_avg - abs_num_of_layers[0][0];
   }
   if (nx_left != 0) {
     gdinfo->gni1 += (mympi->topoid[0] < nx_left)? mympi->topoid[0] : nx_left;
@@ -74,21 +74,21 @@ gd_info_set(gdinfo_t *const gdinfo,
   // determine nj
   int ny_et = number_of_total_grid_points_y;
   // double cfspml load
-  ny_et += abs_num_of_layers[2] + abs_num_of_layers[3];
+  ny_et += abs_num_of_layers[1][0] + abs_num_of_layers[1][1];
   int ny_avg  = ny_et / mympi->nprocy;
   int ny_left = ny_et % mympi->nprocy;
   if (ny_avg < 2 * fdy_nghosts) {
     // error
   }
-  if (ny_avg<abs_num_of_layers[2] || ny_avg<abs_num_of_layers[3]) {
+  if (ny_avg<abs_num_of_layers[1][0] || ny_avg<abs_num_of_layers[1][1]) {
     // error
   }
   int nj = ny_avg;
   if (mympi->neighid[2] == MPI_PROC_NULL) {
-    nj -= abs_num_of_layers[2];
+    nj -= abs_num_of_layers[1][0];
   }
   if (mympi->neighid[3] == MPI_PROC_NULL) {
-    nj -= abs_num_of_layers[3];
+    nj -= abs_num_of_layers[1][1];
   }
   // not equal divided points given to first ny_left procs
   if (mympi->topoid[1] < ny_left) {
@@ -98,7 +98,7 @@ gd_info_set(gdinfo_t *const gdinfo,
   if (mympi->topoid[1]==0) {
     gdinfo->gnj1 = 0;
   } else {
-    gdinfo->gnj1 = mympi->topoid[1] * ny_avg - abs_num_of_layers[2];
+    gdinfo->gnj1 = mympi->topoid[1] * ny_avg - abs_num_of_layers[1][0];
   }
   if (ny_left != 0) {
     gdinfo->gnj1 += (mympi->topoid[1] < ny_left)? mympi->topoid[1] : ny_left;

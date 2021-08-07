@@ -66,10 +66,10 @@ bdry_pml_set(gdinfo_t *gdinfo,
              bdrypml_t *bdrypml,
              int   *neighid, 
              int   in_is_sides[][2],
-             int   *in_num_layers,
-             float *in_alpha_max, //
-             float *in_beta_max, //
-             float *in_velocity, //
+             int   in_num_layers[][2],
+             float in_alpha_max[][2], //
+             float in_beta_max[][2], //
+             float in_velocity[][2], //
              int verbose)
 {
   float *restrict x3d = gdcurv->x3d;
@@ -99,7 +99,7 @@ bdry_pml_set(gdinfo_t *gdinfo,
 
       // default set to input
       bdrypml->is_at_sides  [idim][iside] = in_is_sides[idim][iside];
-      bdrypml->num_of_layers[idim][iside] = in_num_layers[ind_1d];
+      bdrypml->num_of_layers[idim][iside] = in_num_layers[idim][iside];
 
       // reset 0 if not mpi boundary
       if (neighid[ind_1d] != MPI_PROC_NULL)
@@ -223,9 +223,9 @@ bdry_pml_set(gdinfo_t *gdinfo,
 
       // calculate
       float Rpp  = bdry_pml_cal_R(num_lay);
-      float dmax = bdry_pml_cal_dmax(L0, in_velocity[idim], Rpp);
-      float amax = in_alpha_max[idim];
-      float bmax = in_beta_max[idim];
+      float dmax = bdry_pml_cal_dmax(L0, in_velocity[idim][iside], Rpp);
+      float amax = in_alpha_max[idim][iside];
+      float bmax = in_beta_max[idim][iside];
 
       // from PML-interior to outer side
       for (int ilay=0; ilay<num_lay; ilay++)
