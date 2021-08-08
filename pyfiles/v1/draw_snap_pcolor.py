@@ -93,19 +93,19 @@ for nlayer in range(ns,ne+nt,nt):
 
     if nx == 1:
 
-        Y=np.squeeze(y).transpose(1,0)
-        Y=np.row_stack((Y,Y[-1,:]))
-        Y=np.column_stack((Y,Y[:,-1]+(Y[0,-1]-Y[0,-2])))
-        Z=np.squeeze(z).transpose(1,0)
-        Z=np.row_stack((Z,Z[-1,:]+(Z[-1,0]-Z[-2,0])))
-        Z=np.column_stack((Z,Z[:,-1]))
-        V=np.squeeze(v).transpose(1,0)
-        V=np.row_stack((V,V[-1,:]))
-        V=np.column_stack((V,V[:,-1]))
-        
         #Y=np.squeeze(y).transpose(1,0)
+        #Y=np.row_stack((Y,Y[-1,:]))
+        #Y=np.column_stack((Y,Y[:,-1]+(Y[0,-1]-Y[0,-2])))
         #Z=np.squeeze(z).transpose(1,0)
+        #Z=np.row_stack((Z,Z[-1,:]+(Z[-1,0]-Z[-2,0])))
+        #Z=np.column_stack((Z,Z[:,-1]))
         #V=np.squeeze(v).transpose(1,0)
+        #V=np.row_stack((V,V[-1,:]))
+        #V=np.column_stack((V,V[:,-1]))
+        
+        Y=np.squeeze(y).transpose(1,0)
+        Z=np.squeeze(z).transpose(1,0)
+        V=np.squeeze(v).transpose(1,0)
 
         plt.clf()
         plt.cla()
@@ -121,19 +121,19 @@ for nlayer in range(ns,ne+nt,nt):
 
     elif ny == 1:
         
-        X=np.squeeze(x).transpose(1,0)
-        X=np.row_stack((X,X[-1,:]))
-        X=np.column_stack((X,X[:,-1]+(X[0,-1]-X[0,-2])))
-        Z=np.squeeze(z).transpose(1,0)
-        Z=np.row_stack((Z,Z[-1,:]+(Z[-1,0]-Z[-2,0])))
-        Z=np.column_stack((Z,Z[:,-1]))
-        V=np.squeeze(v).transpose(1,0)
-        V=np.row_stack((V,V[-1,:]))
-        V=np.column_stack((V,V[:,-1]))
-
         #X=np.squeeze(x).transpose(1,0)
+        #X=np.row_stack((X,X[-1,:]))
+        #X=np.column_stack((X,X[:,-1]+(X[0,-1]-X[0,-2])))
         #Z=np.squeeze(z).transpose(1,0)
+        #Z=np.row_stack((Z,Z[-1,:]+(Z[-1,0]-Z[-2,0])))
+        #Z=np.column_stack((Z,Z[:,-1]))
         #V=np.squeeze(v).transpose(1,0)
+        #V=np.row_stack((V,V[-1,:]))
+        #V=np.column_stack((V,V[:,-1]))
+
+        X=np.squeeze(x).transpose(1,0)
+        Z=np.squeeze(z).transpose(1,0)
+        V=np.squeeze(v).transpose(1,0)
 
         plt.clf()
         plt.cla()

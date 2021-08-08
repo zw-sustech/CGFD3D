@@ -26,6 +26,11 @@ subs=[1,1,50]        # start from index '1'
 subc=[-1,-1,1]      # '-1' to plot all points in this dimension
 subt=[1,1,1]
 
+# x increment to plot
+pltincre_x = 2
+# y increment to plot
+pltincre_y = 2
+
 # figure control parameters
 # 1
 flag_show    = 1
@@ -60,20 +65,18 @@ if flag_km:
 x=np.squeeze(x)
 y=np.squeeze(y)
 z=np.squeeze(z)
-pltincre1=2
-pltincre2=2
 
 # grid show
-#plt.figure(dpi=figdpi,figsize=(figsize[0],figsize[1]))
-plt.figure()
+plt.figure(dpi=figdpi,figsize=(figsize[0],figsize[1]))
+#plt.figure()
 
 if nx == 1:
 
-    plt.plot(y[::pltincre1,::pltincre2].transpose(1,0),\
-             z[::pltincre2,::pltincre2].transpose(1,0),\
+    plt.plot(y[::pltincre_x,::pltincre_y].transpose(1,0),\
+             z[::pltincre_x,::pltincre_y].transpose(1,0),\
              'k-')
-    plt.plot(y[::pltincre1,::pltincre2],\
-             z[::pltincre1,::pltincre2],\
+    plt.plot(y[::pltincre_x,::pltincre_y],\
+             z[::pltincre_x,::pltincre_y],\
              'k-')
 
     plt.xlabel('Y axis (' + str_unit + ')')
@@ -82,11 +85,11 @@ if nx == 1:
 
 elif ny == 1:
 
-    plt.plot(x[::pltincre1,::pltincre2].transpose(1,0),\
-             z[::pltincre2,::pltincre2].transpose(1,0),\
+    plt.plot(x[::pltincre_x,::pltincre_y].transpose(1,0),\
+             z[::pltincre_x,::pltincre_y].transpose(1,0),\
              'k-')
-    plt.plot(x[::pltincre1,::pltincre2],\
-             z[::pltincre1,::pltincre2],\
+    plt.plot(x[::pltincre_x,::pltincre_y],\
+             z[::pltincre_x,::pltincre_y],\
              'k-')
 
     plt.xlabel('X axis (' + str_unit + ')')
@@ -95,11 +98,11 @@ elif ny == 1:
 
 else:
 
-    plt.plot(x[::pltincre1,::pltincre2].transpose(1,0),\
-             y[::pltincre2,::pltincre2].transpose(1,0),\
+    plt.plot(x[::pltincre_x,::pltincre_y].transpose(1,0),\
+             y[::pltincre_x,::pltincre_y].transpose(1,0),\
              'k-')
-    plt.plot(x[::pltincre1,::pltincre2],\
-             y[::pltincre1,::pltincre2],\
+    plt.plot(x[::pltincre_x,::pltincre_y],\
+             y[::pltincre_x,::pltincre_y],\
              'k-')
 
     plt.xlabel('X axis (' + str_unit + ')')
