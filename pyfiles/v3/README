@@ -47,10 +47,11 @@ Date:
 
 * Usage for the drawing scripts:
     * 1. run by 'script'
+    set parameters in the script 'draw_xxx_xxx.py' manually
     'python draw_xxx_xxx.py' in the terminal.
     * 2. run by 'subfunction' in python environment
-    from draw_xxx_xxx import *
-    draw_xxx_xxx(par1,par2,par3,par4,...)
+    'from draw_xxx_xxx import *'
+    'draw_xxx_xxx(par1,par2,par3,par4,...)'
     
 
 * Environment requirements:
