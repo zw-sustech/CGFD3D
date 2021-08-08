@@ -22,6 +22,8 @@ parin.add_argument('--coord_dir',type=str,required=True,help='coordinate nc file
 parin.add_argument('--subs',type=str,required=True,help="starting index number (i,j,k) of coordinate ('1' is the first index), e.g., [1,2,3]")
 parin.add_argument('--subc',type=str,required=True,help='counting index number (i,j,k) of coordinate, e.g., [10,1,30]')
 parin.add_argument('--subt',type=str,required=True,help='stride number (i,j,k) of coordinate, e.g., [2,2,2]')
+parin.add_argument('--pltincre_x',type=int,default=2,help='x increment to plot, default=2')
+parin.add_argument('--pltincre_y',type=int,default=2,help='y increment to plot, default=2')
 parin.add_argument('--flag_show',type=int,default=1,help='show figure or not, default=1')
 parin.add_argument('--flag_figsave',type=int,default=1,help='save grid figure or not, default=1')
 parin.add_argument('--figpath',type=str,default='./fig',help='figure path to save, default=./fig')
@@ -49,6 +51,11 @@ subc=[int(subcstr[0][1:]),int(subcstr[1]),int(subcstr[2][:-1])]
 subtstr=par.subt.split(',')
 subt=[int(subtstr[0][1:]),int(subtstr[1]),int(subtstr[2][:-1])]
 
+# x increment to plot
+pltincre_x=par.pltincre_x
+# y increment to plot
+pltincre_y=par.pltincre_y
+
 # show figure or not
 flag_show=par.flag_show
 # save figure or not
@@ -73,6 +80,8 @@ flag_title=par.flag_title
 #print(subs,type(subs))
 #print(subc,type(subc))
 #print(subt,type(subt))
+#print(pltincre_x,type(pltincre_x))
+#print(pltincre_y,type(pltincre_y))
 #print(flag_show,type(flag_show))
 #print(flag_figsave,type(flag_figsave))
 #print(figpath,type(figpath))
@@ -103,8 +112,6 @@ if flag_km:
 x=np.squeeze(x)
 y=np.squeeze(y)
 z=np.squeeze(z)
-pltincre1=2
-pltincre2=2
 
 # grid show
 plt.figure(dpi=figdpi,figsize=(figsize[0],figsize[1]))
@@ -112,11 +119,11 @@ plt.figure(dpi=figdpi,figsize=(figsize[0],figsize[1]))
 
 if nx == 1:
 
-    plt.plot(y[::pltincre1,::pltincre2].transpose(1,0),\
-             z[::pltincre2,::pltincre2].transpose(1,0),\
+    plt.plot(y[::pltincre_x,::pltincre_y].transpose(1,0),\
+             z[::pltincre_x,::pltincre_y].transpose(1,0),\
              'k-')
-    plt.plot(y[::pltincre1,::pltincre2],\
-             z[::pltincre1,::pltincre2],\
+    plt.plot(y[::pltincre_x,::pltincre_y],\
+             z[::pltincre_x,::pltincre_y],\
              'k-')
 
     plt.xlabel('Y axis (' + str_unit + ')')
@@ -125,11 +132,11 @@ if nx == 1:
 
 elif ny == 1:
 
-    plt.plot(x[::pltincre1,::pltincre2].transpose(1,0),\
-             z[::pltincre2,::pltincre2].transpose(1,0),\
+    plt.plot(x[::pltincre_x,::pltincre_y].transpose(1,0),\
+             z[::pltincre_x,::pltincre_y].transpose(1,0),\
              'k-')
-    plt.plot(x[::pltincre1,::pltincre2],\
-             z[::pltincre1,::pltincre2],\
+    plt.plot(x[::pltincre_x,::pltincre_y],\
+             z[::pltincre_x,::pltincre_y],\
              'k-')
 
     plt.xlabel('X axis (' + str_unit + ')')
@@ -138,11 +145,11 @@ elif ny == 1:
 
 else:
 
-    plt.plot(x[::pltincre1,::pltincre2].transpose(1,0),\
-             y[::pltincre2,::pltincre2].transpose(1,0),\
+    plt.plot(x[::pltincre_x,::pltincre_y].transpose(1,0),\
+             y[::pltincre_x,::pltincre_y].transpose(1,0),\
              'k-')
-    plt.plot(x[::pltincre1,::pltincre2],\
-             y[::pltincre1,::pltincre2],\
+    plt.plot(x[::pltincre_x,::pltincre_y],\
+             y[::pltincre_x,::pltincre_y],\
              'k-')
 
     plt.xlabel('X axis (' + str_unit + ')')
