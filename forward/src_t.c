@@ -295,8 +295,8 @@ src_set_by_par(gdinfo_t *gdinfo,
                              wrk3d);
       // keep index to avoid duplicat run
       source_index[is][0] = si_glob;
-      source_index[is][1] = si_glob;
-      source_index[is][2] = si_glob;
+      source_index[is][1] = sj_glob;
+      source_index[is][2] = sk_glob;
       source_inc[is][0] = sx_inc;
       source_inc[is][1] = sy_inc;
       source_inc[is][2] = sz_inc;
