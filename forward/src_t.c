@@ -403,7 +403,8 @@ src_set_by_par(gdinfo_t *gdinfo,
       sy_inc = source_inc[is][1];
       sz_inc = source_inc[is][2];
       float wid_gauss = npoint_half_ext / 2.0;
-      src_cal_norm_delt3d(src->ext_coef, sx_inc, sy_inc, sz_inc,
+      float *this_ext_coef = src->ext_coef + is_local * max_ext;
+      src_cal_norm_delt3d(this_ext_coef, sx_inc, sy_inc, sz_inc,
                           wid_gauss, wid_gauss, wid_gauss, npoint_half_ext);
 
       size_t iptr_ext = 0;
@@ -420,15 +421,15 @@ src_set_by_par(gdinfo_t *gdinfo,
               int iptr_coef =  (i-(si-npoint_half_ext))
                               + len_ext * (j-(sj-npoint_half_ext)) 
                               + len_ext * len_ext *(k-(sk-npoint_half_ext));
-              src->ext_indx[iptr_ext] = iptr_grid;
-              src->ext_coef[iptr_ext] = src->ext_coef[iptr_coef];
+              src->ext_indx[iptr_ext + is_local * max_ext] = iptr_grid;
+              src->ext_coef[iptr_ext + is_local * max_ext] = this_ext_coef[iptr_coef];
               iptr_ext++;
             }
           }
         }
       }
       // only count index inside phys region for this thread
-      src->ext_num[is] = iptr_ext;
+      src->ext_num[is_local] = iptr_ext;
 
       is_local += 1;
     }
