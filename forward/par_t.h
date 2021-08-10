@@ -102,6 +102,8 @@ typedef struct{
   char metric_import_dir[PAR_MAX_STRLEN];
 
   // medium
+  char media_type[PAR_MAX_STRLEN]; // iso, vti, or aniso
+  int  media_itype; // iso, vti, or aniso
   int media_input_itype;
   int is_export_media;
   char equivalent_medium_method[PAR_MAX_STRLEN]; // For layer2model

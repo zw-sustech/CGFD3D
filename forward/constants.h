@@ -12,4 +12,10 @@
 #define PI M_PI
 #endif
 
+// medium type
+#define CONST_MEDIUM_ACOUSTIC_ISO  1
+#define CONST_MEDIUM_ELASTIC_ISO   2
+#define CONST_MEDIUM_ELASTIC_VTI   3
+#define CONST_MEDIUM_ELASTIC_ANISO 4
+
 #endif

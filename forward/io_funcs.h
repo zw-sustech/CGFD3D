@@ -5,7 +5,7 @@
 #include "gd_info.h"
 #include "gd_curv.h"
 #include "io_funcs.h"
-#include "wf_el_1st.h"
+#include "wav_t.h"
 
 /*************************************************
  * structure
@@ -247,7 +247,7 @@ int
 io_snap_nc_put(iosnap_t *iosnap,
                iosnap_nc_t *iosnap_nc,
                gdinfo_t    *gdinfo,
-               wfel1st_t   *wfel1st,
+               wav_t   *wav,
                float *restrict w4d,
                float *restrict buff,
                int   nt_total,

@@ -62,7 +62,7 @@ bdry_pml_cal_b(float x, float L, float bmax)
 void
 bdry_pml_set(gdinfo_t *gdinfo,
              gdcurv_t *gdcurv,
-             wfel1st_t *wfel1st,
+             wav_t *wav,
              bdrypml_t *bdrypml,
              int   *neighid, 
              int   in_is_sides[][2],
@@ -264,7 +264,7 @@ bdry_pml_set(gdinfo_t *gdinfo,
       int ny = (bdrypml->nj2[idim][iside] - bdrypml->nj1[idim][iside] + 1);
       int nz = (bdrypml->nk2[idim][iside] - bdrypml->nk1[idim][iside] + 1);
 
-      bdry_pml_auxvar_init(nx,ny,nz,wfel1st,
+      bdry_pml_auxvar_init(nx,ny,nz,wav,
                            &(bdrypml->auxvar[idim][iside]),verbose);
     } // iside
   } // idim
@@ -274,30 +274,30 @@ bdry_pml_set(gdinfo_t *gdinfo,
 // alloc auxvar
 void
 bdry_pml_auxvar_init(int nx, int ny, int nz, 
-                     wfel1st_t *wfel1st,
+                     wav_t *wav,
                      bdrypml_auxvar_t *auxvar,
                      const int verbose)
 {
   auxvar->nx   = nx;
   auxvar->ny   = ny;
   auxvar->nz   = nz;
-  auxvar->ncmp = wfel1st->ncmp;
-  auxvar->nlevel = wfel1st->nlevel;
+  auxvar->ncmp = wav->ncmp;
+  auxvar->nlevel = wav->nlevel;
 
   auxvar->siz_iy   = auxvar->nx;
   auxvar->siz_iz   = auxvar->nx * auxvar->ny;
   auxvar->siz_icmp = auxvar->nx * auxvar->ny * auxvar->nz;
   auxvar->siz_ilevel = auxvar->siz_icmp * auxvar->ncmp;
 
-  auxvar->Vx_pos  = wfel1st->Vx_seq  * auxvar->siz_icmp;
-  auxvar->Vy_pos  = wfel1st->Vy_seq  * auxvar->siz_icmp;
-  auxvar->Vz_pos  = wfel1st->Vz_seq  * auxvar->siz_icmp;
-  auxvar->Txx_pos = wfel1st->Txx_seq * auxvar->siz_icmp;
-  auxvar->Tyy_pos = wfel1st->Tyy_seq * auxvar->siz_icmp;
-  auxvar->Tzz_pos = wfel1st->Tzz_seq * auxvar->siz_icmp;
-  auxvar->Txz_pos = wfel1st->Txz_seq * auxvar->siz_icmp;
-  auxvar->Tyz_pos = wfel1st->Tyz_seq * auxvar->siz_icmp;
-  auxvar->Txy_pos = wfel1st->Txy_seq * auxvar->siz_icmp;
+  auxvar->Vx_pos  = wav->Vx_seq  * auxvar->siz_icmp;
+  auxvar->Vy_pos  = wav->Vy_seq  * auxvar->siz_icmp;
+  auxvar->Vz_pos  = wav->Vz_seq  * auxvar->siz_icmp;
+  auxvar->Txx_pos = wav->Txx_seq * auxvar->siz_icmp;
+  auxvar->Tyy_pos = wav->Tyy_seq * auxvar->siz_icmp;
+  auxvar->Tzz_pos = wav->Tzz_seq * auxvar->siz_icmp;
+  auxvar->Txz_pos = wav->Txz_seq * auxvar->siz_icmp;
+  auxvar->Tyz_pos = wav->Tyz_seq * auxvar->siz_icmp;
+  auxvar->Txy_pos = wav->Txy_seq * auxvar->siz_icmp;
 
   // vars
   // contain all vars at each side, include rk scheme 4 levels vars

@@ -1,5 +1,5 @@
 /*******************************************************************************
- * solver of isotropic elastic 1st-order eqn using curv grid and macdrp schem
+ * solver of isotropic elastic 1st-order eqn using curv grid and collocated scheme
  ******************************************************************************/
 
 #include <stdio.h>
@@ -10,369 +10,22 @@
 
 #include "fdlib_mem.h"
 #include "fdlib_math.h"
-#include "blk_t.h"
-#include "sv_eliso1st_curv_macdrp.h"
+#include "sv_eq1st_curv_col_el_iso.h"
 
-//#define SV_ELISO1ST_CURV_MACDRP_DEBUG
-
-/*******************************************************************************
- * one simulation over all time steps, could be used in imaging or inversion
- *  simple MPI exchange without computing-communication overlapping
- ******************************************************************************/
-
-void
-sv_eliso1st_curv_macdrp_allstep(
-  fd_t            *fd,
-  gdinfo_t        *gdinfo,
-  gdcurv_metric_t *metric,
-  mdeliso_t      *mdeliso,
-  src_t      *src,
-  bdryfree_t *bdryfree,
-  bdrypml_t  *bdrypml,
-  wfel1st_t  *wfel1st,
-  mympi_t    *mympi,
-  iorecv_t   *iorecv,
-  ioline_t   *ioline,
-  ioslice_t  *ioslice,
-  iosnap_t   *iosnap,
-  // time
-  float dt, int nt_total, float t0,
-  char *output_fname_part,
-  char *output_dir,
-  int qc_check_nan_num_of_step,
-  const int output_all, // qc all var
-  const int verbose)
-{
-  // retrieve from struct
-  int num_rk_stages = fd->num_rk_stages;
-  float *rk_a = fd->rk_a;
-  float *rk_b = fd->rk_b;
-
-  int num_of_pairs     = fd->num_of_pairs;
-  int fdx_max_half_len = fd->fdx_max_half_len;
-  int fdy_max_half_len = fd->fdy_max_half_len;
-  int fdz_max_len      = fd->fdz_max_len;
-  int num_of_fdz_op    = fd->num_of_fdz_op;
-
-  // mpi
-  int myid = mympi->myid;
-  int *topoid = mympi->topoid;
-  MPI_Comm comm = mympi->comm;
-  float *restrict sbuff = mympi->sbuff;
-  float *restrict rbuff = mympi->rbuff;
-  MPI_Request *s_reqs = mympi->s_reqs;
-  MPI_Request *r_reqs = mympi->r_reqs;
-
-  // local allocated array
-  char ou_file[CONST_MAX_STRLEN];
-
-  // local pointer
-  float *restrict w_cur;
-  float *restrict w_pre;
-  float *restrict w_rhs;
-  float *restrict w_end;
-  float *restrict w_tmp;
-
-  int   ipair, istage;
-  float t_cur;
-  float t_end; // time after this loop for nc output
-
-  // create slice nc output files
-  if (myid==0 && verbose>0) fprintf(stdout,"prepare slice nc output ...\n"); 
-  ioslice_nc_t ioslice_nc;
-  io_slice_nc_create(ioslice, wfel1st->ncmp, wfel1st->cmp_name,
-                     gdinfo->ni, gdinfo->nj, gdinfo->nk, topoid,
-                     &ioslice_nc);
-
-  // create snapshot nc output files
-  if (myid==0 && verbose>0) fprintf(stdout,"prepare snap nc output ...\n"); 
-  iosnap_nc_t  iosnap_nc;
-  io_snap_nc_create(iosnap, &iosnap_nc, topoid);
-
-  // only x/y mpi
-  int num_of_r_reqs = 4;
-  int num_of_s_reqs = 4;
-
-  // get wavefield
-  w_pre = wfel1st->v5d + wfel1st->siz_ilevel * 0; // previous level at n
-  w_tmp = wfel1st->v5d + wfel1st->siz_ilevel * 1; // intermidate value
-  w_rhs = wfel1st->v5d + wfel1st->siz_ilevel * 2; // for rhs
-  w_end = wfel1st->v5d + wfel1st->siz_ilevel * 3; // end level at n+1
-
-  // set pml for rk
-  for (int idim=0; idim<CONST_NDIM; idim++) {
-    for (int iside=0; iside<2; iside++) {
-      if (bdrypml->is_at_sides[idim][iside]==1) {
-        bdrypml_auxvar_t *auxvar = &(bdrypml->auxvar[idim][iside]);
-        auxvar->pre = auxvar->var + auxvar->siz_ilevel * 0;
-        auxvar->tmp = auxvar->var + auxvar->siz_ilevel * 1;
-        auxvar->rhs = auxvar->var + auxvar->siz_ilevel * 2;
-        auxvar->end = auxvar->var + auxvar->siz_ilevel * 3;
-      }
-    }
-  }
-
-  //--------------------------------------------------------
-  // time loop
-  //--------------------------------------------------------
-
-  if (myid==0 && verbose>0) fprintf(stdout,"start time loop ...\n"); 
-
-  for (int it=0; it<nt_total; it++)
-  {
-    t_cur  = it * dt + t0;
-    t_end = t_cur +dt;
-
-    if (myid==0 && verbose>10) fprintf(stdout,"-> it=%d, t=%f\n", it, t_cur);
-
-    // mod to get ipair
-    ipair = it % num_of_pairs;
-    if (myid==0 && verbose>10) fprintf(stdout, " --> ipair=%d\n",ipair);
-
-    // loop RK stages for one step
-    for (istage=0; istage<num_rk_stages; istage++)
-    {
-      if (myid==0 && verbose>10) fprintf(stdout, " --> istage=%d\n",istage);
-
-      // use pointer to avoid 1 copy for previous level value
-      if (istage==0) {
-        w_cur = w_pre;
-        for (int idim=0; idim<CONST_NDIM; idim++) {
-          for (int iside=0; iside<2; iside++) {
-            bdrypml->auxvar[idim][iside].cur = bdrypml->auxvar[idim][iside].pre;
-          }
-        }
-      }
-      else
-      {
-        w_cur = w_tmp;
-        for (int idim=0; idim<CONST_NDIM; idim++) {
-          for (int iside=0; iside<2; iside++) {
-            bdrypml->auxvar[idim][iside].cur = bdrypml->auxvar[idim][iside].tmp;
-          }
-        }
-      }
-
-      // set src_t time
-      src_set_time(src, it, istage);
-
-      // compute rhs
-      sv_eliso1st_curv_macdrp_onestage(
-          w_cur,w_rhs,wfel1st,
-          gdinfo, metric, mdeliso, bdryfree, bdrypml, src,
-          fd->num_of_fdx_op, fd->pair_fdx_op[ipair][istage],
-          fd->num_of_fdy_op, fd->pair_fdy_op[ipair][istage],
-          fd->num_of_fdz_op, fd->pair_fdz_op[ipair][istage],
-          fd->fdz_max_len,
-          myid, verbose);
-
-      // recv mesg
-      MPI_Startall(num_of_r_reqs, r_reqs);
-
-      // rk start
-      if (istage==0)
-      {
-        float coef_a = rk_a[istage] * dt;
-        float coef_b = rk_b[istage] * dt;
-
-        // wavefield
-        for (size_t iptr=0; iptr < wfel1st->siz_ilevel; iptr++) {
-            w_tmp[iptr] = w_pre[iptr] + coef_a * w_rhs[iptr];
-        }
-        // pack and isend
-        blk_pack_mesg(w_tmp, sbuff, wfel1st->ncmp, gdinfo,
-                         fdx_max_half_len, fdy_max_half_len);
-
-        MPI_Startall(num_of_s_reqs, s_reqs);
-
-        // pml_tmp
-        for (int idim=0; idim<CONST_NDIM; idim++) {
-          for (int iside=0; iside<2; iside++) {
-            if (bdrypml->is_at_sides[idim][iside]==1) {
-              bdrypml_auxvar_t *auxvar = &(bdrypml->auxvar[idim][iside]);
-              for (size_t iptr=0; iptr < auxvar->siz_ilevel; iptr++) {
-                auxvar->tmp[iptr] = auxvar->pre[iptr] + coef_a * auxvar->rhs[iptr];
-              }
-            }
-          }
-        }
-
-        // w_end
-        for (size_t iptr=0; iptr < wfel1st->siz_ilevel; iptr++) {
-            w_end[iptr] = w_pre[iptr] + coef_b * w_rhs[iptr];
-        }
-        // pml_end
-        for (int idim=0; idim<CONST_NDIM; idim++) {
-          for (int iside=0; iside<2; iside++) {
-            if (bdrypml->is_at_sides[idim][iside]==1) {
-              bdrypml_auxvar_t *auxvar = &(bdrypml->auxvar[idim][iside]);
-              for (size_t iptr=0; iptr < auxvar->siz_ilevel; iptr++) {
-                auxvar->end[iptr] = auxvar->pre[iptr] + coef_b * auxvar->rhs[iptr];
-              }
-            }
-          }
-        }
-      }
-      else if (istage<num_rk_stages-1)
-      {
-        float coef_a = rk_a[istage] * dt;
-        float coef_b = rk_b[istage] * dt;
-
-        // wavefield
-        for (size_t iptr=0; iptr < wfel1st->siz_ilevel; iptr++) {
-            w_tmp[iptr] = w_pre[iptr] + coef_a * w_rhs[iptr];
-        }
-        // pack and isend
-        blk_pack_mesg(w_tmp, sbuff, wfel1st->ncmp, gdinfo,
-                         fdx_max_half_len, fdy_max_half_len);
-
-        MPI_Startall(num_of_s_reqs, s_reqs);
-
-        // pml_tmp
-        for (int idim=0; idim<CONST_NDIM; idim++) {
-          for (int iside=0; iside<2; iside++) {
-            if (bdrypml->is_at_sides[idim][iside]==1) {
-              bdrypml_auxvar_t *auxvar = &(bdrypml->auxvar[idim][iside]);
-              for (size_t iptr=0; iptr < auxvar->siz_ilevel; iptr++) {
-                auxvar->tmp[iptr] = auxvar->pre[iptr] + coef_a * auxvar->rhs[iptr];
-              }
-            }
-          }
-        }
-
-        // w_end
-        for (size_t iptr=0; iptr < wfel1st->siz_ilevel; iptr++) {
-            w_end[iptr] += coef_b * w_rhs[iptr];
-        }
-        // pml_end
-        for (int idim=0; idim<CONST_NDIM; idim++) {
-          for (int iside=0; iside<2; iside++) {
-            if (bdrypml->is_at_sides[idim][iside]==1) {
-              bdrypml_auxvar_t *auxvar = &(bdrypml->auxvar[idim][iside]);
-              for (size_t iptr=0; iptr < auxvar->siz_ilevel; iptr++) {
-                auxvar->end[iptr] += coef_b * auxvar->rhs[iptr];
-              }
-            }
-          }
-        }
-      }
-      else // last stage
-      {
-        float coef_b = rk_b[istage] * dt;
-
-        // wavefield
-        for (size_t iptr=0; iptr < wfel1st->siz_ilevel; iptr++) {
-            w_end[iptr] += coef_b * w_rhs[iptr];
-        }
-        // pack and isend
-        blk_pack_mesg(w_end, sbuff, wfel1st->ncmp, gdinfo,
-                         fdx_max_half_len, fdy_max_half_len);
-
-        MPI_Startall(num_of_s_reqs, s_reqs);
-
-        // pml_end
-        for (int idim=0; idim<CONST_NDIM; idim++) {
-          for (int iside=0; iside<2; iside++) {
-            if (bdrypml->is_at_sides[idim][iside]==1) {
-              bdrypml_auxvar_t *auxvar = &(bdrypml->auxvar[idim][iside]);
-              for (size_t iptr=0; iptr < auxvar->siz_ilevel; iptr++) {
-                auxvar->end[iptr] += coef_b * auxvar->rhs[iptr];
-              }
-            }
-          }
-        }
-      }
-
-      MPI_Waitall(num_of_s_reqs, s_reqs, MPI_STATUS_IGNORE);
-      MPI_Waitall(num_of_r_reqs, r_reqs, MPI_STATUS_IGNORE);
-
-      if (istage != num_rk_stages-1) {
-        blk_unpack_mesg(rbuff, w_tmp,  wfel1st->ncmp, gdinfo,
-                         fdx_max_half_len, fdy_max_half_len);
-     } else {
-        blk_unpack_mesg(rbuff, w_end,  wfel1st->ncmp, gdinfo,
-                         fdx_max_half_len, fdy_max_half_len);
-     }
-    } // RK stages
-
-    //--------------------------------------------
-    // QC
-    //--------------------------------------------
-
-    if (qc_check_nan_num_of_step >0  && (it % qc_check_nan_num_of_step) == 0) {
-      if (myid==0 && verbose>10) fprintf(stdout,"-> check value nan\n");
-        //wf_el_1st_check_value(w_end);
-    }
-
-    //--------------------------------------------
-    // save results
-    //--------------------------------------------
-
-    //-- recv by interp
-    io_recv_keep(iorecv, w_end, it, wfel1st->ncmp, wfel1st->siz_icmp);
-
-    //-- line values
-    io_line_keep(ioline, w_end, it, wfel1st->ncmp, wfel1st->siz_icmp);
-
-    // write slice, use w_rhs as buff
-    io_slice_nc_put(ioslice,&ioslice_nc,gdinfo,w_end,w_rhs,it,t_end,wfel1st->ncmp);
-
-    // snapshot
-    io_snap_nc_put(iosnap, &iosnap_nc, gdinfo, wfel1st, 
-                   w_end, w_rhs, nt_total, it, t_end);
-
-    // zero temp used w_rsh
-    sv_eliso1st_curv_macdrp_zero_edge(gdinfo, wfel1st, w_rhs);
-
-    // debug output
-    if (output_all==1)
-    {
-        io_build_fname_time(output_dir,"w3d",".nc",topoid,it,ou_file);
-        io_var3d_export_nc(ou_file,
-                           w_end,
-                           wfel1st->cmp_pos,
-                           wfel1st->cmp_name,
-                           wfel1st->ncmp,
-                           gdinfo->index_name,
-                           gdinfo->nx,
-                           gdinfo->ny,
-                           gdinfo->nz);
-    }
-
-    // swap w_pre and w_end, avoid copying
-    w_cur = w_pre; w_pre = w_end; w_end = w_cur;
-
-    for (int idim=0; idim<CONST_NDIM; idim++) {
-      for (int iside=0; iside<2; iside++) {
-        bdrypml_auxvar_t *auxvar = &(bdrypml->auxvar[idim][iside]);
-        auxvar->cur = auxvar->pre;
-        auxvar->pre = auxvar->end;
-        auxvar->end = auxvar->cur;
-      }
-    }
-
-  } // time loop
-
-  // postproc
-
-  // close nc
-  io_slice_nc_close(&ioslice_nc);
-  io_snap_nc_close(&iosnap_nc);
-
-}
+//#define SV_EQ1ST_CURV_COLGRD_ISO_DEBUG
 
 /*******************************************************************************
  * perform one stage calculation of rhs
  ******************************************************************************/
 
 void
-sv_eliso1st_curv_macdrp_onestage(
+sv_eq1st_curv_col_el_iso_onestage(
   float *restrict w_cur,
   float *restrict rhs, 
-  wfel1st_t  *wfel1st,
+  wav_t  *wav,
   gdinfo_t   *gdinfo,
   gdcurv_metric_t  *metric,
-  mdeliso_t *mdeliso,
+  md_t *md,
   bdryfree_t *bdryfree,
   bdrypml_t  *bdrypml,
   src_t *src,
@@ -384,24 +37,24 @@ sv_eliso1st_curv_macdrp_onestage(
   const int myid, const int verbose)
 {
   // local pointer get each vars
-  float *restrict Vx    = w_cur + wfel1st->Vx_pos ;
-  float *restrict Vy    = w_cur + wfel1st->Vy_pos ;
-  float *restrict Vz    = w_cur + wfel1st->Vz_pos ;
-  float *restrict Txx   = w_cur + wfel1st->Txx_pos;
-  float *restrict Tyy   = w_cur + wfel1st->Tyy_pos;
-  float *restrict Tzz   = w_cur + wfel1st->Tzz_pos;
-  float *restrict Txz   = w_cur + wfel1st->Txz_pos;
-  float *restrict Tyz   = w_cur + wfel1st->Tyz_pos;
-  float *restrict Txy   = w_cur + wfel1st->Txy_pos;
-  float *restrict hVx   = rhs   + wfel1st->Vx_pos ; 
-  float *restrict hVy   = rhs   + wfel1st->Vy_pos ; 
-  float *restrict hVz   = rhs   + wfel1st->Vz_pos ; 
-  float *restrict hTxx  = rhs   + wfel1st->Txx_pos; 
-  float *restrict hTyy  = rhs   + wfel1st->Tyy_pos; 
-  float *restrict hTzz  = rhs   + wfel1st->Tzz_pos; 
-  float *restrict hTxz  = rhs   + wfel1st->Txz_pos; 
-  float *restrict hTyz  = rhs   + wfel1st->Tyz_pos; 
-  float *restrict hTxy  = rhs   + wfel1st->Txy_pos; 
+  float *restrict Vx    = w_cur + wav->Vx_pos ;
+  float *restrict Vy    = w_cur + wav->Vy_pos ;
+  float *restrict Vz    = w_cur + wav->Vz_pos ;
+  float *restrict Txx   = w_cur + wav->Txx_pos;
+  float *restrict Tyy   = w_cur + wav->Tyy_pos;
+  float *restrict Tzz   = w_cur + wav->Tzz_pos;
+  float *restrict Txz   = w_cur + wav->Txz_pos;
+  float *restrict Tyz   = w_cur + wav->Tyz_pos;
+  float *restrict Txy   = w_cur + wav->Txy_pos;
+  float *restrict hVx   = rhs   + wav->Vx_pos ; 
+  float *restrict hVy   = rhs   + wav->Vy_pos ; 
+  float *restrict hVz   = rhs   + wav->Vz_pos ; 
+  float *restrict hTxx  = rhs   + wav->Txx_pos; 
+  float *restrict hTyy  = rhs   + wav->Tyy_pos; 
+  float *restrict hTzz  = rhs   + wav->Tzz_pos; 
+  float *restrict hTxz  = rhs   + wav->Txz_pos; 
+  float *restrict hTyz  = rhs   + wav->Tyz_pos; 
+  float *restrict hTxy  = rhs   + wav->Txy_pos; 
 
   float *restrict xi_x  = metric->xi_x;
   float *restrict xi_y  = metric->xi_y;
@@ -414,9 +67,9 @@ sv_eliso1st_curv_macdrp_onestage(
   float *restrict zt_z  = metric->zeta_z;
   float *restrict jac3d = metric->jac;
 
-  float *restrict lam3d = mdeliso->lambda;
-  float *restrict  mu3d = mdeliso->mu;
-  float *restrict slw3d = mdeliso->rho;
+  float *restrict lam3d = md->lambda;
+  float *restrict  mu3d = md->mu;
+  float *restrict slw3d = md->rho;
 
   // grid size
   int ni1 = gdinfo->ni1;
@@ -465,7 +118,7 @@ sv_eliso1st_curv_macdrp_onestage(
   fdz_inn_coef = fdz_op[num_of_fdz_op-1].coef;
 
   // inner points
-  sv_eliso1st_curv_macdrp_rhs_inner(Vx,Vy,Vz,Txx,Tyy,Tzz,Txz,Tyz,Txy,
+  sv_eq1st_curv_col_el_iso_rhs_inner(Vx,Vy,Vz,Txx,Tyy,Tzz,Txz,Tyz,Txy,
                                     hVx,hVy,hVz,hTxx,hTyy,hTzz,hTxz,hTyz,hTxy,
                                     xi_x, xi_y, xi_z, et_x, et_y, et_z, zt_x, zt_y, zt_z,
                                     lam3d, mu3d, slw3d,
@@ -481,7 +134,7 @@ sv_eliso1st_curv_macdrp_onestage(
   if (bdryfree->is_at_sides[2][1] == 1)
   {
     // tractiong
-    sv_eliso1st_curv_macdrp_rhs_timg_z2(Txx,Tyy,Tzz,Txz,Tyz,Txy,hVx,hVy,hVz,
+    sv_eq1st_curv_col_el_iso_rhs_timg_z2(Txx,Tyy,Tzz,Txz,Tyz,Txy,hVx,hVy,hVz,
                                         xi_x, xi_y, xi_z, et_x, et_y, et_z, zt_x, zt_y, zt_z,
                                         jac3d, slw3d,
                                         ni1,ni2,nj1,nj2,nk1,nk2,siz_line,siz_slice,
@@ -491,7 +144,7 @@ sv_eliso1st_curv_macdrp_onestage(
                                         myid, verbose);
 
     // velocity: vlow
-    sv_eliso1st_curv_macdrp_rhs_vlow_z2(Vx,Vy,Vz,hTxx,hTyy,hTzz,hTxz,hTyz,hTxy,
+    sv_eq1st_curv_col_el_iso_rhs_vlow_z2(Vx,Vy,Vz,hTxx,hTyy,hTzz,hTxz,hTyz,hTxy,
                                         xi_x, xi_y, xi_z, et_x, et_y, et_z, zt_x, zt_y, zt_z,
                                         lam3d, mu3d, slw3d,
                                         matVx2Vz,matVy2Vz,
@@ -505,7 +158,7 @@ sv_eliso1st_curv_macdrp_onestage(
   // cfs-pml, loop face inside
   if (bdrypml->is_enable == 1)
   {
-    sv_eliso1st_curv_macdrp_rhs_cfspml(Vx,Vy,Vz,Txx,Tyy,Tzz,Txz,Tyz,Txy,
+    sv_eq1st_curv_col_el_iso_rhs_cfspml(Vx,Vy,Vz,Txx,Tyy,Tzz,Txz,Tyz,Txy,
                                        hVx,hVy,hVz,hTxx,hTyy,hTzz,hTxz,hTyz,hTxy,
                                        xi_x, xi_y, xi_z, et_x, et_y, et_z, zt_x, zt_y, zt_z,
                                        lam3d, mu3d, slw3d,
@@ -521,7 +174,7 @@ sv_eliso1st_curv_macdrp_onestage(
   // add source term
   if (src->total_number > 0)
   {
-    sv_eliso1st_curv_macdrp_rhs_src(hVx,hVy,hVz,hTxx,hTyy,hTzz,hTxz,hTyz,hTxy,
+    sv_eq1st_curv_col_el_iso_rhs_src(hVx,hVy,hVz,hTxx,hTyy,hTzz,hTxz,hTyz,hTxy,
                                     jac3d, slw3d, 
                                     src,
                                     myid, verbose);
@@ -534,7 +187,7 @@ sv_eliso1st_curv_macdrp_onestage(
  ******************************************************************************/
 
 void
-sv_eliso1st_curv_macdrp_rhs_inner(
+sv_eq1st_curv_col_el_iso_rhs_inner(
     float *restrict  Vx , float *restrict  Vy , float *restrict  Vz ,
     float *restrict  Txx, float *restrict  Tyy, float *restrict  Tzz,
     float *restrict  Txz, float *restrict  Tyz, float *restrict  Txy,
@@ -777,7 +430,7 @@ sv_eliso1st_curv_macdrp_rhs_inner(
  */
 
 void
-sv_eliso1st_curv_macdrp_rhs_timg_z2(
+sv_eq1st_curv_col_el_iso_rhs_timg_z2(
     float *restrict  Txx, float *restrict  Tyy, float *restrict  Tzz,
     float *restrict  Txz, float *restrict  Tyz, float *restrict  Txy,
     float *restrict hVx , float *restrict hVy , float *restrict hVz ,
@@ -1047,7 +700,7 @@ sv_eliso1st_curv_macdrp_rhs_timg_z2(
  */
 
 void
-sv_eliso1st_curv_macdrp_rhs_vlow_z2(
+sv_eq1st_curv_col_el_iso_rhs_vlow_z2(
     float *restrict  Vx , float *restrict  Vy , float *restrict  Vz ,
     float *restrict hTxx, float *restrict hTyy, float *restrict hTzz,
     float *restrict hTxz, float *restrict hTyz, float *restrict hTxy,
@@ -1227,7 +880,7 @@ sv_eliso1st_curv_macdrp_rhs_vlow_z2(
  */
 
 void
-sv_eliso1st_curv_macdrp_rhs_cfspml(
+sv_eq1st_curv_col_el_iso_rhs_cfspml(
     float *restrict  Vx , float *restrict  Vy , float *restrict  Vz ,
     float *restrict  Txx, float *restrict  Tyy, float *restrict  Tzz,
     float *restrict  Txz, float *restrict  Tyz, float *restrict  Txy,
@@ -1837,11 +1490,131 @@ int sv_eliso1st_curv_macdrp_apply_ablexp(float *restrict w_cur,
 */
 
 /*******************************************************************************
+ * free surface coef
+ ******************************************************************************/
+
+int
+sv_eq1st_curv_col_el_iso_dvh2dvz(gdinfo_t        *gdinfo,
+                                 gdcurv_metric_t *metric,
+                                 md_t       *md,
+                                 bdryfree_t      *bdryfree,
+                                 const int verbose)
+{
+  int ierr = 0;
+
+  int ni1 = gdinfo->ni1;
+  int ni2 = gdinfo->ni2;
+  int nj1 = gdinfo->nj1;
+  int nj2 = gdinfo->nj2;
+  int nk1 = gdinfo->nk1;
+  int nk2 = gdinfo->nk2;
+  int nx  = gdinfo->nx;
+  int ny  = gdinfo->ny;
+  int nz  = gdinfo->nz;
+  size_t siz_line   = gdinfo->siz_iy;
+  size_t siz_slice  = gdinfo->siz_iz;
+  size_t siz_volume = gdinfo->siz_icmp;
+
+  // point to each var
+  float *restrict xi_x = metric->xi_x;
+  float *restrict xi_y = metric->xi_y;
+  float *restrict xi_z = metric->xi_z;
+  float *restrict et_x = metric->eta_x;
+  float *restrict et_y = metric->eta_y;
+  float *restrict et_z = metric->eta_z;
+  float *restrict zt_x = metric->zeta_x;
+  float *restrict zt_y = metric->zeta_y;
+  float *restrict zt_z = metric->zeta_z;
+
+  float *restrict lam3d = md->lambda;
+  float *restrict  mu3d = md->mu;
+
+  float *matVx2Vz = bdryfree->matVx2Vz2;
+  float *matVy2Vz = bdryfree->matVy2Vz2;
+  
+  float A[3][3], B[3][3], C[3][3];
+  float AB[3][3], AC[3][3];
+
+  float e11, e12, e13, e21, e22, e23, e31, e32, e33;
+  float lam2mu, lam, mu;
+ 
+  int k = nk2;
+
+  for (size_t j = nj1; j <= nj2; j++)
+  {
+    for (size_t i = ni1; i <= ni2; i++)
+    {
+      size_t iptr = i + j * siz_line + k * siz_slice;
+
+      e11 = xi_x[iptr];
+      e12 = xi_y[iptr];
+      e13 = xi_z[iptr];
+      e21 = et_x[iptr];
+      e22 = et_y[iptr];
+      e23 = et_z[iptr];
+      e31 = zt_x[iptr];
+      e32 = zt_y[iptr];
+      e33 = zt_z[iptr];
+
+      lam    = lam3d[iptr];
+      mu     =  mu3d[iptr];
+      lam2mu = lam + 2.0f * mu;
+
+      // first dim: irow; sec dim: jcol, as Fortran code
+      A[0][0] = lam2mu*e31*e31 + mu*(e32*e32+e33*e33);
+      A[0][1] = lam*e31*e32 + mu*e32*e31;
+      A[0][2] = lam*e31*e33 + mu*e33*e31;
+      A[1][0] = lam*e32*e31 + mu*e31*e32;
+      A[1][1] = lam2mu*e32*e32 + mu*(e31*e31+e33*e33);
+      A[1][2] = lam*e32*e33 + mu*e33*e32;
+      A[2][0] = lam*e33*e31 + mu*e31*e33;
+      A[2][1] = lam*e33*e32 + mu*e32*e33;
+      A[2][2] = lam2mu*e33*e33 + mu*(e31*e31+e32*e32);
+      fdlib_math_invert3x3(A);
+
+      B[0][0] = -lam2mu*e31*e11 - mu*(e32*e12+e33*e13);
+      B[0][1] = -lam*e31*e12 - mu*e32*e11;
+      B[0][2] = -lam*e31*e13 - mu*e33*e11;
+      B[1][0] = -lam*e32*e11 - mu*e31*e12;
+      B[1][1] = -lam2mu*e32*e12 - mu*(e31*e11+e33*e13);
+      B[1][2] = -lam*e32*e13 - mu*e33*e12;
+      B[2][0] = -lam*e33*e11 - mu*e31*e13;
+      B[2][1] = -lam*e33*e12 - mu*e32*e13;
+      B[2][2] = -lam2mu*e33*e13 - mu*(e31*e11+e32*e12);
+
+      C[0][0] = -lam2mu*e31*e21 - mu*(e32*e22+e33*e23);
+      C[0][1] = -lam*e31*e22 - mu*e32*e21;
+      C[0][2] = -lam*e31*e23 - mu*e33*e21;
+      C[1][0] = -lam*e32*e21 - mu*e31*e22;
+      C[1][1] = -lam2mu*e32*e22 - mu*(e31*e21+e33*e23);
+      C[1][2] = -lam*e32*e23 - mu*e33*e22;
+      C[2][0] = -lam*e33*e21 - mu*e31*e23;
+      C[2][1] = -lam*e33*e22 - mu*e32*e23;
+      C[2][2] = -lam2mu*e33*e23 - mu*(e31*e21+e32*e22);
+
+      fdlib_math_matmul3x3(A, B, AB);
+      fdlib_math_matmul3x3(A, C, AC);
+
+      size_t ij = (j * siz_line + i) * 9;
+
+      // save into mat
+      for(int irow = 0; irow < 3; irow++)
+        for(int jcol = 0; jcol < 3; jcol++){
+          matVx2Vz[ij + irow*3 + jcol] = AB[irow][jcol];
+          matVy2Vz[ij + irow*3 + jcol] = AC[irow][jcol];
+        }
+    }
+  }
+
+  return ierr;
+}
+
+/*******************************************************************************
  * add source terms
  ******************************************************************************/
 
 int
-sv_eliso1st_curv_macdrp_rhs_src(
+sv_eq1st_curv_col_el_iso_rhs_src(
     float *restrict hVx , float *restrict hVy , float *restrict hVz ,
     float *restrict hTxx, float *restrict hTyy, float *restrict hTzz,
     float *restrict hTxz, float *restrict hTyz, float *restrict hTxy,
@@ -1922,156 +1695,3 @@ sv_eliso1st_curv_macdrp_rhs_src(
   return ierr;
 }
 
-/*******************************************************************************
- * related functions
- ******************************************************************************/
-
-void
-sv_eliso1st_curv_macdrp_snap_buff_strain(float *restrict var,
-                                  size_t siz_line,
-                                  size_t siz_slice,
-                                  int starti,
-                                  int counti,
-                                  int increi,
-                                  int startj,
-                                  int countj,
-                                  int increj,
-                                  int startk,
-                                  int countk,
-                                  int increk,
-                                  float *restrict buff)
-{
-  int iptr_snap=0;
-  for (int n3=0; n3<countk; n3++)
-  {
-    int k = startk + n3 * increk;
-    for (int n2=0; n2<countj; n2++)
-    {
-      int j = startj + n2 * increj;
-      for (int n1=0; n1<counti; n1++)
-      {
-        int i = starti + n1 * increi;
-        int iptr = i + j * siz_line + k * siz_slice;
-        buff[iptr_snap] = var[iptr];
-        iptr_snap++;
-      }
-    }
-  }
-}
-
-int
-sv_eliso1st_curv_macdrp_zero_edge(gdinfo_t *gdinfo, wfel1st_t *wfel1st,
-                                  float *restrict w4d)
-{
-  int ierr = 0;
-
-  for (int icmp=0; icmp < wfel1st->ncmp; icmp++)
-  {
-    float *restrict var = w4d + wfel1st->cmp_pos[icmp];
-
-    // z1
-    for (int k=0; k < gdinfo->nk1; k++)
-    {
-      size_t iptr_k = k * gdinfo->siz_iz;
-      for (int j=0; j < gdinfo->ny; j++)
-      {
-        size_t iptr_j = iptr_k + j * gdinfo->siz_iy;
-        for (int i=0; i < gdinfo->nx; i++)
-        {
-          size_t iptr = iptr_j + i;
-          var[iptr] = 0.0; 
-        }
-      }
-    }
-
-    // z2
-    for (int k=gdinfo->nk2+1; k < gdinfo->nz; k++)
-    {
-      size_t iptr_k = k * gdinfo->siz_iz;
-      for (int j=0; j < gdinfo->ny; j++)
-      {
-        size_t iptr_j = iptr_k + j * gdinfo->siz_iy;
-        for (int i=0; i < gdinfo->nx; i++)
-        {
-          size_t iptr = iptr_j + i;
-          var[iptr] = 0.0; 
-        }
-      }
-    }
-
-    // y1
-    for (int k = gdinfo->nk1; k <= gdinfo->nk2; k++)
-    {
-      size_t iptr_k = k * gdinfo->siz_iz;
-      for (int j=0; j < gdinfo->nj1; j++)
-      {
-        size_t iptr_j = iptr_k + j * gdinfo->siz_iy;
-        for (int i=0; i < gdinfo->nx; i++)
-        {
-          size_t iptr = iptr_j + i;
-          var[iptr] = 0.0; 
-        }
-      }
-    }
-
-    // y2
-    for (int k = gdinfo->nk1; k <= gdinfo->nk2; k++)
-    {
-      size_t iptr_k = k * gdinfo->siz_iz;
-      for (int j = gdinfo->nj2+1; j < gdinfo->ny; j++)
-      {
-        size_t iptr_j = iptr_k + j * gdinfo->siz_iy;
-        for (int i=0; i < gdinfo->nx; i++)
-        {
-          size_t iptr = iptr_j + i;
-          var[iptr] = 0.0; 
-        }
-      }
-    }
-
-    // x1
-    for (int k = gdinfo->nk1; k <= gdinfo->nk2; k++)
-    {
-      size_t iptr_k = k * gdinfo->siz_iz;
-      for (int j = gdinfo->nj1; j <= gdinfo->nj2; j++)
-      {
-        size_t iptr_j = iptr_k + j * gdinfo->siz_iy;
-        for (int i=0; i < gdinfo->ni1; i++)
-        {
-          size_t iptr = iptr_j + i;
-          var[iptr] = 0.0; 
-        }
-      }
-    } 
-
-    // x2
-    for (int k = gdinfo->nk1; k <= gdinfo->nk2; k++)
-    {
-      size_t iptr_k = k * gdinfo->siz_iz;
-      for (int j = gdinfo->nj1; j <= gdinfo->nj2; j++)
-      {
-        size_t iptr_j = iptr_k + j * gdinfo->siz_iy;
-        for (int i = gdinfo->ni2+1; i < gdinfo->nx; i++)
-        {
-          size_t iptr = iptr_j + i;
-          var[iptr] = 0.0; 
-        }
-      }
-    } 
-
-  } // icmp
-
-  return ierr;
-}
-
-// code spool
-/*
-        for (int idim=0; idim<CONST_NDIM; idim++) {
-          for (int iside=0; iside<2; iside++) {
-            if (bdrypml->is_at_sides[idim][iside]==1) {
-              bdrypml_auxvar_t *auxvar = &(bdrypml->auxvar[idim][iside]);
-              auxvar->cur = auxvar->tmp;
-            }
-          }
-        }
-*/

@@ -6,8 +6,8 @@
 #include "gd_info.h"
 #include "mympi_t.h"
 #include "gd_curv.h"
-#include "md_el_iso.h"
-#include "wf_el_1st.h"
+#include "md_t.h"
+#include "wav_t.h"
 #include "src_t.h"
 #include "bdry_free.h"
 #include "bdry_pml.h"
@@ -21,6 +21,9 @@ typedef struct
 {
   // name for output file name
   char name[CONST_MAX_STRLEN];
+
+  // flag of medium
+  int medium_type;
 
   // fd
   fd_t *fd;
@@ -38,10 +41,10 @@ typedef struct
   gdcurv_metric_t *gdcurv_metric;
 
   // media: rho, lambda, mu etc
-  mdeliso_t *mdeliso;
+  md_t *md;
 
   // wavefield:
-  wfel1st_t *wfel1st;
+  wav_t *wav;
   
   // source term
   src_t *src;

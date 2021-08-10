@@ -47,7 +47,7 @@ typedef struct {
   size_t Tyz_seq;
   size_t Txz_seq;
   size_t Txy_seq;
-} wfel1st_t;
+} wav_t;
 
 struct fd_vel_t
 {
@@ -83,11 +83,15 @@ struct var5d_t
  *************************************************/
 
 int 
-wf_el_1st_init(gdinfo_t *gdinfo,
-               wfel1st_t *V,
+wav_init(gdinfo_t *gdinfo,
+               wav_t *V,
                int number_of_levels);
 
 int
-wf_el_1st_check_value(float *restrict w, wfel1st_t *wfel1st);
+wav_check_value(float *restrict w, wav_t *wav);
+
+int
+wav_zero_edge(gdinfo_t *gdinfo, wav_t *wav,
+                                  float *restrict w4d);
 
 #endif

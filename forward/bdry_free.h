@@ -4,7 +4,6 @@
 #include "constants.h"
 #include "gd_info.h"
 #include "gd_curv.h"
-#include "md_el_iso.h"
 
 /*************************************************
  * structure
@@ -51,8 +50,6 @@ typedef struct
 
 int
 bdry_free_set(gdinfo_t        *gdinfo,
-              gdcurv_metric_t *metric,
-              mdeliso_t       *mdeliso,
               bdryfree_t      *bdryfree,
               int   *neighid, 
               int   in_is_sides[][2],

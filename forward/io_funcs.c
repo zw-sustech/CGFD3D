@@ -1028,7 +1028,7 @@ int
 io_snap_nc_put(iosnap_t *iosnap,
                iosnap_nc_t *iosnap_nc,
                gdinfo_t    *gdinfo,
-               wfel1st_t   *wfel1st,
+               wav_t   *wav,
                float *restrict w4d,
                float *restrict buff,
                int   nt_total,
@@ -1078,19 +1078,19 @@ io_snap_nc_put(iosnap_t *iosnap,
       // vel
       if (snap_out_V==1)
       {
-        io_snap_pack_buff(w4d + wfel1st->Vx_pos,
+        io_snap_pack_buff(w4d + wav->Vx_pos,
               siz_line,siz_slice,snap_i1,snap_ni,snap_di,snap_j1,snap_nj,
               snap_dj,snap_k1,snap_nk,snap_dk,buff);
         nc_put_vara_float(iosnap_nc->ncid[n],iosnap_nc->varid_V[n*CONST_NDIM+0],
               startp,countp,buff);
 
-        io_snap_pack_buff(w4d + wfel1st->Vy_pos,
+        io_snap_pack_buff(w4d + wav->Vy_pos,
               siz_line,siz_slice,snap_i1,snap_ni,snap_di,snap_j1,snap_nj,
               snap_dj,snap_k1,snap_nk,snap_dk,buff);
         nc_put_vara_float(iosnap_nc->ncid[n],iosnap_nc->varid_V[n*CONST_NDIM+1],
               startp,countp,buff);
 
-        io_snap_pack_buff(w4d + wfel1st->Vz_pos,
+        io_snap_pack_buff(w4d + wav->Vz_pos,
               siz_line,siz_slice,snap_i1,snap_ni,snap_di,snap_j1,snap_nj,
               snap_dj,snap_k1,snap_nk,snap_dk,buff);
         nc_put_vara_float(iosnap_nc->ncid[n],iosnap_nc->varid_V[n*CONST_NDIM+2],
@@ -1098,37 +1098,37 @@ io_snap_nc_put(iosnap_t *iosnap,
       }
       if (snap_out_T==1)
       {
-        io_snap_pack_buff(w4d + wfel1st->Txx_pos,
+        io_snap_pack_buff(w4d + wav->Txx_pos,
               siz_line,siz_slice,snap_i1,snap_ni,snap_di,snap_j1,snap_nj,
               snap_dj,snap_k1,snap_nk,snap_dk,buff);
         nc_put_vara_float(iosnap_nc->ncid[n],iosnap_nc->varid_T[n*CONST_NDIM_2+0],
               startp,countp,buff);
 
-        io_snap_pack_buff(w4d + wfel1st->Tyy_pos,
+        io_snap_pack_buff(w4d + wav->Tyy_pos,
               siz_line,siz_slice,snap_i1,snap_ni,snap_di,snap_j1,snap_nj,
               snap_dj,snap_k1,snap_nk,snap_dk,buff);
         nc_put_vara_float(iosnap_nc->ncid[n],iosnap_nc->varid_T[n*CONST_NDIM_2+1],
               startp,countp,buff);
         
-        io_snap_pack_buff(w4d + wfel1st->Tzz_pos,
+        io_snap_pack_buff(w4d + wav->Tzz_pos,
               siz_line,siz_slice,snap_i1,snap_ni,snap_di,snap_j1,snap_nj,
               snap_dj,snap_k1,snap_nk,snap_dk,buff);
         nc_put_vara_float(iosnap_nc->ncid[n],iosnap_nc->varid_T[n*CONST_NDIM_2+2],
               startp,countp,buff);
         
-        io_snap_pack_buff(w4d + wfel1st->Txz_pos,
+        io_snap_pack_buff(w4d + wav->Txz_pos,
               siz_line,siz_slice,snap_i1,snap_ni,snap_di,snap_j1,snap_nj,
               snap_dj,snap_k1,snap_nk,snap_dk,buff);
         nc_put_vara_float(iosnap_nc->ncid[n],iosnap_nc->varid_T[n*CONST_NDIM_2+3],
               startp,countp,buff);
 
-        io_snap_pack_buff(w4d + wfel1st->Tyz_pos,
+        io_snap_pack_buff(w4d + wav->Tyz_pos,
               siz_line,siz_slice,snap_i1,snap_ni,snap_di,snap_j1,snap_nj,
               snap_dj,snap_k1,snap_nk,snap_dk,buff);
         nc_put_vara_float(iosnap_nc->ncid[n],iosnap_nc->varid_T[n*CONST_NDIM_2+4],
               startp,countp,buff);
 
-        io_snap_pack_buff(w4d + wfel1st->Txy_pos,
+        io_snap_pack_buff(w4d + wav->Txy_pos,
               siz_line,siz_slice,snap_i1,snap_ni,snap_di,snap_j1,snap_nj,
               snap_dj,snap_k1,snap_nk,snap_dk,buff);
         nc_put_vara_float(iosnap_nc->ncid[n],iosnap_nc->varid_T[n*CONST_NDIM_2+5],

@@ -20,20 +20,21 @@ blk_init(blk_t *blk,
 {
   int ierr = 0;
 
+  // alloc struct vars
   blk->fd            = (fd_t *)malloc(sizeof(fd_t));
   blk->mympi         = (mympi_t *)malloc(sizeof(mympi_t));
   blk->gdinfo        = (gdinfo_t *)malloc(sizeof(gdinfo_t));
-  blk->gdcurv        = (gdcurv_t         *)malloc(sizeof(gdcurv_t     ));
+  blk->gdcurv        = (gdcurv_t        *)malloc(sizeof(gdcurv_t     ));
   blk->gdcurv_metric = (gdcurv_metric_t *)malloc(sizeof(gdcurv_metric_t));
-  blk->mdeliso       = (mdeliso_t      *)malloc(sizeof(mdeliso_t     ));
-  blk->wfel1st       = (wfel1st_t      *)malloc(sizeof(wfel1st_t     ));
+  blk->md            = (md_t      *)malloc(sizeof(md_t     ));
+  blk->wav           = (wav_t      *)malloc(sizeof(wav_t     ));
   blk->src           = (src_t      *)malloc(sizeof(src_t     ));
-  blk->bdryfree    = (bdryfree_t  *)malloc(sizeof(bdryfree_t ));
-  blk->bdrypml     = (bdrypml_t  *)malloc(sizeof(bdrypml_t ));
-  blk->iorecv      = (iorecv_t  *)malloc(sizeof(iorecv_t ));
-  blk->ioline      = (ioline_t  *)malloc(sizeof(ioline_t ));
-  blk->ioslice     = (ioslice_t  *)malloc(sizeof(ioslice_t ));
-  blk->iosnap      = (iosnap_t  *)malloc(sizeof(iosnap_t ));
+  blk->bdryfree      = (bdryfree_t *)malloc(sizeof(bdryfree_t ));
+  blk->bdrypml       = (bdrypml_t  *)malloc(sizeof(bdrypml_t ));
+  blk->iorecv        = (iorecv_t   *)malloc(sizeof(iorecv_t ));
+  blk->ioline        = (ioline_t   *)malloc(sizeof(ioline_t ));
+  blk->ioslice       = (ioslice_t  *)malloc(sizeof(ioslice_t ));
+  blk->iosnap        = (iosnap_t   *)malloc(sizeof(iosnap_t ));
 
   sprintf(blk->name, "%s", "single");
 

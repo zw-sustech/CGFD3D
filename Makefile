@@ -54,9 +54,11 @@ cgfdm3d_elastic_mpi: \
 		media_grid2model.o \
 		media_geometry3d.o \
 		media_read_interface_file.o \
-		gd_info.o gd_curv.o md_el_iso.o wf_el_1st.o \
+		gd_info.o gd_curv.o md_t.o wav_t.o \
 		bdry_free.o bdry_pml.o src_t.o io_funcs.o \
-		blk_t.o sv_eliso1st_curv_macdrp.o \
+		blk_t.o \
+		sv_eq1st_curv_col.o \
+		sv_eq1st_curv_col_el_aniso.o sv_eq1st_curv_col_el_iso.o \
 		cgfdm3d_elastic_main.o
 	$(CXX) -o $@ $^ $(LDFLAGS)
 
@@ -91,9 +93,9 @@ gd_info.o: forward/gd_info.c
 	${CC} -c -o $@ $(CFLAGS) $<
 gd_curv.o: forward/gd_curv.c
 	${CC} -c -o $@ $(CFLAGS) $<
-md_el_iso.o: forward/md_el_iso.c
+md_t.o: forward/md_t.c
 	${CC} -c -o $@ $(CFLAGS) $<
-wf_el_1st.o: forward/wf_el_1st.c
+wav_t.o: forward/wav_t.c
 	${CC} -c -o $@ $(CFLAGS) $<
 bdry_pml.o: forward/bdry_pml.c
 	${CC} -c -o $@ $(CFLAGS) $<
@@ -105,7 +107,11 @@ io_funcs.o: forward/io_funcs.c
 	${CC} -c -o $@ $(CFLAGS) $<
 blk_t.o: forward/blk_t.c
 	${CC} -c -o $@ $(CFLAGS) $<
-sv_eliso1st_curv_macdrp.o: forward/sv_eliso1st_curv_macdrp.c
+sv_eq1st_curv_col.o: forward/sv_eq1st_curv_col.c
+	${CC} -c -o $@ $(CFLAGS) $<
+sv_eq1st_curv_col_el_iso.o: forward/sv_eq1st_curv_col_el_iso.c
+	${CC} -c -o $@ $(CFLAGS) $<
+sv_eq1st_curv_col_el_aniso.o: forward/sv_eq1st_curv_col_el_aniso.c
 	${CC} -c -o $@ $(CFLAGS) $<
 cgfdm3d_elastic_main.o: forward/cgfdm3d_elastic_main.c
 	${CC} -c -o $@ $(CFLAGS) $<

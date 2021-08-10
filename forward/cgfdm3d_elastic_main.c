@@ -20,7 +20,7 @@
 #include "blk_t.h"
 
 #include "media_discrete_model.h"
-#include "sv_eliso1st_curv_macdrp.h"
+#include "sv_eq1st_curv_col.h"
 
 int main(int argc, char** argv)
 {
@@ -105,8 +105,8 @@ int main(int argc, char** argv)
   gdinfo_t        *gdinfo        = blk->gdinfo;
   gdcurv_t        *gdcurv        = blk->gdcurv;
   gdcurv_metric_t *gdcurv_metric = blk->gdcurv_metric;
-  mdeliso_t       *mdeliso       = blk->mdeliso;
-  wfel1st_t       *wfel1st       = blk->wfel1st;
+  md_t            *md            = blk->md;
+  wav_t           *wav           = blk->wav;
   src_t           *src           = blk->src;
   bdryfree_t      *bdryfree      = blk->bdryfree;
   bdrypml_t       *bdrypml       = blk->bdrypml;
@@ -265,29 +265,37 @@ int main(int argc, char** argv)
 
   // allocate media vars
   if (myid==0 && verbose>0) fprintf(stdout,"allocate media vars ...\n"); 
-  md_el_iso_init(gdinfo, mdeliso);
+  md_init(gdinfo, md, par->media_itype);
 
   // read or discrete velocity model
   switch (par->media_input_itype)
   {
     case PAR_MEDIA_CODE :
         if (myid==0) fprintf(stdout,"generate simple medium in code ...\n"); 
-        md_el_iso_gen_test(mdeliso);
+
+        if (md->medium_type == CONST_MEDIUM_ELASTIC_ISO) {
+          md_gen_test_el_iso(md);
+        }
+
+        if (md->medium_type == CONST_MEDIUM_ELASTIC_ANISO) {
+          md_gen_test_el_aniso(md);
+        }
+
         break;
 
     case PAR_MEDIA_IMPORT :
         if (myid==0) fprintf(stdout,"import discrete medium file ...\n"); 
         if (myid==0) fprintf(stdout,"   not implemented yet\n"); 
-        //md_el_iso_import(blk->m3d, blk->nx, blk->ny, blk->nz, 
+        //md_import(blk->m3d, blk->nx, blk->ny, blk->nz, 
         //              myid3[0],myid3[1],myid3[2]);
         break;
 
     case PAR_MEDIA_3LAY : {
         if (myid==0) fprintf(stdout,"read and discretize 3D layer medium file ...\n"); 
 
-        float *lam3d = mdeliso->lambda;
-        float  *mu3d = mdeliso->mu;
-        float *rho3d = mdeliso->rho;
+        float *lam3d = md->lambda;
+        float  *mu3d = md->mu;
+        float *rho3d = md->rho;
         media_el_iso_layer2model(lam3d, mu3d, rho3d,
                                  gdcurv->x3d,
                                  gdcurv->y3d,
@@ -303,9 +311,9 @@ int main(int argc, char** argv)
     case PAR_MEDIA_3GRD : {
         if (myid==0) fprintf(stdout,"read and descretize 3D grid medium file ...\n"); 
 
-        float *lam3d = mdeliso->lambda;
-        float  *mu3d = mdeliso->mu;
-        float *rho3d = mdeliso->rho;
+        float *lam3d = md->lambda;
+        float  *mu3d = md->mu;
+        float *rho3d = md->rho;
 
         media_el_iso_grid2model(lam3d, mu3d, rho3d,
                                 gdcurv->x3d,
@@ -327,13 +335,13 @@ int main(int argc, char** argv)
   {
     if (myid==0) fprintf(stdout,"export discrete medium to file ...\n"); 
 
-    md_el_iso_export(gdinfo, mdeliso,
-                     blk->output_fname_part,
-                     blk->media_export_dir);
+    md_export(gdinfo, md,
+              blk->output_fname_part,
+              blk->media_export_dir);
   }
   
   // convert rho to 1 / rho to reduce number of arithmetic cal
-  md_el_iso_rho_to_slow(mdeliso->rho, mdeliso->siz_icmp);
+  md_rho_to_slow(md->rho, md->siz_icmp);
 
 //-------------------------------------------------------------------------------
 //-- estimate/check time step
@@ -512,7 +520,7 @@ int main(int argc, char** argv)
 //-------------------------------------------------------------------------------
 
   if (myid==0 && verbose>0) fprintf(stdout,"allocate solver vars ...\n"); 
-  wf_el_1st_init(gdinfo, wfel1st, fd->num_rk_stages);
+  wav_init(gdinfo, wav, fd->num_rk_stages);
 
 //-------------------------------------------------------------------------------
 //-- setup output, may require coord info
@@ -522,11 +530,11 @@ int main(int argc, char** argv)
 
   // receiver: need to do
   io_recv_read_locate(gdinfo, gdcurv, iorecv,
-                      nt_total, wfel1st->ncmp, par->in_station_file);
+                      nt_total, wav->ncmp, par->in_station_file);
 
   // line
   io_line_locate(gdinfo, gdcurv, ioline,
-                 wfel1st->ncmp,
+                 wav->ncmp,
                  nt_total,
                  par->number_of_receiver_line,
                  par->receiver_line_index_start,
@@ -568,7 +576,7 @@ int main(int argc, char** argv)
   
   if (par->bdry_has_cfspml == 1)
   {
-    bdry_pml_set(gdinfo, gdcurv, wfel1st, bdrypml,
+    bdry_pml_set(gdinfo, gdcurv, wav, bdrypml,
                  mympi->neighid,
                  par->cfspml_is_sides,
                  par->abs_num_of_layers,
@@ -586,10 +594,7 @@ int main(int argc, char** argv)
 
   if (par->bdry_has_free == 1)
   {
-    bdry_free_set(gdinfo,gdcurv_metric,mdeliso,bdryfree,
-                  mympi->neighid,
-                  par->free_is_sides,
-                  verbose);
+    bdry_free_set(gdinfo,bdryfree, mympi->neighid, par->free_is_sides, verbose);
   }
 
 //-------------------------------------------------------------------------------
@@ -598,7 +603,7 @@ int main(int argc, char** argv)
 
   if (myid==0 && verbose>0) fprintf(stdout,"init mesg ...\n"); 
   blk_mesg_init(mympi, gdinfo->ni, gdinfo->nj, gdinfo->nk,
-                  fd->fdx_nghosts, fd->fdy_nghosts, wfel1st->ncmp);
+                  fd->fdx_nghosts, fd->fdy_nghosts, wav->ncmp);
 
 //-------------------------------------------------------------------------------
 //-- qc
@@ -622,16 +627,16 @@ int main(int argc, char** argv)
   
   time_t t_start = time(NULL);
   
-  sv_eliso1st_curv_macdrp_allstep(fd,gdinfo,gdcurv_metric,mdeliso,
-                                  src,bdryfree,bdrypml,
-                                  wfel1st, mympi,
-                                  iorecv,ioline,ioslice,iosnap,
-                                  dt,nt_total,t0,
-                                  blk->output_fname_part,
-                                  blk->output_dir,
-                                  par->check_nan_every_nummber_of_steps,
-                                  par->output_all,
-                                  verbose);
+  sv_eq1st_curv_col_allstep(fd,gdinfo,gdcurv_metric,md,
+                            src,bdryfree,bdrypml,
+                            wav, mympi,
+                            iorecv,ioline,ioslice,iosnap,
+                            dt,nt_total,t0,
+                            blk->output_fname_part,
+                            blk->output_dir,
+                            par->check_nan_every_nummber_of_steps,
+                            par->output_all,
+                            verbose);
   
   time_t t_end = time(NULL);
   
@@ -641,10 +646,10 @@ int main(int argc, char** argv)
 //-- save station and line seismo to sac
 //-------------------------------------------------------------------------------
 
-  io_recv_output_sac(iorecv,dt,wfel1st->ncmp,wfel1st->cmp_name,
+  io_recv_output_sac(iorecv,dt,wav->ncmp,wav->cmp_name,
                       src->evtnm,blk->output_dir,err_message);
 
-  io_line_output_sac(ioline,dt,wfel1st->cmp_name,src->evtnm,blk->output_dir);
+  io_line_output_sac(ioline,dt,wav->cmp_name,src->evtnm,blk->output_dir);
 
 //-------------------------------------------------------------------------------
 //-- postprocess

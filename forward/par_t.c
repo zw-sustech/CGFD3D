@@ -359,10 +359,23 @@ par_read_from_str(const char *str, par_t *par)
 
   par->media_input_itype = PAR_MEDIA_IMPORT;
   if (item = cJSON_GetObjectItem(root, "media_input")) {
+    // medium is iso, vti or aniso
+    if (subitem = cJSON_GetObjectItem(item, "type")) {
+        sprintf(par->media_type, "%s", subitem->valuestring);
+        if (strcmp(par->media_type, "iso")==0) {
+          par->media_itype = CONST_MEDIUM_ELASTIC_ISO;
+        } else if (strcmp(par->media_type, "aniso")==0) {
+          par->media_itype = CONST_MEDIUM_ELASTIC_ANISO;
+        } else {
+          fprintf(stderr,"ERROR: media_type is unknown\n");
+        }
+    }
+    // if input by import
     if (subitem = cJSON_GetObjectItem(item, "import")) {
         par->media_input_itype = PAR_MEDIA_IMPORT;
         sprintf(par->media_import_dir, "%s", subitem->valuestring);
     }
+    // if input by generate in side
     if (subitem = cJSON_GetObjectItem(item, "code_generate")) {
         par->media_input_itype = PAR_MEDIA_CODE;
     }
@@ -856,6 +869,7 @@ par_print(par_t *par)
   fprintf(stdout, "-------------------------------------------------------\n");
   fprintf(stdout, "--> media info.\n");
   fprintf(stdout, "-------------------------------------------------------\n");
+  fprintf(stdout, " media_type = %s\n", par->media_type);
   fprintf(stdout, " media_export_dir = %s\n", par->media_export_dir);
   fprintf(stdout, " media_input_itype = %d\n", par->media_input_itype);
   //if (par->media_input_itype == PAR_MEDIA_3LAY) {

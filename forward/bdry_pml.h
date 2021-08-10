@@ -4,7 +4,7 @@
 #include "constants.h"
 #include "gd_info.h"
 #include "gd_curv.h"
-#include "wf_el_1st.h"
+#include "wav_t.h"
 
 /*************************************************
  * structure
@@ -88,7 +88,7 @@ bdry_pml_cal_b(float x, float L, float bmax);
 void
 bdry_pml_set(gdinfo_t *gdinfo,
              gdcurv_t *gdcurv,
-             wfel1st_t *wfel1st,
+             wav_t *wav,
              bdrypml_t *bdrypml,
              int   *neighid, 
              int   in_is_sides[][2],
@@ -101,7 +101,7 @@ bdry_pml_set(gdinfo_t *gdinfo,
 // alloc auxvar
 void
 bdry_pml_auxvar_init(int nx, int ny, int nz, 
-                     wfel1st_t *wfel1st,
+                     wav_t *wav,
                      bdrypml_auxvar_t *auxvar,
                      const int verbose);
 
