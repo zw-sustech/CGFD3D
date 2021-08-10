@@ -231,7 +231,7 @@ bdry_pml_set(gdinfo_t *gdinfo,
       for (int ilay=0; ilay<num_lay; ilay++)
       {
         // first point has non-zero value
-        float L = (ilay + 1) * dh;
+        float L = (ilay + 0) * dh;
 
         // convert to grid index from left to right
         if (iside == 0) { // x1/y1/z1
