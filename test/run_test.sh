@@ -18,7 +18,7 @@ EXEC_DIR=/home/zhangw/code/zwlab/CGFD3D-elastic
 EXEC_WAVE=$EXEC_DIR/cgfdm3d_elastic_mpi
 
 #-- conf
-PROJDIR=/home/zhangw/work/cgfd_arc/07
+PROJDIR=/home/zhangw/work/cgfd_aniso/02
 PAR_FILE=${PROJDIR}/test.json
 GRID_DIR=${PROJDIR}/output
 MEDIA_DIR=${PROJDIR}/output
@@ -64,7 +64,7 @@ cat << ieof > $PAR_FILE
           "number_of_layers" : 5,
           "alpha_max" : 3.14,
           "beta_max" : 2.0,
-          "ref_vel"  : 3000.0
+          "ref_vel"  : 5000.0
           }
       },
   "boundary_x_right" : {
@@ -72,7 +72,7 @@ cat << ieof > $PAR_FILE
           "number_of_layers" : 5,
           "alpha_max" : 3.14,
           "beta_max" : 2.0,
-          "ref_vel"  : 3000.0
+          "ref_vel"  : 5000.0
           }
       },
   "boundary_y_front" : {
@@ -80,7 +80,7 @@ cat << ieof > $PAR_FILE
           "number_of_layers" : 5,
           "alpha_max" : 3.14,
           "beta_max" : 2.0,
-          "ref_vel"  : 3000.0
+          "ref_vel"  : 5000.0
           }
       },
   "boundary_y_back" : {
@@ -88,7 +88,7 @@ cat << ieof > $PAR_FILE
           "number_of_layers" : 5,
           "alpha_max" : 3.14,
           "beta_max" : 2.0,
-          "ref_vel"  : 3000.0
+          "ref_vel"  : 5000.0
           }
       },
   "boundary_z_bottom" : {
@@ -96,7 +96,7 @@ cat << ieof > $PAR_FILE
           "number_of_layers" : 5,
           "alpha_max" : 3.14,
           "beta_max" : 2.0,
-          "ref_vel"  : 3000.0
+          "ref_vel"  : 5000.0
           }
       },
   "boundary_z_top" : {
@@ -126,6 +126,7 @@ cat << ieof > $PAR_FILE
   "is_export_metric" : 1,
 
   "media_input" : {
+      "type" : "iso",
       "#import" : "$MEDIA_DIR",
       "code_generate" : 1,
       "#in_3lay_file" : "${IN_MEDIA_3LAY_FILE}",
