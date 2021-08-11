@@ -391,8 +391,8 @@ src_set_by_par(gdinfo_t *gdinfo,
             src->Mxx[iptr] = stf_val * moment_tensor[is][0];
             src->Myy[iptr] = stf_val * moment_tensor[is][1];
             src->Mzz[iptr] = stf_val * moment_tensor[is][2];
-            src->Myz[iptr] = stf_val * moment_tensor[is][3];
-            src->Mxy[iptr] = stf_val * moment_tensor[is][4];
+            src->Mxz[iptr] = stf_val * moment_tensor[is][3];
+            src->Myz[iptr] = stf_val * moment_tensor[is][4];
             src->Mxy[iptr] = stf_val * moment_tensor[is][5];
           }
         } // istage
