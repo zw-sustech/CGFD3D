@@ -118,22 +118,22 @@ bdry_pml_set(gdinfo_t *gdinfo,
 
       // shrink to actual size
       if (idim == 0 && iside ==0) { // x1
-        bdrypml->ni2[idim][iside] = ni1 + bdrypml->num_of_layers[idim][iside] - 1;
+        bdrypml->ni2[idim][iside] = ni1 + bdrypml->num_of_layers[idim][iside];
       }
       if (idim == 0 && iside ==1) { // x2
-        bdrypml->ni1[idim][iside] = ni2 - bdrypml->num_of_layers[idim][iside] + 1;
+        bdrypml->ni1[idim][iside] = ni2 - bdrypml->num_of_layers[idim][iside];
       }
       if (idim == 1 && iside ==0) { // y1
-        bdrypml->nj2[idim][iside] = nj1 + bdrypml->num_of_layers[idim][iside] - 1;
+        bdrypml->nj2[idim][iside] = nj1 + bdrypml->num_of_layers[idim][iside];
       }
       if (idim == 1 && iside ==1) { // y2
-        bdrypml->nj1[idim][iside] = nj2 - bdrypml->num_of_layers[idim][iside] + 1;
+        bdrypml->nj1[idim][iside] = nj2 - bdrypml->num_of_layers[idim][iside];
       }
       if (idim == 2 && iside ==0) { // z1
-        bdrypml->nk2[idim][iside] = nk1 + bdrypml->num_of_layers[idim][iside] - 1;
+        bdrypml->nk2[idim][iside] = nk1 + bdrypml->num_of_layers[idim][iside];
       }
       if (idim == 2 && iside ==1) { // z2
-        bdrypml->nk1[idim][iside] = nk2 - bdrypml->num_of_layers[idim][iside] + 1;
+        bdrypml->nk1[idim][iside] = nk2 - bdrypml->num_of_layers[idim][iside];
       }
 
       // enable if any side valid
@@ -158,10 +158,10 @@ bdry_pml_set(gdinfo_t *gdinfo,
     for (int iside=0; iside<2; iside++)
     {
       if (bdrypml->is_at_sides[idim][iside] == 1) {
-        int nlay = bdrypml->num_of_layers[idim][iside];
-        bdrypml->A[idim][iside] = (float *)malloc( nlay * sizeof(float));
-        bdrypml->B[idim][iside] = (float *)malloc( nlay * sizeof(float));
-        bdrypml->D[idim][iside] = (float *)malloc( nlay * sizeof(float));
+        int npoints = bdrypml->num_of_layers[idim][iside] + 1;
+        bdrypml->A[idim][iside] = (float *)malloc( npoints * sizeof(float));
+        bdrypml->B[idim][iside] = (float *)malloc( npoints * sizeof(float));
+        bdrypml->D[idim][iside] = (float *)malloc( npoints * sizeof(float));
       } else {
         bdrypml->A[idim][iside] = NULL;
         bdrypml->B[idim][iside] = NULL;
@@ -178,7 +178,7 @@ bdry_pml_set(gdinfo_t *gdinfo,
       // skip if not pml
       if (bdrypml->is_at_sides[idim][iside] == 0) continue;
 
-      int num_lay = bdrypml->num_of_layers[idim][iside];
+      int npoints = bdrypml->num_of_layers[idim][iside] + 1;
 
       // estimate length along grid lines for coef calculation
       int i = bdrypml->ni1[idim][iside];
@@ -191,12 +191,12 @@ bdry_pml_set(gdinfo_t *gdinfo,
       float z0 = z3d[iptr];
       
       float L0 = 0.0;
-      for (int ilay=1; ilay<num_lay; ilay++)
+      for (int n=1; n<npoints; n++)
       {
         // along which dim
-        if (idim==0) i = bdrypml->ni1[idim][iside] + ilay; 
-        if (idim==1) j = bdrypml->nj1[idim][iside] + ilay; 
-        if (idim==2) k = bdrypml->nk1[idim][iside] + ilay; 
+        if (idim==0) i = bdrypml->ni1[idim][iside] + n; 
+        if (idim==1) j = bdrypml->nj1[idim][iside] + n; 
+        if (idim==2) k = bdrypml->nk1[idim][iside] + n; 
 
         iptr = i + j * siz_line + k * siz_slice;
 
@@ -213,8 +213,8 @@ bdry_pml_set(gdinfo_t *gdinfo,
 
       // estimate spacing
       float dh = L0;
-      if (num_lay > 1) {
-        dh = L0 / (num_lay-1.0);
+      if (npoints > 1) {
+        dh = L0 / (npoints-1.0);
       }
 
       float *A = bdrypml->A[idim][iside];
@@ -222,22 +222,23 @@ bdry_pml_set(gdinfo_t *gdinfo,
       float *D = bdrypml->D[idim][iside];
 
       // calculate
+      int num_lay = npoints - 1;
       float Rpp  = bdry_pml_cal_R(num_lay);
       float dmax = bdry_pml_cal_dmax(L0, in_velocity[idim][iside], Rpp);
       float amax = in_alpha_max[idim][iside];
       float bmax = in_beta_max[idim][iside];
 
       // from PML-interior to outer side
-      for (int ilay=0; ilay<num_lay; ilay++)
+      for (int n=0; n<npoints; n++)
       {
         // first point has non-zero value
-        float L = (ilay + 0) * dh;
+        float L = n * dh;
 
         // convert to grid index from left to right
         if (iside == 0) { // x1/y1/z1
-          i = num_lay - 1 - ilay;
+          i = npoints - 1 - n;
         } else { // x2/y2/z2
-          i = ilay; 
+          i = n; 
         }
 
         D[i] = bdry_pml_cal_d( L, L0, dmax );
