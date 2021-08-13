@@ -61,7 +61,7 @@ bdry_pml_cal_b(float x, float L, float bmax)
 
 void
 bdry_pml_set(gdinfo_t *gdinfo,
-             gdcurv_t *gdcurv,
+             gd_t *gd,
              wav_t *wav,
              bdrypml_t *bdrypml,
              int   *neighid, 
@@ -72,9 +72,6 @@ bdry_pml_set(gdinfo_t *gdinfo,
              float in_velocity[][2], //
              int verbose)
 {
-  float *restrict x3d = gdcurv->x3d;
-  float *restrict y3d = gdcurv->y3d;
-  float *restrict z3d = gdcurv->z3d;
   int    ni1 = gdinfo->ni1;
   int    ni2 = gdinfo->ni2;
   int    nj1 = gdinfo->nj1;
@@ -178,50 +175,23 @@ bdry_pml_set(gdinfo_t *gdinfo,
       // skip if not pml
       if (bdrypml->is_at_sides[idim][iside] == 0) continue;
 
-      int npoints = bdrypml->num_of_layers[idim][iside] + 1;
-
-      // estimate length along grid lines for coef calculation
-      int i = bdrypml->ni1[idim][iside];
-      int j = bdrypml->nj1[idim][iside];
-      int k = bdrypml->nk1[idim][iside];
-      int iptr = i + j * siz_line + k * siz_slice;
-
-      float x0 = x3d[iptr];
-      float y0 = y3d[iptr];
-      float z0 = z3d[iptr];
-      
-      float L0 = 0.0;
-      for (int n=1; n<npoints; n++)
-      {
-        // along which dim
-        if (idim==0) i = bdrypml->ni1[idim][iside] + n; 
-        if (idim==1) j = bdrypml->nj1[idim][iside] + n; 
-        if (idim==2) k = bdrypml->nk1[idim][iside] + n; 
-
-        iptr = i + j * siz_line + k * siz_slice;
-
-        float x1 = x3d[iptr];
-        float y1 = y3d[iptr];
-        float z1 = z3d[iptr];
-
-        L0 += sqrtf( (x1-x0)*(x1-x0) + (y1-y0)*(y1-y0) + (z1-z0)*(z1-z0) );
-
-        x0 = x1;
-        y0 = y1;
-        z0 = z1;
-      }
-
-      // estimate spacing
-      float dh = L0;
-      if (npoints > 1) {
-        dh = L0 / (npoints-1.0);
-      }
-
       float *A = bdrypml->A[idim][iside];
       float *B = bdrypml->B[idim][iside];
       float *D = bdrypml->D[idim][iside];
 
-      // calculate
+      // esti L0 and dh
+      float L0, dh;
+      bdry_pml_cal_len_dh(gd,bdrypml->ni1[idim][iside],
+                             bdrypml->ni2[idim][iside],
+                             bdrypml->nj1[idim][iside],
+                             bdrypml->nj2[idim][iside],
+                             bdrypml->nk1[idim][iside],
+                             bdrypml->nk2[idim][iside],
+                             idim,
+                             &L0, &dh);
+
+      // para
+      int npoints = bdrypml->num_of_layers[idim][iside] + 1;
       int num_lay = npoints - 1;
       float Rpp  = bdry_pml_cal_R(num_lay);
       float dmax = bdry_pml_cal_dmax(L0, in_velocity[idim][iside], Rpp);
@@ -233,6 +203,7 @@ bdry_pml_set(gdinfo_t *gdinfo,
       {
         // first point has non-zero value
         float L = n * dh;
+        int i;
 
         // convert to grid index from left to right
         if (iside == 0) { // x1/y1/z1
@@ -311,83 +282,143 @@ bdry_pml_auxvar_init(int nx, int ny, int nz,
   }
 }
 
-//
-// abl exp type
-//
 /*
-int abs_set_ablexp(size_t nx, size_t ny, size_t nz, 
-    size_t ni1, size_t ni2, size_t nj1, size_t nj2, size_t nk1, size_t nk2, 
-    int *boundary_itype, // input
-    int *in_abs_numbers, //
-    float *abs_alpha, //
-    float *abs_beta, //
-    float *abs_velocity, //
-    int *abs_numbers, // output
-    size_t *abs_coefs_dimpos, 
-    float **p_abs_coefs)
-{
-  int ivar;
-  
-  float *Ax, *Bx, *Dx;
-  float *Ay, *By, *Dy;
-  float *Az, *Bz, *Dz;
+ * esti L and dh along idim damping layers
+ */
 
-  int num_of_coefs = 1; // damping
-  
-  size_t abs_ceofs_size = 0;
-  
-  // copy input to struct
-  memcpy(abs_numbers, in_abs_numbers, CONST_NDIM_2 * sizeof(int));
-
-  // size
-  for (i=0; i<2; i++) { // x1,x2
-    abs_coefs_dimpos[i] = abs_ceofs_size;
-    abs_ceofs_size += abs_numbers[i] * nj * nk; 
-  }
-  for (i=2; i<4; i++) { // y1,y2
-    abs_coefs_dimpos[i] = abs_ceofs_size;
-    abs_ceofs_size += abs_numbers[i] * ni * nk; 
-  }
-  for (i=4; i<6; i++) { // z1,z2
-    abs_coefs_dimpos[i] = abs_ceofs_size;
-    abs_ceofs_size += abs_numbers[i] * ni * nj; 
-  }
-
-  *p_abs_coef_size = abs_coefs_size;
-
-  // vars
-  *p_abs_coefs = (float *) fdlib_mem_calloc_1d_float( 
-               abs_coefs_size, 0.0, "abs_set_ablexp");
-  if (*p_abs_coefs == NULL) {
-      fprintf(stderr,"Error: failed to alloc ablexp coefs\n");
-      fflush(stderr);
-      ierr = -1;
-  }
-
-  // set damping values
-
-  return ierr;
-}
-
-int abs_ablexp_cal_damp(i,Vs,ah,nb)
+int
+bdry_pml_cal_len_dh(gd_t *gd, 
+                    int abs_ni1, int abs_ni2,
+                    int abs_nj1, int abs_nj2,
+                    int abs_nk1, int abs_nk2,
+                    int idim,
+                    float *avg_L, float *avg_dh)
 {
   int ierr = 0;
 
-  integer,intent(in) :: i,nb
-  real(SP),intent(in) :: Vs,ah
-  real(SP) :: d
-  real(SP) :: ie
-  integer m,n
-  ie=i
-  !Vs=5000.0_SP
-  m=(nb*ah)/(Vs*stept)
-  d=0.0_SP
-  do n=1,m
-     d=d+(n*stept*Vs)**2/(nb*ah)**2
-  end do
-  d=0.8_SP/d*1.1_SP
-  d=exp(-d*(ie/nb)**2)
+  int siz_line  = gd->siz_iy;
+  int siz_slice = gd->siz_iz;
+
+  // cartesian grid is simple
+  if (gd->type == GD_TYPE_CART)
+  {
+    if (idim == 0) { // x-axis
+      *avg_dh = gd->dx;
+      *avg_L  = gd->dx * (abs_ni2 - abs_ni1);
+    } else if (idim == 1) { // y-axis
+      *avg_dh = gd->dy;
+      *avg_L  = gd->dy * (abs_nj2 - abs_nj1);
+    } else { // z-axis
+      *avg_dh = gd->dz;
+      *avg_L  = gd->dz * (abs_nk2 - abs_nk1);
+    }
+  }
+  // curv grid needs avg
+  else if (gd->type == GD_TYPE_CURV)
+  {
+    float *x3d = gd->x3d;
+    float *y3d = gd->y3d;
+    float *z3d = gd->z3d;
+
+    double L  = 0.0;
+    double dh = 0.0;
+    int    num = 0;
+
+    if (idim == 0) // x-axis
+    {
+      for (int k=abs_nk1; k<=abs_nk2; k++)
+      {
+        for (int j=abs_nj1; j<=abs_nj2; j++)
+        {
+          int iptr = abs_ni1 + j * siz_line + k * siz_slice;
+          double x0 = x3d[iptr];
+          double y0 = y3d[iptr];
+          double z0 = z3d[iptr];
+          for (int i=abs_ni1+1; i<=abs_ni2; i++)
+          {
+            int iptr = i + j * siz_line + k * siz_slice;
+
+            double x1 = x3d[iptr];
+            double y1 = y3d[iptr];
+            double z1 = z3d[iptr];
+
+            L += sqrt( (x1-x0)*(x1-x0) + (y1-y0)*(y1-y0) + (z1-z0)*(z1-z0) );
+
+            x0 = x1;
+            y0 = y1;
+            z0 = z1;
+            num += 1;
+          }
+        }
+      }
+
+      *avg_dh = (float)( L / num );
+      *avg_L = (*avg_dh) * (abs_ni2 - abs_ni1);
+    } 
+    else if (idim == 1) // y-axis
+    { 
+      for (int k=abs_nk1; k<=abs_nk2; k++)
+      {
+        for (int i=abs_ni1; i<=abs_ni2; i++)
+        {
+          int iptr = i + abs_nj1 * siz_line + k * siz_slice;
+          double x0 = x3d[iptr];
+          double y0 = y3d[iptr];
+          double z0 = z3d[iptr];
+          for (int j=abs_nj1+1; j<=abs_nj2; j++)
+          {
+            int iptr = i + j * siz_line + k * siz_slice;
+
+            double x1 = x3d[iptr];
+            double y1 = y3d[iptr];
+            double z1 = z3d[iptr];
+
+            L += sqrt( (x1-x0)*(x1-x0) + (y1-y0)*(y1-y0) + (z1-z0)*(z1-z0) );
+
+            x0 = x1;
+            y0 = y1;
+            z0 = z1;
+            num += 1;
+          }
+        }
+      }
+
+      *avg_dh = (float)( L / num );
+      *avg_L = (*avg_dh) * (abs_nj2 - abs_nj1);
+    }
+    else // z-axis
+    { 
+      for (int j=abs_nj1; j<=abs_nj2; j++)
+      {
+        for (int i=abs_ni1; i<=abs_ni2; i++)
+        {
+          int iptr = i + j * siz_line + abs_nk1 * siz_slice;
+          double x0 = x3d[iptr];
+          double y0 = y3d[iptr];
+          double z0 = z3d[iptr];
+          for (int k=abs_nk1+1; k<=abs_nk2; k++)
+          {
+            int iptr = i + j * siz_line + k * siz_slice;
+
+            double x1 = x3d[iptr];
+            double y1 = y3d[iptr];
+            double z1 = z3d[iptr];
+
+            L += sqrt( (x1-x0)*(x1-x0) + (y1-y0)*(y1-y0) + (z1-z0)*(z1-z0) );
+
+            x0 = x1;
+            y0 = y1;
+            z0 = z1;
+            num += 1;
+          }
+        }
+      }
+
+      *avg_dh = (float)( L / num );
+      *avg_L = (*avg_dh) * (abs_nk2 - abs_nk1);
+    } // idim
+
+  } // gd type
 
   return ierr;
 }
-*/

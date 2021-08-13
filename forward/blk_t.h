@@ -5,7 +5,7 @@
 #include "fd_t.h"
 #include "gd_info.h"
 #include "mympi_t.h"
-#include "gd_curv.h"
+#include "gd_t.h"
 #include "md_t.h"
 #include "wav_t.h"
 #include "src_t.h"
@@ -22,8 +22,8 @@ typedef struct
   // name for output file name
   char name[CONST_MAX_STRLEN];
 
-  // flag of medium
-  int medium_type;
+  //// flag of medium
+  //int medium_type;
 
   // fd
   fd_t *fd;
@@ -35,7 +35,7 @@ typedef struct
   gdinfo_t *gdinfo;
   
   // coordnate: x3d, y3d, z3d
-  gdcurv_t *gdcurv;
+  gd_t *gd;
 
   // grid metrics: jac, xi_x, etc
   gdcurv_metric_t *gdcurv_metric;

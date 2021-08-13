@@ -103,7 +103,7 @@ int main(int argc, char** argv)
   fd_t            *fd            = blk->fd    ;
   mympi_t         *mympi         = blk->mympi ;
   gdinfo_t        *gdinfo        = blk->gdinfo;
-  gdcurv_t        *gdcurv        = blk->gdcurv;
+  gd_t            *gdcurv        = blk->gd;
   gdcurv_metric_t *gdcurv_metric = blk->gdcurv_metric;
   md_t            *md            = blk->md;
   wav_t           *wav           = blk->wav;
@@ -169,14 +169,11 @@ int main(int argc, char** argv)
         float dy = par->cartesian_grid_stepsize[1];
         float dz = par->cartesian_grid_stepsize[2];
 
-        float x0 = par->cartesian_grid_origin[0]
-                        + (gdinfo->ni1_to_glob_phys0 - fd->fdx_nghosts) * dx;
-        float y0 = par->cartesian_grid_origin[1]
-                        + (gdinfo->nj1_to_glob_phys0 - fd->fdy_nghosts) * dy;
-        float z0 = par->cartesian_grid_origin[2]
-                        + (gdinfo->nk1_to_glob_phys0 - fd->fdz_nghosts) * dz;
+        float x0 = par->cartesian_grid_origin[0];
+        float y0 = par->cartesian_grid_origin[1];
+        float z0 = par->cartesian_grid_origin[2];
 
-        gd_curv_gen_cart(gdcurv,dx,x0,dy,y0,dz,z0);
+        gd_curv_gen_cart(gdinfo,gdcurv,dx,x0,dy,y0,dz,z0);
 
         break;
 

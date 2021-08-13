@@ -54,7 +54,7 @@ cgfdm3d_elastic_mpi: \
 		media_grid2model.o \
 		media_geometry3d.o \
 		media_read_interface_file.o \
-		gd_info.o gd_curv.o md_t.o wav_t.o \
+		gd_info.o gd_t.o md_t.o wav_t.o \
 		bdry_free.o bdry_pml.o src_t.o io_funcs.o \
 		blk_t.o \
 		sv_eq1st_curv_col.o \
@@ -91,7 +91,7 @@ mympi_t.o: forward/mympi_t.c
 	${CC} -c -o $@ $(CFLAGS) $<
 gd_info.o: forward/gd_info.c
 	${CC} -c -o $@ $(CFLAGS) $<
-gd_curv.o: forward/gd_curv.c
+gd_t.o: forward/gd_t.c
 	${CC} -c -o $@ $(CFLAGS) $<
 md_t.o: forward/md_t.c
 	${CC} -c -o $@ $(CFLAGS) $<

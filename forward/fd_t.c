@@ -342,3 +342,124 @@ fd_print(fd_t *fd)
   // rest
 }
 
+/*
+ * set staggered-grid scheme 
+ */
+
+int 
+fd_set_stg4(fdstg_t *fd)
+{
+  int ierr = 0;
+
+  // set max
+  fd->fdx_nghosts = 3;
+  fd->fdy_nghosts = 3;
+  fd->fdz_nghosts = 3;
+  fd->fdx_max_len = 5;
+  fd->fdy_max_len = 5;
+  fd->fdz_max_len = 5;
+  fd->fdx_max_half_len = 3;
+  fd->fdy_max_half_len = 3;
+  fd->fdz_max_half_len = 3;
+
+  //----------------------------------------------------------------------------
+  // 1d scheme for different points to surface, or different half length
+  //----------------------------------------------------------------------------
+#define  m_stg_max_len   4
+#define  m_stg_num_lay   2
+
+  // op index at all layers, zero not used point
+  int  stg_all_indx[m_stg_num_lay][m_stg_max_len] =
+  {
+    { -1, 0, 0,0 },
+    { -2,-1, 0,1 }
+  };
+
+  // op coef at all layers
+  float stg_all_coef[m_stg_num_lay][m_stg_max_len] =
+  {
+    { -1.0, 1.0, 0,0 },
+    { 0.0416666667, -1.125, 1.125, -0.0416666667 }
+  };
+
+  int  stg_all_total_len[m_stg_num_lay] = 
+  { 2, 4 };
+
+  // half len without cur point
+  int  stg_all_half_len[m_stg_num_lay] = 
+  { 1, 2 };
+
+  int  stg_all_left_len[m_stg_num_lay] = 
+  { 1, 2 }; 
+
+  int  stg_all_right_len[m_stg_num_lay] = 
+  { 0, 1 };
+
+  //----------------------------------------------------------------------------
+  // combine to fd op
+  //----------------------------------------------------------------------------
+
+  fd->num_of_fdx_op = 1;
+  fd->num_of_fdy_op = 1;
+  fd->num_of_fdz_op = 2;
+
+  // alloc
+
+  fd->lay_fdx_op = (fd_op_t *)malloc(fd->num_of_fdx_op * sizeof(fd_op_t));
+  fd->lay_fdy_op = (fd_op_t *)malloc(fd->num_of_fdy_op * sizeof(fd_op_t));
+  fd->lay_fdz_op = (fd_op_t *)malloc(fd->num_of_fdz_op * sizeof(fd_op_t));
+
+  // set fdx
+  fd_op_t *fdx_op = fd->lay_fdx_op;
+  fdx_op->total_len = stg_all_total_len[m_stg_num_lay-1];
+  fdx_op->half_len  = stg_all_half_len [m_stg_num_lay-1];
+  fdx_op->left_len  = stg_all_left_len [m_stg_num_lay-1];
+  fdx_op->right_len = stg_all_right_len[m_stg_num_lay-1];
+
+  fdx_op->indx = (int   *)malloc(fdx_op->total_len * sizeof(int));
+  fdx_op->coef = (float *)malloc(fdx_op->total_len * sizeof(float));
+
+  for (int n=0; n < fdx_op->total_len; n++)
+  {
+    fdx_op->indx[n] = stg_all_indx[m_stg_num_lay-1][n];
+    fdx_op->coef[n] = stg_all_coef[m_stg_num_lay-1][n];
+  }
+
+  // set fdy
+  fd_op_t *fdy_op = fd->lay_fdy_op;
+  fdy_op->total_len = stg_all_total_len[m_stg_num_lay-1];
+  fdy_op->half_len  = stg_all_half_len [m_stg_num_lay-1];
+  fdy_op->left_len  = stg_all_left_len [m_stg_num_lay-1];
+  fdy_op->right_len = stg_all_right_len[m_stg_num_lay-1];
+
+  fdy_op->indx = (int   *)malloc(fdy_op->total_len * sizeof(int));
+  fdy_op->coef = (float *)malloc(fdy_op->total_len * sizeof(float));
+
+  for (int n=0; n < fdy_op->total_len; n++)
+  {
+    fdy_op->indx[n] = stg_all_indx[m_stg_num_lay-1][n];
+    fdy_op->coef[n] = stg_all_coef[m_stg_num_lay-1][n];
+  }
+
+  // for fdz at each layer near surface
+  for (int ilay=0; ilay < fd->num_of_fdz_op; ilay++)
+  {
+    fd_op_t *fdz_op = fd->lay_fdz_op + ilay;
+
+    fdz_op->total_len = stg_all_total_len[ilay];
+    fdz_op->half_len  = stg_all_half_len [ilay];
+    fdz_op->left_len  = stg_all_left_len [ilay];
+    fdz_op->right_len = stg_all_right_len[ilay];
+
+    fdz_op->indx = (int   *)malloc(fdz_op->total_len * sizeof(int));
+    fdz_op->coef = (float *)malloc(fdz_op->total_len * sizeof(float));
+    for (int n=0; n < fdz_op->total_len; n++)
+    {
+      fdz_op->indx[n] = stg_all_indx[ilay][n];
+      fdz_op->coef[n] = stg_all_coef[ilay][n];
+    }
+  }
+
+  return ierr;
+}
+

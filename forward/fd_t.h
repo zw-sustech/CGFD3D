@@ -159,6 +159,38 @@ typedef struct {
 
 } fd_t;
 
+/*
+ * staggered grid scheme
+ */
+
+typedef struct {
+
+  // ghost point required 
+  int fdx_nghosts;
+  int fdy_nghosts;
+  int fdz_nghosts;
+
+  // max total len of op
+  int fdx_max_len;
+  int fdy_max_len;
+  int fdz_max_len;
+
+  // max half len
+  int fdx_max_half_len;
+  int fdy_max_half_len;
+  int fdz_max_half_len;
+
+  // number of layers that need to use biased op near boundary
+  int num_of_fdx_op;
+  int num_of_fdy_op;
+  int num_of_fdz_op;
+
+  fd_op_t *lay_fdx_op; // [nlay]
+  fd_op_t *lay_fdy_op;
+  fd_op_t *lay_fdz_op;
+
+} fdstg_t;
+
 /*******************************************************************************
  * function prototype
  ******************************************************************************/
@@ -168,5 +200,8 @@ fd_set_macdrp(fd_t *fd);
 
 void
 fd_print(fd_t *fd);
+
+int 
+fd_set_stg4(fdstg_t *fd);
 
 #endif

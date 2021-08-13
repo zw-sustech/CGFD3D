@@ -5,7 +5,7 @@
 #include "gd_info.h"
 #include "gd_info.h"
 #include "mympi_t.h"
-#include "gd_curv.h"
+#include "gd_t.h"
 #include "md_t.h"
 #include "wav_t.h"
 #include "src_t.h"

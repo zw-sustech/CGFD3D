@@ -3,7 +3,7 @@
 
 #include "constants.h"
 #include "gd_info.h"
-#include "gd_curv.h"
+#include "gd_t.h"
 #include "io_funcs.h"
 #include "wav_t.h"
 
@@ -178,7 +178,7 @@ io_var3d_export_nc(char   *ou_file,
 
 int
 io_recv_read_locate(gdinfo_t *gdinfo,
-                    gdcurv_t *gdcurv,
+                    gd_t *gd,
                     iorecv_t  *iorecv,
                     int       nt_total,
                     int       num_of_vars,
@@ -186,7 +186,7 @@ io_recv_read_locate(gdinfo_t *gdinfo,
 
 int
 io_line_locate(gdinfo_t *gdinfo,
-               gdcurv_t *gdcurv,
+               gd_t *gd,
                ioline_t *ioline,
                int    num_of_vars,
                int    nt_total,
