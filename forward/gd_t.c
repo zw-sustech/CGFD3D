@@ -797,6 +797,84 @@ gd_curv_coord_export(
     fprintf(stderr,"nc error: %s\n", nc_strerror(ierr));
     exit(-1);
   }
+
+  return;
+}
+
+void
+gd_cart_coord_export(
+  gdinfo_t *gdinfo,
+  gd_t *gdcart,
+  char *fname_coords,
+  char *output_dir)
+{
+  int  nx = gdcart->nx;
+  int  ny = gdcart->ny;
+  int  nz = gdcart->nz;
+  int  ni1 = gdinfo->ni1;
+  int  nj1 = gdinfo->nj1;
+  int  nk1 = gdinfo->nk1;
+  int  ni  = gdinfo->ni;
+  int  nj  = gdinfo->nj;
+  int  nk  = gdinfo->nk;
+  int  gni1 = gdinfo->ni1_to_glob_phys0;
+  int  gnj1 = gdinfo->nj1_to_glob_phys0;
+  int  gnk1 = gdinfo->nk1_to_glob_phys0;
+
+  // construct file name
+  char ou_file[CONST_MAX_STRLEN];
+  sprintf(ou_file, "%s/coord_%s.nc", output_dir, fname_coords);
+  
+  // read in nc
+  int ncid;
+  int varid[CONST_NDIM];
+  int dimid[CONST_NDIM];
+
+  int ierr = nc_create(ou_file, NC_CLOBBER, &ncid);
+  if (ierr != NC_NOERR){
+    fprintf(stderr,"creat coord nc error: %s\n", nc_strerror(ierr));
+    exit(-1);
+  }
+
+  // define dimension
+  ierr = nc_def_dim(ncid, "i", nx, &dimid[2]);
+  ierr = nc_def_dim(ncid, "j", ny, &dimid[1]);
+  ierr = nc_def_dim(ncid, "k", nz, &dimid[0]);
+
+  // define vars
+  ierr = nc_def_var(ncid, "x", NC_FLOAT, 1, dimid+2, &varid[0]);
+  ierr = nc_def_var(ncid, "y", NC_FLOAT, 1, dimid+1, &varid[1]);
+  ierr = nc_def_var(ncid, "z", NC_FLOAT, 1, dimid+0, &varid[2]);
+
+  // attribute: index in output snapshot, index w ghost in thread
+  int l_start[] = { ni1, nj1, nk1 };
+  nc_put_att_int(ncid,NC_GLOBAL,"local_index_of_first_physical_points",
+                   NC_INT,CONST_NDIM,l_start);
+
+  int g_start[] = { gni1, gnj1, gnk1 };
+  nc_put_att_int(ncid,NC_GLOBAL,"global_index_of_first_physical_points",
+                   NC_INT,CONST_NDIM,g_start);
+
+  int l_count[] = { ni, nj, nk };
+  nc_put_att_int(ncid,NC_GLOBAL,"count_of_physical_points",
+                   NC_INT,CONST_NDIM,l_count);
+
+  // end def
+  ierr = nc_enddef(ncid);
+
+  // add vars
+  ierr = nc_put_var_float(ncid, varid[0], gdcart->x1d);
+  ierr = nc_put_var_float(ncid, varid[1], gdcart->y1d);
+  ierr = nc_put_var_float(ncid, varid[2], gdcart->z1d);
+  
+  // close file
+  ierr = nc_close(ncid);
+  if (ierr != NC_NOERR){
+    fprintf(stderr,"nc error: %s\n", nc_strerror(ierr));
+    exit(-1);
+  }
+
+  return;
 }
 
 void

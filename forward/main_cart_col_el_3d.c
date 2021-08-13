@@ -165,6 +165,16 @@ int main(int argc, char** argv)
 
   fprintf(stdout, " --> done\n"); fflush(stdout);
 
+  // output
+  if (par->is_export_grid==1)
+  {
+    if (myid==0) fprintf(stdout,"export coord to file ...\n"); 
+    gd_cart_coord_export(gdinfo, gdcart,
+                         blk->output_fname_part,
+                         blk->grid_export_dir);
+  }
+  fprintf(stdout, " --> done\n"); fflush(stdout);
+
 //-------------------------------------------------------------------------------
 //-- media generation or import
 //-------------------------------------------------------------------------------

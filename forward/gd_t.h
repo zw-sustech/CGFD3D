@@ -153,6 +153,13 @@ gd_curv_coord_export(
   char *output_dir);
 
 void
+gd_cart_coord_export(
+  gdinfo_t *gdinfo,
+  gd_t *gdcart,
+  char *fname_coords,
+  char *output_dir);
+
+void
 gd_curv_metric_export(gdinfo_t        *gdinfo,
                       gdcurv_metric_t *metric,
                       char *fname_coords,
