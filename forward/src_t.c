@@ -656,6 +656,7 @@ src_read_locate_valsrc(gdinfo_t *gdinfo,
           this_Fy = LagInterp_Piecewise_1d(t_in, &force_vector[is_local][1][0], nt_in, order, 
                                                                wavelet_tstart[is], dt_in, t);
           this_Fz = LagInterp_Piecewise_1d(t_in, &force_vector[is_local][2][0], nt_in, order, 
+                                                               wavelet_tstart[is], dt_in, t);
 
           int iptr = iptr_it + istage;
 
