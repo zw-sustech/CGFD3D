@@ -111,45 +111,18 @@ src_set_by_par(gdinfo_t *gdinfo,
                int verbose);
 
 int
-src_read_locate_valsrc(char *pfilepath,
-                      size_t siz_line,
-                      size_t siz_slice,
-                      float t0,
-                      float dt,
-                      int   num_of_stages,
-                      float *rk_stage_time,
-                      int   glob_phys_ix1, // gloabl start index along x this thread
-                      int   glob_phys_ix2, // gloabl end index along x
-                      int   glob_phys_iy1,
-                      int   glob_phys_iy2,
-                      int   glob_phys_iz1,
-                      int   glob_phys_iz2,
-                      int   ni1,
-                      int   ni2,
-                      int   nj1,
-                      int   nj2,
-                      int   nk1,
-                      int   nk2,
-                      int   npoint_half_ext,
-                      int   npoint_ghosts,
-                      float *x3d,
-                      float *y3d,
-                      float *z3d,
-                      MPI_Comm comm,
-                      int myid,
-                      // following output
-                      char **p_event_name,
-                      int  *num_of_force, // inout: if force source, if in this thread
-                      int **restrict p_force_info,
-                      float  **restrict p_force_vec_stf,
-                      int    **restrict p_force_ext_indx,
-                      float  **restrict p_force_ext_coef,
-                      int  *num_of_moment, // inout: if moment source, if in this thread
-                      int    **restrict p_moment_info,
-                      float  **restrict p_moment_ten_rate,
-                      int    **restrict p_moment_ext_indx,
-                      float  **restrict p_moment_ext_coef,
-                      int verbose);
+src_read_locate_valsrc(gdinfo_t *gdinfo,
+                       gdcurv_t *gdcurv,
+                       src_t    *src,
+                       char *pfilepath,
+                       float t0,
+                       float dt,
+                       int   max_stages,
+                       float *rk_stage_time,
+                       int   npoint_half_ext,
+                       MPI_Comm comm,
+                       int myid,
+                       int verbose);
 
 int
 src_read_locate_anasrc(gdinfo_t *gdinfo,
