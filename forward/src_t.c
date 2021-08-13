@@ -515,22 +515,29 @@ src_read_locate_valsrc(gdinfo_t *gdinfo,
   int si_glob,sj_glob,sk_glob;
   float sx_inc, sy_inc, sz_inc;
 
-  // workspace 3d var for distance calculation, only used for coord input
-  float *wrk3d=NULL;
-  wrk3d = (float *) fdlib_mem_calloc_1d_float(nx*ny*nz,0.0,"src_set_by_par");
-
   //
   // first run: loop all src to get info
   //
+  // workspace 3d var for distance calculation, only used for coord input
+  float *wrk3d=NULL;
+  float *wavelet_tstart = NULL;
+  int *source_in_thread = NULL;
+  int **source_index = NULL;
+  float **source_inc = NULL;
+  if(in_num_source > 0)
+  {
+    wrk3d = (float *) fdlib_mem_calloc_1d_float(nx*ny*nz,0.0,"src_set_by_par");
+    wavelet_tstart = (float *) fdlib_mem_calloc_1d_float(in_num_source, 0.0, "wavelet_tstart");
+    source_in_thread = fdlib_mem_calloc_1d_int(in_num_source,-1, "source_in_this_thread");
+    source_index = (int **) fdlib_mem_malloc_2l_int(in_num_source,CONST_NDIM,"source_index");
+    source_inc = (float **) fdlib_mem_malloc_2l_float(in_num_source,CONST_NDIM,"source_inc");
+  }
+
   int num_of_src_here = 0;
   int force_actived = 0;
   int moment_actived = 0;
   int   max_nt = 0;
-  int *source_in_thread = fdlib_mem_calloc_1d_int(in_num_source,-1, "source_in_this_thread");
-  int **source_index = (int **) fdlib_mem_malloc_2l_int(in_num_source,CONST_NDIM,"source_index");
-  float **source_inc = (float **) fdlib_mem_malloc_2l_float(in_num_source,CONST_NDIM,"source_inc");
   max_nt = (int) (((nt_in-1)*dt_in / dt)+ 0.5) + 1; 
-
 
   for (int is=0; is < in_num_source; is++)
   {
@@ -561,30 +568,25 @@ src_read_locate_valsrc(gdinfo_t *gdinfo,
   }
 
   // check if force and moment used
-  if (in_num_force >= 1 && num_of_src_here > 0) force_actived = 1;
-  if (in_num_moment >= 1 && num_of_src_here > 0) moment_actived = 1;
+  if (in_num_force > 0 && num_of_src_here > 0) force_actived = 1;
+  if (in_num_moment > 0 && num_of_src_here > 0) moment_actived = 1;
 
-  float *wavelet_tstart = NULL;
   float ***force_vector = NULL;
   float ***moment_tensor = NULL;
   char  **moment_wavelet_mechism = NULL;
-  if(in_num_source>0)
-  {
-    wavelet_tstart = (float *) fdlib_mem_calloc_1d_float(in_num_source, 0.0, "wavelet_tstart");
-  }
-  if(in_num_force>0)
-  {
-    force_vector = (float ***) fdlib_mem_calloc_3l_float(in_num_force, CONST_NDIM, nt_in, 0.0, "force_vector");
-  }
-  if(in_num_moment > 0)
+  if(in_num_moment>0)
   {
     moment_wavelet_mechism = fdlib_mem_malloc_2l_char(in_num_moment, 500, "moment_wavelet_mechism");
-    moment_tensor = (float ***) fdlib_mem_calloc_3l_float(in_num_moment, CONST_NDIM_2, nt_in, 0.0, "moment_tensor");
+  }
+  if(num_of_src_here > 0)
+  {
+    force_vector = (float ***) fdlib_mem_calloc_3l_float(num_of_src_here, CONST_NDIM, nt_in, 0.0, "force_vector");
+    moment_tensor = (float ***) fdlib_mem_calloc_3l_float(num_of_src_here, CONST_NDIM_2, nt_in, 0.0, "moment_tensor");
   }
 
-  //if (num_of_src_here>0)
-  if (in_num_source>0)
+  if (num_of_src_here>0)
   {
+    int is_local = 0;
     // read force
     for (int is=0; is<in_num_force; is++)
     {	
@@ -595,8 +597,9 @@ src_read_locate_valsrc(gdinfo_t *gdinfo,
         for(int k=0; k<nt_in; k++)
         {
           fgets(str,500,fp);
-          sscanf(str,"%f %f %f",&force_vector[is][0][k],&force_vector[is][1][k],&force_vector[is][2][k]);
+          sscanf(str,"%f %f %f",&force_vector[is_local][0][k],&force_vector[is_local][1][k],&force_vector[is_local][2][k]);
         }
+        is_local += 1;
       }
 
       if(source_in_thread[is] == -1)
@@ -630,12 +633,12 @@ src_read_locate_valsrc(gdinfo_t *gdinfo,
             // M0 = u*D*A; 
             float M0 = angel[3]*angel[4]*angel[5];  
             angle2moment(angel[0],angel[1],angel[2],temp_moment);
-            moment_tensor[is-in_num_force][0][k] = M0*temp_moment[0];
-            moment_tensor[is-in_num_force][1][k] = M0*temp_moment[1];
-            moment_tensor[is-in_num_force][2][k] = M0*temp_moment[2];
-            moment_tensor[is-in_num_force][3][k] = M0*temp_moment[3];
-            moment_tensor[is-in_num_force][4][k] = M0*temp_moment[4];
-            moment_tensor[is-in_num_force][5][k] = M0*temp_moment[5];
+            moment_tensor[is_local][0][k] = M0*temp_moment[0];
+            moment_tensor[is_local][1][k] = M0*temp_moment[1];
+            moment_tensor[is_local][2][k] = M0*temp_moment[2];
+            moment_tensor[is_local][3][k] = M0*temp_moment[3];
+            moment_tensor[is_local][4][k] = M0*temp_moment[4];
+            moment_tensor[is_local][5][k] = M0*temp_moment[5];
           }
         }
         if (strcmp("moment_tensor",moment_wavelet_mechism[index]) == 0)
@@ -643,11 +646,12 @@ src_read_locate_valsrc(gdinfo_t *gdinfo,
           for (int k=0;k<nt_in;k++)
           {
             fgets(str,500,fp);
-            sscanf(str,"%f %f %f %f %f %f",&moment_tensor[is-in_num_force][0][k], &moment_tensor[is-in_num_force][1][k], 
-                                           &moment_tensor[is-in_num_force][2][k], &moment_tensor[is-in_num_force][3][k],
-                                           &moment_tensor[is-in_num_force][4][k], &moment_tensor[is-in_num_force][5][k]);
+            sscanf(str,"%f %f %f %f %f %f",&moment_tensor[is_local][0][k], &moment_tensor[is_local][1][k], 
+                                           &moment_tensor[is_local][2][k], &moment_tensor[is_local][3][k],
+                                           &moment_tensor[is_local][4][k], &moment_tensor[is_local][5][k]);
           }
         }
+        is_local += 1;
       }
 
       if (source_in_thread[is] == -1)
@@ -721,12 +725,11 @@ src_read_locate_valsrc(gdinfo_t *gdinfo,
           if ( is < in_num_force) {
           float this_Fx, this_Fy, this_Fz;
           // interp1d give t to get Force vector
-          this_Fx = LagInterp_Piecewise_1d(t_in, &force_vector[is][0][0], nt_in, order, 
+          this_Fx = LagInterp_Piecewise_1d(t_in, &force_vector[is_local][0][0], nt_in, order, 
                                                                wavelet_tstart[is], dt_in, t);
-          this_Fy = LagInterp_Piecewise_1d(t_in, &force_vector[is][1][0], nt_in, order, 
+          this_Fy = LagInterp_Piecewise_1d(t_in, &force_vector[is_local][1][0], nt_in, order, 
                                                                wavelet_tstart[is], dt_in, t);
-          this_Fz = LagInterp_Piecewise_1d(t_in, &force_vector[is][2][0], nt_in, order, 
-                                                               wavelet_tstart[is], dt_in, t);
+          this_Fz = LagInterp_Piecewise_1d(t_in, &force_vector[is_local][2][0], nt_in, order, 
 
           int iptr = iptr_it + istage;
 
@@ -738,17 +741,17 @@ src_read_locate_valsrc(gdinfo_t *gdinfo,
           if ( is >= in_num_force) {
           float this_Mxx, this_Myy, this_Mzz, this_Mxz, this_Myz, this_Mxy;
           // interp1d give t to get moment tensor
-          this_Mxx = LagInterp_Piecewise_1d(t_in, &moment_tensor[is-in_num_force][0][0], nt_in, order,
+          this_Mxx = LagInterp_Piecewise_1d(t_in, &moment_tensor[is_local][0][0], nt_in, order,
                                                          wavelet_tstart[is], dt_in, t);
-          this_Myy = LagInterp_Piecewise_1d(t_in, &moment_tensor[is-in_num_force][1][0], nt_in, order,
+          this_Myy = LagInterp_Piecewise_1d(t_in, &moment_tensor[is_local][1][0], nt_in, order,
                                                          wavelet_tstart[is], dt_in, t);
-          this_Mzz = LagInterp_Piecewise_1d(t_in, &moment_tensor[is-in_num_force][2][0], nt_in, order,
+          this_Mzz = LagInterp_Piecewise_1d(t_in, &moment_tensor[is_local][2][0], nt_in, order,
                                                          wavelet_tstart[is], dt_in, t);
-          this_Mxz = LagInterp_Piecewise_1d(t_in, &moment_tensor[is-in_num_force][3][0], nt_in, order,
+          this_Mxz = LagInterp_Piecewise_1d(t_in, &moment_tensor[is_local][3][0], nt_in, order,
                                                          wavelet_tstart[is], dt_in, t);
-          this_Myz = LagInterp_Piecewise_1d(t_in, &moment_tensor[is-in_num_force][4][0], nt_in, order,
+          this_Myz = LagInterp_Piecewise_1d(t_in, &moment_tensor[is_local][4][0], nt_in, order,
                                                          wavelet_tstart[is], dt_in, t);
-          this_Mxy = LagInterp_Piecewise_1d(t_in, &moment_tensor[is-in_num_force][5][0], nt_in, order,
+          this_Mxy = LagInterp_Piecewise_1d(t_in, &moment_tensor[is_local][5][0], nt_in, order,
                                                          wavelet_tstart[is], dt_in, t);
 
           int iptr = iptr_it + istage;
@@ -809,13 +812,13 @@ src_read_locate_valsrc(gdinfo_t *gdinfo,
     fdlib_mem_free_2l_float(source_inc, in_num_source, "free_source_inc");
     fdlib_mem_free_2l_int(source_index, in_num_source, "free_source_index");
   }
-  if(in_num_force > 0)
+  if(num_of_src_here > 0)
   {
-    fdlib_mem_free_3l_float(force_vector, in_num_force, CONST_NDIM, "free_force_vector");
+    fdlib_mem_free_3l_float(force_vector, num_of_src_here, CONST_NDIM, "free_force_vector");
+    fdlib_mem_free_3l_float(moment_tensor, num_of_src_here, CONST_NDIM_2, "free_moment_tensor");
   }
-  if(in_num_moment > 0)
+  if(in_num_moment)
   {
-    fdlib_mem_free_3l_float(moment_tensor, in_num_moment, CONST_NDIM_2, "free_moment_tensor");
     fdlib_mem_free_2l_char(moment_wavelet_mechism,in_num_moment,"free_wavelet_name");
   }
   return ierr;
