@@ -7,14 +7,12 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <stdbool.h>
 #include <math.h>
 
 #include "fdlib_math.h"
 #include "interp.h"
 #include "fdlib_mem.h"
 #include "src_t.h"
-#include "isPointInHexahedron.h"
 
 /*
  * src_t alloc
@@ -95,86 +93,6 @@ src_set_time(src_t *src, int it, int istage)
 }
 
 /*
- * convert coord to global index using MPI
- */
-
-int
-src_coord_to_glob_indx(gdinfo_t *gdinfo,
-                       gdcurv_t *gdcurv,
-                       float sx,
-                       float sy,
-                       float sz,
-                       MPI_Comm comm,
-                       int myid,
-                       int   *ou_si, int *ou_sj, int *ou_sk,
-                       float *ou_sx_inc, float *ou_sy_inc, float *ou_sz_inc,
-                       float *restrict wrk3d)
-{
-  int is_here = 0;
-
-  int si_glob = 0;
-  int sj_glob = 0;
-  int sk_glob = 0;
-  float sx_inc = 0.0;
-  float sy_inc = 0.0;
-  float sz_inc = 0.0;
-  int si = 0;
-  int sj = 0;
-  int sk = 0;
-
-  // if located in this thread
-  is_here = src_coord_to_local_indx(gdinfo,gdcurv, sx,sy,sz,
-                                    &si, &sj, &sk, &sx_inc, &sy_inc, &sz_inc,
-                                    wrk3d);
-
-  // if in this thread
-  if ( is_here == 1)
-  {
-    // conver to global index
-    si_glob = gd_info_ind_lcext2glphy_i(si, gdinfo);
-    sj_glob = gd_info_ind_lcext2glphy_j(sj, gdinfo);
-    sk_glob = gd_info_ind_lcext2glphy_k(sk, gdinfo);
-    fprintf(stdout," -- located to local index = %d %d %d\n", si,sj,sk);
-    fprintf(stdout," -- located to global index = %d %d %d\n", 
-                          si_glob, sj_glob, sk_glob);
-    fprintf(stdout," --  with shift = %f %f %f\n", sx_inc,sy_inc,sz_inc);
-  } else {
-    //fprintf(stdout," -- not in this thread %d\n", myid);
-  }
-
-  // reduce global index and shift values
-  int sendbufi = si_glob;
-  MPI_Allreduce(&sendbufi, &si_glob, 1, MPI_INT, MPI_MAX, comm);
-
-  sendbufi = sj_glob;
-  MPI_Allreduce(&sendbufi, &sj_glob, 1, MPI_INT, MPI_MAX, comm);
-
-  sendbufi = sk_glob;
-  MPI_Allreduce(&sendbufi, &sk_glob, 1, MPI_INT, MPI_MAX, comm);
-
-  float sendbuf = sx_inc;
-  MPI_Allreduce(&sendbuf, &sx_inc, 1, MPI_INT, MPI_SUM, comm);
-
-  sendbuf = sy_inc;
-  MPI_Allreduce(&sendbuf, &sy_inc, 1, MPI_INT, MPI_SUM, comm);
-
-  sendbuf = sz_inc;
-  MPI_Allreduce(&sendbuf, &sz_inc, 1, MPI_INT, MPI_SUM, comm);
-
-  fprintf(stdout," --myid=%d,index=%d %d %d,shift = %f %f %f\n",
-      myid,si_glob,sj_glob,sk_glob, sx_inc,sy_inc,sz_inc);
-
-  *ou_si = si_glob;
-  *ou_sj = sj_glob;
-  *ou_sk = sk_glob;
-  *ou_sx_inc = sx_inc;
-  *ou_sy_inc = sy_inc;
-  *ou_sz_inc = sz_inc;
-
-  return is_here; 
-}
-
-/*
  * if extend global index in this thread
  */
 
@@ -202,7 +120,7 @@ src_glob_ext_ishere(int si, int sj, int sk, int half_ext, gdinfo_t *gdinfo)
 
 int
 src_set_by_par(gdinfo_t *gdinfo,
-               gdcurv_t *gdcurv,
+               gd_t *gd,
                src_t    *src,
                float t0,
                float dt,
@@ -290,9 +208,17 @@ src_set_by_par(gdinfo_t *gdinfo,
 
       fprintf(stdout,"locate source by coord (%f,%f,%f) ...\n",sx,sy,sz);
       fflush(stdout);
-      src_coord_to_glob_indx(gdinfo,gdcurv,sx,sy,sz,comm,myid,
-                             &si_glob,&sj_glob,&sk_glob,&sx_inc,&sy_inc,&sz_inc,
-                             wrk3d);
+      if (gd->type == GD_TYPE_CURV)
+      {
+        gd_curv_coord_to_glob_indx(gdinfo,gd,sx,sy,sz,comm,myid,
+                               &si_glob,&sj_glob,&sk_glob,&sx_inc,&sy_inc,&sz_inc,
+                               wrk3d);
+      }
+      else if (gd->type == GD_TYPE_CART)
+      {
+        gd_cart_coord_to_glob_indx(gdinfo,gd,sx,sy,sz,comm,myid,
+                               &si_glob,&sj_glob,&sk_glob,&sx_inc,&sy_inc,&sz_inc);
+      }
       // keep index to avoid duplicat run
       source_index[is][0] = si_glob;
       source_index[is][1] = sj_glob;
@@ -444,7 +370,7 @@ src_set_by_par(gdinfo_t *gdinfo,
 
 int
 src_read_locate_valsrc(gdinfo_t *gdinfo,
-                       gdcurv_t *gdcurv,
+                       gd_t *gdcurv,
                        src_t    *src,
                        char *pfilepath,
                        float t0,
@@ -549,7 +475,7 @@ src_read_locate_valsrc(gdinfo_t *gdinfo,
       float sz = source_coords[is][2];
       fprintf(stdout,"locate source by coord (%f,%f,%f) ...\n",sx,sy,sz);
       fflush(stdout);
-      src_coord_to_glob_indx(gdinfo,gdcurv,sx,sy,sz,comm,myid,
+      gd_curv_coord_to_glob_indx(gdinfo,gdcurv,sx,sy,sz,comm,myid,
                              &si_glob,&sj_glob,&sk_glob,&sx_inc,&sy_inc,&sz_inc,
                              wrk3d);
       // keep index to avoid duplicat run
@@ -828,7 +754,7 @@ src_read_locate_valsrc(gdinfo_t *gdinfo,
 
 int
 src_read_locate_anasrc(gdinfo_t *gdinfo,
-                       gdcurv_t *gdcurv,
+                       gd_t *gdcurv,
                        src_t    *src,
                        char *pfilepath,
                        float t0,
@@ -1002,7 +928,7 @@ src_read_locate_anasrc(gdinfo_t *gdinfo,
       float sz = source_coords[is][2];
       fprintf(stdout,"locate source by coord (%f,%f,%f) ...\n",sx,sy,sz);
       fflush(stdout);
-      src_coord_to_glob_indx(gdinfo,gdcurv,sx,sy,sz,comm,myid,
+      gd_curv_coord_to_glob_indx(gdinfo,gdcurv,sx,sy,sz,comm,myid,
                              &si_glob,&sj_glob,&sk_glob,&sx_inc,&sy_inc,&sz_inc,
                              wrk3d);
       // keep index to avoid duplicat run
@@ -1277,321 +1203,7 @@ angle2moment(float strike, float dip, float rake, float* source_moment_tensor)
   source_moment_tensor[3] = -M23 ;  // Mxz 
   source_moment_tensor[4] = -M13 ;  // Myz
   source_moment_tensor[5] =  M12 ;  // Mxy 
-}
 
-/* 
- * if the nearest point in this thread then search its grid index
- *   return value:
- *      1 - in this thread
- *      0 - not in this thread
- */
-
-int
-src_coord_to_local_indx(gdinfo_t *gdinfo,
-                        gdcurv_t *gdcurv,
-                        float sx, float sy, float sz,
-                        int *si, int *sj, int *sk,
-                        float *sx_inc, float *sy_inc, float *sz_inc,
-                        float *restrict wrk3d)
-{
-  int is_here = 0; // default outside
-
-  int nx = gdinfo->nx;
-  int ny = gdinfo->ny;
-  int nz = gdinfo->nz;
-  int ni1 = gdinfo->ni1;
-  int ni2 = gdinfo->ni2;
-  int nj1 = gdinfo->nj1;
-  int nj2 = gdinfo->nj2;
-  int nk1 = gdinfo->nk1;
-  int nk2 = gdinfo->nk2;
-  size_t siz_line  = gdinfo->siz_iy;
-  size_t siz_slice = gdinfo->siz_iz;
-
-  float *restrict x3d = gdcurv->x3d;
-  float *restrict y3d = gdcurv->y3d;
-  float *restrict z3d = gdcurv->z3d;
-
-  // outside coord range
-  if ( sx < gdcurv->xmin || sx > gdcurv->xmax ||
-       sy < gdcurv->ymin || sy > gdcurv->ymax ||
-       sz < gdcurv->zmin || sz > gdcurv->zmax)
-  {
-    is_here = 0;
-    return is_here;
-  }
-
-  // init closest point
-  float min_dist = sqrtf(  (sx - x3d[0]) * (sx - x3d[0])
-      + (sy - y3d[0]) * (sy - y3d[0])
-      + (sz - z3d[0]) * (sz - z3d[0]) );
-  int min_dist_i = 0 ;
-  int min_dist_j = 0 ;
-  int min_dist_k = 0 ;
-
-  // compute distance to each point
-  for (int k=0; k<nz; k++) {
-    for (int j=0; j<ny; j++) {
-      for (int i=0; i<nx; i++)
-      {
-        size_t iptr = i + j * siz_line + k * siz_slice;
-
-        float x = x3d[iptr];
-        float y = y3d[iptr];
-        float z = z3d[iptr];
-
-        float DistInt = sqrtf(  (sx - x) * (sx - x)
-            + (sy - y) * (sy - y)
-            + (sz - z) * (sz - z) );
-        wrk3d[iptr] =  DistInt;
-
-        // replace closest point
-        if (min_dist > DistInt)
-        {
-          min_dist = DistInt;
-          min_dist_i = i;
-          min_dist_j = j;
-          min_dist_k = k;
-        }
-      }
-    }
-  }
-
-  // if nearest index is outside phys region, not here
-  if ( min_dist_i < ni1 || min_dist_i > ni2 ||
-      min_dist_j < nj1 || min_dist_j > nj2 ||
-      min_dist_k < nk1 || min_dist_k > nk2 )
-  {
-    is_here = 0;
-    return is_here;
-  }
-
-  // in this thread
-  is_here = 1;
-
-  float points_x[8];
-  float points_y[8];
-  float points_z[8];
-  float points_i[8];
-  float points_j[8];
-  float points_k[8];
-
-  for (int kk=0; kk<2; kk++)
-  {
-    for (int jj=0; jj<2; jj++)
-    {
-      for (int ii=0; ii<2; ii++)
-      {
-        int cur_i = min_dist_i-1+ii;
-        int cur_j = min_dist_j-1+jj;
-        int cur_k = min_dist_k-1+kk;
-
-        for (int n3=0; n3<2; n3++) {
-          for (int n2=0; n2<2; n2++) {
-            for (int n1=0; n1<2; n1++) {
-              int iptr_cube = n1 + n2 * 2 + n3 * 4;
-              int iptr = (cur_i+n1) + (cur_j+n2) * siz_line +
-                (cur_k+n3) * siz_slice;
-              points_x[iptr_cube] = x3d[iptr];
-              points_y[iptr_cube] = y3d[iptr];
-              points_z[iptr_cube] = z3d[iptr];
-              points_i[iptr_cube] = cur_i+n1;
-              points_j[iptr_cube] = cur_j+n2;
-              points_k[iptr_cube] = cur_k+n3;
-            }
-          }
-        }
-
-        if (isPointInHexahedron(sx,sy,sz,points_x,points_y,points_z) == true)
-        {
-          float si_curv, sj_curv, sk_curv;
-          //src_cart2curv_rdinterp(sx,sy,sz,
-          //              8,
-          //              points_x,points_y,points_z,
-          //              points_i,points_j,points_k,
-          //              &si_curv, &sj_curv, &sk_curv);
-
-          src_cart2curv_sample(sx,sy,sz,
-              8,
-              points_x,points_y,points_z,
-              points_i,points_j,points_k,
-              100,100,100,
-              &si_curv, &sj_curv, &sk_curv);
-
-          // convert to return values
-          *si = min_dist_i;
-          *sj = min_dist_j;
-          *sk = min_dist_k;
-          *sx_inc = si_curv - min_dist_i;
-          *sy_inc = sj_curv - min_dist_j;
-          *sz_inc = sk_curv - min_dist_k;
-
-          return is_here;
-        }
-      }
-    }
-  }
-
-  // if not in any cube due to bug, set default value
-  //    if everything is right, should be return 10 line before
-  *si = min_dist_i;
-  *sj = min_dist_j;
-  *sk = min_dist_k;
-  *sx_inc = 0.0;
-  *sy_inc = 0.0;
-  *sz_inc = 0.0;
-
-  return is_here;
-}
-
-/* 
- * interp curv coord using inverse distance interp
- */
-
-  int
-src_cart2curv_rdinterp(float sx, float sy, float sz, 
-    int num_points,
-    float *points_x, // x coord of all points
-    float *points_y,
-    float *points_z,
-    float *points_i, // curv coord of all points
-    float *points_j,
-    float *points_k,
-    float *si_curv, // interped curv coord
-    float *sj_curv,
-    float *sk_curv)
-{
-  float weight[num_points];
-  float total_weight = 0.0 ;
-
-  // cal weight
-  int at_point_indx = -1;
-  for (int i=0; i<num_points; i++)
-  {
-    float dist = sqrtf ((sx - points_x[i]) * (sx - points_x[i])
-        + (sy - points_y[i]) * (sy - points_y[i])
-        + (sz - points_z[i]) * (sz - points_z[i])
-        );
-    if (dist < 1e-9) {
-      at_point_indx = i;
-    } else {
-      weight[i]   = 1.0 / dist;
-      total_weight += weight[i];
-    }
-  }
-  // if at a point
-  if (at_point_indx > 0) {
-    total_weight = 1.0;
-    // other weight 0
-    for (int i=0; i<num_points; i++) {
-      weight[i] = 0.0;
-    }
-    // point weight 1
-    weight[at_point_indx] = 1.0;
-  }
-
-  // interp
-
-  *si_curv = 0.0;
-  *sj_curv = 0.0;
-  *sk_curv = 0.0;
-
-  for (int i=0; i<num_points; i++)
-  {
-    weight[i] *= 1.0 / total_weight ;
-
-    (*si_curv) += weight[i] * points_i[i];
-    (*sj_curv) += weight[i] * points_j[i]; 
-    (*sk_curv) += weight[i] * points_k[i];  
-
-    fprintf(stdout,"---- i=%d,weight=%f,points_i=%f,points_j=%f,points_k=%f\n",
-        i,weight[i],points_i[i],points_j[i],points_k[i]);
-  }
-
-  return 0;
-}
-
-/* 
- * find curv coord using sampling
- */
-
-  int
-src_cart2curv_sample(float sx, float sy, float sz, 
-    int num_points,
-    float *points_x, // x coord of all points
-    float *points_y,
-    float *points_z,
-    float *points_i, // curv coord of all points
-    float *points_j,
-    float *points_k,
-    int    nx_sample,
-    int    ny_sample,
-    int    nz_sample,
-    float *si_curv, // interped curv coord
-    float *sj_curv,
-    float *sk_curv)
-{
-  float Lx[2], Ly[2], Lz[2];
-
-  // init closest point
-  float min_dist = sqrtf(  (sx - points_x[0]) * (sx - points_x[0])
-      + (sy - points_y[0]) * (sy - points_y[0])
-      + (sz - points_z[0]) * (sz - points_z[0]) );
-  int min_dist_i = 0 ;
-  int min_dist_j = 0 ;
-  int min_dist_k = 0 ;
-
-  // linear interp for all sample
-  for (int n3=0; n3<nz_sample+1; n3++)
-  {
-    Lz[1] = (float)(n3) / (float)(nz_sample);
-    Lz[0] = 1.0 - Lz[1];
-    for (int n2=0; n2<ny_sample+1; n2++)
-    {
-      Ly[1] = (float)(n2) / (float)(ny_sample);
-      Ly[0] = 1.0 - Ly[1];
-      for (int n1=0; n1<nx_sample+1; n1++)
-      {
-        Lx[1] = (float)(n1) / (float)(nx_sample);
-        Lx[0] = 1.0 - Lx[1];
-
-        // interp
-        float x_pt=0;
-        float y_pt=0;
-        float z_pt=0;
-        for (int kk=0; kk<2; kk++) {
-          for (int jj=0; jj<2; jj++) {
-            for (int ii=0; ii<2; ii++)
-            {
-              int iptr_cube = ii + jj * 2 + kk * 4;
-              x_pt += Lx[ii]*Ly[jj]*Lz[kk] * points_x[iptr_cube];
-              y_pt += Lx[ii]*Ly[jj]*Lz[kk] * points_y[iptr_cube];
-              z_pt += Lx[ii]*Ly[jj]*Lz[kk] * points_z[iptr_cube];
-            }
-          }
-        }
-
-        // find min dist
-        float DistInt = sqrtf(  (sx - x_pt) * (sx - x_pt)
-            + (sy - y_pt) * (sy - y_pt)
-            + (sz - z_pt) * (sz - z_pt) );
-
-        // replace closest point
-        if (min_dist > DistInt)
-        {
-          min_dist = DistInt;
-          min_dist_i = n1;
-          min_dist_j = n2;
-          min_dist_k = n3;
-        }
-      } // n1
-    } // n2
-  } // n3
-
-  *si_curv = points_i[0] + (float)min_dist_i / (float)nx_sample;
-  *sj_curv = points_j[0] + (float)min_dist_j / (float)ny_sample;
-  *sk_curv = points_k[0] + (float)min_dist_k / (float)nz_sample;
-
-  return 0;
+  return;
 }
 

@@ -5,7 +5,7 @@
 
 #include "constants.h"
 #include "gd_info.h"
-#include "gd_curv.h"
+#include "gd_t.h"
 
 // cal force_vec_stf/moment_ten_rate 1d index for icmp,it,istage
 //  with respect to the start pointer of this source point
@@ -63,7 +63,7 @@ typedef struct {
 
 int
 src_coord_to_glob_indx(gdinfo_t *gdinfo,
-                       gdcurv_t *gdcurv,
+                       gd_t *gdcurv,
                        float sx,
                        float sy,
                        float sz,
@@ -78,7 +78,7 @@ src_glob_ext_ishere(int si, int sj, int sk, int half_ext, gdinfo_t *gdinfo);
 
 int
 src_coord_to_local_indx(gdinfo_t *gdinfo,
-                        gdcurv_t *gdcurv,
+                        gd_t *gdcurv,
                         float sx, float sy, float sz,
                         int *si, int *sj, int *sk,
                         float *sx_inc, float *sy_inc, float *sz_inc,
@@ -86,7 +86,7 @@ src_coord_to_local_indx(gdinfo_t *gdinfo,
 
 int
 src_set_by_par(gdinfo_t *gdinfo,
-               gdcurv_t *gdcurv,
+               gd_t *gdcurv,
                src_t    *src,
                float t0,
                float dt,
@@ -112,7 +112,7 @@ src_set_by_par(gdinfo_t *gdinfo,
 
 int
 src_read_locate_valsrc(gdinfo_t *gdinfo,
-                       gdcurv_t *gdcurv,
+                       gd_t *gdcurv,
                        src_t    *src,
                        char *pfilepath,
                        float t0,
@@ -126,7 +126,7 @@ src_read_locate_valsrc(gdinfo_t *gdinfo,
 
 int
 src_read_locate_anasrc(gdinfo_t *gdinfo,
-                       gdcurv_t *gdcurv,
+                       gd_t *gdcurv,
                        src_t    *src,
                        char *pfilepath,
                        float t0,

@@ -3,7 +3,7 @@
 
 #include "constants.h"
 #include "gd_info.h"
-#include "gd_curv.h"
+#include "gd_t.h"
 #include "wav_t.h"
 
 /*************************************************
@@ -87,7 +87,7 @@ bdry_pml_cal_b(float x, float L, float bmax);
 
 void
 bdry_pml_set(gdinfo_t *gdinfo,
-             gdcurv_t *gdcurv,
+             gd_t *gd,
              wav_t *wav,
              bdrypml_t *bdrypml,
              int   *neighid, 
@@ -104,5 +104,13 @@ bdry_pml_auxvar_init(int nx, int ny, int nz,
                      wav_t *wav,
                      bdrypml_auxvar_t *auxvar,
                      const int verbose);
+
+int
+bdry_pml_cal_len_dh(gd_t *gd, 
+                    int abs_ni1, int abs_ni2,
+                    int abs_nj1, int abs_nj2,
+                    int abs_nk1, int abs_nk2,
+                    int idim,
+                    float *avg_L, float *avg_dh);
 
 #endif

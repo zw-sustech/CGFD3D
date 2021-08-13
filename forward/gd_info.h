@@ -20,7 +20,11 @@ typedef struct {
   int nj2;
   int nk1;
   int nk2;
+
   int npoint_ghosts;
+  int fdx_nghosts;
+  int fdy_nghosts;
+  int fdz_nghosts;
 
   // global index
   int gni1, gnj1, gnk1; // global index, do not accout ghost point

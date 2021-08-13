@@ -155,6 +155,10 @@ gd_info_set(gdinfo_t *const gdinfo,
   // set npoint_ghosts according to fdz_nghosts
   gdinfo->npoint_ghosts = fdz_nghosts;
 
+  gdinfo->fdx_nghosts = fdx_nghosts;
+  gdinfo->fdy_nghosts = fdy_nghosts;
+  gdinfo->fdz_nghosts = fdz_nghosts;
+
   gdinfo->index_name = fdlib_mem_malloc_2l_char(
                         CONST_NDIM, CONST_MAX_STRLEN, "gdinfo name");
 

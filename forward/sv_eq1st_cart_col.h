@@ -1,5 +1,5 @@
-#ifndef SV_EQ1ST_CURV_COL_H
-#define SV_EQ1ST_CURV_COL_H
+#ifndef SV_EQ1ST_CART_COL_H
+#define SV_EQ1ST_CART_COL_H
 
 #include "fd_t.h"
 #include "gd_info.h"
@@ -18,10 +18,10 @@
  *************************************************/
 
 void
-sv_eq1st_curv_col_allstep(
+sv_eq1st_cart_col_allstep(
   fd_t            *fd,
   gdinfo_t        *gdinfo,
-  gdcurv_metric_t *metric,
+  gd_t        *gdcart,
   md_t      *md,
   src_t      *src,
   bdryfree_t *bdryfree,

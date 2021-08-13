@@ -3,7 +3,7 @@
 
 #include "constants.h"
 #include "gd_info.h"
-#include "gd_curv.h"
+#include "gd_t.h"
 
 /*************************************************
  * structure
@@ -19,7 +19,7 @@ typedef struct
   int nz;
 
   // top
-  float *matVx2Vz2;
+  float *matVx2Vz2; // [j,i, dzVi, dxVi]
   float *matVy2Vz2;
 
   // bottom

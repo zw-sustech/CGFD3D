@@ -20,7 +20,7 @@
 #include "blk_t.h"
 
 #include "media_discrete_model.h"
-#include "sv_eq1st_curv_col.h"
+#include "sv_eq1st_cart_col.h"
 
 int main(int argc, char** argv)
 {
@@ -103,7 +103,7 @@ int main(int argc, char** argv)
   fd_t            *fd            = blk->fd    ;
   mympi_t         *mympi         = blk->mympi ;
   gdinfo_t        *gdinfo        = blk->gdinfo;
-  gd_t            *gdcurv        = blk->gd;
+  gd_t            *gdcart            = blk->gd;
   gdcurv_metric_t *gdcurv_metric = blk->gdcurv_metric;
   md_t            *md            = blk->md;
   wav_t           *wav           = blk->wav;
@@ -152,108 +152,17 @@ int main(int argc, char** argv)
 
   if (myid==0 && verbose>0) fprintf(stdout,"allocate grid vars ...\n"); 
 
-  // malloc var in gdcurv
-  gd_curv_init(gdinfo, gdcurv);
+  // malloc var in gdcart
+  float dx = par->cartesian_grid_stepsize[0];
+  float dy = par->cartesian_grid_stepsize[1];
+  float dz = par->cartesian_grid_stepsize[2];
 
-  // malloc var in gdcurv_metric
-  gd_curv_metric_init(gdinfo, gdcurv_metric);
+  float x0 = par->cartesian_grid_origin[0];
+  float y0 = par->cartesian_grid_origin[1];
+  float z0 = par->cartesian_grid_origin[2];
 
-  // generate grid coord
-  switch (par->grid_generation_itype)
-  {
-    case PAR_GRID_CARTESIAN :
+  gd_cart_init_set(gdinfo,gdcart,dx,x0,dy,y0,dz,z0);
 
-        if (myid==0) fprintf(stdout,"generate cartesian grid in code ...\n"); 
-
-        float dx = par->cartesian_grid_stepsize[0];
-        float dy = par->cartesian_grid_stepsize[1];
-        float dz = par->cartesian_grid_stepsize[2];
-
-        float x0 = par->cartesian_grid_origin[0];
-        float y0 = par->cartesian_grid_origin[1];
-        float z0 = par->cartesian_grid_origin[2];
-
-        gd_curv_gen_cart(gdinfo,gdcurv,dx,x0,dy,y0,dz,z0);
-
-        break;
-
-    case PAR_GRID_IMPORT :
-
-        if (myid==0) fprintf(stdout,"import grid vars ...\n"); 
-        if (myid==0) fprintf(stdout,"   not implemented yet\n"); 
-        //gd_curv_import(blk->g3d, blk->g3d_pos, blk->g3d_name,
-        //        blk->g3d_num_of_vars, blk->siz_volume, par->in_metric_dir, myid3);
-        //gd_curv_topoall_import(blk->g3d, blk->nx, blk->ny, blk->nz, 
-        //          myid3[0],myid3[1],myid3[2]);
-        break;
-
-    case PAR_GRID_LAYER_INTERP :
-
-        if (myid==0) fprintf(stdout,"gerate grid using layer interp ...\n"); 
-
-        gd_curv_gen_layer(par->in_grid_layer_file,
-							par->grid_layer_resample_factor,
-							par->grid_layer_start,
-							par->number_of_total_grid_points_x,
-							par->number_of_total_grid_points_y,
-							par->number_of_total_grid_points_z,
-							gdcurv->x3d, gdcurv->y3d, gdcurv->z3d,
-							gdinfo->nx, gdinfo->ni, gdinfo->gni1, fd->fdx_nghosts,
-							gdinfo->ny, gdinfo->nj, gdinfo->gnj1, fd->fdy_nghosts,
-							gdinfo->nz, gdinfo->nk, gdinfo->gnk1, fd->fdz_nghosts);
-
-      break;
-  }
-
-  // cal min/max of this thread
-  gd_curv_set_minmax(gdcurv);
-
-  // generate topo over all the domain
-  //ierr = gd_curv_topoall_generate();
-
-  // output
-  if (par->is_export_grid==1)
-  {
-    if (myid==0) fprintf(stdout,"export coord to file ...\n"); 
-    gd_curv_coord_export(gdinfo, gdcurv,
-                         blk->output_fname_part,
-                         blk->grid_export_dir);
-  }
-  fprintf(stdout, " --> done\n"); fflush(stdout);
-
-  // cal metrics and output for QC
-  switch (par->metric_method_itype)
-  {
-    case PAR_METRIC_CALCULATE :
-
-        if (myid==0 && verbose>0) fprintf(stdout,"calculate metrics ...\n"); 
-        gd_curv_metric_cal(gdinfo,
-                           gdcurv,
-                           gdcurv_metric,
-                           fd->fdc_len,
-                           fd->fdc_indx,
-                           fd->fdc_coef);
-
-        if (myid==0 && verbose>0) fprintf(stdout,"exchange metrics ...\n"); 
-        gd_curv_metric_exchange(gdinfo,gdcurv_metric,mympi->neighid,mympi->topocomm);
-
-        break;
-
-    case PAR_METRIC_IMPORT :
-        if (myid==0) fprintf(stdout,"import descreted medium file ...\n"); 
-        if (myid==0) fprintf(stdout,"   not implemented yet\n"); 
-        break;
-  }
-  fprintf(stdout, " --> done\n"); fflush(stdout);
-
-  // export metric
-  if (par->is_export_metric==1)
-  {
-    if (myid==0) fprintf(stdout,"export metric to file ...\n"); 
-    gd_curv_metric_export(gdinfo,gdcurv_metric,
-                          blk->output_fname_part,
-                          blk->grid_export_dir);
-  }
   fprintf(stdout, " --> done\n"); fflush(stdout);
 
 //-------------------------------------------------------------------------------
@@ -293,15 +202,15 @@ int main(int argc, char** argv)
         float *lam3d = md->lambda;
         float  *mu3d = md->mu;
         float *rho3d = md->rho;
-        media_el_iso_layer2model(lam3d, mu3d, rho3d,
-                                 gdcurv->x3d,
-                                 gdcurv->y3d,
-                                 gdcurv->z3d,
-                                 gdcurv->nx,
-                                 gdcurv->ny,
-                                 gdcurv->nz,
-                                 par->media_input_file,
-                                 par->equivalent_medium_method);
+        //media_el_iso_layer2model(lam3d, mu3d, rho3d,
+        //                         gdcart->x3d,
+        //                         gdcart->y3d,
+        //                         gdcart->z3d,
+        //                         gdcart->nx,
+        //                         gdcart->ny,
+        //                         gdcart->nz,
+        //                         par->media_input_file,
+        //                         par->equivalent_medium_method);
         break;
     }
 
@@ -312,17 +221,17 @@ int main(int argc, char** argv)
         float  *mu3d = md->mu;
         float *rho3d = md->rho;
 
-        media_el_iso_grid2model(lam3d, mu3d, rho3d,
-                                gdcurv->x3d,
-                                gdcurv->y3d,
-                                gdcurv->z3d,
-                                gdcurv->nx,
-                                gdcurv->ny,
-                                gdcurv->nz,
-                                gdcurv->xmin, gdcurv->xmax,   //float Xmin, float Xmax,
-                                gdcurv->ymin, gdcurv->ymax,   //float Ymin, float Ymax, 
-                                par->media_input_file,
-                                par->equivalent_medium_method); 
+        //media_el_iso_grid2model(lam3d, mu3d, rho3d,
+        //                        gdcart->x3d,
+        //                        gdcart->y3d,
+        //                        gdcart->z3d,
+        //                        gdcart->nx,
+        //                        gdcart->ny,
+        //                        gdcart->nz,
+        //                        gdcart->xmin, gdcart->xmax,   //float Xmin, float Xmax,
+        //                        gdcart->ymin, gdcart->ymax,   //float Ymin, float Ymax, 
+        //                        par->media_input_file,
+        //                        par->equivalent_medium_method); 
         break;
     }
   }
@@ -395,37 +304,17 @@ int main(int argc, char** argv)
     if(strcmp(fnm_suffix,"anasrc")==0)
     {
       if (myid==0) fprintf(stdout,"***input source type is analysis***\n");
-      
-      src_read_locate_anasrc(gdinfo, gdcurv, src,
-                             par->source_input_file,
-                             t0,
-                             dt,
-                             fd->num_rk_stages, fd->rk_rhs_time,
-                             fd->fdx_max_half_len,
-                             comm,
-                             myid,
-                             verbose);
     }
     if(strcmp(fnm_suffix,"valsrc")==0)
     {
       if (myid==0) fprintf(stdout,"***input source type is value sample***\n");
-
-      src_read_locate_valsrc(gdinfo, gdcurv, src,
-                             par->source_input_file,
-                             t0,
-                             dt,
-                             fd->num_rk_stages, fd->rk_rhs_time,
-                             fd->fdx_max_half_len,
-                             comm,
-                             myid,
-                             verbose);
     }
   }
   else
   {
     if (myid==0) fprintf(stdout,"set source using info from par file ...\n"); 
 
-    src_set_by_par(gdinfo, gdcurv, src,
+    src_set_by_par(gdinfo, gdcart, src,
                    t0, dt,
                    fd->num_rk_stages, fd->rk_rhs_time,
                    fd->fdx_max_half_len,
@@ -466,11 +355,11 @@ int main(int argc, char** argv)
   if (myid==0 && verbose>0) fprintf(stdout,"setup output info ...\n"); 
 
   // receiver: need to do
-  io_recv_read_locate(gdinfo, gdcurv, iorecv,
+  io_recv_read_locate(gdinfo, gdcart, iorecv,
                       nt_total, wav->ncmp, par->in_station_file);
 
   // line
-  io_line_locate(gdinfo, gdcurv, ioline,
+  io_line_locate(gdinfo, gdcart, ioline,
                  wav->ncmp,
                  nt_total,
                  par->number_of_receiver_line,
@@ -513,7 +402,7 @@ int main(int argc, char** argv)
   
   if (par->bdry_has_cfspml == 1)
   {
-    bdry_pml_set(gdinfo, gdcurv, wav, bdrypml,
+    bdry_pml_set(gdinfo, gdcart, wav, bdrypml,
                  mympi->neighid,
                  par->cfspml_is_sides,
                  par->abs_num_of_layers,
@@ -564,7 +453,7 @@ int main(int argc, char** argv)
   
   time_t t_start = time(NULL);
   
-  sv_eq1st_curv_col_allstep(fd,gdinfo,gdcurv_metric,md,
+  sv_eq1st_cart_col_allstep(fd,gdinfo,gdcart,md,
                             src,bdryfree,bdrypml,
                             wav, mympi,
                             iorecv,ioline,ioslice,iosnap,

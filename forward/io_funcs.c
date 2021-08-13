@@ -232,18 +232,12 @@ io_var3d_export_nc(char   *ou_file,
 
 int
 io_recv_read_locate(gdinfo_t *gdinfo,
-                    gdcurv_t *gdcurv,
+                    gd_t *gd,
                     iorecv_t  *iorecv,
                     int       nt_total,
                     int       num_of_vars,
                     char *in_filenm)
 {
-  float *x3d = gdcurv->x3d;
-  float *y3d = gdcurv->y3d;
-  float *z3d = gdcurv->z3d;
-  size_t siz_line = gdinfo->siz_iy;
-  size_t siz_slice= gdinfo->siz_iz;
-
   FILE *fp;
   char line[500];
 
@@ -321,15 +315,14 @@ io_recv_read_locate(gdinfo_t *gdinfo,
       int k_local = gd_info_ind_glphy2lcext_k(iz,gdinfo);
 
       int ptr_this = nr_this * CONST_NDIM;
-      int ptr_point = i_local + j_local * siz_line + k_local * siz_slice;
-
       iorecv_one_t *this_recv = recvone + nr_this;
 
       sprintf(this_recv->name, "%s", recvone[ir].name);
+
       // get coord
-      this_recv->x=x3d[ptr_point];
-      this_recv->y=y3d[ptr_point];
-      this_recv->z=z3d[ptr_point];
+      this_recv->x = gd_coord_get_x(gd,i_local,j_local,k_local);
+      this_recv->y = gd_coord_get_y(gd,i_local,j_local,k_local);
+      this_recv->z = gd_coord_get_z(gd,i_local,j_local,k_local);
       // set point and shift
       this_recv->i=i_local;
       this_recv->j=j_local;
@@ -338,7 +331,7 @@ io_recv_read_locate(gdinfo_t *gdinfo,
       this_recv->dj=0.0;
       this_recv->dk=0.0;
 
-      this_recv->indx1d = i_local + j_local * siz_line + k_local * siz_slice;
+      this_recv->indx1d = i_local + j_local * gd->siz_iy + k_local * gd->siz_iz;
 
       //fprintf(stdout,"== ir_this=%d,name=%s,i=%d,j=%d,k=%d\n",
       //      nr_this,sta_name[nr_this],i_local,j_local,k_local); fflush(stdout);
@@ -366,7 +359,7 @@ io_recv_read_locate(gdinfo_t *gdinfo,
 
 int
 io_line_locate(gdinfo_t *gdinfo,
-               gdcurv_t *gdcurv,
+               gd_t *gd,
                ioline_t *ioline,
                int    num_of_vars,
                int    nt_total,
@@ -377,12 +370,6 @@ io_line_locate(gdinfo_t *gdinfo,
                char **receiver_line_name)
 {
   int ierr = 0;
-
-  float *x3d = gdcurv->x3d;
-  float *y3d = gdcurv->y3d;
-  float *z3d = gdcurv->z3d;
-  size_t   siz_line = gdinfo->siz_line;
-  size_t   siz_slice = gdinfo->siz_slice;
 
   // init
   ioline->num_of_lines  = 0;
@@ -470,14 +457,14 @@ io_line_locate(gdinfo_t *gdinfo,
         int j = gd_info_ind_glphy2lcext_j(gj,gdinfo);
         int k = gd_info_ind_glphy2lcext_k(gk,gdinfo);
 
-        int iptr = i + j * siz_line + k * siz_slice;
+        int iptr = i + j * gd->siz_iy + k * gd->siz_iz;
 
         ioline->recv_seq [m][ir] = ipt;
         ioline->recv_iptr[m][ir] = iptr;
 
-        ioline->recv_x[m][ir] = x3d[iptr];
-        ioline->recv_y[m][ir] = y3d[iptr];
-        ioline->recv_z[m][ir] = z3d[iptr];
+        ioline->recv_x[m][ir] = gd_coord_get_x(gd,i,j,k);
+        ioline->recv_y[m][ir] = gd_coord_get_y(gd,i,j,k);
+        ioline->recv_z[m][ir] = gd_coord_get_z(gd,i,j,k);
 
         ir += 1;
       }

@@ -14,17 +14,21 @@
 #include "fdlib_mem.h"
 #include "fdlib_math.h"
 #include "fd_t.h"
-#include "gd_curv.h"
+#include "gd_t.h"
+#include "isPointInHexahedron.h"
 
 // used in read grid file
 #define M_gd_INDEX( i, j, k, ni, nj ) ( ( i ) + ( j ) * ( ni ) + ( k ) * ( ni ) * ( nj ) )
 
 void 
-gd_curv_init(gdinfo_t *gdinfo, gdcurv_t *gdcurv)
+gd_curv_init(gdinfo_t *gdinfo, gd_t *gdcurv)
 {
   /*
    * 0-2: x3d, y3d, z3d
    */
+
+  gdcurv->type = GD_TYPE_CURV;
+
   gdcurv->nx   = gdinfo->nx;
   gdcurv->ny   = gdinfo->ny;
   gdcurv->nz   = gdinfo->nz;
@@ -71,6 +75,8 @@ gd_curv_init(gdinfo_t *gdinfo, gdcurv_t *gdcurv)
   // set pointer
   gdcurv->cmp_pos  = cmp_pos;
   gdcurv->cmp_name = cmp_name;
+
+  return;
 }
 
 void 
@@ -168,7 +174,7 @@ gd_curv_metric_init(gdinfo_t        *gdinfo,
 //
 void
 gd_curv_metric_cal(gdinfo_t        *gdinfo,
-                   gdcurv_t        *gdcurv,
+                   gd_t        *gdcurv,
                    gdcurv_metric_t *metric,
                    int fd_len, int *restrict fd_indx, float *restrict fd_coef)
 {
@@ -527,14 +533,19 @@ gd_curv_metric_exchange(gdinfo_t        *gdinfo,
  */
 void
 gd_curv_gen_cart(
-  gdcurv_t *gdcurv,
-  float dx, float x0,
-  float dy, float y0,
-  float dz, float z0)
+  gdinfo_t *gdinfo,
+  gd_t *gdcurv,
+  float dx, float x0_glob,
+  float dy, float y0_glob,
+  float dz, float z0_glob)
 {
   float *x3d = gdcurv->x3d;
   float *y3d = gdcurv->y3d;
   float *z3d = gdcurv->z3d;
+
+  float x0 = x0_glob + (gdinfo->ni1_to_glob_phys0 - gdinfo->fdx_nghosts) * dx;
+  float y0 = y0_glob + (gdinfo->nj1_to_glob_phys0 - gdinfo->fdy_nghosts) * dy;
+  float z0 = z0_glob + (gdinfo->nk1_to_glob_phys0 - gdinfo->fdz_nghosts) * dz;
 
   size_t iptr = 0;
   for (size_t k=0; k<gdcurv->nz; k++)
@@ -551,6 +562,84 @@ gd_curv_gen_cart(
       }
     }
   }
+
+  return;
+}
+
+/*
+ * generate cartesian grid
+ */
+
+void 
+gd_cart_init_set(gdinfo_t *gdinfo, gd_t *gdcart,
+  float dx, float x0_glob,
+  float dy, float y0_glob,
+  float dz, float z0_glob)
+{
+  /*
+   * 0-2: x3d, y3d, z3d
+   */
+
+  gdcart->type = GD_TYPE_CART;
+
+  gdcart->nx   = gdinfo->nx;
+  gdcart->ny   = gdinfo->ny;
+  gdcart->nz   = gdinfo->nz;
+  gdcart->ncmp = CONST_NDIM;
+
+  gdcart->siz_iy   = gdcart->nx;
+  gdcart->siz_iz   = gdcart->nx * gdcart->ny;
+  gdcart->siz_icmp = gdcart->nx * gdcart->ny * gdcart->nz;
+  
+  // vars
+  float *x1d = (float *) fdlib_mem_calloc_1d_float(
+                  gdcart->nx, 0.0, "gd_cart_init");
+  float *y1d = (float *) fdlib_mem_calloc_1d_float(
+                  gdcart->ny, 0.0, "gd_cart_init");
+  float *z1d = (float *) fdlib_mem_calloc_1d_float(
+                  gdcart->nz, 0.0, "gd_cart_init");
+  if (z1d == NULL) {
+      fprintf(stderr,"Error: failed to alloc coord vars\n");
+      fflush(stderr);
+  }
+
+  float x0 = x0_glob + (gdinfo->ni1_to_glob_phys0 - gdinfo->fdx_nghosts) * dx;
+  float y0 = y0_glob + (gdinfo->nj1_to_glob_phys0 - gdinfo->fdy_nghosts) * dy;
+  float z0 = z0_glob + (gdinfo->nk1_to_glob_phys0 - gdinfo->fdz_nghosts) * dz;
+
+  for (size_t k=0; k< gdcart->nz; k++)
+  {
+        z1d[k] = z0 + k * dz;
+  }
+  for (size_t j=0; j< gdcart->ny; j++)
+  {
+        y1d[j] = y0 + j * dy;
+  }
+  for (size_t i=0; i< gdcart->nx; i++)
+  {
+        x1d[i] = x0 + i * dx;
+  }
+
+  gdcart->dx = dx;
+  gdcart->dy = dy;
+  gdcart->dz = dz;
+
+  gdcart->xmin = x0;
+  gdcart->ymin = y0;
+  gdcart->zmin = z0;
+  gdcart->xmax = x0 + (gdcart->nx-1) * dx;
+  gdcart->ymax = y0 + (gdcart->ny-1) * dy;
+  gdcart->zmax = z0 + (gdcart->nz-1) * dz;
+
+  gdcart->x0_glob = x0_glob;
+  gdcart->y0_glob = y0_glob;
+  gdcart->z0_glob = z0_glob;
+
+  gdcart->x1d = x1d;
+  gdcart->y1d = y1d;
+  gdcart->z1d = z1d;
+  
+  return;
 }
 
 //
@@ -635,7 +724,7 @@ gd_curv_coord_import(float *restrict g3d, size_t *restrict g3d_pos, char **restr
 void
 gd_curv_coord_export(
   gdinfo_t *gdinfo,
-  gdcurv_t *gdcurv,
+  gd_t *gdcurv,
   char *fname_coords,
   char *output_dir)
 {
@@ -1506,7 +1595,7 @@ void gd_SPL(int n, float *x, float *y, int ni, float *xi, float *yi)
 }
 
 void
-gd_curv_set_minmax(gdcurv_t *gdcurv)
+gd_curv_set_minmax(gd_t *gdcurv)
 {
   float xmin = gdcurv->x3d[0], xmax = gdcurv->x3d[0];
   float ymin = gdcurv->y3d[0], ymax = gdcurv->y3d[0];
@@ -1527,5 +1616,490 @@ gd_curv_set_minmax(gdcurv_t *gdcurv)
   gdcurv->ymax = ymax;
   gdcurv->zmin = zmin;
   gdcurv->zmax = zmax;
+
+  return;
 }
 
+/*
+ * convert cart coord to global index
+ */
+
+int
+gd_cart_coord_to_glob_indx(gdinfo_t *gdinfo,
+                           gd_t *gdcart,
+                           float sx,
+                           float sy,
+                           float sz,
+                           MPI_Comm comm,
+                           int myid,
+                           int   *ou_si, int *ou_sj, int *ou_sk,
+                           float *ou_sx_inc, float *ou_sy_inc, float *ou_sz_inc)
+{
+  int ierr = 0;
+
+  int si_glob = (int)( (sx - gdcart->x0_glob) / gdcart->dx + 0.5 );
+  int sj_glob = (int)( (sy - gdcart->y0_glob) / gdcart->dy + 0.5 );
+  int sk_glob = (int)( (sz - gdcart->z0_glob) / gdcart->dz + 0.5 );
+  float sx_inc = si_glob * gdcart->dx + gdcart->x0_glob - sx;
+  float sy_inc = sj_glob * gdcart->dy + gdcart->y0_glob - sy;
+  float sz_inc = sk_glob * gdcart->dz + gdcart->z0_glob - sz;
+
+  *ou_si = si_glob;
+  *ou_sj = sj_glob;
+  *ou_sk = sk_glob;
+  *ou_sx_inc = sx_inc;
+  *ou_sy_inc = sy_inc;
+  *ou_sz_inc = sz_inc;
+
+  return ierr; 
+}
+
+/*
+ * convert curv coord to global index using MPI
+ */
+
+int
+gd_curv_coord_to_glob_indx(gdinfo_t *gdinfo,
+                           gd_t *gdcurv,
+                           float sx,
+                           float sy,
+                           float sz,
+                           MPI_Comm comm,
+                           int myid,
+                           int   *ou_si, int *ou_sj, int *ou_sk,
+                           float *ou_sx_inc, float *ou_sy_inc, float *ou_sz_inc,
+                           float *restrict wrk3d)
+{
+  int is_here = 0;
+
+  int si_glob = 0;
+  int sj_glob = 0;
+  int sk_glob = 0;
+  float sx_inc = 0.0;
+  float sy_inc = 0.0;
+  float sz_inc = 0.0;
+  int si = 0;
+  int sj = 0;
+  int sk = 0;
+
+  // if located in this thread
+  is_here = gd_curv_coord_to_local_indx(gdinfo,gdcurv,sx,sy,sz,
+                                    &si, &sj, &sk, &sx_inc, &sy_inc, &sz_inc,
+                                    wrk3d);
+
+  // if in this thread
+  if ( is_here == 1)
+  {
+    // conver to global index
+    si_glob = gd_info_ind_lcext2glphy_i(si, gdinfo);
+    sj_glob = gd_info_ind_lcext2glphy_j(sj, gdinfo);
+    sk_glob = gd_info_ind_lcext2glphy_k(sk, gdinfo);
+    fprintf(stdout," -- located to local index = %d %d %d\n", si,sj,sk);
+    fprintf(stdout," -- located to global index = %d %d %d\n", 
+                          si_glob, sj_glob, sk_glob);
+    fprintf(stdout," --  with shift = %f %f %f\n", sx_inc,sy_inc,sz_inc);
+  } else {
+    //fprintf(stdout," -- not in this thread %d\n", myid);
+  }
+
+  // reduce global index and shift values
+  int sendbufi = si_glob;
+  MPI_Allreduce(&sendbufi, &si_glob, 1, MPI_INT, MPI_MAX, comm);
+
+  sendbufi = sj_glob;
+  MPI_Allreduce(&sendbufi, &sj_glob, 1, MPI_INT, MPI_MAX, comm);
+
+  sendbufi = sk_glob;
+  MPI_Allreduce(&sendbufi, &sk_glob, 1, MPI_INT, MPI_MAX, comm);
+
+  float sendbuf = sx_inc;
+  MPI_Allreduce(&sendbuf, &sx_inc, 1, MPI_INT, MPI_SUM, comm);
+
+  sendbuf = sy_inc;
+  MPI_Allreduce(&sendbuf, &sy_inc, 1, MPI_INT, MPI_SUM, comm);
+
+  sendbuf = sz_inc;
+  MPI_Allreduce(&sendbuf, &sz_inc, 1, MPI_INT, MPI_SUM, comm);
+
+  fprintf(stdout," --myid=%d,index=%d %d %d,shift = %f %f %f\n",
+      myid,si_glob,sj_glob,sk_glob, sx_inc,sy_inc,sz_inc);
+
+  *ou_si = si_glob;
+  *ou_sj = sj_glob;
+  *ou_sk = sk_glob;
+  *ou_sx_inc = sx_inc;
+  *ou_sy_inc = sy_inc;
+  *ou_sz_inc = sz_inc;
+
+  return is_here; 
+}
+
+/* 
+ * if the nearest point in this thread then search its grid index
+ *   return value:
+ *      1 - in this thread
+ *      0 - not in this thread
+ */
+
+int
+gd_curv_coord_to_local_indx(gdinfo_t *gdinfo,
+                        gd_t *gd,
+                        float sx, float sy, float sz,
+                        int *si, int *sj, int *sk,
+                        float *sx_inc, float *sy_inc, float *sz_inc,
+                        float *restrict wrk3d)
+{
+  int is_here = 0; // default outside
+
+  int nx = gdinfo->nx;
+  int ny = gdinfo->ny;
+  int nz = gdinfo->nz;
+  int ni1 = gdinfo->ni1;
+  int ni2 = gdinfo->ni2;
+  int nj1 = gdinfo->nj1;
+  int nj2 = gdinfo->nj2;
+  int nk1 = gdinfo->nk1;
+  int nk2 = gdinfo->nk2;
+  size_t siz_line  = gdinfo->siz_iy;
+  size_t siz_slice = gdinfo->siz_iz;
+
+  float *restrict x3d = gd->x3d;
+  float *restrict y3d = gd->y3d;
+  float *restrict z3d = gd->z3d;
+
+  // outside coord range
+  if ( sx < gd->xmin || sx > gd->xmax ||
+       sy < gd->ymin || sy > gd->ymax ||
+       sz < gd->zmin || sz > gd->zmax)
+  {
+    is_here = 0;
+    return is_here;
+  }
+
+  // init closest point
+  float min_dist = sqrtf(  (sx - x3d[0]) * (sx - x3d[0])
+      + (sy - y3d[0]) * (sy - y3d[0])
+      + (sz - z3d[0]) * (sz - z3d[0]) );
+  int min_dist_i = 0 ;
+  int min_dist_j = 0 ;
+  int min_dist_k = 0 ;
+
+  // compute distance to each point
+  for (int k=0; k<nz; k++) {
+    for (int j=0; j<ny; j++) {
+      for (int i=0; i<nx; i++)
+      {
+        size_t iptr = i + j * siz_line + k * siz_slice;
+
+        float x = x3d[iptr];
+        float y = y3d[iptr];
+        float z = z3d[iptr];
+
+        float DistInt = sqrtf(  (sx - x) * (sx - x)
+            + (sy - y) * (sy - y)
+            + (sz - z) * (sz - z) );
+        wrk3d[iptr] =  DistInt;
+
+        // replace closest point
+        if (min_dist > DistInt)
+        {
+          min_dist = DistInt;
+          min_dist_i = i;
+          min_dist_j = j;
+          min_dist_k = k;
+        }
+      }
+    }
+  }
+
+  // if nearest index is outside phys region, not here
+  if ( min_dist_i < ni1 || min_dist_i > ni2 ||
+      min_dist_j < nj1 || min_dist_j > nj2 ||
+      min_dist_k < nk1 || min_dist_k > nk2 )
+  {
+    is_here = 0;
+    return is_here;
+  }
+
+  // in this thread
+  is_here = 1;
+
+  float points_x[8];
+  float points_y[8];
+  float points_z[8];
+  float points_i[8];
+  float points_j[8];
+  float points_k[8];
+
+  for (int kk=0; kk<2; kk++)
+  {
+    for (int jj=0; jj<2; jj++)
+    {
+      for (int ii=0; ii<2; ii++)
+      {
+        int cur_i = min_dist_i-1+ii;
+        int cur_j = min_dist_j-1+jj;
+        int cur_k = min_dist_k-1+kk;
+
+        for (int n3=0; n3<2; n3++) {
+          for (int n2=0; n2<2; n2++) {
+            for (int n1=0; n1<2; n1++) {
+              int iptr_cube = n1 + n2 * 2 + n3 * 4;
+              int iptr = (cur_i+n1) + (cur_j+n2) * siz_line +
+                (cur_k+n3) * siz_slice;
+              points_x[iptr_cube] = x3d[iptr];
+              points_y[iptr_cube] = y3d[iptr];
+              points_z[iptr_cube] = z3d[iptr];
+              points_i[iptr_cube] = cur_i+n1;
+              points_j[iptr_cube] = cur_j+n2;
+              points_k[iptr_cube] = cur_k+n3;
+            }
+          }
+        }
+
+        if (isPointInHexahedron(sx,sy,sz,points_x,points_y,points_z) == true)
+        {
+          float si_curv, sj_curv, sk_curv;
+          //gd_curv_coord2index_rdinterp(sx,sy,sz,
+          //              8,
+          //              points_x,points_y,points_z,
+          //              points_i,points_j,points_k,
+          //              &si_curv, &sj_curv, &sk_curv);
+
+          gd_curv_coord2index_sample(sx,sy,sz,
+              8,
+              points_x,points_y,points_z,
+              points_i,points_j,points_k,
+              100,100,100,
+              &si_curv, &sj_curv, &sk_curv);
+
+          // convert to return values
+          *si = min_dist_i;
+          *sj = min_dist_j;
+          *sk = min_dist_k;
+          *sx_inc = si_curv - min_dist_i;
+          *sy_inc = sj_curv - min_dist_j;
+          *sz_inc = sk_curv - min_dist_k;
+
+          return is_here;
+        }
+      }
+    }
+  }
+
+  // if not in any cube due to bug, set default value
+  //    if everything is right, should be return 10 line before
+  *si = min_dist_i;
+  *sj = min_dist_j;
+  *sk = min_dist_k;
+  *sx_inc = 0.0;
+  *sy_inc = 0.0;
+  *sz_inc = 0.0;
+
+  return is_here;
+}
+
+/* 
+ * find curv index using sampling
+ */
+
+  int
+gd_curv_coord2index_sample(float sx, float sy, float sz, 
+    int num_points,
+    float *points_x, // x coord of all points
+    float *points_y,
+    float *points_z,
+    float *points_i, // curv coord of all points
+    float *points_j,
+    float *points_k,
+    int    nx_sample,
+    int    ny_sample,
+    int    nz_sample,
+    float *si_curv, // interped curv coord
+    float *sj_curv,
+    float *sk_curv)
+{
+  float Lx[2], Ly[2], Lz[2];
+
+  // init closest point
+  float min_dist = sqrtf(  (sx - points_x[0]) * (sx - points_x[0])
+      + (sy - points_y[0]) * (sy - points_y[0])
+      + (sz - points_z[0]) * (sz - points_z[0]) );
+  int min_dist_i = 0 ;
+  int min_dist_j = 0 ;
+  int min_dist_k = 0 ;
+
+  // linear interp for all sample
+  for (int n3=0; n3<nz_sample+1; n3++)
+  {
+    Lz[1] = (float)(n3) / (float)(nz_sample);
+    Lz[0] = 1.0 - Lz[1];
+    for (int n2=0; n2<ny_sample+1; n2++)
+    {
+      Ly[1] = (float)(n2) / (float)(ny_sample);
+      Ly[0] = 1.0 - Ly[1];
+      for (int n1=0; n1<nx_sample+1; n1++)
+      {
+        Lx[1] = (float)(n1) / (float)(nx_sample);
+        Lx[0] = 1.0 - Lx[1];
+
+        // interp
+        float x_pt=0;
+        float y_pt=0;
+        float z_pt=0;
+        for (int kk=0; kk<2; kk++) {
+          for (int jj=0; jj<2; jj++) {
+            for (int ii=0; ii<2; ii++)
+            {
+              int iptr_cube = ii + jj * 2 + kk * 4;
+              x_pt += Lx[ii]*Ly[jj]*Lz[kk] * points_x[iptr_cube];
+              y_pt += Lx[ii]*Ly[jj]*Lz[kk] * points_y[iptr_cube];
+              z_pt += Lx[ii]*Ly[jj]*Lz[kk] * points_z[iptr_cube];
+            }
+          }
+        }
+
+        // find min dist
+        float DistInt = sqrtf(  (sx - x_pt) * (sx - x_pt)
+            + (sy - y_pt) * (sy - y_pt)
+            + (sz - z_pt) * (sz - z_pt) );
+
+        // replace closest point
+        if (min_dist > DistInt)
+        {
+          min_dist = DistInt;
+          min_dist_i = n1;
+          min_dist_j = n2;
+          min_dist_k = n3;
+        }
+      } // n1
+    } // n2
+  } // n3
+
+  *si_curv = points_i[0] + (float)min_dist_i / (float)nx_sample;
+  *sj_curv = points_j[0] + (float)min_dist_j / (float)ny_sample;
+  *sk_curv = points_k[0] + (float)min_dist_k / (float)nz_sample;
+
+  return 0;
+}
+
+/* 
+ * interp curv coord using inverse distance interp
+ */
+
+  int
+gd_curv_coord2index_rdinterp(float sx, float sy, float sz, 
+    int num_points,
+    float *points_x, // x coord of all points
+    float *points_y,
+    float *points_z,
+    float *points_i, // curv coord of all points
+    float *points_j,
+    float *points_k,
+    float *si_curv, // interped curv coord
+    float *sj_curv,
+    float *sk_curv)
+{
+  float weight[num_points];
+  float total_weight = 0.0 ;
+
+  // cal weight
+  int at_point_indx = -1;
+  for (int i=0; i<num_points; i++)
+  {
+    float dist = sqrtf ((sx - points_x[i]) * (sx - points_x[i])
+        + (sy - points_y[i]) * (sy - points_y[i])
+        + (sz - points_z[i]) * (sz - points_z[i])
+        );
+    if (dist < 1e-9) {
+      at_point_indx = i;
+    } else {
+      weight[i]   = 1.0 / dist;
+      total_weight += weight[i];
+    }
+  }
+  // if at a point
+  if (at_point_indx > 0) {
+    total_weight = 1.0;
+    // other weight 0
+    for (int i=0; i<num_points; i++) {
+      weight[i] = 0.0;
+    }
+    // point weight 1
+    weight[at_point_indx] = 1.0;
+  }
+
+  // interp
+
+  *si_curv = 0.0;
+  *sj_curv = 0.0;
+  *sk_curv = 0.0;
+
+  for (int i=0; i<num_points; i++)
+  {
+    weight[i] *= 1.0 / total_weight ;
+
+    (*si_curv) += weight[i] * points_i[i];
+    (*sj_curv) += weight[i] * points_j[i]; 
+    (*sk_curv) += weight[i] * points_k[i];  
+
+    fprintf(stdout,"---- i=%d,weight=%f,points_i=%f,points_j=%f,points_k=%f\n",
+        i,weight[i],points_i[i],points_j[i],points_k[i]);
+  }
+
+  return 0;
+}
+
+float
+gd_coord_get_x(gd_t *gd, int i, int j, int k)
+{
+  float var = 0.0;
+
+  if (gd->type == GD_TYPE_CART)
+  {
+    var = gd->x1d[i];
+  }
+  else if (gd->type == GD_TYPE_CURV)
+  {
+    size_t iptr = i + j * gd->siz_iy + k * gd->siz_iz;
+    var = gd->x3d[iptr];
+  }
+
+  return var;
+}
+
+float
+gd_coord_get_y(gd_t *gd, int i, int j, int k)
+{
+  float var = 0.0;
+
+  if (gd->type == GD_TYPE_CART)
+  {
+    var = gd->y1d[j];
+  }
+  else if (gd->type == GD_TYPE_CURV)
+  {
+    size_t iptr = i + j * gd->siz_iy + k * gd->siz_iz;
+    var = gd->y3d[iptr];
+  }
+
+  return var;
+}
+
+float
+gd_coord_get_z(gd_t *gd, int i, int j, int k)
+{
+  float var = 0.0;
+
+  if (gd->type == GD_TYPE_CART)
+  {
+    var = gd->z1d[k];
+  }
+  else if (gd->type == GD_TYPE_CURV)
+  {
+    size_t iptr = i + j * gd->siz_iy + k * gd->siz_iz;
+    var = gd->z3d[iptr];
+  }
+
+  return var;
+}
