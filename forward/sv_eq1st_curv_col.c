@@ -121,7 +121,7 @@ sv_eq1st_curv_col_allstep(
     {
       sv_eq1st_curv_col_el_iso_dvh2dvz(gdinfo,metric,md,bdryfree,verbose);
     }
-    else if (md->medium_type == CONST_MEDIUM_ELASTIC_ISO)
+    else if (md->medium_type == CONST_MEDIUM_ELASTIC_ANISO)
     {
       sv_eq1st_curv_col_el_aniso_dvh2dvz(gdinfo,metric,md,bdryfree,verbose);
     }
