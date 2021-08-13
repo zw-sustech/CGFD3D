@@ -59,23 +59,23 @@ src_init(src_t *src, int force_actived, int moment_actived,
   src->Mxx = NULL;
   src->Myy = NULL;
   src->Mzz = NULL;
-  src->Mxz = NULL;
   src->Myz = NULL;
+  src->Mxz = NULL;
   src->Mxy = NULL;
 
   if (moment_actived == 1) {
     src->Mxx= (float *)malloc(max_stage * max_nt * num_of_src * sizeof(float));
     src->Myy= (float *)malloc(max_stage * max_nt * num_of_src * sizeof(float));
     src->Mzz= (float *)malloc(max_stage * max_nt * num_of_src * sizeof(float));
-    src->Mxz= (float *)malloc(max_stage * max_nt * num_of_src * sizeof(float));
     src->Myz= (float *)malloc(max_stage * max_nt * num_of_src * sizeof(float));
+    src->Mxz= (float *)malloc(max_stage * max_nt * num_of_src * sizeof(float));
     src->Mxy= (float *)malloc(max_stage * max_nt * num_of_src * sizeof(float));
     for (int iptr=0; iptr < max_stage * max_nt * num_of_src; iptr++) {
       src->Mxx[iptr] = 0.0;
       src->Myy[iptr] = 0.0;
       src->Mzz[iptr] = 0.0;
-      src->Mxz[iptr] = 0.0;
       src->Myz[iptr] = 0.0;
+      src->Mxz[iptr] = 0.0;
       src->Mxy[iptr] = 0.0;
     }
   }
@@ -312,13 +312,13 @@ src_set_by_par(gdinfo_t *gdinfo,
             src->Fy[iptr]  = stf_val * force_vector[is][1];
             src->Fz[iptr]  = stf_val * force_vector[is][2];
           }
-
+          //moment_tensor: 0->Mxx 1>Myy 2->Mzz 3->Myz 4->Mxz 5->Mxy
           if (source_moment_actived[is]==1) {
             src->Mxx[iptr] = stf_val * moment_tensor[is][0];
             src->Myy[iptr] = stf_val * moment_tensor[is][1];
             src->Mzz[iptr] = stf_val * moment_tensor[is][2];
-            src->Mxz[iptr] = stf_val * moment_tensor[is][3];
-            src->Myz[iptr] = stf_val * moment_tensor[is][4];
+            src->Myz[iptr] = stf_val * moment_tensor[is][3];
+            src->Mxz[iptr] = stf_val * moment_tensor[is][4];
             src->Mxy[iptr] = stf_val * moment_tensor[is][5];
           }
         } // istage
@@ -547,7 +547,7 @@ src_read_locate_valsrc(gdinfo_t *gdinfo,
       sscanf(str,"%s",moment_wavelet_mechism[index]);
       if (source_in_thread[is] == 1)   //moment source is in this thread
       {
-
+        //moment_tensor: 0->Mxx 1>Myy 2->Mzz 3->Myz 4->Mxz 5->Mxy
         if (strcmp("mechanism_angle",moment_wavelet_mechism[index]) == 0)
         {
           for (int k=0; k<nt_in; k++)
@@ -668,15 +668,16 @@ src_read_locate_valsrc(gdinfo_t *gdinfo,
           if ( is >= in_num_force) {
           float this_Mxx, this_Myy, this_Mzz, this_Mxz, this_Myz, this_Mxy;
           // interp1d give t to get moment tensor
+          //moment_tensor: 0->Mxx 1>Myy 2->Mzz 3->Myz 4->Mxz 5->Mxy
           this_Mxx = LagInterp_Piecewise_1d(t_in, &moment_tensor[is_local][0][0], nt_in, order,
                                                          wavelet_tstart[is], dt_in, t);
           this_Myy = LagInterp_Piecewise_1d(t_in, &moment_tensor[is_local][1][0], nt_in, order,
                                                          wavelet_tstart[is], dt_in, t);
           this_Mzz = LagInterp_Piecewise_1d(t_in, &moment_tensor[is_local][2][0], nt_in, order,
                                                          wavelet_tstart[is], dt_in, t);
-          this_Mxz = LagInterp_Piecewise_1d(t_in, &moment_tensor[is_local][3][0], nt_in, order,
+          this_Myz = LagInterp_Piecewise_1d(t_in, &moment_tensor[is_local][3][0], nt_in, order,
                                                          wavelet_tstart[is], dt_in, t);
-          this_Myz = LagInterp_Piecewise_1d(t_in, &moment_tensor[is_local][4][0], nt_in, order,
+          this_Mxz = LagInterp_Piecewise_1d(t_in, &moment_tensor[is_local][4][0], nt_in, order,
                                                          wavelet_tstart[is], dt_in, t);
           this_Mxy = LagInterp_Piecewise_1d(t_in, &moment_tensor[is_local][5][0], nt_in, order,
                                                          wavelet_tstart[is], dt_in, t);
@@ -685,8 +686,8 @@ src_read_locate_valsrc(gdinfo_t *gdinfo,
           src->Mxx[iptr] = this_Mxx;
           src->Myy[iptr] = this_Myy;
           src->Mzz[iptr] = this_Mzz;
-          src->Mxz[iptr] = this_Mxz;
           src->Myz[iptr] = this_Myz;
+          src->Mxz[iptr] = this_Mxz;
           src->Mxy[iptr] = this_Mxy;
           }
         } // istage
@@ -817,37 +818,38 @@ src_read_locate_anasrc(gdinfo_t *gdinfo,
   // read force
   if (in_num_force > 0)
   {
-    for (int i=0;i<in_num_force;i++)
+    for (int is=0;is<in_num_force;is++)
     {
       fgets(str,500,fp);
-      sscanf(str,"%f %f %f",&source_coords[i][0],&source_coords[i][1],&source_coords[i][2]);
+      sscanf(str,"%f %f %f",&source_coords[is][0],&source_coords[is][1],&source_coords[is][2]);
 
       fgets(str,500,fp);
-      sscanf(str,"%f %f %f",&force_vector[i][0], &force_vector[i][1], &force_vector[i][2]);
+      sscanf(str,"%f %f %f",&force_vector[is][0], &force_vector[is][1], &force_vector[is][2]);
 
       fgets(str,500,fp);
-      sscanf(str,"%s",wavelet_name[i]);
+      sscanf(str,"%s",wavelet_name[is]);
 
       fgets(str,500,fp);
-      sscanf(str,"%f %f",&wavelet_coefs[i][0], &wavelet_coefs[i][1]);
+      sscanf(str,"%f %f",&wavelet_coefs[is][0], &wavelet_coefs[is][1]);
 
       fgets(str,500,fp);
-      sscanf(str,"%f",&wavelet_tstart[i]);
+      sscanf(str,"%f",&wavelet_tstart[is]);
     }
   }
   // read moment
   if (in_num_moment > 0)
   {
-    for(int i=0;i<in_num_moment;i++)
+    for(int is=0;is<in_num_moment;is++)
     {
       fgets(str,500,fp);
-      sscanf(str,"%f %f %f",&source_coords[i+in_num_force][0],&source_coords[i+in_num_force][1],
-                            &source_coords[i+in_num_force][2]);
+      sscanf(str,"%f %f %f",&source_coords[is+in_num_force][0],&source_coords[is+in_num_force][1],
+                            &source_coords[is+in_num_force][2]);
 
       fgets(str,500,fp);
-      sscanf(str, "%s", moment_wavelet_mechism[i]);
+      sscanf(str, "%s", moment_wavelet_mechism[is]);
 
-      if (strcmp("mechanism_angle",moment_wavelet_mechism[i])==0)
+      //moment_tensor: 0->Mxx 1>Myy 2->Mzz 3->Myz 4->Mxz 5->Mxy
+      if (strcmp("mechanism_angle",moment_wavelet_mechism[is])==0)
       {
         float angle[6];
         float temp_moment[6];
@@ -858,24 +860,24 @@ src_read_locate_anasrc(gdinfo_t *gdinfo,
         angle2moment(angle[0],angle[1],angle[2],temp_moment);
         for (int j=0;j<6;j++)
         {
-          moment_tensor[i][j]=M0*temp_moment[j];
+          moment_tensor[is][j]=M0*temp_moment[j];
           //fprintf(stdout,"moment_tensor is %f \n",moment_tensor[i][j]);
         }
       } 
-      if (strcmp("moment_tensor",moment_wavelet_mechism[i])==0)
+      if (strcmp("moment_tensor",moment_wavelet_mechism[is])==0)
       {  
         fgets(str,500,fp);
-        sscanf(str,"%f %f %f %f %f %f",&moment_tensor[i][0],&moment_tensor[i][1],
-            &moment_tensor[i][2],&moment_tensor[i][3],&moment_tensor[i][4],&moment_tensor[i][5]);
+        sscanf(str,"%f %f %f %f %f %f",&moment_tensor[is][0],&moment_tensor[is][1],
+            &moment_tensor[is][2],&moment_tensor[is][3],&moment_tensor[is][4],&moment_tensor[is][5]);
       } 
       fgets(str,500,fp);
-      sscanf(str,"%s",wavelet_name[i+in_num_force]);
+      sscanf(str,"%s",wavelet_name[is+in_num_force]);
 
       fgets(str,500,fp);
-      sscanf(str,"%f %f",&wavelet_coefs[i+in_num_force][0], &wavelet_coefs[i+in_num_force][1]);
+      sscanf(str,"%f %f",&wavelet_coefs[is+in_num_force][0], &wavelet_coefs[is+in_num_force][1]);
 
       fgets(str,500,fp);
-      sscanf(str,"%f",&wavelet_tstart[i+in_num_force]);
+      sscanf(str,"%f",&wavelet_tstart[is+in_num_force]);
     }
   }
   fclose(fp);
@@ -1018,12 +1020,13 @@ src_read_locate_anasrc(gdinfo_t *gdinfo,
             src->Fz[iptr]  = stf_val * force_vector[is][2];
           }
 
+          //moment_tensor: 0->Mxx 1>Myy 2->Mzz 3->Myz 4->Mxz 5->Mxy
           if ( is >= in_num_force) {
             src->Mxx[iptr] = stf_val * moment_tensor[is-in_num_force][0];
             src->Myy[iptr] = stf_val * moment_tensor[is-in_num_force][1];
             src->Mzz[iptr] = stf_val * moment_tensor[is-in_num_force][2];
-            src->Mxz[iptr] = stf_val * moment_tensor[is-in_num_force][3];
-            src->Myz[iptr] = stf_val * moment_tensor[is-in_num_force][4];
+            src->Myz[iptr] = stf_val * moment_tensor[is-in_num_force][3];
+            src->Mxz[iptr] = stf_val * moment_tensor[is-in_num_force][4];
             src->Mxy[iptr] = stf_val * moment_tensor[is-in_num_force][5];
           }
         } // istage
@@ -1197,12 +1200,13 @@ angle2moment(float strike, float dip, float rake, float* source_moment_tensor)
 
   // attention: the order may be different with outside
   // Mxz=-Mxz;Mxy=-Mxy !for upward positive z axis
+  //moment_tensor: 0->Mxx 1>Myy 2->Mzz 3->Myz 4->Mxz 5->Mxy
   // x->2 y->1 z->3
   source_moment_tensor[0] =  M22 ;  // Mxx
   source_moment_tensor[1] =  M11 ;  // Myy 
   source_moment_tensor[2] =  M33 ;  // Mzz
-  source_moment_tensor[3] = -M23 ;  // Mxz 
-  source_moment_tensor[4] = -M13 ;  // Myz
+  source_moment_tensor[3] = -M13 ;  // Myz 
+  source_moment_tensor[4] = -M23 ;  // Mxz
   source_moment_tensor[5] =  M12 ;  // Mxy 
 
   return;
