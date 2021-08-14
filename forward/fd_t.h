@@ -7,19 +7,21 @@
 
 // use siz_shift to find adjacent point of the stentil for 3d var
 #define M_FD_SHIFT(deriv, var, iptr, fd_length, fd_shift, fd_coef, n) \
-   deriv = 0.0; \
-   for (n=0; n<fd_length; n++) { \
+   deriv = fd_coef[0] * var[iptr + fd_shift[0]]; \
+   for (n=1; n<fd_length; n++) { \
        deriv += fd_coef[n] * var[iptr + fd_shift[n]]; \
    }
 
+// use pointer for cur point for speedup
 #define M_FD_SHIFT_PTR(deriv, var_ptr, fd_length, fd_shift, fd_coef, n) \
-  deriv = 0.0;                                                        \
-  for (n = 0; n < fd_length; n++)                                     \
+  deriv = fd_coef[0] * *(var_ptr + fd_shift[0]);                                                        \
+  for (n = 1; n < fd_length; n++)                                     \
   {                                                                   \
     deriv += fd_coef[n] * *(var_ptr + fd_shift[n]);                    \
   }
 
-#define M_FD_SHIFT_PTR_UNLOOP5(deriv, var_ptr, fd_length, fd_shift, fd_coef, n) \
+// only valid for macdrp etc with len = 5, may be faster? 
+#define M_FD_SHIFT_PTR_MACDRP(deriv, var_ptr, fd_length, fd_shift, fd_coef, n) \
   deriv =  fd_coef[0] * *(var_ptr + fd_shift[0])                    \
           +fd_coef[1] * *(var_ptr + fd_shift[1])                    \
           +fd_coef[2] * *(var_ptr + fd_shift[2])                    \
@@ -28,15 +30,15 @@
 
 // assume var has the same size as fd_coef, ordered one by one, thus no index needed
 #define M_FD_NOINDX(deriv, var, fd_length, fd_coef, n) \
-   deriv = 0.0; \
-   for (n=0; n<fd_length; n++) { \
+   deriv = fd_coef[0] * var[0]; \
+   for (n=1; n<fd_length; n++) { \
        deriv += fd_coef[n] * var[n]; \
    }
 
 // use indx relative to cur point as (-1,0,1), need to multiply siz_shift for 3d array
 #define M_FD_INDX(deriv, var, iptr, fd_length, fd_indx, fd_coef, shift, n) \
-   deriv = 0.0; \
-   for (n=0; n<fd_length; n++) { \
+   deriv = fd_coef[0] * var[iptr + fd_shift[0] * shift]; \
+   for (n=1; n<fd_length; n++) { \
        deriv += fd_coef[n] * var[iptr + fd_shift[n] * shift]; \
    }
 
@@ -44,15 +46,24 @@
  * structure for different fd schemes
  ******************************************************************************/
 
+/*
+ * elementary operator
+ */
+
 typedef struct
 {
   int total_len;
   int half_len;
   int left_len;
   int right_len;
-  int   *indx;
+  int   *indx;  // indx change to cur point as 0 for 1d
+  int   *shift; // num of grid points skipped
   float *coef;
 } fd_op_t; 
+
+/*
+ * collocated grid scheme
+ */
 
 typedef struct {
 
@@ -79,6 +90,11 @@ typedef struct {
   // para for different schemes at points to boundaries for different dim
   //----------------------------------------------------------------------------
 
+  // ghost point required 
+  int fdx_nghosts;
+  int fdy_nghosts;
+  int fdz_nghosts;
+
   // max total len of op
   int fdx_max_len;
   int fdy_max_len;
@@ -88,11 +104,6 @@ typedef struct {
   int fdx_max_half_len;
   int fdy_max_half_len;
   int fdz_max_half_len;
-
-  // ghost point required 
-  int fdx_nghosts;
-  int fdy_nghosts;
-  int fdz_nghosts;
 
   ////----------------------------------------------------------------------------
   //// center schemes at different points to boundary
@@ -185,7 +196,43 @@ typedef struct {
   int num_of_fdy_op;
   int num_of_fdz_op;
 
-  fd_op_t *lay_fdx_op; // [nlay]
+  fd_op_t *Vx_fdx_op; // [nlay]
+  fd_op_t *Vx_fdy_op;
+  fd_op_t *Vx_fdz_op;
+
+  fd_op_t *Vy_fdx_op; // [nlay]
+  fd_op_t *Vy_fdy_op;
+  fd_op_t *Vy_fdz_op;
+
+  fd_op_t *Vz_fdx_op; // [nlay]
+  fd_op_t *Vz_fdy_op;
+  fd_op_t *Vz_fdz_op;
+
+  fd_op_t *Txx_fdx_op; // [nlay]
+  fd_op_t *Txx_fdy_op;
+  fd_op_t *Txx_fdz_op;
+
+  fd_op_t *Tyy_fdx_op; // [nlay]
+  fd_op_t *Tyy_fdy_op;
+  fd_op_t *Tyy_fdz_op;
+
+  fd_op_t *Tzz_fdx_op; // [nlay]
+  fd_op_t *Tzz_fdy_op;
+  fd_op_t *Tzz_fdz_op;
+
+  fd_op_t *Tyz_fdx_op; // [nlay]
+  fd_op_t *Tyz_fdy_op;
+  fd_op_t *Tyz_fdz_op;
+
+  fd_op_t *Txz_fdx_op; // [nlay]
+  fd_op_t *Txz_fdy_op;
+  fd_op_t *Txz_fdz_op;
+
+  fd_op_t *Txy_fdx_op; // [nlay]
+  fd_op_t *Txy_fdy_op;
+  fd_op_t *Txy_fdz_op;
+
+  fd_op_t *lay_fdx_op;
   fd_op_t *lay_fdy_op;
   fd_op_t *lay_fdz_op;
 
@@ -202,6 +249,6 @@ void
 fd_print(fd_t *fd);
 
 int 
-fd_set_stg4(fdstg_t *fd);
+fd_set_stg(fdstg_t *fd);
 
 #endif

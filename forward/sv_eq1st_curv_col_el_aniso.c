@@ -366,49 +366,49 @@ sv_eq1st_curv_col_el_aniso_rhs_inner(
         Txy_ptr = Txy + iptr;
 
         // Vx derivatives
-        M_FD_SHIFT_PTR_UNLOOP5(DxVx, Vx_ptr, fdx_len, lfdx_shift, lfdx_coef, n_fd);
-        M_FD_SHIFT_PTR_UNLOOP5(DyVx, Vx_ptr, fdy_len, lfdy_shift, lfdy_coef, n_fd);
-        M_FD_SHIFT_PTR_UNLOOP5(DzVx, Vx_ptr, fdz_len, lfdz_shift, lfdz_coef, n_fd);
+        M_FD_SHIFT_PTR_MACDRP(DxVx, Vx_ptr, fdx_len, lfdx_shift, lfdx_coef, n_fd);
+        M_FD_SHIFT_PTR_MACDRP(DyVx, Vx_ptr, fdy_len, lfdy_shift, lfdy_coef, n_fd);
+        M_FD_SHIFT_PTR_MACDRP(DzVx, Vx_ptr, fdz_len, lfdz_shift, lfdz_coef, n_fd);
 
         // Vy derivatives
-        M_FD_SHIFT_PTR_UNLOOP5(DxVy, Vy_ptr, fdx_len, lfdx_shift, lfdx_coef, n_fd);
-        M_FD_SHIFT_PTR_UNLOOP5(DyVy, Vy_ptr, fdy_len, lfdy_shift, lfdy_coef, n_fd);
-        M_FD_SHIFT_PTR_UNLOOP5(DzVy, Vy_ptr, fdz_len, lfdz_shift, lfdz_coef, n_fd);
+        M_FD_SHIFT_PTR_MACDRP(DxVy, Vy_ptr, fdx_len, lfdx_shift, lfdx_coef, n_fd);
+        M_FD_SHIFT_PTR_MACDRP(DyVy, Vy_ptr, fdy_len, lfdy_shift, lfdy_coef, n_fd);
+        M_FD_SHIFT_PTR_MACDRP(DzVy, Vy_ptr, fdz_len, lfdz_shift, lfdz_coef, n_fd);
 
         // Vz derivatives
-        M_FD_SHIFT_PTR_UNLOOP5(DxVz, Vz_ptr, fdx_len, lfdx_shift, lfdx_coef, n_fd);
-        M_FD_SHIFT_PTR_UNLOOP5(DyVz, Vz_ptr, fdy_len, lfdy_shift, lfdy_coef, n_fd);
-        M_FD_SHIFT_PTR_UNLOOP5(DzVz, Vz_ptr, fdz_len, lfdz_shift, lfdz_coef, n_fd);
+        M_FD_SHIFT_PTR_MACDRP(DxVz, Vz_ptr, fdx_len, lfdx_shift, lfdx_coef, n_fd);
+        M_FD_SHIFT_PTR_MACDRP(DyVz, Vz_ptr, fdy_len, lfdy_shift, lfdy_coef, n_fd);
+        M_FD_SHIFT_PTR_MACDRP(DzVz, Vz_ptr, fdz_len, lfdz_shift, lfdz_coef, n_fd);
 
         // Txx derivatives
-        M_FD_SHIFT_PTR_UNLOOP5(DxTxx, Txx_ptr, fdx_len, lfdx_shift, lfdx_coef, n_fd);
-        M_FD_SHIFT_PTR_UNLOOP5(DyTxx, Txx_ptr, fdy_len, lfdy_shift, lfdy_coef, n_fd);
-        M_FD_SHIFT_PTR_UNLOOP5(DzTxx, Txx_ptr, fdz_len, lfdz_shift, lfdz_coef, n_fd);
+        M_FD_SHIFT_PTR_MACDRP(DxTxx, Txx_ptr, fdx_len, lfdx_shift, lfdx_coef, n_fd);
+        M_FD_SHIFT_PTR_MACDRP(DyTxx, Txx_ptr, fdy_len, lfdy_shift, lfdy_coef, n_fd);
+        M_FD_SHIFT_PTR_MACDRP(DzTxx, Txx_ptr, fdz_len, lfdz_shift, lfdz_coef, n_fd);
 
         // Tyy derivatives
-        M_FD_SHIFT_PTR_UNLOOP5(DxTyy, Tyy_ptr, fdx_len, lfdx_shift, lfdx_coef, n_fd);
-        M_FD_SHIFT_PTR_UNLOOP5(DyTyy, Tyy_ptr, fdy_len, lfdy_shift, lfdy_coef, n_fd);
-        M_FD_SHIFT_PTR_UNLOOP5(DzTyy, Tyy_ptr, fdz_len, lfdz_shift, lfdz_coef, n_fd);
+        M_FD_SHIFT_PTR_MACDRP(DxTyy, Tyy_ptr, fdx_len, lfdx_shift, lfdx_coef, n_fd);
+        M_FD_SHIFT_PTR_MACDRP(DyTyy, Tyy_ptr, fdy_len, lfdy_shift, lfdy_coef, n_fd);
+        M_FD_SHIFT_PTR_MACDRP(DzTyy, Tyy_ptr, fdz_len, lfdz_shift, lfdz_coef, n_fd);
 
         // Tzz derivatives
-        M_FD_SHIFT_PTR_UNLOOP5(DxTzz, Tzz_ptr, fdx_len, lfdx_shift, lfdx_coef, n_fd);
-        M_FD_SHIFT_PTR_UNLOOP5(DyTzz, Tzz_ptr, fdy_len, lfdy_shift, lfdy_coef, n_fd);
-        M_FD_SHIFT_PTR_UNLOOP5(DzTzz, Tzz_ptr, fdz_len, lfdz_shift, lfdz_coef, n_fd);
+        M_FD_SHIFT_PTR_MACDRP(DxTzz, Tzz_ptr, fdx_len, lfdx_shift, lfdx_coef, n_fd);
+        M_FD_SHIFT_PTR_MACDRP(DyTzz, Tzz_ptr, fdy_len, lfdy_shift, lfdy_coef, n_fd);
+        M_FD_SHIFT_PTR_MACDRP(DzTzz, Tzz_ptr, fdz_len, lfdz_shift, lfdz_coef, n_fd);
 
         // Txz derivatives
-        M_FD_SHIFT_PTR_UNLOOP5(DxTxz, Txz_ptr, fdx_len, lfdx_shift, lfdx_coef, n_fd);
-        M_FD_SHIFT_PTR_UNLOOP5(DyTxz, Txz_ptr, fdy_len, lfdy_shift, lfdy_coef, n_fd);
-        M_FD_SHIFT_PTR_UNLOOP5(DzTxz, Txz_ptr, fdz_len, lfdz_shift, lfdz_coef, n_fd);
+        M_FD_SHIFT_PTR_MACDRP(DxTxz, Txz_ptr, fdx_len, lfdx_shift, lfdx_coef, n_fd);
+        M_FD_SHIFT_PTR_MACDRP(DyTxz, Txz_ptr, fdy_len, lfdy_shift, lfdy_coef, n_fd);
+        M_FD_SHIFT_PTR_MACDRP(DzTxz, Txz_ptr, fdz_len, lfdz_shift, lfdz_coef, n_fd);
 
         // Tyz derivatives
-        M_FD_SHIFT_PTR_UNLOOP5(DxTyz, Tyz_ptr, fdx_len, lfdx_shift, lfdx_coef, n_fd);
-        M_FD_SHIFT_PTR_UNLOOP5(DyTyz, Tyz_ptr, fdy_len, lfdy_shift, lfdy_coef, n_fd);
-        M_FD_SHIFT_PTR_UNLOOP5(DzTyz, Tyz_ptr, fdz_len, lfdz_shift, lfdz_coef, n_fd);
+        M_FD_SHIFT_PTR_MACDRP(DxTyz, Tyz_ptr, fdx_len, lfdx_shift, lfdx_coef, n_fd);
+        M_FD_SHIFT_PTR_MACDRP(DyTyz, Tyz_ptr, fdy_len, lfdy_shift, lfdy_coef, n_fd);
+        M_FD_SHIFT_PTR_MACDRP(DzTyz, Tyz_ptr, fdz_len, lfdz_shift, lfdz_coef, n_fd);
 
         // Txy derivatives
-        M_FD_SHIFT_PTR_UNLOOP5(DxTxy, Txy_ptr, fdx_len, lfdx_shift, lfdx_coef, n_fd);
-        M_FD_SHIFT_PTR_UNLOOP5(DyTxy, Txy_ptr, fdy_len, lfdy_shift, lfdy_coef, n_fd);
-        M_FD_SHIFT_PTR_UNLOOP5(DzTxy, Txy_ptr, fdz_len, lfdz_shift, lfdz_coef, n_fd);
+        M_FD_SHIFT_PTR_MACDRP(DxTxy, Txy_ptr, fdx_len, lfdx_shift, lfdx_coef, n_fd);
+        M_FD_SHIFT_PTR_MACDRP(DyTxy, Txy_ptr, fdy_len, lfdy_shift, lfdy_coef, n_fd);
+        M_FD_SHIFT_PTR_MACDRP(DzTxy, Txy_ptr, fdz_len, lfdz_shift, lfdz_coef, n_fd);
 
         // metric
         xix = xi_x[iptr];
