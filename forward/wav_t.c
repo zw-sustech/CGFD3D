@@ -105,51 +105,6 @@ wav_init(gdinfo_t *gdinfo,
   return ierr;
 }
 
-//int
-//wav_set_stag_loc(wav_t *wav)
-//{
-//  wav->Vx_stg_loc = (wav_stag_loc_t **)malloc(wav->nlevel * sizeof(wav_stag_loc_t*));
-//  for (int n=0; n < wav->nlevel; n++) {
-//    wav->Vx_stg_loc[n] = (wav_stag_loc_t *)malloc(CONST_NDIM * sizeof(wav_stag_loc_t));
-//  }
-//
-//  Vx_stg_loc[];
-//}
-
-int
-wav_set_cell_loc_stg(wav_t *wav)
-{
-  // Vx x-half
-  wav->Vx_cell_loc[0] = 1;
-  wav->Vx_cell_loc[1] = 0;
-  wav->Vx_cell_loc[2] = 0;
-
-  // Vy y-half
-  wav->Vy_cell_loc[0] = 0;
-  wav->Vy_cell_loc[1] = 1;
-  wav->Vy_cell_loc[2] = 0;
-
-  // Vz z-half
-  wav->Vz_cell_loc[0] = 0;
-  wav->Vz_cell_loc[1] = 0;
-  wav->Vz_cell_loc[2] = 1;
-
-  // Txx at point
-  wav->Txx_cell_loc[0] = 0;
-  wav->Txx_cell_loc[1] = 0;
-  wav->Txx_cell_loc[2] = 0;
-
-  // Tyy at point
-  wav->Tyy_cell_loc[0] = 0;
-  wav->Tyy_cell_loc[1] = 0;
-  wav->Tyy_cell_loc[2] = 0;
-
-  // Tzz at point
-  wav->Tzz_cell_loc[0] = 0;
-  wav->Tzz_cell_loc[1] = 0;
-  wav->Tzz_cell_loc[2] = 0;
-}
-
 int
 wav_check_value(float *restrict w, wav_t *wav)
 {

@@ -48,26 +48,7 @@ typedef struct {
   size_t Txz_seq;
   size_t Txy_seq;
 
-  // staggered location of each cmp and each level
-  //wav_stag_loc_t **Vx_stg_loc; // ndim * ngrid
-  //wav_stag_loc_t **Vy_stg_loc; // ndim * ngrid
-  //wav_stag_loc_t **Vz_stg_loc; // ndim * ngrid
-  int  Vx_cell_loc[CONST_NDIM];
-  int  Vy_cell_loc[CONST_NDIM];
-  int  Vz_cell_loc[CONST_NDIM];
-  int Txx_cell_loc[CONST_NDIM];
-  int Tyy_cell_loc[CONST_NDIM];
-  int Tzz_cell_loc[CONST_NDIM];
-  int Txz_cell_loc[CONST_NDIM];
-  int Tyz_cell_loc[CONST_NDIM];
-  int Txy_cell_loc[CONST_NDIM];
-
 } wav_t;
-
-typedef enum {
-  ZERO = 0,
-  HALF = 1
-} wav_stag_loc_t;
 
 struct fd_vel_t
 {
