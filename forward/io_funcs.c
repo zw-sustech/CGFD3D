@@ -488,6 +488,8 @@ io_slice_locate(gdinfo_t  *gdinfo,
 {
   int ierr = 0;
 
+  ioslice->siz_max_wrk = 0;
+
   if (number_of_slice_x>0) {
     ioslice->slice_x_fname = (char **) fdlib_mem_malloc_2l_char(number_of_slice_x,
                                                             CONST_MAX_STRLEN,
@@ -525,6 +527,10 @@ io_slice_locate(gdinfo_t  *gdinfo,
                 output_dir,gi,output_fname_part);
 
       ioslice->num_of_slice_x += 1;
+
+      size_t slice_siz = gdinfo->nj * gdinfo->nk;
+      ioslice->siz_max_wrk = slice_siz > ioslice->siz_max_wrk ? 
+                             slice_siz : ioslice->siz_max_wrk;
     }
   }
 
@@ -541,6 +547,10 @@ io_slice_locate(gdinfo_t  *gdinfo,
                 output_dir,gj,output_fname_part);
 
       ioslice->num_of_slice_y += 1;
+
+      size_t slice_siz = gdinfo->ni * gdinfo->nk;
+      ioslice->siz_max_wrk = slice_siz > ioslice->siz_max_wrk ? 
+                             slice_siz : ioslice->siz_max_wrk;
     }
   }
 
@@ -557,6 +567,10 @@ io_slice_locate(gdinfo_t  *gdinfo,
                 output_dir,gk,output_fname_part);
 
       ioslice->num_of_slice_z += 1;
+
+      size_t slice_siz = gdinfo->ni * gdinfo->nj;
+      ioslice->siz_max_wrk = slice_siz > ioslice->siz_max_wrk ? 
+                             slice_siz : ioslice->siz_max_wrk;
     }
   }
 
@@ -605,6 +619,8 @@ io_snapshot_locate(gdinfo_t *gdinfo,
   }
 
   // init
+
+  iosnap->siz_max_wrk = 0;
 
   int isnap = 0;
 
@@ -687,6 +703,11 @@ io_snapshot_locate(gdinfo_t *gdinfo,
       sprintf(iosnap->fname[isnap],"%s/%s_%s.nc",output_dir,
                                                  snapshot_name[n],
                                                  output_fname_part);
+
+      // for max wrk
+      size_t snap_siz =  ngi * ngj * ngk;
+      iosnap->siz_max_wrk = snap_siz > iosnap->siz_max_wrk ? 
+                            snap_siz : iosnap->siz_max_wrk;
 
       isnap += 1;
     } // if in this
@@ -915,7 +936,8 @@ io_slice_nc_put(ioslice_t    *ioslice,
                 float *restrict buff,
                 int   it,
                 float time,
-                int   num_of_vars)
+                int   i1_cmp,
+                int   i2_cmp)
 {
   int ierr = 0;
 
@@ -932,13 +954,19 @@ io_slice_nc_put(ioslice_t    *ioslice,
   size_t siz_slice= gdinfo->siz_iz;
   size_t siz_icmp = gdinfo->siz_icmp;
 
+  int  num_of_vars = ioslice_nc->num_of_vars;
+
   //-- slice x, 
   for (int n=0; n < ioslice_nc->num_of_slice_x; n++)
   {
     size_t startp[] = { it, 0, 0 };
     size_t countp[] = { 1, nk, nj};
     size_t start_tdim = it;
-    for (int ivar=0; ivar < num_of_vars; ivar++)
+
+    nc_put_var1_float(ioslice_nc->ncid_slx[n], ioslice_nc->timeid_slx[n],
+                        &start_tdim, &time);
+
+    for (int ivar=i1_cmp; ivar <= i2_cmp; ivar++)
     {
       float *var = w4d + ivar * siz_icmp;
       int iptr_slice = 0;
@@ -950,20 +978,23 @@ io_slice_nc_put(ioslice_t    *ioslice,
           iptr_slice++;
         }
       }
-      nc_put_var1_float(ioslice_nc->ncid_slx[n], ioslice_nc->timeid_slx[n],
-                        &start_tdim, &time);
       nc_put_vara_float(ioslice_nc->ncid_slx[n], 
                         ioslice_nc->varid_slx[n*num_of_vars + ivar],
                         startp, countp, buff);
     }
   }
+
   // slice y
   for (int n=0; n < ioslice_nc->num_of_slice_y; n++)
   {
     size_t startp[] = { it, 0, 0 };
     size_t countp[] = { 1, nk, ni};
     size_t start_tdim = it;
-    for (int ivar=0; ivar < num_of_vars; ivar++)
+
+    nc_put_var1_float(ioslice_nc->ncid_sly[n], ioslice_nc->timeid_sly[n],
+                        &start_tdim, &time);
+
+    for (int ivar=i1_cmp; ivar <= i2_cmp; ivar++)
     {
       float *var = w4d + ivar * siz_icmp;
       int iptr_slice = 0;
@@ -975,20 +1006,23 @@ io_slice_nc_put(ioslice_t    *ioslice,
           iptr_slice++;
         }
       }
-      nc_put_var1_float(ioslice_nc->ncid_sly[n], ioslice_nc->timeid_sly[n],
-                        &start_tdim, &time);
       nc_put_vara_float(ioslice_nc->ncid_sly[n], 
                         ioslice_nc->varid_sly[n*num_of_vars + ivar],
                         startp, countp, buff);
     }
   }
+
   // slice z
   for (int n=0; n < ioslice_nc->num_of_slice_z; n++)
   {
     size_t startp[] = { it, 0, 0 };
     size_t countp[] = { 1, nj, ni};
     size_t start_tdim = it;
-    for (int ivar=0; ivar < num_of_vars; ivar++)
+
+    nc_put_var1_float(ioslice_nc->ncid_slz[n], ioslice_nc->timeid_slz[n],
+                        &start_tdim, &time);
+
+    for (int ivar=i1_cmp; ivar <= i2_cmp; ivar++)
     {
       float *var = w4d + ivar * siz_icmp;
       int iptr_slice = 0;
@@ -1000,8 +1034,6 @@ io_slice_nc_put(ioslice_t    *ioslice,
           iptr_slice++;
         }
       }
-      nc_put_var1_float(ioslice_nc->ncid_slz[n], ioslice_nc->timeid_slz[n],
-                        &start_tdim, &time);
       nc_put_vara_float(ioslice_nc->ncid_slz[n], 
                         ioslice_nc->varid_slz[n*num_of_vars + ivar],
                         startp, countp, buff);
@@ -1010,6 +1042,10 @@ io_slice_nc_put(ioslice_t    *ioslice,
 
   return ierr;
 }
+
+/*
+ * 
+ */
 
 int
 io_snap_nc_put(iosnap_t *iosnap,
@@ -1020,7 +1056,10 @@ io_snap_nc_put(iosnap_t *iosnap,
                float *restrict buff,
                int   nt_total,
                int   it,
-               float time)
+               float time,
+               int is_run_out_vel,     // for stg, out vel and stress at sep call
+               int is_run_out_stress,  // 
+               int is_incr_cur_it)     // for stg, should output cur_it once
 {
   int ierr = 0;
 
@@ -1063,7 +1102,7 @@ io_snap_nc_put(iosnap_t *iosnap,
       nc_put_var1_float(iosnap_nc->ncid[n],iosnap_nc->timeid[n],&start_tdim,&time);
 
       // vel
-      if (snap_out_V==1)
+      if (is_run_out_vel == 1 && snap_out_V==1)
       {
         io_snap_pack_buff(w4d + wav->Vx_pos,
               siz_line,siz_slice,snap_i1,snap_ni,snap_di,snap_j1,snap_nj,
@@ -1083,7 +1122,7 @@ io_snap_nc_put(iosnap_t *iosnap,
         nc_put_vara_float(iosnap_nc->ncid[n],iosnap_nc->varid_V[n*CONST_NDIM+2],
               startp,countp,buff);
       }
-      if (snap_out_T==1)
+      if (is_run_out_stress==1 && snap_out_T==1)
       {
         io_snap_pack_buff(w4d + wav->Txx_pos,
               siz_line,siz_slice,snap_i1,snap_ni,snap_di,snap_j1,snap_nj,
@@ -1121,12 +1160,14 @@ io_snap_nc_put(iosnap_t *iosnap,
         nc_put_vara_float(iosnap_nc->ncid[n],iosnap_nc->varid_T[n*CONST_NDIM_2+5],
               startp,countp,buff);
       }
-      if (snap_out_E==1)
+      if (is_run_out_stress==1 && snap_out_E==1)
       {
         // need to implement
       }
 
-      iosnap_nc->cur_it[n] += 1;
+      if (is_incr_cur_it == 1) {
+        iosnap_nc->cur_it[n] += 1;
+      }
 
     } // if it
   } // loop snap

@@ -62,6 +62,9 @@ typedef struct
 // slice output
 typedef struct
 {
+  // for esti size of working space var
+  size_t siz_max_wrk;
+
   int num_of_slice_x;
   int *restrict slice_x_indx;
   char **restrict slice_x_fname;
@@ -78,6 +81,9 @@ typedef struct
 // snapshot output
 typedef struct
 {
+  // for esti size of working space var
+  size_t siz_max_wrk;
+
   int num_of_snap;
 
   int *i1;
@@ -241,7 +247,8 @@ io_slice_nc_put(ioslice_t    *ioslice,
                 float *restrict buff,
                 int   it,
                 float time,
-                int   num_of_vars);
+                int   i1_cmp,
+                int   i2_cmp);
 
 int
 io_snap_nc_put(iosnap_t *iosnap,
@@ -252,7 +259,10 @@ io_snap_nc_put(iosnap_t *iosnap,
                float *restrict buff,
                int   nt_total,
                int   it,
-               float time);
+               float time,
+               int is_run_out_vel,     // for stg, out vel and stress at sep call
+               int is_run_out_stress,  // 
+               int is_incr_cur_it);     // for stg, should output cur_it once
 
 int
 io_snap_pack_buff(float *restrict var,

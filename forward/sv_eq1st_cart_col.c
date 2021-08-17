@@ -362,11 +362,11 @@ sv_eq1st_cart_col_allstep(
     io_line_keep(ioline, w_end, it, wav->ncmp, wav->siz_icmp);
 
     // write slice, use w_rhs as buff
-    io_slice_nc_put(ioslice,&ioslice_nc,gdinfo,w_end,w_rhs,it,t_end,wav->ncmp);
+    io_slice_nc_put(ioslice,&ioslice_nc,gdinfo,w_end,w_rhs,it,t_end,0,wav->ncmp-1);
 
     // snapshot
     io_snap_nc_put(iosnap, &iosnap_nc, gdinfo, wav, 
-                   w_end, w_rhs, nt_total, it, t_end);
+                   w_end, w_rhs, nt_total, it, t_end, 1,1,1);
 
     // zero temp used w_rsh
     wav_zero_edge(gdinfo, wav, w_rhs);
