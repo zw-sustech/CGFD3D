@@ -18,7 +18,7 @@ EXEC_DIR=/home/zhangw/code/zwlab/CGFD3D-elastic
 EXEC_WAVE=$EXEC_DIR/cgfdm3d_elastic_mpi
 
 #-- conf
-PROJDIR=/home/zhangw/work/cgfd_aniso/02
+PROJDIR=/home/zhangw/work/cgfd_aniso/04cart
 PAR_FILE=${PROJDIR}/test.json
 GRID_DIR=${PROJDIR}/output
 MEDIA_DIR=${PROJDIR}/output
@@ -106,7 +106,7 @@ cat << ieof > $PAR_FILE
   "grid_generation_method" : {
       "#import" : "$GRID_DIR",
       "cartesian" : {
-        "origin"  : [0.0, 0.0, -6000.0 ],
+        "origin"  : [0.0, 0.0, -5900.0 ],
         "inteval" : [ 100.0, 100.0, 100.0 ]
       },
       "#layer_interp" : {
