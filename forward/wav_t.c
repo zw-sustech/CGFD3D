@@ -83,14 +83,14 @@ wav_init(gdinfo_t *gdinfo,
   V->Tzz_seq = 5;
   icmp += 1;
 
-  sprintf(cmp_name[icmp],"%s","Txz");
-  V->Txz_pos = cmp_pos[icmp];
-  V->Txz_seq = 6;
-  icmp += 1;
-
   sprintf(cmp_name[icmp],"%s","Tyz");
   V->Tyz_pos = cmp_pos[icmp];
-  V->Tyz_seq = 7;
+  V->Tyz_seq = 6;
+  icmp += 1;
+
+  sprintf(cmp_name[icmp],"%s","Txz");
+  V->Txz_pos = cmp_pos[icmp];
+  V->Txz_seq = 7;
   icmp += 1;
 
   sprintf(cmp_name[icmp],"%s","Txy");

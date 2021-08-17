@@ -267,8 +267,8 @@ bdry_pml_auxvar_init(int nx, int ny, int nz,
   auxvar->Txx_pos = wav->Txx_seq * auxvar->siz_icmp;
   auxvar->Tyy_pos = wav->Tyy_seq * auxvar->siz_icmp;
   auxvar->Tzz_pos = wav->Tzz_seq * auxvar->siz_icmp;
-  auxvar->Txz_pos = wav->Txz_seq * auxvar->siz_icmp;
   auxvar->Tyz_pos = wav->Tyz_seq * auxvar->siz_icmp;
+  auxvar->Txz_pos = wav->Txz_seq * auxvar->siz_icmp;
   auxvar->Txy_pos = wav->Txy_seq * auxvar->siz_icmp;
 
   // vars
