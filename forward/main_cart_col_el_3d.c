@@ -152,6 +152,10 @@ int main(int argc, char** argv)
 
   if (myid==0 && verbose>0) fprintf(stdout,"allocate grid vars ...\n"); 
 
+  if (par->grid_generation_itype != PAR_GRID_CARTESIAN) {
+    fprintf(stderr, "ERROR: grid type wrong\n");
+  }
+
   // malloc var in gdcart
   float dx = par->cartesian_grid_stepsize[0];
   float dy = par->cartesian_grid_stepsize[1];
