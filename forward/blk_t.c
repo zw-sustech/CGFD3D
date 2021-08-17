@@ -22,6 +22,7 @@ blk_init(blk_t *blk,
 
   // alloc struct vars
   blk->fd            = (fd_t *)malloc(sizeof(fd_t));
+  blk->fdstg         = (fdstg_t *)malloc(sizeof(fdstg_t));
   blk->mympi         = (mympi_t *)malloc(sizeof(mympi_t));
   blk->gdinfo        = (gdinfo_t *)malloc(sizeof(gdinfo_t));
   blk->gd            = (gd_t        *)malloc(sizeof(gd_t     ));
@@ -88,6 +89,8 @@ blk_mesg_init(mympi_t *mympi,
   for (int iptr=0; iptr < siz_buff; iptr++) {
     mympi->rbuff[iptr] = 0.0;
   }
+  mympi->siz_sbuff = siz_buff;
+  mympi->siz_rbuff = siz_buff;
 
   float *sbuff_x1 = mympi->sbuff;
   float *sbuff_x2 = sbuff_x1 + siz_x;
@@ -475,4 +478,1455 @@ blk_print(blk_t *blk)
   //        blk->CFS_beta_max[3]);
   
   return ierr;
+}
+
+/*
+ * mpi message for stg scheme
+ */
+
+void
+blk_stg_el1st_mesg_init(mympi_t *mympi,
+                int ni,
+                int nj,
+                int nk,
+                int fdx_nghosts,
+                int fdy_nghosts)
+{
+  // esti size of mpi mesg 
+  int siz_x_per_lay = (nj * nk );
+  int siz_y_per_lay = (ni * nk );
+
+  // vel, small than stress
+  //int siz_buff = siz_x_per_lay * (2 * fdx_max_half_len - 1) // per var, either side less 1
+  //               * CONST_NDIM // ncmp of vel
+  //             + siz_y_per_lay * (2 * fdy_max_half_len - 1) // per var, either side less 1
+  //               * CONST_NDIM ; // ncmp of vel
+
+  // stress, needs more than vel
+  int siz_buff = siz_x_per_lay * (2 * fdy_nghosts - 1) // per var, either side less 1
+                 * (CONST_NDIM_2 - 1) // ncmp of stress, one shear is no need
+               + siz_y_per_lay * (2 * fdx_nghosts - 1) // per var, either side less 1
+                 * (CONST_NDIM_2 - 1) ;
+
+  mympi->sbuff = (float *) fdlib_mem_malloc_1d(siz_buff * sizeof(MPI_FLOAT),"alloc sbuff");
+  mympi->rbuff = (float *) fdlib_mem_malloc_1d(siz_buff * sizeof(MPI_FLOAT),"alloc rbuff");
+  for (int iptr=0; iptr < siz_buff; iptr++) {
+    mympi->rbuff[iptr] = 0.0;
+  }
+  mympi->siz_sbuff = siz_buff;
+  mympi->siz_rbuff = siz_buff;
+
+  // for vel
+
+  int tag_vel[4] = { 11, 12, 21, 22 };
+
+  // send
+  int siz_to_x1 = siz_x_per_lay * ( fdx_nghosts  - 1                // Vx
+                                   +fdx_nghosts * (CONST_NDIM-1) ); // Vy,Vz
+
+  int siz_to_x2 = siz_x_per_lay * ( fdx_nghosts                         // Vx
+                                  +(fdx_nghosts-1) * (CONST_NDIM-1) ); // Vy,Vz
+
+  int siz_to_y1 = siz_y_per_lay * ( fdy_nghosts  - 1                // Vy
+                                   +fdy_nghosts * (CONST_NDIM-1) ); // Vx,Vz
+
+  int siz_to_y2 = siz_y_per_lay * ( fdy_nghosts                         // Vy
+                                  +(fdy_nghosts-1) * (CONST_NDIM-1) ); // Vx,Vz
+
+  float *sbuff_x1 = mympi->sbuff;
+  float *sbuff_x2 = sbuff_x1 + siz_to_x1;
+  float *sbuff_y1 = sbuff_x2 + siz_to_x2;
+  float *sbuff_y2 = sbuff_y1 + siz_to_y1;
+
+  MPI_Send_init(sbuff_x1, siz_to_x1, MPI_FLOAT, mympi->neighid[0], tag_vel[0], mympi->topocomm, &(mympi->s_reqs_vel[0]));
+  MPI_Send_init(sbuff_x2, siz_to_x2, MPI_FLOAT, mympi->neighid[1], tag_vel[1], mympi->topocomm, &(mympi->s_reqs_vel[1]));
+  MPI_Send_init(sbuff_y1, siz_to_y1, MPI_FLOAT, mympi->neighid[2], tag_vel[2], mympi->topocomm, &(mympi->s_reqs_vel[2]));
+  MPI_Send_init(sbuff_y2, siz_to_y2, MPI_FLOAT, mympi->neighid[3], tag_vel[3], mympi->topocomm, &(mympi->s_reqs_vel[3]));
+
+  // recv
+  //siz_x2 = siz_x_per_lay * ( fdy_nghosts  - 1                // Vx
+  //                          +fdy_nghosts * (CONST_NDIM-1) ); // Vy,Vz
+
+  //siz_x1 = siz_x_per_lay * ( fdy_nghosts                         // Vx
+  //                          +(fdy_nghosts-1) * (CONST_NDIM-1) ); // Vy,Vz
+
+  //siz_y2 = siz_y_per_lay * ( fdx_nghosts  - 1                // Vy
+  //                          +fdx_nghosts * (CONST_NDIM-1) ); // Vx,Vz
+
+  //siz_y1 = siz_y_per_lay * ( fdx_nghosts                         // Vy
+  //                          +    (fdx_nghosts-1) * (CONST_NDIM-1) ); // Vx,Vz
+
+  float *rbuff_x1 = mympi->rbuff;
+  float *rbuff_x2 = rbuff_x1 + siz_to_x2;
+  float *rbuff_y1 = rbuff_x2 + siz_to_x1;
+  float *rbuff_y2 = rbuff_y1 + siz_to_y2;
+
+  // recv
+  MPI_Recv_init(rbuff_x1, siz_to_x2, MPI_FLOAT, mympi->neighid[0], tag_vel[1], mympi->topocomm, &(mympi->r_reqs_vel[0]));
+  MPI_Recv_init(rbuff_x2, siz_to_x1, MPI_FLOAT, mympi->neighid[1], tag_vel[0], mympi->topocomm, &(mympi->r_reqs_vel[1]));
+  MPI_Recv_init(rbuff_y1, siz_to_y2, MPI_FLOAT, mympi->neighid[2], tag_vel[3], mympi->topocomm, &(mympi->r_reqs_vel[2]));
+  MPI_Recv_init(rbuff_y2, siz_to_y1, MPI_FLOAT, mympi->neighid[3], tag_vel[2], mympi->topocomm, &(mympi->r_reqs_vel[3]));
+
+  // for stress
+
+  int tag_stress[4] = { 31, 32, 41, 42 };
+
+  // send
+  siz_to_x1 = siz_x_per_lay * ( (fdx_nghosts  ) * (CONST_NDIM  )    // Tii
+                               +(fdx_nghosts-1) * (CONST_NDIM-1) ); // Tij
+
+  siz_to_x2 = siz_x_per_lay * ( (fdx_nghosts-1) * (CONST_NDIM  )    // Tii
+                               +(fdx_nghosts  ) * (CONST_NDIM-1) ); // Tij
+
+  siz_to_y1 = siz_y_per_lay * ( (fdy_nghosts  ) * (CONST_NDIM  )    // Tii
+                               +(fdy_nghosts-1) * (CONST_NDIM-1) ); // Tij
+
+  siz_to_y2 = siz_y_per_lay * ( (fdy_nghosts-1) * (CONST_NDIM  )    // Tii
+                               +(fdy_nghosts  ) * (CONST_NDIM-1) ); // Tij
+
+  sbuff_x1 = mympi->sbuff;
+  sbuff_x2 = sbuff_x1 + siz_to_x1;
+  sbuff_y1 = sbuff_x2 + siz_to_x2;
+  sbuff_y2 = sbuff_y1 + siz_to_y1;
+
+  MPI_Send_init(sbuff_x1, siz_to_x1, MPI_FLOAT, mympi->neighid[0], tag_stress[0], mympi->topocomm, &(mympi->s_reqs_stress[0]));
+  MPI_Send_init(sbuff_x2, siz_to_x2, MPI_FLOAT, mympi->neighid[1], tag_stress[1], mympi->topocomm, &(mympi->s_reqs_stress[1]));
+  MPI_Send_init(sbuff_y1, siz_to_y1, MPI_FLOAT, mympi->neighid[2], tag_stress[2], mympi->topocomm, &(mympi->s_reqs_stress[2]));
+  MPI_Send_init(sbuff_y2, siz_to_y2, MPI_FLOAT, mympi->neighid[3], tag_stress[3], mympi->topocomm, &(mympi->s_reqs_stress[3]));
+
+  // recev
+  //siz_x2 = siz_x_per_lay * ( (fdy_nghosts  ) * (CONST_NDIM  )    // Tii
+  //                          +(fdy_nghosts-1) * (CONST_NDIM-1) ); // Tij
+
+  //siz_x1 = siz_x_per_lay * ( (fdy_nghosts-1) * (CONST_NDIM  )    // Tii
+  //                          +(fdy_nghosts  ) * (CONST_NDIM-1) ); // Tij
+
+  //siz_y2 = siz_y_per_lay * ( (fdx_nghosts  ) * (CONST_NDIM  )    // Tii
+  //                          +(fdx_nghosts-1) * (CONST_NDIM-1) ); // Tij
+
+  //siz_y1 = siz_y_per_lay * ( (fdx_nghosts-1) * (CONST_NDIM  )    // Tii
+  //                          +(fdx_nghosts  ) * (CONST_NDIM-1) ); // Tij
+
+  rbuff_x1 = mympi->rbuff;
+  rbuff_x2 = rbuff_x1 + siz_to_x2;
+  rbuff_y1 = rbuff_x2 + siz_to_x1;
+  rbuff_y2 = rbuff_y1 + siz_to_y2;
+
+  MPI_Recv_init(rbuff_x1, siz_to_x2, MPI_FLOAT, mympi->neighid[0], tag_stress[1], mympi->topocomm, &(mympi->r_reqs_stress[0]));
+  MPI_Recv_init(rbuff_x2, siz_to_x1, MPI_FLOAT, mympi->neighid[1], tag_stress[0], mympi->topocomm, &(mympi->r_reqs_stress[1]));
+  MPI_Recv_init(rbuff_y1, siz_to_y2, MPI_FLOAT, mympi->neighid[2], tag_stress[3], mympi->topocomm, &(mympi->r_reqs_stress[2]));
+  MPI_Recv_init(rbuff_y2, siz_to_y1, MPI_FLOAT, mympi->neighid[3], tag_stress[2], mympi->topocomm, &(mympi->r_reqs_stress[3]));
+
+  return;
+}
+
+/*
+ * pack
+ */
+
+void
+blk_stg_el1st_pack_mesg_vel(fdstg_t *fd, 
+            gdinfo_t *gdinfo, wav_t *wav, float *restrict sbuff)
+{
+  int ni1 = gdinfo->ni1;
+  int ni2 = gdinfo->ni2;
+  int nj1 = gdinfo->nj1;
+  int nj2 = gdinfo->nj2;
+  int nk1 = gdinfo->nk1;
+  int nk2 = gdinfo->nk2;
+  size_t siz_line   = gdinfo->siz_iy;
+  size_t siz_slice  = gdinfo->siz_iz;
+
+  // local pointer
+  float *restrict Vx    = wav->v5d + wav->Vx_pos ;
+  float *restrict Vy    = wav->v5d + wav->Vy_pos ;
+  float *restrict Vz    = wav->v5d + wav->Vz_pos ;
+
+  size_t iptr_b = 0; 
+  //
+  // to x 
+  //
+
+  // get fd op
+  //fd_op_t *this_fd_op = fd->lay_fdx_op + fd->num_of_fdx_op - 1;
+  int fdx_max_half_len = fd->fdx_max_half_len;
+
+  // Vx to x1
+  for (int k=nk1; k<=nk2; k++)
+  {
+    size_t iptr_k = k * siz_slice;
+    for (int j=nj1; j<=nj2; j++)
+    {
+      size_t iptr_j = iptr_k + j * siz_line;
+      // Vx at i+1/2, one layer already at x neigh
+      for (int i=ni1; i<ni1+fdx_max_half_len-1; i++)
+      {
+        sbuff[iptr_b] = Vx[iptr_j + i];
+        iptr_b += 1;
+      }
+    }
+  }
+
+  // Vy to x1
+  for (int k=nk1; k<=nk2; k++)
+  {
+    size_t iptr_k = k * siz_slice;
+    for (int j=nj1; j<=nj2; j++)
+    {
+      size_t iptr_j = iptr_k + j * siz_line;
+      for (int i=ni1; i<ni1+fdx_max_half_len; i++)
+      {
+        sbuff[iptr_b] = Vy[iptr_j + i];
+        iptr_b += 1;
+      }
+    }
+  }
+
+  // Vz to x1
+  for (int k=nk1; k<=nk2; k++)
+  {
+    size_t iptr_k = k * siz_slice;
+    for (int j=nj1; j<=nj2; j++)
+    {
+      size_t iptr_j = iptr_k + j * siz_line;
+      for (int i=ni1; i<ni1+fdx_max_half_len; i++)
+      {
+        sbuff[iptr_b] = Vz[iptr_j + i];
+        iptr_b += 1;
+      }
+    }
+  }
+
+  // Vx to x2
+  for (int k=nk1; k<=nk2; k++)
+  {
+    size_t iptr_k = k * siz_slice;
+    for (int j=nj1; j<=nj2; j++)
+    {
+      size_t iptr_j = iptr_k + j * siz_line;
+      for (int i=ni2-fdx_max_half_len+1; i<=ni2; i++)
+      {
+        sbuff[iptr_b] = Vx[iptr_j + i];
+        iptr_b += 1;
+      }
+    }
+  }
+
+  // Vy to x2
+  for (int k=nk1; k<=nk2; k++)
+  {
+    size_t iptr_k = k * siz_slice;
+    for (int j=nj1; j<=nj2; j++)
+    {
+      size_t iptr_j = iptr_k + j * siz_line;
+      // Vy at i, half_len -1 is required
+      for (int i=ni2-fdx_max_half_len+2; i<=ni2; i++)
+      {
+        sbuff[iptr_b] = Vy[iptr_j + i];
+        iptr_b += 1;
+      }
+    }
+  }
+
+  // Vz to x2
+  for (int k=nk1; k<=nk2; k++)
+  {
+    size_t iptr_k = k * siz_slice;
+    for (int j=nj1; j<=nj2; j++)
+    {
+      size_t iptr_j = iptr_k + j * siz_line;
+      // Vz at i, half_len -1 is required
+      for (int i=ni2-fdx_max_half_len+2; i<=ni2; i++)
+      {
+        sbuff[iptr_b] = Vz[iptr_j + i];
+        iptr_b += 1;
+      }
+    }
+  }
+
+  //
+  // to y
+  //
+
+  // get fd op
+  int fdy_max_half_len = fd->fdy_max_half_len;
+
+  // Vx to y1
+  for (int k=nk1; k<=nk2; k++)
+  {
+    size_t iptr_k = k * siz_slice;
+    for (int j=nj1; j < nj1 + fdy_max_half_len; j++)
+    {
+      size_t iptr_j = iptr_k + j * siz_line;
+      for (int i=ni1; i<=ni2; i++)
+      {
+        sbuff[iptr_b] = Vx[iptr_j + i];
+        iptr_b += 1;
+      }
+    }
+  }
+
+  // Vy to y1
+  for (int k=nk1; k<=nk2; k++)
+  {
+    size_t iptr_k = k * siz_slice;
+    // Vy at j+1/2, 1 less is needed
+    for (int j=nj1; j < nj1 + fdy_max_half_len -1; j++)
+    {
+      size_t iptr_j = iptr_k + j * siz_line;
+      for (int i=ni1; i<=ni2; i++)
+      {
+        sbuff[iptr_b] = Vy[iptr_j + i];
+        iptr_b += 1;
+      }
+    }
+  }
+
+  // Vz to y1
+  for (int k=nk1; k<=nk2; k++)
+  {
+    size_t iptr_k = k * siz_slice;
+    for (int j=nj1; j < nj1 + fdy_max_half_len; j++)
+    {
+      size_t iptr_j = iptr_k + j * siz_line;
+      for (int i=ni1; i<=ni2; i++)
+      {
+        sbuff[iptr_b] = Vz[iptr_j + i];
+        iptr_b += 1;
+      }
+    }
+  }
+
+  // Vx to y2
+  for (int k=nk1; k<=nk2; k++)
+  {
+    size_t iptr_k = k * siz_slice;
+    // Vx at j, 1 less
+    for (int j=nj2-fdy_max_half_len+2; j<=nj2; j++)
+    {
+      size_t iptr_j = iptr_k + j * siz_line;
+      for (int i=ni1; i<=ni2; i++)
+      {
+        sbuff[iptr_b] = Vx[iptr_j + i];
+        iptr_b += 1;
+      }
+    }
+  }
+
+  // Vy to y2
+  for (int k=nk1; k<=nk2; k++)
+  {
+    size_t iptr_k = k * siz_slice;
+    for (int j=nj2-fdy_max_half_len+1; j<=nj2; j++)
+    {
+      size_t iptr_j = iptr_k + j * siz_line;
+      for (int i=ni1; i<=ni2; i++)
+      {
+        sbuff[iptr_b] = Vy[iptr_j + i];
+        iptr_b += 1;
+      }
+    }
+  }
+
+  // Vz to y1
+  for (int k=nk1; k<=nk2; k++)
+  {
+    size_t iptr_k = k * siz_slice;
+    // Vz at j, 1 less
+    for (int j=nj2-fdy_max_half_len+2; j<=nj2; j++)
+    {
+      size_t iptr_j = iptr_k + j * siz_line;
+      for (int i=ni1; i<=ni2; i++)
+      {
+        sbuff[iptr_b] = Vz[iptr_j + i];
+        iptr_b += 1;
+      }
+    }
+  }
+
+  return;
+}
+
+void
+blk_stg_el1st_unpack_mesg_vel(fdstg_t *fd,mympi_t *mympi, gdinfo_t *gdinfo, wav_t *wav,
+      float *restrict rbuff, size_t siz_rbuff)
+{
+  int ni1 = gdinfo->ni1;
+  int ni2 = gdinfo->ni2;
+  int nj1 = gdinfo->nj1;
+  int nj2 = gdinfo->nj2;
+  int nk1 = gdinfo->nk1;
+  int nk2 = gdinfo->nk2;
+  size_t siz_line   = gdinfo->siz_line;
+  size_t siz_slice  = gdinfo->siz_slice;
+
+  // local pointer
+  float *restrict Vx    = wav->v5d + wav->Vx_pos ;
+  float *restrict Vy    = wav->v5d + wav->Vy_pos ;
+  float *restrict Vz    = wav->v5d + wav->Vz_pos ;
+
+  size_t iptr_b = 0;
+
+  //
+  // from x 
+  //
+
+  // get fd op
+  int fdx_max_half_len = fd->fdx_max_half_len;
+
+  // Vx from x1
+  for (int k=nk1; k<=nk2; k++)
+  {
+    size_t iptr_k = k * siz_slice;
+    for (int j=nj1; j<=nj2; j++)
+    {
+      size_t iptr_j = iptr_k + j * siz_line;
+      for (int i=ni1-fdx_max_half_len; i<ni1; i++)
+      {
+        Vx[iptr_j + i] = rbuff[iptr_b];
+        iptr_b += 1;
+      }
+    }
+  }
+
+  // Vy from x1
+  for (int k=nk1; k<=nk2; k++)
+  {
+    size_t iptr_k = k * siz_slice;
+    for (int j=nj1; j<=nj2; j++)
+    {
+      size_t iptr_j = iptr_k + j * siz_line;
+      // Vy 1 less
+      for (int i=ni1-fdx_max_half_len+1; i<ni1; i++)
+      {
+        Vy[iptr_j + i] = rbuff[iptr_b];
+        iptr_b += 1;
+      }
+    }
+  }
+
+  // Vz from x1
+  for (int k=nk1; k<=nk2; k++)
+  {
+    size_t iptr_k = k * siz_slice;
+    for (int j=nj1; j<=nj2; j++)
+    {
+      size_t iptr_j = iptr_k + j * siz_line;
+      for (int i=ni1-fdx_max_half_len+1; i<ni1; i++)
+      {
+        Vz[iptr_j + i] = rbuff[iptr_b];
+        iptr_b += 1;
+      }
+    }
+  }
+
+  // Vx from x2
+  for (int k=nk1; k<=nk2; k++)
+  {
+    size_t iptr_k = k * siz_slice;
+    for (int j=nj1; j<=nj2; j++)
+    {
+      size_t iptr_j = iptr_k + j * siz_line;
+      // Vx 1 less
+      for (int i=ni2+1; i<=ni2+fdx_max_half_len-1; i++)
+      {
+        Vx[iptr_j + i] = rbuff[iptr_b];
+        iptr_b += 1;
+      }
+    }
+  }
+
+  // Vy from x2
+  for (int k=nk1; k<=nk2; k++)
+  {
+    size_t iptr_k = k * siz_slice;
+    for (int j=nj1; j<=nj2; j++)
+    {
+      size_t iptr_j = iptr_k + j * siz_line;
+      for (int i=ni2+1; i<=ni2+fdx_max_half_len; i++)
+      {
+        Vy[iptr_j + i] = rbuff[iptr_b];
+        iptr_b += 1;
+      }
+    }
+  }
+
+  // Vz from x2
+  for (int k=nk1; k<=nk2; k++)
+  {
+    size_t iptr_k = k * siz_slice;
+    for (int j=nj1; j<=nj2; j++)
+    {
+      size_t iptr_j = iptr_k + j * siz_line;
+      for (int i=ni2+1; i<=ni2+fdx_max_half_len; i++)
+      {
+        Vz[iptr_j + i] = rbuff[iptr_b];
+        iptr_b += 1;
+      }
+    }
+  }
+
+  //
+  // from y 
+  //
+
+  // get fd op
+  int fdy_max_half_len = fd->fdy_max_half_len;
+
+  // Vx from y1
+  for (int k=nk1; k<=nk2; k++)
+  {
+    size_t iptr_k = k * siz_slice;
+    // Vx 1 less
+    for (int j=nj1-fdy_max_half_len+1; j<nj1; j++)
+    {
+      size_t iptr_j = iptr_k + j * siz_line;
+      for (int i=ni1; i<=ni2; i++)
+      {
+        Vx[iptr_j + i] = rbuff[iptr_b];
+        iptr_b += 1;
+      }
+    }
+  }
+
+  // Vy from y1
+  for (int k=nk1; k<=nk2; k++)
+  {
+    size_t iptr_k = k * siz_slice;
+    for (int j=nj1-fdy_max_half_len; j<nj1; j++)
+    {
+      size_t iptr_j = iptr_k + j * siz_line;
+      for (int i=ni1; i<=ni2; i++)
+      {
+        Vy[iptr_j + i] = rbuff[iptr_b];
+        iptr_b += 1;
+      }
+    }
+  }
+
+  // Vz from y1
+  for (int k=nk1; k<=nk2; k++)
+  {
+    size_t iptr_k = k * siz_slice;
+    // Vz 1 less
+    for (int j=nj1-fdy_max_half_len+1; j<nj1; j++)
+    {
+      size_t iptr_j = iptr_k + j * siz_line;
+      for (int i=ni1; i<=ni2; i++)
+      {
+        Vz[iptr_j + i] = rbuff[iptr_b];
+        iptr_b += 1;
+      }
+    }
+  }
+
+  // Vx from y2
+  for (int k=nk1; k<=nk2; k++)
+  {
+    size_t iptr_k = k * siz_slice;
+    for (int j=nj2+1; j<=nj2+fdy_max_half_len; j++)
+    {
+      size_t iptr_j = iptr_k + j * siz_line;
+      for (int i=ni1; i<=ni2; i++)
+      {
+        Vx[iptr_j + i] = rbuff[iptr_b];
+        iptr_b += 1;
+      }
+    }
+  }
+
+  // Vy from y2
+  for (int k=nk1; k<=nk2; k++)
+  {
+    size_t iptr_k = k * siz_slice;
+    // Vy 1 less
+    for (int j=nj2+1; j<=nj2+fdy_max_half_len-1; j++)
+    {
+      size_t iptr_j = iptr_k + j * siz_line;
+      for (int i=ni1; i<=ni2; i++)
+      {
+        Vy[iptr_j + i] = rbuff[iptr_b];
+        iptr_b += 1;
+      }
+    }
+  }
+
+  // Vz from y2
+  for (int k=nk1; k<=nk2; k++)
+  {
+    size_t iptr_k = k * siz_slice;
+    for (int j=nj2+1; j<=nj2+fdy_max_half_len; j++)
+    {
+      size_t iptr_j = iptr_k + j * siz_line;
+      for (int i=ni1; i<=ni2; i++)
+      {
+        Vz[iptr_j + i] = rbuff[iptr_b];
+        iptr_b += 1;
+      }
+    }
+  }
+
+  if (iptr_b > siz_rbuff) {
+    fprintf(stderr, "unpack vel error: iptr_b=%i > siz=%i\n", iptr_b, siz_rbuff);
+    exit(-1);
+  }
+
+  // reset mpi boundary
+  // x1
+  if (mympi->neighid[0] == MPI_PROC_NULL) {
+    for (int k=nk1; k<=nk2; k++) {
+      for (int j=nj1; j<=nj2; j++) {
+        for (int i=ni1-fdx_max_half_len; i<ni1; i++)
+        {
+          size_t iptr = i + j * siz_line + k * siz_slice;
+          Vx[iptr] = 0.0;
+          Vy[iptr] = 0.0;
+          Vz[iptr] = 0.0;
+        }
+      }
+    }
+  }
+  // x2
+  if (mympi->neighid[1] == MPI_PROC_NULL) {
+    for (int k=nk1; k<=nk2; k++) {
+      for (int j=nj1; j<=nj2; j++) {
+        for (int i=ni2+1; i<=ni2+fdx_max_half_len; i++)
+        {
+          size_t iptr = i + j * siz_line + k * siz_slice;
+          Vx[iptr] = 0.0;
+          Vy[iptr] = 0.0;
+          Vz[iptr] = 0.0;
+        }
+        // Vx at i+1/2
+        //size_t iptr = ni2 + j * siz_line + k * siz_slice;
+        //Vx[iptr] = 0.0;
+      }
+    }
+  }
+  // y1
+  if (mympi->neighid[2] == MPI_PROC_NULL) {
+    for (int k=nk1; k<=nk2; k++) {
+      for (int j=nj1-fdy_max_half_len; j<nj1; j++) {
+        for (int i=ni1; i<=ni2; i++)
+        {
+          size_t iptr = i + j * siz_line + k * siz_slice;
+          Vx[iptr] = 0.0;
+          Vy[iptr] = 0.0;
+          Vz[iptr] = 0.0;
+        }
+      }
+    }
+  }
+  // y2
+  if (mympi->neighid[3] == MPI_PROC_NULL) {
+    for (int k=nk1; k<=nk2; k++) {
+      for (int j=nj2+1; j<=nj2+fdy_max_half_len; j++) {
+        for (int i=ni1; i<=ni2; i++)
+        {
+          size_t iptr = i + j * siz_line + k * siz_slice;
+          Vx[iptr] = 0.0;
+          Vy[iptr] = 0.0;
+          Vz[iptr] = 0.0;
+        } // i
+      } // j
+
+      //// Vy
+      //j = nj2;
+      //for (int i=ni1; i<=ni2; i++)
+      //{
+      //  size_t iptr = i + j * siz_line + k * siz_slice;
+      //  Vy[iptr] = 0.0;
+      //} // i
+    } // k
+  }
+
+  return;
+}
+
+void
+blk_stg_el1st_pack_mesg_stress(fdstg_t *fd, gdinfo_t *gdinfo, wav_t *wav,
+      float *restrict sbuff)
+{
+  int ni1 = gdinfo->ni1;
+  int ni2 = gdinfo->ni2;
+  int nj1 = gdinfo->nj1;
+  int nj2 = gdinfo->nj2;
+  int nk1 = gdinfo->nk1;
+  int nk2 = gdinfo->nk2;
+  size_t siz_line   = gdinfo->siz_iy;
+  size_t siz_slice  = gdinfo->siz_iz;
+
+  // local pointer
+  float *restrict Txx   = wav->v5d + wav->Txx_pos;
+  float *restrict Tyy   = wav->v5d + wav->Tyy_pos;
+  float *restrict Tzz   = wav->v5d + wav->Tzz_pos;
+  float *restrict Txz   = wav->v5d + wav->Txz_pos;
+  float *restrict Tyz   = wav->v5d + wav->Tyz_pos;
+  float *restrict Txy   = wav->v5d + wav->Txy_pos;
+
+  size_t iptr_b = 0;
+
+  //
+  // to x 
+  //
+
+  // get fd op
+  int fdx_max_half_len = fd->fdx_max_half_len;
+
+  // Txx to x1
+  for (int k=nk1; k<=nk2; k++)
+  {
+    size_t iptr_k = k * siz_slice;
+    for (int j=nj1; j<=nj2; j++)
+    {
+      size_t iptr_j = iptr_k + j * siz_line;
+      for (int i=ni1; i<ni1+fdx_max_half_len; i++)
+      {
+        sbuff[iptr_b] = Txx[iptr_j + i];
+        iptr_b += 1;
+      }
+    }
+  }
+
+  // Tyy to x1
+  for (int k=nk1; k<=nk2; k++)
+  {
+    size_t iptr_k = k * siz_slice;
+    for (int j=nj1; j<=nj2; j++)
+    {
+      size_t iptr_j = iptr_k + j * siz_line;
+      for (int i=ni1; i<ni1+fdx_max_half_len; i++)
+      {
+        sbuff[iptr_b] = Tyy[iptr_j + i];
+        iptr_b += 1;
+      }
+    }
+  }
+
+  // Tzz to x1
+  for (int k=nk1; k<=nk2; k++)
+  {
+    size_t iptr_k = k * siz_slice;
+    for (int j=nj1; j<=nj2; j++)
+    {
+      size_t iptr_j = iptr_k + j * siz_line;
+      for (int i=ni1; i<ni1+fdx_max_half_len; i++)
+      {
+        sbuff[iptr_b] = Tzz[iptr_j + i];
+        iptr_b += 1;
+      }
+    }
+  }
+
+  // Txz to x1
+  for (int k=nk1; k<=nk2; k++)
+  {
+    size_t iptr_k = k * siz_slice;
+    for (int j=nj1; j<=nj2; j++)
+    {
+      size_t iptr_j = iptr_k + j * siz_line;
+      // 1 less
+      for (int i=ni1; i<ni1+fdx_max_half_len-1; i++)
+      {
+        sbuff[iptr_b] = Txz[iptr_j + i];
+        iptr_b += 1;
+      }
+    }
+  }
+
+  // Txy to x1
+  for (int k=nk1; k<=nk2; k++)
+  {
+    size_t iptr_k = k * siz_slice;
+    for (int j=nj1; j<=nj2; j++)
+    {
+      size_t iptr_j = iptr_k + j * siz_line;
+      // 1 less
+      for (int i=ni1; i<ni1+fdx_max_half_len-1; i++)
+      {
+        sbuff[iptr_b] = Txy[iptr_j + i];
+        iptr_b += 1;
+      }
+    }
+  }
+
+  // Txx to x2
+  for (int k=nk1; k<=nk2; k++)
+  {
+    size_t iptr_k = k * siz_slice;
+    for (int j=nj1; j<=nj2; j++)
+    {
+      size_t iptr_j = iptr_k + j * siz_line;
+      // 1 less
+      for (int i=ni2-fdx_max_half_len+2; i<=ni2; i++)
+      {
+        sbuff[iptr_b] = Txx[iptr_j + i];
+        iptr_b += 1;
+      }
+    }
+  }
+
+  // Tyy to x2
+  for (int k=nk1; k<=nk2; k++)
+  {
+    size_t iptr_k = k * siz_slice;
+    for (int j=nj1; j<=nj2; j++)
+    {
+      size_t iptr_j = iptr_k + j * siz_line;
+      // 1 less
+      for (int i=ni2-fdx_max_half_len+2; i<=ni2; i++)
+      {
+        sbuff[iptr_b] = Tyy[iptr_j + i];
+        iptr_b += 1;
+      }
+    }
+  }
+
+  // Tzz to x2
+  for (int k=nk1; k<=nk2; k++)
+  {
+    size_t iptr_k = k * siz_slice;
+    for (int j=nj1; j<=nj2; j++)
+    {
+      size_t iptr_j = iptr_k + j * siz_line;
+      // 1 less
+      for (int i=ni2-fdx_max_half_len+2; i<=ni2; i++)
+      {
+        sbuff[iptr_b] = Tzz[iptr_j + i];
+        iptr_b += 1;
+      }
+    }
+  }
+
+  // Txz to x2
+  for (int k=nk1; k<=nk2; k++)
+  {
+    size_t iptr_k = k * siz_slice;
+    for (int j=nj1; j<=nj2; j++)
+    {
+      size_t iptr_j = iptr_k + j * siz_line;
+      for (int i=ni2-fdx_max_half_len+1; i<=ni2; i++)
+      {
+        sbuff[iptr_b] = Txz[iptr_j + i];
+        iptr_b += 1;
+      }
+    }
+  }
+
+  // Txy to x2
+  for (int k=nk1; k<=nk2; k++)
+  {
+    size_t iptr_k = k * siz_slice;
+    for (int j=nj1; j<=nj2; j++)
+    {
+      size_t iptr_j = iptr_k + j * siz_line;
+      for (int i=ni2-fdx_max_half_len+1; i<=ni2; i++)
+      {
+        sbuff[iptr_b] = Txy[iptr_j + i];
+        iptr_b += 1;
+      }
+    }
+  }
+
+  //
+  // to y
+  //
+
+  // get fd op
+  int fdy_max_half_len = fd->fdy_max_half_len;
+
+  // Txx to y1
+  for (int k=nk1; k<=nk2; k++)
+  {
+    size_t iptr_k = k * siz_slice;
+    for (int j=nj1; j < nj1 + fdy_max_half_len; j++)
+    {
+      size_t iptr_j = iptr_k + j * siz_line;
+      for (int i=ni1; i<=ni2; i++)
+      {
+        sbuff[iptr_b] = Txx[iptr_j + i];
+        iptr_b += 1;
+      }
+    }
+  }
+
+  // Tyy to y1
+  for (int k=nk1; k<=nk2; k++)
+  {
+    size_t iptr_k = k * siz_slice;
+    for (int j=nj1; j < nj1 + fdy_max_half_len; j++)
+    {
+      size_t iptr_j = iptr_k + j * siz_line;
+      for (int i=ni1; i<=ni2; i++)
+      {
+        sbuff[iptr_b] = Tyy[iptr_j + i];
+        iptr_b += 1;
+      }
+    }
+  }
+
+  // Tzz to y1
+  for (int k=nk1; k<=nk2; k++)
+  {
+    size_t iptr_k = k * siz_slice;
+    for (int j=nj1; j < nj1 + fdy_max_half_len; j++)
+    {
+      size_t iptr_j = iptr_k + j * siz_line;
+      for (int i=ni1; i<=ni2; i++)
+      {
+        sbuff[iptr_b] = Tzz[iptr_j + i];
+        iptr_b += 1;
+      }
+    }
+  }
+
+  // Tyz to y1
+  for (int k=nk1; k<=nk2; k++)
+  {
+    size_t iptr_k = k * siz_slice;
+    // 1 less
+    for (int j=nj1; j < nj1 + fdy_max_half_len -1; j++)
+    {
+      size_t iptr_j = iptr_k + j * siz_line;
+      for (int i=ni1; i<=ni2; i++)
+      {
+        sbuff[iptr_b] = Tyz[iptr_j + i];
+        iptr_b += 1;
+      }
+    }
+  }
+
+  // Txy to y1
+  for (int k=nk1; k<=nk2; k++)
+  {
+    size_t iptr_k = k * siz_slice;
+    // 1 less
+    for (int j=nj1; j < nj1 + fdy_max_half_len -1; j++)
+    {
+      size_t iptr_j = iptr_k + j * siz_line;
+      for (int i=ni1; i<=ni2; i++)
+      {
+        sbuff[iptr_b] = Txy[iptr_j + i];
+        iptr_b += 1;
+      }
+    }
+  }
+
+  // Txx to y2
+  for (int k=nk1; k<=nk2; k++)
+  {
+    size_t iptr_k = k * siz_slice;
+    // at j, 1 less
+    for (int j=nj2-fdy_max_half_len+2; j<=nj2; j++)
+    {
+      size_t iptr_j = iptr_k + j * siz_line;
+      for (int i=ni1; i<=ni2; i++)
+      {
+        sbuff[iptr_b] = Txx[iptr_j + i];
+        iptr_b += 1;
+      }
+    }
+  }
+
+  // Tyy to y2
+  for (int k=nk1; k<=nk2; k++)
+  {
+    size_t iptr_k = k * siz_slice;
+    // at j, 1 less
+    for (int j=nj2-fdy_max_half_len+2; j<=nj2; j++)
+    {
+      size_t iptr_j = iptr_k + j * siz_line;
+      for (int i=ni1; i<=ni2; i++)
+      {
+        sbuff[iptr_b] = Tyy[iptr_j + i];
+        iptr_b += 1;
+      }
+    }
+  }
+
+  // Tzz to y2
+  for (int k=nk1; k<=nk2; k++)
+  {
+    size_t iptr_k = k * siz_slice;
+    // at j, 1 less
+    for (int j=nj2-fdy_max_half_len+2; j<=nj2; j++)
+    {
+      size_t iptr_j = iptr_k + j * siz_line;
+      for (int i=ni1; i<=ni2; i++)
+      {
+        sbuff[iptr_b] = Tzz[iptr_j + i];
+        iptr_b += 1;
+      }
+    }
+  }
+
+  // Tyz to y2
+  for (int k=nk1; k<=nk2; k++)
+  {
+    size_t iptr_k = k * siz_slice;
+    for (int j=nj2-fdy_max_half_len+1; j<=nj2; j++)
+    {
+      size_t iptr_j = iptr_k + j * siz_line;
+      for (int i=ni1; i<=ni2; i++)
+      {
+        sbuff[iptr_b] = Tyz[iptr_j + i];
+        iptr_b += 1;
+      }
+    }
+  }
+
+  // Txy to y2
+  for (int k=nk1; k<=nk2; k++)
+  {
+    size_t iptr_k = k * siz_slice;
+    for (int j=nj2-fdy_max_half_len+1; j<=nj2; j++)
+    {
+      size_t iptr_j = iptr_k + j * siz_line;
+      for (int i=ni1; i<=ni2; i++)
+      {
+        sbuff[iptr_b] = Txy[iptr_j + i];
+        iptr_b += 1;
+      }
+    }
+  }
+
+  return;
+}
+
+void
+blk_stg_el1st_unpack_mesg_stress(fdstg_t *fd,mympi_t *mympi, gdinfo_t *gdinfo, wav_t *wav,
+    float *restrict rbuff, size_t siz_rbuff)
+{
+  int ni1 = gdinfo->ni1;
+  int ni2 = gdinfo->ni2;
+  int nj1 = gdinfo->nj1;
+  int nj2 = gdinfo->nj2;
+  int nk1 = gdinfo->nk1;
+  int nk2 = gdinfo->nk2;
+  size_t siz_line   = gdinfo->siz_line;
+  size_t siz_slice  = gdinfo->siz_slice;
+
+  // local pointer
+  float *restrict Txx   = wav->v5d + wav->Txx_pos;
+  float *restrict Tyy   = wav->v5d + wav->Tyy_pos;
+  float *restrict Tzz   = wav->v5d + wav->Tzz_pos;
+  float *restrict Txz   = wav->v5d + wav->Txz_pos;
+  float *restrict Tyz   = wav->v5d + wav->Tyz_pos;
+  float *restrict Txy   = wav->v5d + wav->Txy_pos;
+
+  size_t iptr_b = 0;
+
+  //
+  // from x 
+  //
+
+  // get fd op
+  int fdx_max_half_len = fd->fdx_max_half_len;
+
+  // Txx from x1
+  for (int k=nk1; k<=nk2; k++)
+  {
+    size_t iptr_k = k * siz_slice;
+    for (int j=nj1; j<=nj2; j++)
+    {
+      size_t iptr_j = iptr_k + j * siz_line;
+      // 1 less
+      for (int i=ni1-fdx_max_half_len+1; i<ni1; i++)
+      {
+        Txx[iptr_j + i] = rbuff[iptr_b];
+        iptr_b += 1;
+      }
+    }
+  }
+
+  // Tyy from x1
+  for (int k=nk1; k<=nk2; k++)
+  {
+    size_t iptr_k = k * siz_slice;
+    for (int j=nj1; j<=nj2; j++)
+    {
+      size_t iptr_j = iptr_k + j * siz_line;
+      // 1 less
+      for (int i=ni1-fdx_max_half_len+1; i<ni1; i++)
+      {
+        Tyy[iptr_j + i] = rbuff[iptr_b];
+        iptr_b += 1;
+      }
+    }
+  }
+
+  // Tzz from x1
+  for (int k=nk1; k<=nk2; k++)
+  {
+    size_t iptr_k = k * siz_slice;
+    for (int j=nj1; j<=nj2; j++)
+    {
+      size_t iptr_j = iptr_k + j * siz_line;
+      // 1 less
+      for (int i=ni1-fdx_max_half_len+1; i<ni1; i++)
+      {
+        Tzz[iptr_j + i] = rbuff[iptr_b];
+        iptr_b += 1;
+      }
+    }
+  }
+
+  // Txz from x1
+  for (int k=nk1; k<=nk2; k++)
+  {
+    size_t iptr_k = k * siz_slice;
+    for (int j=nj1; j<=nj2; j++)
+    {
+      size_t iptr_j = iptr_k + j * siz_line;
+      for (int i=ni1-fdx_max_half_len; i<ni1; i++)
+      {
+        Txz[iptr_j + i] = rbuff[iptr_b];
+        iptr_b += 1;
+      }
+    }
+  }
+
+  // Txy from x1
+  for (int k=nk1; k<=nk2; k++)
+  {
+    size_t iptr_k = k * siz_slice;
+    for (int j=nj1; j<=nj2; j++)
+    {
+      size_t iptr_j = iptr_k + j * siz_line;
+      for (int i=ni1-fdx_max_half_len; i<ni1; i++)
+      {
+        Txy[iptr_j + i] = rbuff[iptr_b];
+        iptr_b += 1;
+      }
+    }
+  }
+
+  // Txx from x2
+  for (int k=nk1; k<=nk2; k++)
+  {
+    size_t iptr_k = k * siz_slice;
+    for (int j=nj1; j<=nj2; j++)
+    {
+      size_t iptr_j = iptr_k + j * siz_line;
+      for (int i=ni2+1; i<=ni2+fdx_max_half_len; i++)
+      {
+        Txx[iptr_j + i] = rbuff[iptr_b];
+        iptr_b += 1;
+      }
+    }
+  }
+
+  // Tyy from x2
+  for (int k=nk1; k<=nk2; k++)
+  {
+    size_t iptr_k = k * siz_slice;
+    for (int j=nj1; j<=nj2; j++)
+    {
+      size_t iptr_j = iptr_k + j * siz_line;
+      for (int i=ni2+1; i<=ni2+fdx_max_half_len; i++)
+      {
+        Tyy[iptr_j + i] = rbuff[iptr_b];
+        iptr_b += 1;
+      }
+    }
+  }
+
+  // Tzz from x2
+  for (int k=nk1; k<=nk2; k++)
+  {
+    size_t iptr_k = k * siz_slice;
+    for (int j=nj1; j<=nj2; j++)
+    {
+      size_t iptr_j = iptr_k + j * siz_line;
+      for (int i=ni2+1; i<=ni2+fdx_max_half_len; i++)
+      {
+        Tzz[iptr_j + i] = rbuff[iptr_b];
+        iptr_b += 1;
+      }
+    }
+  }
+
+  // Txz from x2
+  for (int k=nk1; k<=nk2; k++)
+  {
+    size_t iptr_k = k * siz_slice;
+    for (int j=nj1; j<=nj2; j++)
+    {
+      size_t iptr_j = iptr_k + j * siz_line;
+      // 1 less
+      for (int i=ni2+1; i<=ni2+fdx_max_half_len-1; i++)
+      {
+        Txz[iptr_j + i] = rbuff[iptr_b];
+        iptr_b += 1;
+      }
+    }
+  }
+
+  // Txy from x2
+  for (int k=nk1; k<=nk2; k++)
+  {
+    size_t iptr_k = k * siz_slice;
+    for (int j=nj1; j<=nj2; j++)
+    {
+      size_t iptr_j = iptr_k + j * siz_line;
+      // 1 less
+      for (int i=ni2+1; i<=ni2+fdx_max_half_len-1; i++)
+      {
+        Txy[iptr_j + i] = rbuff[iptr_b];
+        iptr_b += 1;
+      }
+    }
+  }
+
+  //
+  // from y 
+  //
+
+  // get fd op
+  int fdy_max_half_len = fd->fdy_max_half_len;
+
+  // Txx from y1
+  for (int k=nk1; k<=nk2; k++)
+  {
+    size_t iptr_k = k * siz_slice;
+    // 1 less
+    for (int j=nj1-fdy_max_half_len+1; j<nj1; j++)
+    {
+      size_t iptr_j = iptr_k + j * siz_line;
+      for (int i=ni1; i<=ni2; i++)
+      {
+        Txx[iptr_j + i] = rbuff[iptr_b];
+        iptr_b += 1;
+      }
+    }
+  }
+
+  // Tyy from y1
+  for (int k=nk1; k<=nk2; k++)
+  {
+    size_t iptr_k = k * siz_slice;
+    // 1 less
+    for (int j=nj1-fdy_max_half_len+1; j<nj1; j++)
+    {
+      size_t iptr_j = iptr_k + j * siz_line;
+      for (int i=ni1; i<=ni2; i++)
+      {
+        Tyy[iptr_j + i] = rbuff[iptr_b];
+        iptr_b += 1;
+      }
+    }
+  }
+
+  // Tzz from y1
+  for (int k=nk1; k<=nk2; k++)
+  {
+    size_t iptr_k = k * siz_slice;
+    // 1 less
+    for (int j=nj1-fdy_max_half_len+1; j<nj1; j++)
+    {
+      size_t iptr_j = iptr_k + j * siz_line;
+      for (int i=ni1; i<=ni2; i++)
+      {
+        Tzz[iptr_j + i] = rbuff[iptr_b];
+        iptr_b += 1;
+      }
+    }
+  }
+
+  // Tyz from y1
+  for (int k=nk1; k<=nk2; k++)
+  {
+    size_t iptr_k = k * siz_slice;
+    for (int j=nj1-fdy_max_half_len; j<nj1; j++)
+    {
+      size_t iptr_j = iptr_k + j * siz_line;
+      for (int i=ni1; i<=ni2; i++)
+      {
+        Tyz[iptr_j + i] = rbuff[iptr_b];
+        iptr_b += 1;
+      }
+    }
+  }
+
+  // Txy from y1
+  for (int k=nk1; k<=nk2; k++)
+  {
+    size_t iptr_k = k * siz_slice;
+    for (int j=nj1-fdy_max_half_len; j<nj1; j++)
+    {
+      size_t iptr_j = iptr_k + j * siz_line;
+      for (int i=ni1; i<=ni2; i++)
+      {
+        Txy[iptr_j + i] = rbuff[iptr_b];
+        iptr_b += 1;
+      }
+    }
+  }
+
+  // Txx from y2
+  for (int k=nk1; k<=nk2; k++)
+  {
+    size_t iptr_k = k * siz_slice;
+    for (int j=nj2+1; j<=nj2+fdy_max_half_len; j++)
+    {
+      size_t iptr_j = iptr_k + j * siz_line;
+      for (int i=ni1; i<=ni2; i++)
+      {
+        Txx[iptr_j + i] = rbuff[iptr_b];
+        iptr_b += 1;
+      }
+    }
+  }
+
+  // Tyy from y2
+  for (int k=nk1; k<=nk2; k++)
+  {
+    size_t iptr_k = k * siz_slice;
+    for (int j=nj2+1; j<=nj2+fdy_max_half_len; j++)
+    {
+      size_t iptr_j = iptr_k + j * siz_line;
+      for (int i=ni1; i<=ni2; i++)
+      {
+        Tyy[iptr_j + i] = rbuff[iptr_b];
+        iptr_b += 1;
+      }
+    }
+  }
+
+  // Tzz from y2
+  for (int k=nk1; k<=nk2; k++)
+  {
+    size_t iptr_k = k * siz_slice;
+    for (int j=nj2+1; j<=nj2+fdy_max_half_len; j++)
+    {
+      size_t iptr_j = iptr_k + j * siz_line;
+      for (int i=ni1; i<=ni2; i++)
+      {
+        Tzz[iptr_j + i] = rbuff[iptr_b];
+        iptr_b += 1;
+      }
+    }
+  }
+
+  // Tyz from y2
+  for (int k=nk1; k<=nk2; k++)
+  {
+    size_t iptr_k = k * siz_slice;
+    // 1 less
+    for (int j=nj2+1; j<=nj2+fdy_max_half_len-1; j++)
+    {
+      size_t iptr_j = iptr_k + j * siz_line;
+      for (int i=ni1; i<=ni2; i++)
+      {
+        Tyz[iptr_j + i] = rbuff[iptr_b];
+        iptr_b += 1;
+      }
+    }
+  }
+
+  // Txy from y2
+  for (int k=nk1; k<=nk2; k++)
+  {
+    size_t iptr_k = k * siz_slice;
+    // 1 less
+    for (int j=nj2+1; j<=nj2+fdy_max_half_len-1; j++)
+    {
+      size_t iptr_j = iptr_k + j * siz_line;
+      for (int i=ni1; i<=ni2; i++)
+      {
+        Txy[iptr_j + i] = rbuff[iptr_b];
+        iptr_b += 1;
+      }
+    }
+  }
+
+  if (iptr_b > siz_rbuff) {
+    fprintf(stderr, "unpack vel error: iptr_b=%i > siz=%i\n", iptr_b, siz_rbuff);
+    exit(-1);
+  }
+
+  // reset mpi boundary
+  // x1
+  if (mympi->neighid[0] == MPI_PROC_NULL) {
+    for (int k=nk1; k<=nk2; k++) {
+      for (int j=nj1; j<=nj2; j++) {
+        for (int i=ni1-fdx_max_half_len; i<ni1; i++)
+        {
+          size_t iptr = i + j * siz_line + k * siz_slice;
+          Txx[iptr] = 0.0;
+          Tyy[iptr] = 0.0;
+          Tzz[iptr] = 0.0;
+          Tyz[iptr] = 0.0;
+          Txz[iptr] = 0.0;
+          Txy[iptr] = 0.0;
+        }
+      }
+    }
+  }
+  // x2
+  if (mympi->neighid[1] == MPI_PROC_NULL) {
+    for (int k=nk1; k<=nk2; k++) {
+      for (int j=nj1; j<=nj2; j++) {
+        for (int i=ni2+1; i<=ni2+fdx_max_half_len; i++)
+        {
+          size_t iptr = i + j * siz_line + k * siz_slice;
+          Txx[iptr] = 0.0;
+          Tyy[iptr] = 0.0;
+          Tzz[iptr] = 0.0;
+          Tyz[iptr] = 0.0;
+          Txz[iptr] = 0.0;
+          Txy[iptr] = 0.0;
+        }
+        // Txy, Txz at i+1/2
+        //size_t iptr = ni2 + j * siz_line + k * siz_slice;
+        //Txz[iptr] = 0.0;
+        //Txy[iptr] = 0.0;
+      }
+    }
+  }
+  // y1
+  if (mympi->neighid[2] == MPI_PROC_NULL) {
+    for (int k=nk1; k<=nk2; k++) {
+      for (int j=nj1-fdy_max_half_len; j<nj1; j++) {
+        for (int i=ni1; i<=ni2; i++)
+        {
+          size_t iptr = i + j * siz_line + k * siz_slice;
+          Txx[iptr] = 0.0;
+          Tyy[iptr] = 0.0;
+          Tzz[iptr] = 0.0;
+          Tyz[iptr] = 0.0;
+          Txz[iptr] = 0.0;
+          Txy[iptr] = 0.0;
+        }
+      }
+    }
+  }
+  // y2
+  if (mympi->neighid[3] == MPI_PROC_NULL) {
+    for (int k=nk1; k<=nk2; k++) {
+      for (int j=nj2+1; j<=nj2+fdy_max_half_len; j++) {
+        for (int i=ni1; i<=ni2; i++)
+        {
+          size_t iptr = i + j * siz_line + k * siz_slice;
+          Txx[iptr] = 0.0;
+          Tyy[iptr] = 0.0;
+          Tzz[iptr] = 0.0;
+          Tyz[iptr] = 0.0;
+          Txz[iptr] = 0.0;
+          Txy[iptr] = 0.0;
+        } // i
+      } // j
+
+      //// Txy, Tyz
+      //j = nj2;
+      //for (int i=ni1; i<=ni2; i++)
+      //{
+      //  size_t iptr = i + j * siz_line + k * siz_slice;
+      //  Tyz[iptr] = 0.0;
+      //  Txy[iptr] = 0.0;
+      //} // i
+    } // k
+  }
+
+  return;
 }

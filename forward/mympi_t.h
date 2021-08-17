@@ -20,11 +20,22 @@ typedef struct {
   //int    neighid[4];
   int    neighid[CONST_NDIM_2];
   MPI_Comm    topocomm;
+
+  size_t siz_sbuff;
+  size_t siz_rbuff;
+  float *sbuff;
+  float *rbuff;
+
+  // for stg
+  MPI_Request r_reqs_vel[4];
+  MPI_Request s_reqs_vel[4];
+  MPI_Request r_reqs_stress[4];
+  MPI_Request s_reqs_stress[4];
+
+  // for col scheme
   MPI_Request r_reqs[4];
   MPI_Request s_reqs[4];
 
-  float *sbuff;
-  float *rbuff;
 } mympi_t;
 
 /*******************************************************************************

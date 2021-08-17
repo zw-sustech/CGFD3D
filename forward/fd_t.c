@@ -352,15 +352,15 @@ fd_set_stg4(fdstg_t *fd)
   int ierr = 0;
 
   // set max
-  fd->fdx_nghosts = 3;
-  fd->fdy_nghosts = 3;
-  fd->fdz_nghosts = 3;
-  fd->fdx_max_len = 5;
-  fd->fdy_max_len = 5;
-  fd->fdz_max_len = 5;
-  fd->fdx_max_half_len = 3;
-  fd->fdy_max_half_len = 3;
-  fd->fdz_max_half_len = 3;
+  fd->fdx_nghosts = 2;
+  fd->fdy_nghosts = 2;
+  fd->fdz_nghosts = 2;
+  fd->fdx_max_len = 4;
+  fd->fdy_max_len = 4;
+  fd->fdz_max_len = 4;
+  fd->fdx_max_half_len = 2;
+  fd->fdy_max_half_len = 2;
+  fd->fdz_max_half_len = 2;
 
   //----------------------------------------------------------------------------
   // 1d scheme for different points to surface, or different half length
@@ -401,7 +401,7 @@ fd_set_stg4(fdstg_t *fd)
 
   fd->num_of_fdx_op = 1;
   fd->num_of_fdy_op = 1;
-  fd->num_of_fdz_op = 2;
+  fd->num_of_fdz_op = 1;
 
   // alloc
 
@@ -441,24 +441,41 @@ fd_set_stg4(fdstg_t *fd)
     fdy_op->coef[n] = stg_all_coef[m_stg_num_lay-1][n];
   }
 
-  // for fdz at each layer near surface
-  for (int ilay=0; ilay < fd->num_of_fdz_op; ilay++)
+  // set fdz
+  fd_op_t *fdz_op = fd->lay_fdz_op;
+  fdz_op->total_len = stg_all_total_len[m_stg_num_lay-1];
+  fdz_op->half_len  = stg_all_half_len [m_stg_num_lay-1];
+  fdz_op->left_len  = stg_all_left_len [m_stg_num_lay-1];
+  fdz_op->right_len = stg_all_right_len[m_stg_num_lay-1];
+
+  fdz_op->indx = (int   *)malloc(fdz_op->total_len * sizeof(int));
+  fdz_op->coef = (float *)malloc(fdz_op->total_len * sizeof(float));
+
+  for (int n=0; n < fdz_op->total_len; n++)
   {
-    fd_op_t *fdz_op = fd->lay_fdz_op + ilay;
-
-    fdz_op->total_len = stg_all_total_len[ilay];
-    fdz_op->half_len  = stg_all_half_len [ilay];
-    fdz_op->left_len  = stg_all_left_len [ilay];
-    fdz_op->right_len = stg_all_right_len[ilay];
-
-    fdz_op->indx = (int   *)malloc(fdz_op->total_len * sizeof(int));
-    fdz_op->coef = (float *)malloc(fdz_op->total_len * sizeof(float));
-    for (int n=0; n < fdz_op->total_len; n++)
-    {
-      fdz_op->indx[n] = stg_all_indx[ilay][n];
-      fdz_op->coef[n] = stg_all_coef[ilay][n];
-    }
+    fdz_op->indx[n] = stg_all_indx[m_stg_num_lay-1][n];
+    fdz_op->coef[n] = stg_all_coef[m_stg_num_lay-1][n];
   }
+
+  //fd->num_of_fdz_op = 2;
+  //// for fdz at each layer near surface
+  //for (int ilay=0; ilay < fd->num_of_fdz_op; ilay++)
+  //{
+  //  fd_op_t *fdz_op = fd->lay_fdz_op + ilay;
+
+  //  fdz_op->total_len = stg_all_total_len[ilay];
+  //  fdz_op->half_len  = stg_all_half_len [ilay];
+  //  fdz_op->left_len  = stg_all_left_len [ilay];
+  //  fdz_op->right_len = stg_all_right_len[ilay];
+
+  //  fdz_op->indx = (int   *)malloc(fdz_op->total_len * sizeof(int));
+  //  fdz_op->coef = (float *)malloc(fdz_op->total_len * sizeof(float));
+  //  for (int n=0; n < fdz_op->total_len; n++)
+  //  {
+  //    fdz_op->indx[n] = stg_all_indx[ilay][n];
+  //    fdz_op->coef[n] = stg_all_coef[ilay][n];
+  //  }
+  //}
 
   return ierr;
 }

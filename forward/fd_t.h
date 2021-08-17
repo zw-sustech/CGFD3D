@@ -1,6 +1,8 @@
 #ifndef FD_T_H
 #define FD_T_H
 
+#define FD_STG_MAX_LEN 4
+
 /*******************************************************************************
  *macro for fd opterators
  *******************************************************************************/
@@ -196,6 +198,12 @@ typedef struct {
   int num_of_fdy_op;
   int num_of_fdz_op;
 
+  // set for integer point
+  fd_op_t *lay_fdx_op;
+  fd_op_t *lay_fdy_op;
+  fd_op_t *lay_fdz_op;
+
+  // for diff cmp, not used
   fd_op_t *Vx_fdx_op; // [nlay]
   fd_op_t *Vx_fdy_op;
   fd_op_t *Vx_fdz_op;
@@ -232,10 +240,6 @@ typedef struct {
   fd_op_t *Txy_fdy_op;
   fd_op_t *Txy_fdz_op;
 
-  fd_op_t *lay_fdx_op;
-  fd_op_t *lay_fdy_op;
-  fd_op_t *lay_fdz_op;
-
 } fdstg_t;
 
 /*******************************************************************************
@@ -249,6 +253,6 @@ void
 fd_print(fd_t *fd);
 
 int 
-fd_set_stg(fdstg_t *fd);
+fd_set_stg4(fdstg_t *fd);
 
 #endif
