@@ -362,10 +362,12 @@ par_read_from_str(const char *str, par_t *par)
     // medium is iso, vti or aniso
     if (subitem = cJSON_GetObjectItem(item, "type")) {
         sprintf(par->media_type, "%s", subitem->valuestring);
-        if (strcmp(par->media_type, "iso")==0) {
+        if (strcmp(par->media_type, "el_iso")==0) {
           par->media_itype = CONST_MEDIUM_ELASTIC_ISO;
-        } else if (strcmp(par->media_type, "aniso")==0) {
+        } else if (strcmp(par->media_type, "el_aniso")==0) {
           par->media_itype = CONST_MEDIUM_ELASTIC_ANISO;
+        } else if (strcmp(par->media_type, "ac_iso")==0) {
+          par->media_itype = CONST_MEDIUM_ACOUSTIC_ISO;
         } else {
           fprintf(stderr,"ERROR: media_type is unknown\n");
         }

@@ -126,7 +126,7 @@ cat << ieof > $PAR_FILE
   "is_export_metric" : 1,
 
   "media_input" : {
-      "type" : "iso",
+      "type" : "el_iso",
       "#import" : "$MEDIA_DIR",
       "code_generate" : 1,
       "#in_3lay_file" : "${IN_MEDIA_3LAY_FILE}",
