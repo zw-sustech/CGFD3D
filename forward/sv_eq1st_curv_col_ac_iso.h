@@ -17,7 +17,7 @@
  *************************************************/
 
 void
-sv_eq1st_curv_col_ac_onestage(
+sv_eq1st_curv_col_ac_iso_onestage(
   float *restrict w_cur,
   float *restrict rhs, 
   wav_t  *wav,
@@ -35,7 +35,7 @@ sv_eq1st_curv_col_ac_onestage(
   const int myid, const int verbose);
 
 void
-sv_eq1st_curv_col_ac_rhs_inner(
+sv_eq1st_curv_col_ac_iso_rhs_inner(
     float *restrict  Vx , float *restrict  Vy , float *restrict  Vz ,
     float *restrict  P, 
     float *restrict hVx , float *restrict hVy , float *restrict hVz ,
@@ -52,14 +52,14 @@ sv_eq1st_curv_col_ac_rhs_inner(
     const int myid, const int verbose);
 
 void
-sv_eq1st_curv_col_ac_rhs_timg_z2(
+sv_eq1st_curv_col_ac_iso_rhs_timg_z2(
     float *restrict  P,
     int ni1, int ni2, int nj1, int nj2, int nk1, int nk2, int nz,
     size_t siz_line, size_t siz_slice,
     const int myid, const int verbose);
 
 void
-sv_eq1st_curv_col_ac_rhs_vlow_z2(
+sv_eq1st_curv_col_ac_iso_rhs_vlow_z2(
     float *restrict  Vx , float *restrict  Vy , float *restrict  Vz ,
     float *restrict hP, 
     float *restrict xi_x, float *restrict xi_y, float *restrict xi_z,
@@ -74,7 +74,7 @@ sv_eq1st_curv_col_ac_rhs_vlow_z2(
     const int myid, const int verbose);
 
 void
-sv_eq1st_curv_col_ac_rhs_cfspml(
+sv_eq1st_curv_col_ac_iso_rhs_cfspml(
     float *restrict  Vx , float *restrict  Vy , float *restrict  Vz ,
     float *restrict  P, 
     float *restrict hVx , float *restrict hVy , float *restrict hVz ,
@@ -91,7 +91,7 @@ sv_eq1st_curv_col_ac_rhs_cfspml(
     const int myid, const int verbose);
 
 int
-sv_eq1st_curv_col_ac_rhs_src(
+sv_eq1st_curv_col_ac_iso_rhs_src(
     float *restrict hVx , float *restrict hVy , float *restrict hVz ,
     float *restrict hP, 
     float *restrict jac3d, float *restrict slw3d,

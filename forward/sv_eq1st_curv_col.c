@@ -14,7 +14,7 @@
 #include "sv_eq1st_curv_col.h"
 #include "sv_eq1st_curv_col_el_iso.h"
 #include "sv_eq1st_curv_col_el_aniso.h"
-#include "sv_eq1st_curv_col_ac.h"
+#include "sv_eq1st_curv_col_ac_iso.h"
 
 //#define SV_ELISO1ST_CURV_MACDRP_DEBUG
 
@@ -219,7 +219,7 @@ sv_eq1st_curv_col_allstep(
         //}
 
         case CONST_MEDIUM_ACOUSTIC_ISO : {
-          sv_eq1st_curv_col_ac_onestage(
+          sv_eq1st_curv_col_ac_iso_onestage(
               w_cur,w_rhs,wav,
               gdinfo, metric, md, bdryfree, bdrypml, src,
               fd->num_of_fdx_op, fd->pair_fdx_op[ipair][istage],

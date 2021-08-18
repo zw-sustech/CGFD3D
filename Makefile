@@ -58,7 +58,7 @@ cgfdm3d_elastic_mpi: \
 		bdry_free.o bdry_pml.o src_t.o io_funcs.o \
 		blk_t.o \
 		sv_eq1st_curv_col.o \
-		sv_eq1st_curv_col_ac.o \
+		sv_eq1st_curv_col_ac_iso.o \
 		sv_eq1st_curv_col_el_aniso.o sv_eq1st_curv_col_el_iso.o \
 		cgfdm3d_elastic_main.o
 	$(CXX) -o $@ $^ $(LDFLAGS)
@@ -110,7 +110,7 @@ blk_t.o: forward/blk_t.c
 	${CC} -c -o $@ $(CFLAGS) $<
 sv_eq1st_curv_col.o: forward/sv_eq1st_curv_col.c
 	${CC} -c -o $@ $(CFLAGS) $<
-sv_eq1st_curv_col_ac.o: forward/sv_eq1st_curv_col_ac.c
+sv_eq1st_curv_col_ac_iso.o: forward/sv_eq1st_curv_col_ac_iso.c
 	${CC} -c -o $@ $(CFLAGS) $<
 sv_eq1st_curv_col_el_iso.o: forward/sv_eq1st_curv_col_el_iso.c
 	${CC} -c -o $@ $(CFLAGS) $<

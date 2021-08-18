@@ -46,7 +46,7 @@ LDFLAGS := -lm  $(LDFLAGS) $(NETCDF)/lib/libnetcdf.a
 # 	$< The names of the first prerequisite
 #   $^ The names of all the prerequisites 
 
-main_curv_col_ac_3d: \
+main_curv_col_ac_iso_3d: \
 		cJSON.o sacLib.o fdlib_mem.o fdlib_math.o  \
 		fd_t.o par_t.o interp.o mympi_t.o \
 		media_utility.o \
@@ -58,7 +58,7 @@ main_curv_col_ac_3d: \
 		bdry_free.o bdry_pml.o src_t.o io_funcs.o \
 		blk_t.o \
 		sv_eq1st_curv_col.o \
-		sv_eq1st_curv_col_ac.o \
+		sv_eq1st_curv_col_ac_iso.o \
 		sv_eq1st_curv_col_el_aniso.o sv_eq1st_curv_col_el_iso.o \
 		main_curv_col_ac_3d.o
 	$(CXX) -o $@ $^ $(LDFLAGS)
@@ -110,7 +110,7 @@ blk_t.o: forward/blk_t.c
 	${CC} -c -o $@ $(CFLAGS) $<
 sv_eq1st_curv_col.o: forward/sv_eq1st_curv_col.c
 	${CC} -c -o $@ $(CFLAGS) $<
-sv_eq1st_curv_col_ac.o: forward/sv_eq1st_curv_col_ac.c
+sv_eq1st_curv_col_ac_iso.o: forward/sv_eq1st_curv_col_ac_iso.c
 	${CC} -c -o $@ $(CFLAGS) $<
 sv_eq1st_curv_col_el_iso.o: forward/sv_eq1st_curv_col_el_iso.c
 	${CC} -c -o $@ $(CFLAGS) $<

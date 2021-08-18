@@ -10,14 +10,14 @@
 
 #include "fdlib_mem.h"
 #include "fdlib_math.h"
-#include "sv_eq1st_curv_col_ac.h"
+#include "sv_eq1st_curv_col_ac_iso.h"
 
 /*******************************************************************************
  * perform one stage calculation of rhs
  ******************************************************************************/
 
 void
-sv_eq1st_curv_col_ac_onestage(
+sv_eq1st_curv_col_ac_iso_onestage(
   float *restrict w_cur,
   float *restrict rhs, 
   wav_t  *wav,
@@ -105,14 +105,14 @@ sv_eq1st_curv_col_ac_onestage(
   if (bdryfree->is_at_sides[2][1] == 1)
   {
     // imaging
-    sv_eq1st_curv_col_ac_rhs_timg_z2(P,
+    sv_eq1st_curv_col_ac_iso_rhs_timg_z2(P,
                                      ni1,ni2,nj1,nj2,nk1,nk2,nz,
                                      siz_line,siz_slice,
                                      myid, verbose);
   }
 
   // inner points
-  sv_eq1st_curv_col_ac_rhs_inner(Vx,Vy,Vz,P,
+  sv_eq1st_curv_col_ac_iso_rhs_inner(Vx,Vy,Vz,P,
                                     hVx,hVy,hVz,hP,
                                     xi_x, xi_y, xi_z, et_x, et_y, et_z, zt_x, zt_y, zt_z,
                                     kappa3d, slw3d,
@@ -128,7 +128,7 @@ sv_eq1st_curv_col_ac_onestage(
   if (bdryfree->is_at_sides[2][1] == 1)
   {
     // velocity: vlow
-    sv_eq1st_curv_col_ac_rhs_vlow_z2(Vx,Vy,Vz,hP,
+    sv_eq1st_curv_col_ac_iso_rhs_vlow_z2(Vx,Vy,Vz,hP,
                                         xi_x, xi_y, xi_z, et_x, et_y, et_z, zt_x, zt_y, zt_z,
                                         kappa3d, slw3d,
                                         ni1,ni2,nj1,nj2,nk1,nk2,siz_line,siz_slice,
@@ -141,7 +141,7 @@ sv_eq1st_curv_col_ac_onestage(
   // cfs-pml, loop face inside
   if (bdrypml->is_enable == 1)
   {
-    sv_eq1st_curv_col_ac_rhs_cfspml(Vx,Vy,Vz,P,
+    sv_eq1st_curv_col_ac_iso_rhs_cfspml(Vx,Vy,Vz,P,
                                     hVx,hVy,hVz,hP,
                                        xi_x, xi_y, xi_z, et_x, et_y, et_z, zt_x, zt_y, zt_z,
                                        kappa3d, slw3d,
@@ -157,7 +157,7 @@ sv_eq1st_curv_col_ac_onestage(
   // add source term
   if (src->total_number > 0)
   {
-    sv_eq1st_curv_col_ac_rhs_src(hVx,hVy,hVz,hP,
+    sv_eq1st_curv_col_ac_iso_rhs_src(hVx,hVy,hVz,hP,
                                     jac3d, slw3d, 
                                     src,
                                     myid, verbose);
@@ -170,7 +170,7 @@ sv_eq1st_curv_col_ac_onestage(
  ******************************************************************************/
 
 void
-sv_eq1st_curv_col_ac_rhs_inner(
+sv_eq1st_curv_col_ac_iso_rhs_inner(
     float *restrict  Vx , float *restrict  Vy , float *restrict  Vz ,
     float *restrict  P, 
     float *restrict hVx , float *restrict hVy , float *restrict hVz ,
@@ -318,7 +318,7 @@ sv_eq1st_curv_col_ac_rhs_inner(
  */
 
 void
-sv_eq1st_curv_col_ac_rhs_timg_z2(
+sv_eq1st_curv_col_ac_iso_rhs_timg_z2(
     float *restrict  P,
     int ni1, int ni2, int nj1, int nj2, int nk1, int nk2, int nz,
     size_t siz_line, size_t siz_slice,
@@ -363,7 +363,7 @@ sv_eq1st_curv_col_ac_rhs_timg_z2(
  */
 
 void
-sv_eq1st_curv_col_ac_rhs_vlow_z2(
+sv_eq1st_curv_col_ac_iso_rhs_vlow_z2(
     float *restrict  Vx , float *restrict  Vy , float *restrict  Vz ,
     float *restrict hP, 
     float *restrict xi_x, float *restrict xi_y, float *restrict xi_z,
@@ -495,7 +495,7 @@ sv_eq1st_curv_col_ac_rhs_vlow_z2(
  */
 
 void
-sv_eq1st_curv_col_ac_rhs_cfspml(
+sv_eq1st_curv_col_ac_iso_rhs_cfspml(
     float *restrict  Vx , float *restrict  Vy , float *restrict  Vz ,
     float *restrict  P, 
     float *restrict hVx , float *restrict hVy , float *restrict hVz ,
@@ -786,7 +786,7 @@ sv_eq1st_curv_col_ac_rhs_cfspml(
  ******************************************************************************/
 
 int
-sv_eq1st_curv_col_ac_rhs_src(
+sv_eq1st_curv_col_ac_iso_rhs_src(
     float *restrict hVx , float *restrict hVy , float *restrict hVz ,
     float *restrict hP, 
     float *restrict jac3d, float *restrict slw3d,
