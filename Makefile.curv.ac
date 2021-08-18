@@ -46,7 +46,7 @@ LDFLAGS := -lm  $(LDFLAGS) $(NETCDF)/lib/libnetcdf.a
 # 	$< The names of the first prerequisite
 #   $^ The names of all the prerequisites 
 
-main_curv_col_ac_iso_3d: \
+main_curv_col_ac_3d: \
 		cJSON.o sacLib.o fdlib_mem.o fdlib_math.o  \
 		fd_t.o par_t.o interp.o mympi_t.o \
 		media_utility.o \
