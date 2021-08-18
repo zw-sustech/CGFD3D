@@ -139,21 +139,43 @@ blk_stg_el1st_mesg_init(mympi_t *mympi,
                 int fdy_nghosts);
 
 void
-blk_stg_el1st_pack_mesg_vel(fdstg_t *fd, 
-            gdinfo_t *gdinfo, wav_t *wav, float *restrict sbuff);
-
-void
-//blk_stg_el1st_unpack_mesg_vel(fdstg_t *fd,mympi_t *mympi, gdinfo_t *gdinfo, wav_t *wav,
-//      float *restrict rbuff, size_t siz_rbuff);
-blk_stg_el1st_unpack_mesg_vel(fdstg_t *fd,mympi_t *mympi, gdinfo_t *gdinfo, wav_t *wav,
-      float *restrict rbuff, size_t siz_rbuff);
-
-void
 blk_stg_el1st_pack_mesg_stress(fdstg_t *fd, 
             gdinfo_t *gdinfo, wav_t *wav, float *restrict sbuff);
 
 void
 blk_stg_el1st_unpack_mesg_stress(fdstg_t *fd,mympi_t *mympi, gdinfo_t *gdinfo, wav_t *wav,
     float *restrict rbuff, size_t siz_rbuff);
+
+void
+blk_stg_el1st_pack_mesg_vel(fdstg_t *fd, 
+            gdinfo_t *gdinfo, wav_t *wav, float *restrict sbuff);
+
+void
+blk_stg_el1st_unpack_mesg_vel(fdstg_t *fd,mympi_t *mympi, gdinfo_t *gdinfo, wav_t *wav,
+      float *restrict rbuff, size_t siz_rbuff);
+
+void
+blk_stg_ac_mesg_init(mympi_t *mympi,
+                int ni,
+                int nj,
+                int nk,
+                int fdx_nghosts,
+                int fdy_nghosts);
+
+void
+blk_stg_ac1st_pack_mesg_pressure(fdstg_t *fd, gdinfo_t *gdinfo, wav_t *wav,
+      float *restrict sbuff);
+
+void
+blk_stg_ac1st_unpack_mesg_pressure(fdstg_t *fd,mympi_t *mympi, gdinfo_t *gdinfo, wav_t *wav,
+    float *restrict rbuff, size_t siz_rbuff);
+
+void
+blk_stg_ac1st_pack_mesg_vel(fdstg_t *fd, 
+            gdinfo_t *gdinfo, wav_t *wav, float *restrict sbuff);
+
+void
+blk_stg_ac1st_unpack_mesg_vel(fdstg_t *fd,mympi_t *mympi, gdinfo_t *gdinfo, wav_t *wav,
+      float *restrict rbuff, size_t siz_rbuff);
 
 #endif

@@ -32,7 +32,7 @@ mympi_set(mympi_t *mympi,
   int periods[2] = {0,0};
 
   // create Cartesian topology
-  MPI_Cart_create(comm, 2, pdims, periods, 0, &mympi->topocomm);
+  MPI_Cart_create(comm, 2, pdims, periods, 0, &(mympi->topocomm));
 
   // get my local x,y coordinates
   MPI_Cart_coords(mympi->topocomm, myid, 2, mympi->topoid);
