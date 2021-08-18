@@ -15,7 +15,7 @@ MPIDIR=/share/apps/gnu-4.8.5/mpich-3.3
 
 #-- program related dir
 EXEC_DIR=/home/zhangw/code/zwlab/CGFD3D-elastic
-EXEC_WAVE=$EXEC_DIR/cgfdm3d_elastic_mpi
+EXEC_WAVE=$EXEC_DIR/main_curv_col_el_3d
 
 #-- conf
 PROJDIR=/home/zhangw/work/cgfd_aniso/04cart
