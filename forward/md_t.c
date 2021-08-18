@@ -28,7 +28,9 @@ md_init(gdinfo_t *gdinfo, md_t *md, int media_type)
 
   // media type
   md->medium_type = media_type;
-  if (media_type == CONST_MEDIUM_ELASTIC_ISO) {
+  if (media_type == CONST_MEDIUM_ACOUSTIC_ISO) {
+    md->ncmp = 2;
+  } else if (media_type == CONST_MEDIUM_ELASTIC_ISO) {
     md->ncmp = 3;
   } else if (media_type == CONST_MEDIUM_ELASTIC_ISO) {
     md->ncmp = 6; // 5 + rho
@@ -71,6 +73,13 @@ md_init(gdinfo_t *gdinfo, md_t *md, int media_type)
   int icmp = 0;
   sprintf(cmp_name[icmp],"%s","rho");
   md->rho = md->v4d + cmp_pos[icmp];
+
+  // acoustic iso
+  if (media_type == CONST_MEDIUM_ACOUSTIC_ISO) {
+    icmp += 1;
+    sprintf(cmp_name[icmp],"%s","kappa");
+    md->kappa = md->v4d + cmp_pos[icmp];
+  }
 
   // iso
   if (media_type == CONST_MEDIUM_ELASTIC_ISO) {
@@ -309,6 +318,39 @@ md_export(gdinfo_t  *gdinfo,
 /*
  * test
  */
+
+int
+md_gen_test_ac_iso(md_t *md)
+{
+  int ierr = 0;
+
+  int nx = md->nx;
+  int ny = md->ny;
+  int nz = md->nz;
+  int siz_line  = md->siz_iy;
+  int siz_slice = md->siz_iz;
+
+  float *kappa3d = md->kappa;
+  float *rho3d = md->rho;
+
+  for (size_t k=0; k<nz; k++)
+  {
+    for (size_t j=0; j<ny; j++)
+    {
+      for (size_t i=0; i<nx; i++)
+      {
+        size_t iptr = i + j * siz_line + k * siz_slice;
+        float Vp=3000.0;
+        float rho=1500.0;
+        float kappa = Vp*Vp*rho;
+        kappa3d[iptr] = kappa;
+        rho3d[iptr] = rho;
+      }
+    }
+  }
+
+  return ierr;
+}
 
 int
 md_gen_test_el_iso(md_t *md)

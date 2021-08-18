@@ -95,4 +95,9 @@ int
 wav_zero_edge(gdinfo_t *gdinfo, wav_t *wav,
                                   float *restrict w4d);
 
+int 
+wav_ac_init(gdinfo_t *gdinfo,
+               wav_t *V,
+               int number_of_levels);
+
 #endif

@@ -75,6 +75,9 @@ md_export(gdinfo_t  *gdinfo,
                  char *output_dir);
 
 int
+md_gen_test_ac_iso(md_t *md);
+
+int
 md_gen_test_el_iso(md_t *md);
 
 int

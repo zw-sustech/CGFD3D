@@ -14,6 +14,7 @@
 #include "sv_eq1st_curv_col.h"
 #include "sv_eq1st_curv_col_el_iso.h"
 #include "sv_eq1st_curv_col_el_aniso.h"
+#include "sv_eq1st_curv_col_ac.h"
 
 //#define SV_ELISO1ST_CURV_MACDRP_DEBUG
 
@@ -89,7 +90,11 @@ sv_eq1st_curv_col_allstep(
   // create snapshot nc output files
   if (myid==0 && verbose>0) fprintf(stdout,"prepare snap nc output ...\n"); 
   iosnap_nc_t  iosnap_nc;
-  io_snap_nc_create(iosnap, &iosnap_nc, topoid);
+  if (md->medium_type == CONST_MEDIUM_ACOUSTIC_ISO) {
+    io_snap_nc_create_ac(iosnap, &iosnap_nc, topoid);
+  } else {
+    io_snap_nc_create(iosnap, &iosnap_nc, topoid);
+  }
 
   // only x/y mpi
   int num_of_r_reqs = 4;
@@ -212,6 +217,19 @@ sv_eq1st_curv_col_allstep(
 
         //  break;
         //}
+
+        case CONST_MEDIUM_ACOUSTIC_ISO : {
+          sv_eq1st_curv_col_ac_onestage(
+              w_cur,w_rhs,wav,
+              gdinfo, metric, md, bdryfree, bdrypml, src,
+              fd->num_of_fdx_op, fd->pair_fdx_op[ipair][istage],
+              fd->num_of_fdy_op, fd->pair_fdy_op[ipair][istage],
+              fd->num_of_fdz_op, fd->pair_fdz_op[ipair][istage],
+              fd->fdz_max_len,
+              myid, verbose);
+
+          break;
+        }
       }
 
       // recv mesg
@@ -366,8 +384,13 @@ sv_eq1st_curv_col_allstep(
     io_slice_nc_put(ioslice,&ioslice_nc,gdinfo,w_end,w_rhs,it,t_end,0,wav->ncmp-1);
 
     // snapshot
-    io_snap_nc_put(iosnap, &iosnap_nc, gdinfo, wav, 
-                   w_end, w_rhs, nt_total, it, t_end, 1,1,1);
+    if (md->medium_type == CONST_MEDIUM_ACOUSTIC_ISO) {
+      io_snap_nc_put_ac(iosnap, &iosnap_nc, gdinfo, wav, 
+                     w_end, w_rhs, nt_total, it, t_end, 1,1,1);
+    } else {
+      io_snap_nc_put(iosnap, &iosnap_nc, gdinfo, wav, 
+                     w_end, w_rhs, nt_total, it, t_end, 1,1,1);
+    }
 
     // zero temp used w_rsh
     wav_zero_edge(gdinfo, wav, w_rhs);
