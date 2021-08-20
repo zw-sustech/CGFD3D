@@ -191,8 +191,7 @@ md_init(gdinfo_t *gdinfo, md_t *md, int media_type)
 //
 
 int
-md_import(float *restrict m3d, size_t *restrict m3d_pos, char **restrict m3d_name,
-        int number_of_vars, size_t siz_volume, char *in_dir, char *fname_coords)
+md_import(md_t *md, char *fname_coords, char *in_dir)
 {
   int ierr = 0;
 
@@ -210,14 +209,14 @@ md_import(float *restrict m3d, size_t *restrict m3d_pos, char **restrict m3d_nam
     exit(-1);
   }
   
-  for (int icmp=0; icmp<number_of_vars; icmp++) {
-      ierr = nc_inq_varid(ncid, m3d_name[icmp], &varid);
+  for (int icmp=0; icmp < md->ncmp; icmp++) {
+      ierr = nc_inq_varid(ncid, md->cmp_name[icmp], &varid);
       if (ierr != NC_NOERR){
         fprintf(stderr,"nc error: %s\n", nc_strerror(ierr));
         exit(-1);
       }
   
-      ierr = nc_get_var_float(ncid,varid,m3d+m3d_pos[icmp]);
+      ierr = nc_get_var_float(ncid,varid,md->v4d + md->cmp_pos[icmp]);
       if (ierr != NC_NOERR){
         fprintf(stderr,"nc error: %s\n", nc_strerror(ierr));
         exit(-1);

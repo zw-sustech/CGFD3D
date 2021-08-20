@@ -180,11 +180,8 @@ int main(int argc, char** argv)
     case PAR_GRID_IMPORT :
 
         if (myid==0) fprintf(stdout,"import grid vars ...\n"); 
-        if (myid==0) fprintf(stdout,"   not implemented yet\n"); 
-        //gd_curv_import(blk->g3d, blk->g3d_pos, blk->g3d_name,
-        //        blk->g3d_num_of_vars, blk->siz_volume, par->in_metric_dir, myid3);
-        //gd_curv_topoall_import(blk->g3d, blk->nx, blk->ny, blk->nz, 
-        //          myid3[0],myid3[1],myid3[2]);
+        gd_curv_coord_import(gdcurv, blk->output_fname_part, par->grid_import_dir);
+
         break;
 
     case PAR_GRID_LAYER_INTERP :
@@ -218,6 +215,8 @@ int main(int argc, char** argv)
     gd_curv_coord_export(gdinfo, gdcurv,
                          blk->output_fname_part,
                          blk->grid_export_dir);
+  } else {
+    if (myid==0) fprintf(stdout,"do not export coord\n"); 
   }
   fprintf(stdout, " --> done\n"); fflush(stdout);
 
@@ -240,8 +239,10 @@ int main(int argc, char** argv)
         break;
 
     case PAR_METRIC_IMPORT :
-        if (myid==0) fprintf(stdout,"import descreted medium file ...\n"); 
-        if (myid==0) fprintf(stdout,"   not implemented yet\n"); 
+
+        if (myid==0) fprintf(stdout,"import metric file ...\n"); 
+        gd_curv_metric_import(gdcurv_metric, blk->output_fname_part, par->grid_import_dir);
+
         break;
   }
   fprintf(stdout, " --> done\n"); fflush(stdout);
@@ -253,6 +254,8 @@ int main(int argc, char** argv)
     gd_curv_metric_export(gdinfo,gdcurv_metric,
                           blk->output_fname_part,
                           blk->grid_export_dir);
+  } else {
+    if (myid==0) fprintf(stdout,"do not export metric\n"); 
   }
   fprintf(stdout, " --> done\n"); fflush(stdout);
 
@@ -282,9 +285,8 @@ int main(int argc, char** argv)
 
     case PAR_MEDIA_IMPORT :
         if (myid==0) fprintf(stdout,"import discrete medium file ...\n"); 
-        if (myid==0) fprintf(stdout,"   not implemented yet\n"); 
-        //md_import(blk->m3d, blk->nx, blk->ny, blk->nz, 
-        //              myid3[0],myid3[1],myid3[2]);
+        md_import(md, blk->output_fname_part, par->grid_import_dir);
+
         break;
 
     case PAR_MEDIA_3LAY : {
@@ -335,6 +337,8 @@ int main(int argc, char** argv)
     md_export(gdinfo, md,
               blk->output_fname_part,
               blk->media_export_dir);
+  } else {
+    if (myid==0) fprintf(stdout,"do not export medium\n"); 
   }
   
   // convert rho to 1 / rho to reduce number of arithmetic cal
@@ -539,7 +543,7 @@ int main(int argc, char** argv)
 //-------------------------------------------------------------------------------
 
   if (myid==0 && verbose>0) fprintf(stdout,"init mesg ...\n"); 
-  blk_mesg_init(mympi, gdinfo->ni, gdinfo->nj, gdinfo->nk,
+  blk_colcent_mesg_init(mympi, gdinfo->ni, gdinfo->nj, gdinfo->nk,
                   fd->fdx_nghosts, fd->fdy_nghosts, wav->ncmp);
 
 //-------------------------------------------------------------------------------
