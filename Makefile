@@ -25,11 +25,11 @@ NETCDF :=  /share/apps/gnu-4.8.5/disable-netcdf-4.4.1
 CFLAGS := -I$(NETCDF)/include -I./lib/ -I./forward/ -I./media/  $(CFLAGS)
 
 #- debug
-CFLAGS   := -g $(CFLAGS)
-CPPFLAGS := -g -std=c++11 $(CPPFLAGS)
+#CFLAGS   := -g $(CFLAGS)
+#CPPFLAGS := -g -std=c++11 $(CPPFLAGS)
 #- O3
-#CFLAGS   := -O3 $(CFLAGS)
-#CPPFLAGS := -O2 -std=c++11 $(CPPFLAGS)
+CFLAGS   := -O3 $(CFLAGS)
+CPPFLAGS := -O2 -std=c++11 $(CPPFLAGS)
 
 #- static
 #LDFLAGS := $(NETCDF)/lib/libnetcdf.a -lm -static $(LDFLAGS)
@@ -46,11 +46,11 @@ LDFLAGS := -lm  $(LDFLAGS) $(NETCDF)/lib/libnetcdf.a
 # 	$< The names of the first prerequisite
 #   $^ The names of all the prerequisites 
 
-#default: main_curv_col_el_3d
+default: main_curv_col_el_3d
 #default: main_curv_col_ac_3d
 #default: main_cart_col_el_3d
 #default: main_cart_stg_el_3d
-default: main_cart_stg_ac_3d
+#default: main_cart_stg_ac_3d
 
 all: main_curv_col_el_3d \
      main_curv_col_ac_3d \

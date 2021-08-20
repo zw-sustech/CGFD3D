@@ -246,7 +246,7 @@ sv_eq1st_curv_col_allstep(
             w_tmp[iptr] = w_pre[iptr] + coef_a * w_rhs[iptr];
         }
         // pack and isend
-        blk_pack_mesg(w_tmp, sbuff, wav->ncmp, gdinfo,
+        blk_colcent_pack_mesg(w_tmp, sbuff, wav->ncmp, gdinfo,
                          fdx_max_half_len, fdy_max_half_len);
 
         MPI_Startall(num_of_s_reqs, s_reqs);
@@ -289,7 +289,7 @@ sv_eq1st_curv_col_allstep(
             w_tmp[iptr] = w_pre[iptr] + coef_a * w_rhs[iptr];
         }
         // pack and isend
-        blk_pack_mesg(w_tmp, sbuff, wav->ncmp, gdinfo,
+        blk_colcent_pack_mesg(w_tmp, sbuff, wav->ncmp, gdinfo,
                          fdx_max_half_len, fdy_max_half_len);
 
         MPI_Startall(num_of_s_reqs, s_reqs);
@@ -331,7 +331,7 @@ sv_eq1st_curv_col_allstep(
             w_end[iptr] += coef_b * w_rhs[iptr];
         }
         // pack and isend
-        blk_pack_mesg(w_end, sbuff, wav->ncmp, gdinfo,
+        blk_colcent_pack_mesg(w_end, sbuff, wav->ncmp, gdinfo,
                          fdx_max_half_len, fdy_max_half_len);
 
         MPI_Startall(num_of_s_reqs, s_reqs);
@@ -353,10 +353,10 @@ sv_eq1st_curv_col_allstep(
       MPI_Waitall(num_of_r_reqs, r_reqs, MPI_STATUS_IGNORE);
 
       if (istage != num_rk_stages-1) {
-        blk_unpack_mesg(rbuff, w_tmp,  wav->ncmp, gdinfo,
+        blk_colcent_unpack_mesg(rbuff, w_tmp,  wav->ncmp, gdinfo,
                          fdx_max_half_len, fdy_max_half_len);
      } else {
-        blk_unpack_mesg(rbuff, w_end,  wav->ncmp, gdinfo,
+        blk_colcent_unpack_mesg(rbuff, w_end,  wav->ncmp, gdinfo,
                          fdx_max_half_len, fdy_max_half_len);
      }
     } // RK stages

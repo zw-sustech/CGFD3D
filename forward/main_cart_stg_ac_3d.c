@@ -201,9 +201,8 @@ int main(int argc, char** argv)
 
     case PAR_MEDIA_IMPORT :
         if (myid==0) fprintf(stdout,"import discrete medium file ...\n"); 
-        if (myid==0) fprintf(stdout,"   not implemented yet\n"); 
-        //md_import(blk->m3d, blk->nx, blk->ny, blk->nz, 
-        //              myid3[0],myid3[1],myid3[2]);
+        md_import(md, blk->output_fname_part, par->grid_import_dir);
+
         break;
 
     case PAR_MEDIA_3LAY : {
@@ -252,6 +251,8 @@ int main(int argc, char** argv)
     md_export(gdinfo, md,
               blk->output_fname_part,
               blk->media_export_dir);
+  } else {
+    if (myid==0) fprintf(stdout,"do not export medium\n"); 
   }
   
   // convert rho to 1 / rho to reduce number of arithmetic cal

@@ -16,7 +16,7 @@ from locate_snap import *
 from gather_snap import *
 from gather_coord import *
 
-def draw_snap_pcolor(parfnm,snap_dir,id,subs,subc,subt,varnm,ns,ne,nt,\
+def draw_snap_pcolor(parfnm,coord_dir,snap_dir,id,subs,subc,subt,varnm,ns,ne,nt,\
         flag_show=1,taut=0.5,flag_imgsave=1,flag_gifsave=1,figpath='./fig',\
         fignm='fd3dsnap.png',figsize=[4,4],figdpi=150,flag_km=1,\
         clbtype='seismic',clbrange=[None,None]):
@@ -25,7 +25,7 @@ def draw_snap_pcolor(parfnm,snap_dir,id,subs,subc,subt,varnm,ns,ne,nt,\
     snapinfo = locate_snap(parfnm,id,'start',subs,'count',subc,'stride',subt,'snapdir',snap_dir)
     
     # get coordinate data
-    [x,y,z] = gather_coord(snapinfo,'coorddir',snap_dir)
+    [x,y,z] = gather_coord(snapinfo,'coorddir',coord_dir)
     nx = x.shape[0]
     ny = x.shape[1]
     nz = x.shape[2]
@@ -156,18 +156,38 @@ def draw_snap_pcolor(parfnm,snap_dir,id,subs,subc,subt,varnm,ns,ne,nt,\
 if __name__ == '__main__':
     
     # parameter json filename with path
-    parfnm = '../project/test.json'
+    parfnm = '/home/zhangw/work/wpsfd_import/00/test.json'
     # snapshot nc file path
-    snap_dir = '../project/output'
+    snap_dir = '/home/zhangw/work/wpsfd_import/00/output2'
+    # coord nc file path
+    coord_dir = '/home/zhangw/work/wpsfd_import/00/output'
     
     # snapshot id
     id = 1
-    # snapshot starting index
-    subs = [1,1,50]
-    # snapshot counting index
+    ## snapshot starting index
+    #subs = [1,1,50]
+    ## snapshot counting index
+    #subc = [-1,-1,1]
+    ## snapshot stride index
+    #subt = [1,1,1]
+
+    #-- ix slice
+    #subs = [41,1,1]
+    #subc = [1,-1,-1]
+    #subt = [1,1,1]
+    #figpath  = './fig.ix'
+
+    #-- iy slice
+    #subs = [1,41,1]
+    #subc = [-1,1,-1]
+    #subt = [1,1,1]
+    #figpath  = './fig.iy5k'
+
+    #-- iz slice
+    subs = [1,1,51]
     subc = [-1,-1,1]
-    # snapshot stride index
     subt = [1,1,1]
+    figpath  = './fig.iz51'
     
     # variable name to plot
     varnm = 'Vz'
@@ -185,9 +205,7 @@ if __name__ == '__main__':
     # save figure or not
     flag_imgsave = 1
     # save gif or not
-    flag_gifsave = 1
-    # figure path to save
-    figpath  = './fig'
+    flag_gifsave = 0
     # figure name to save
     fignm    = 'fd3dsnap.png'
     # figure size to save
@@ -201,6 +219,6 @@ if __name__ == '__main__':
     # colorbar range
     clbrange = [None,None]
 
-    draw_snap_pcolor(parfnm,snap_dir,id,subs,subc,subt,varnm,ns,ne,nt,\
+    draw_snap_pcolor(parfnm,coord_dir,snap_dir,id,subs,subc,subt,varnm,ns,ne,nt,\
             flag_show,taut,flag_imgsave,flag_gifsave,figpath,fignm,figsize,\
             figdpi,flag_km,clbtype,clbrange)

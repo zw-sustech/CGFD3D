@@ -646,82 +646,6 @@ gd_cart_init_set(gdinfo_t *gdinfo, gd_t *gdcart,
 // input/output
 //
 void
-gd_curv_metric_import(float *restrict g3d, size_t *restrict g3d_pos, char **restrict g3d_name,
-        int number_of_vars, size_t siz_volume, char *in_dir, char *fname_coords)
-{
-  // construct file name
-  char in_file[CONST_MAX_STRLEN];
-  sprintf(in_file, "%s/metric_%s.nc", in_dir, fname_coords);
-  
-  // read in nc
-  int ncid, varid;
-  int ierr = nc_open(in_file, NC_NOWRITE, &ncid);
-  if (ierr != NC_NOERR) {
-    fprintf(stderr,"nc error: %s\n", nc_strerror(ierr));
-    exit(-1);
-  }
-  
-  for (int ivar=0; ivar<number_of_vars; ivar++) {
-      ierr = nc_inq_varid(ncid, g3d_name[ivar], &varid);
-      if (ierr != NC_NOERR){
-        fprintf(stderr,"nc error: %s\n", nc_strerror(ierr));
-        exit(-1);
-      }
-  
-      ierr = nc_get_var_float(ncid,varid,g3d+g3d_pos[ivar]);
-      if (ierr != NC_NOERR){
-        fprintf(stderr,"nc error: %s\n", nc_strerror(ierr));
-        exit(-1);
-      }
-  }
-  
-  // close file
-  ierr = nc_close(ncid);
-  if (ierr != NC_NOERR){
-    fprintf(stderr,"nc error: %s\n", nc_strerror(ierr));
-    exit(-1);
-  }
-}
-
-void
-gd_curv_coord_import(float *restrict g3d, size_t *restrict g3d_pos, char **restrict g3d_name,
-        int number_of_vars, size_t siz_volume, char *in_dir, char *fname_coords)
-{
-  // construct file name
-  char in_file[CONST_MAX_STRLEN];
-  sprintf(in_file, "%s/coord_%s.nc", in_dir, fname_coords);
-  
-  // read in nc
-  int ncid, varid;
-  int ierr = nc_open(in_file, NC_NOWRITE, &ncid);
-  if (ierr != NC_NOERR){
-    fprintf(stderr,"nc error: %s\n", nc_strerror(ierr));
-    exit(-1);
-  }
-  
-  for (int ivar=0; ivar<number_of_vars; ivar++) {
-      ierr = nc_inq_varid(ncid, g3d_name[ivar], &varid);
-      if (ierr != NC_NOERR){
-        fprintf(stderr,"nc error: %s\n", nc_strerror(ierr));
-        exit(-1);
-      }
-  
-      ierr = nc_get_var_float(ncid,varid,g3d+g3d_pos[ivar]);
-      if (ierr != NC_NOERR){
-        fprintf(stderr,"nc error: %s\n", nc_strerror(ierr));
-        exit(-1);
-      }
-  }
-  
-  // close file
-  ierr = nc_close(ncid);
-  if (ierr != NC_NOERR){
-    fprintf(stderr,"nc error: %s\n", nc_strerror(ierr));
-    exit(-1);
-  }
-}
-
-void
 gd_curv_coord_export(
   gdinfo_t *gdinfo,
   gd_t *gdcurv,
@@ -789,6 +713,51 @@ gd_curv_coord_export(
   for (int ivar=0; ivar<gdcurv->ncmp; ivar++) {
     float *ptr = gdcurv->v4d + gdcurv->cmp_pos[ivar];
     ierr = nc_put_var_float(ncid, varid[ivar],ptr);
+  }
+  
+  // close file
+  ierr = nc_close(ncid);
+  if (ierr != NC_NOERR){
+    fprintf(stderr,"nc error: %s\n", nc_strerror(ierr));
+    exit(-1);
+  }
+
+  return;
+}
+
+void
+gd_curv_coord_import(gd_t *gdcurv, char *fname_coords, char *import_dir)
+{
+  // construct file name
+  char in_file[CONST_MAX_STRLEN];
+  sprintf(in_file, "%s/coord_%s.nc", import_dir, fname_coords);
+  
+  // read in nc
+  int ncid;
+  int varid;
+
+  int ierr = nc_open(in_file, NC_NOWRITE, &ncid);
+  if (ierr != NC_NOERR){
+    fprintf(stderr,"open coord nc error: %s\n", nc_strerror(ierr));
+    exit(-1);
+  }
+
+  // read vars
+  for (int ivar=0; ivar<gdcurv->ncmp; ivar++)
+  {
+    float *ptr = gdcurv->v4d + gdcurv->cmp_pos[ivar];
+
+    ierr = nc_inq_varid(ncid, gdcurv->cmp_name[ivar], &varid);
+    if (ierr != NC_NOERR){
+      fprintf(stderr,"nc error: %s\n", nc_strerror(ierr));
+      exit(-1);
+    }
+
+    ierr = nc_get_var(ncid, varid, ptr);
+    if (ierr != NC_NOERR){
+      fprintf(stderr,"nc error: %s\n", nc_strerror(ierr));
+      exit(-1);
+    }
   }
   
   // close file
@@ -952,6 +921,51 @@ gd_curv_metric_export(gdinfo_t        *gdinfo,
     fprintf(stderr,"nc error: %s\n", nc_strerror(ierr));
     exit(-1);
   }
+}
+
+void
+gd_curv_metric_import(gdcurv_metric_t *metric, char *fname_coords, char *import_dir)
+{
+  // construct file name
+  char in_file[CONST_MAX_STRLEN];
+  sprintf(in_file, "%s/metric_%s.nc", import_dir, fname_coords);
+  
+  // read in nc
+  int ncid;
+  int varid;
+
+  int ierr = nc_open(in_file, NC_NOWRITE, &ncid);
+  if (ierr != NC_NOERR){
+    fprintf(stderr,"open coord nc error: %s\n", nc_strerror(ierr));
+    exit(-1);
+  }
+
+  // read vars
+  for (int ivar=0; ivar<metric->ncmp; ivar++)
+  {
+    float *ptr = metric->v4d + metric->cmp_pos[ivar];
+
+    ierr = nc_inq_varid(ncid, metric->cmp_name[ivar], &varid);
+    if (ierr != NC_NOERR){
+      fprintf(stderr,"nc error: %s\n", nc_strerror(ierr));
+      exit(-1);
+    }
+
+    ierr = nc_get_var(ncid, varid, ptr);
+    if (ierr != NC_NOERR){
+      fprintf(stderr,"nc error: %s\n", nc_strerror(ierr));
+      exit(-1);
+    }
+  }
+  
+  // close file
+  ierr = nc_close(ncid);
+  if (ierr != NC_NOERR){
+    fprintf(stderr,"nc error: %s\n", nc_strerror(ierr));
+    exit(-1);
+  }
+
+  return;
 }
 
 /*
