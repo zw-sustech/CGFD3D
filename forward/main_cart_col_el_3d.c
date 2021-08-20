@@ -258,6 +258,8 @@ int main(int argc, char** argv)
     md_export(gdinfo, md,
               blk->output_fname_part,
               blk->media_export_dir);
+  } else {
+    if (myid==0) fprintf(stdout,"do not export medium\n"); 
   }
   
   // convert rho to 1 / rho to reduce number of arithmetic cal
@@ -442,7 +444,7 @@ int main(int argc, char** argv)
 //-------------------------------------------------------------------------------
 
   if (myid==0 && verbose>0) fprintf(stdout,"init mesg ...\n"); 
-  blk_mesg_init(mympi, gdinfo->ni, gdinfo->nj, gdinfo->nk,
+  blk_colcent_mesg_init(mympi, gdinfo->ni, gdinfo->nj, gdinfo->nk,
                   fd->fdx_nghosts, fd->fdy_nghosts, wav->ncmp);
 
 //-------------------------------------------------------------------------------

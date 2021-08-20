@@ -138,12 +138,10 @@ gd_curv_gen_cart(
   float dz, float z0);
 
 void
-gd_curv_metric_import(float *restrict g3d, size_t *restrict g3d_pos, char **restrict g3d_name,
-        int number_of_vars, size_t siz_volume, char *in_dir, char *fname_coords);
+gd_curv_metric_import(gdcurv_metric_t *metric, char *fname_coords, char *import_dir);
 
 void
-gd_curv_coord_import(float *restrict g3d, size_t *restrict g3d_pos, char **restrict g3d_name,
-        int number_of_vars, size_t siz_volume, char *in_dir, char *fname_coords);
+gd_curv_coord_import(gd_t *gdcurv, char *fname_coords, char *import_dir);
 
 void
 gd_curv_coord_export(

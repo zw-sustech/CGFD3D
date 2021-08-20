@@ -65,8 +65,7 @@ int
 md_init(gdinfo_t *gdinfo, md_t *md, int media_type);
 
 int
-md_import(float *restrict m3d, size_t *restrict m3d_pos, char **restrict m3d_name,
-        int number_of_vars, size_t siz_volume, char *in_dir, char *fname_coords);
+md_import(md_t *md, char *fname_coords, char *in_dir);
 
 int
 md_export(gdinfo_t  *gdinfo,

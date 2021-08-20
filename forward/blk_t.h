@@ -109,7 +109,7 @@ blk_set_output(blk_t *blk,
                const int verbose);
 
 void
-blk_mesg_init(mympi_t *mympi,
+blk_colcent_mesg_init(mympi_t *mympi,
                 int ni,
                 int nj,
                 int nk,
@@ -118,12 +118,12 @@ blk_mesg_init(mympi_t *mympi,
                 int num_of_vars);
 
 void
-blk_pack_mesg(float *restrict w_cur,float *restrict sbuff,
+blk_colcent_pack_mesg(float *restrict w_cur,float *restrict sbuff,
                  int num_of_vars, gdinfo_t *gdinfo,
                  int   fdx_nghosts, int   fdy_nghosts);
 
 void
-blk_unpack_mesg(float *restrict rbuff,float *restrict w_cur,
+blk_colcent_unpack_mesg(float *restrict rbuff,float *restrict w_cur,
                  int num_of_vars, gdinfo_t *gdinfo,
                  int   fdx_nghosts, int   fdy_nghosts);
 
