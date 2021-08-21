@@ -18,12 +18,13 @@ EXEC_DIR=/home/zhangw/code/zwlab/CGFD3D-elastic
 EXEC_WAVE=$EXEC_DIR/main_curv_col_el_3d
 
 #-- conf
-PROJDIR=/home/zhangw/work/cgfd_aniso/04cart
+PROJDIR=/home/zhangw/work/wpsfd_dt/02
 PAR_FILE=${PROJDIR}/test.json
 GRID_DIR=${PROJDIR}/output
 MEDIA_DIR=${PROJDIR}/output
 SOURCE_DIR=${PROJDIR}/output
 OUTPUT_DIR=${PROJDIR}/output
+#OUTPUT_DIR=${PROJDIR}/output2
 #-- input file
 TEST_INPUT_DIR=/home/zhangw/code/zwlab/CGFD3D-elastic/test
 IN_STATION_LIST_FILE=${TEST_INPUT_DIR}/test_station.sta
@@ -48,16 +49,18 @@ ieof
 #----------------------------------------------------------------------
 cat << ieof > $PAR_FILE
 {
-  "number_of_total_grid_points_x" : 100,
+  "number_of_total_grid_points_x" : 120,
   "number_of_total_grid_points_y" : 100,
   "number_of_total_grid_points_z" : 60,
 
-  "number_of_mpiprocs_x" : 1,
+  "number_of_mpiprocs_x" : 2,
   "number_of_mpiprocs_y" : 1,
 
   "#size_of_time_step" : 0.008,
-  "size_of_time_step" : 0.015,
-  "number_of_time_steps" : 500,
+  "#size_of_time_step" : 0.015,
+  "#number_of_time_steps" : 500,
+  "time_window_length" : 4,
+  "check_stability" : 1,
 
   "boundary_x_left" : {
       "cfspml" : {
@@ -190,7 +193,7 @@ cat << ieof > $PAR_FILE
     {
       "name" : "volume_vel",
       "grid_index_start" : [ 0, 0, 0 ],
-      "grid_index_count" : [ 100,100, 60 ],
+      "grid_index_count" : [ 120,100, 60 ],
       "grid_index_incre" : [  1, 1, 1 ],
       "time_index_start" : 0,
       "time_index_incre" : 1,

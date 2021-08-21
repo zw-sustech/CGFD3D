@@ -148,7 +148,9 @@ par_read_from_str(const char *str, par_t *par)
   // set default values to negative
   par->size_of_time_step = -1.0;
   par->number_of_time_steps = -1;
-  par->length_of_time_window_in_second = -1.0;
+  par->time_window_length = -1.0;
+  par->time_start = 0.0;
+  par->time_check_stability = 1;
 
   if (item = cJSON_GetObjectItem(root, "size_of_time_step")) {
     par->size_of_time_step = item->valuedouble;
@@ -156,21 +158,57 @@ par_read_from_str(const char *str, par_t *par)
   if (item = cJSON_GetObjectItem(root, "number_of_time_steps")) {
     par->number_of_time_steps = item->valueint;
   }
-  if (item = cJSON_GetObjectItem(root, "length_of_time_window_in_second")) {
-    par->length_of_time_window_in_second = item->valuedouble;
+  if (item = cJSON_GetObjectItem(root, "time_window_length")) {
+    par->time_window_length = item->valuedouble;
   }
-  if (par->size_of_time_step > 0.0 && par->number_of_time_steps > 0) {
-    par->length_of_time_window_in_second = par->size_of_time_step *
-                                           par->number_of_time_steps;
-  } else {
-    fprintf(stderr,"Error: size_of_time_step=%f, number_of_time_steps=%d\n",
-           par->size_of_time_step, par->number_of_time_steps);
-    fprintf(stderr,"       auto estimate time step has not been implemented\n");
+  if (item = cJSON_GetObjectItem(root, "time_start")) {
+    par->time_start = item->valuedouble;
+  }
+  if (item = cJSON_GetObjectItem(root, "time_check_stability")) {
+    par->time_check_stability = item->valueint;
   }
 
-  par->time_start = 0.0;
-  par->time_end   = par->time_start + 
-          par->number_of_time_steps * par->size_of_time_step;
+  // check 
+  //int num_time_minus = 0;
+  //if (par->size_of_time_step    < 0.0) num_time_minus += 1;
+  //if (par->time_window_length   < 0.0) num_time_minus += 1;
+  //if (par->number_of_time_steps < 0  ) num_time_minus += 1;
+  //if (num_time_minus >= 2)
+  //{
+  //  fprintf(stderr," --> size_of_time_step   =%f\n", par->size_of_time_step);
+  //  fprintf(stderr," --> number_of_time_steps=%d\n", par->number_of_time_steps);
+  //  fprintf(stderr," --> time_window_length  =%f\n", par->time_window_length);
+  //  fprintf(stderr,"Error: at lest two of above three paras should > 0\n");
+  //  exit(-1);
+  //}
+
+  if (par->size_of_time_step < 0.0 && par->time_window_length < 0)
+  {
+    fprintf(stderr," --> size_of_time_step   =%f\n", par->size_of_time_step);
+    fprintf(stderr," --> time_window_length  =%f\n", par->time_window_length);
+    fprintf(stderr,"Error: at lest one of above paras should > 0\n");
+    exit(-1);
+  }
+
+  if (par->size_of_time_step > 0.0)
+  {
+    if (par->number_of_time_steps < 0 && par->time_window_length < 0.0)
+    {
+      fprintf(stderr,"Error: both size_of_time_step=%f, time_window_length=%f less 0\n",
+             par->size_of_time_step, par->time_window_length);
+      exit(-1);
+    }
+
+    if (par->number_of_time_steps < 0) 
+    {
+      par->number_of_time_steps = (int)(par->time_window_length / par->size_of_time_step + 0.5);
+    }
+
+    par->time_window_length = par->size_of_time_step * par->number_of_time_steps;
+  }
+
+  //par->time_end   = par->time_start + 
+  //        par->number_of_time_steps * par->size_of_time_step;
   //int     nt_total = (int) ((par->time_end - par->time_start) / dt+0.5);
 
   //

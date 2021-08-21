@@ -48,8 +48,9 @@ typedef struct{
   int   time_start_index;
   int   time_end_index;
   float time_start;
-  float time_end  ;
-  float length_of_time_window_in_second;
+  //float time_end  ;
+  float time_check_stability;
+  float time_window_length;
 
   // for each block
   //char grid_name[PAR_MAX_STRLEN];

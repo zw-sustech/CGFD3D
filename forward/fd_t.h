@@ -69,6 +69,8 @@ typedef struct
 
 typedef struct {
 
+  float CFL; // 1d cfl value for the scheme
+
   //----------------------------------------------------------------------------
   // Runge-Kutta time scheme
   //----------------------------------------------------------------------------
@@ -177,6 +179,8 @@ typedef struct {
  */
 
 typedef struct {
+
+  float CFL; // 1d cfl value for the scheme
 
   // ghost point required 
   int fdx_nghosts;

@@ -80,15 +80,6 @@ int main(int argc, char** argv)
   if (myid==0 && verbose>0) par_print(par);
 
 //-------------------------------------------------------------------------------
-// set up based on input info
-//-------------------------------------------------------------------------------
-
-  // time
-  float   t0 = par->time_start;
-  float   dt = par->size_of_time_step;
-  int     nt_total = par->number_of_time_steps+1;
-
-//-------------------------------------------------------------------------------
 // init blk_t
 //-------------------------------------------------------------------------------
 
@@ -340,52 +331,73 @@ int main(int argc, char** argv)
   } else {
     if (myid==0) fprintf(stdout,"do not export medium\n"); 
   }
-  
-  // convert rho to 1 / rho to reduce number of arithmetic cal
-  md_rho_to_slow(md->rho, md->siz_icmp);
 
 //-------------------------------------------------------------------------------
-//-- estimate/check time step
+//-- estimate/check/set time step
 //-------------------------------------------------------------------------------
 
-  /*
-  if (par>check_stability==1)
+  float   t0 = par->time_start;
+  float   dt = par->size_of_time_step;
+  int     nt_total = par->number_of_time_steps+1;
+
+  if (par->time_check_stability==1)
   {
-      //-- estimate time step
-      if (myid==0) fprintf(stdout,"   estimate time step ...\n"); 
-      ierr = curv_macdrp_elastic_iso_stept_calculate(blk->g3d, blk->m3d,
-              blk->nx, blk->ny, blk->nz,
-              &dtmax, &dtmaxVp, &dtmaxL, &dtindx)
-      
-      //-- print for QC
-      fprintf(stdout, "-> thisid=%d,%d,%d, dtmax=%f, dtmaxVp=%f, dtmaxL=%f, dtindx=%f\n",
-              myid3[0],myid3[1],myid3[2],
-              dtmax, dtmaxVp, dtmaxL, dtindx);
-      
-      dtin[0] = dtmax; dtin[1] = myid;
-      ierr = MPI_Reduce(dtin,dtout,1,MPI_2REAL,MPI_MINLOC, 0,MPI_COMM_WORLD);
+    float dt_est[mpi_size];
+    float dtmax, dtmaxVp, dtmaxL;
+    int   dtmaxi, dtmaxj, dtmaxk;
+
+    //-- estimate time step
+    if (myid==0) fprintf(stdout,"   estimate time step ...\n"); 
+    blk_dt_esti_curv(gdinfo, gdcurv,md,fd->CFL,
+            &dtmax, &dtmaxVp, &dtmaxL, &dtmaxi, &dtmaxj, &dtmaxk);
+    
+    //-- print for QC
+    fprintf(stdout, "-> topoid=[%d,%d], dtmax=%f, Vp=%f, L=%f, i=%d, j=%d, k=%d\n",
+            mympi->topoid[0],mympi->topoid[1], dtmax, dtmaxVp, dtmaxL, dtmaxi, dtmaxj, dtmaxk);
+    
+    // receive dtmax from each proc
+    MPI_Allgather(&dtmax,1,MPI_REAL,dt_est,1,MPI_REAL,MPI_COMM_WORLD);
   
-      dtmax=dtout[1];
-      if (myid==0) {
-         print *, "Maximum allowed time step is", dtmax, ' in thread', nint(dtout(2))
-          fprintf(stdout,"Maximum allowed time step is %f  in thread %d\n", dtmax, (int)dtout[1]);
-         //-- auto set stept
-         if (stept < 0.0) {
-            stept = dtmax;
-            fprintf(stdout, "-> Set stept to maximum allowed value\n");
-         }
-         //-- check value
-         if (dtmax<stept) {
-            fprint(stdout, "Serious Error: stept %f >dtmax %f\n", stept,dtmax);
-            fprint(stdout, " occurs on thread", int(dtout(2)));
-            MPI_Abort(MPI_COMM_WORLD,1);
-         }
-      }
-      
-      //-- from root to all threads
-      ierr = MPI_Bcast(&stept, 1, MPI_REAL, 0, MPI_COMM_WORLD);
+    if (myid==0)
+    {
+       int dtmax_mpi_id = 0;
+       dtmax = 0.0;
+       for (int n=0; n < mpi_size; n++)
+       {
+        fprintf(stdout,"max allowed dt at each proc: id=%d, dtmax=%f\n", n, dt_est[n]);
+        if (dt_est[n] > dtmax) {
+          dtmax = dt_est[n];
+          dtmax_mpi_id = n;
+        }
+       }
+       fprintf(stdout,"Global maximum allowed time step is %f at thread %d\n", dtmax, dtmax_mpi_id);
+
+       // check valid
+       if (dtmax <= 0.0) {
+          fprintf(stderr,"ERROR: maximum dt <= 0, stop running\n");
+          MPI_Abort(MPI_COMM_WORLD,-1);
+       }
+
+       //-- auto set stept
+       if (dt < 0.0) {
+          dt       = blk_keep_two_digi(dtmax);
+          nt_total = (int) (par->time_window_length / dt + 0.5);
+
+          fprintf(stdout, "-> Set dt       = %f according to maximum allowed value\n", dt);
+          fprintf(stdout, "-> Set nt_total = %d\n", nt_total);
+       }
+
+       //-- if input dt, check value
+       if (dtmax < dt) {
+          fprintf(stdout, "Serious Error: dt=%f > dtmax=%f, stop!\n", dt, dtmax);
+          MPI_Abort(MPI_COMM_WORLD, -1);
+       }
+    }
+    
+    //-- from root to all threads
+    MPI_Bcast(&dt      , 1, MPI_REAL, 0, MPI_COMM_WORLD);
+    MPI_Bcast(&nt_total, 1, MPI_INT , 0, MPI_COMM_WORLD);
   }
-  */
 
 //-------------------------------------------------------------------------------
 //-- source import or locate on fly
@@ -563,6 +575,9 @@ int main(int argc, char** argv)
 //-------------------------------------------------------------------------------
 //-- slover
 //-------------------------------------------------------------------------------
+  
+  // convert rho to 1 / rho to reduce number of arithmetic cal
+  md_rho_to_slow(md->rho, md->siz_icmp);
 
   if (myid==0 && verbose>0) fprintf(stdout,"start solver ...\n"); 
   
@@ -581,7 +596,9 @@ int main(int argc, char** argv)
   
   time_t t_end = time(NULL);
   
-  fprintf(stdout,"\n\nRuning Time of time :%f s \n", difftime(t_end,t_start));
+  if (myid==0 && verbose>0) {
+    fprintf(stdout,"\n\nRuning Time of time :%f s \n", difftime(t_end,t_start));
+  }
 
 //-------------------------------------------------------------------------------
 //-- save station and line seismo to sac

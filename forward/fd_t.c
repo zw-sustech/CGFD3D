@@ -52,6 +52,8 @@ fd_set_macdrp(fd_t *fd)
   // MacCormack-type scheme
   //----------------------------------------------------------------------------
 
+  fd->CFL = 1.3;
+
   // set max
   fd->fdx_max_len = 5;
   fd->fdy_max_len = 5;
@@ -361,6 +363,9 @@ fd_set_stg4(fdstg_t *fd)
   fd->fdx_max_half_len = 2;
   fd->fdy_max_half_len = 2;
   fd->fdz_max_half_len = 2;
+
+  // ~ 1 / (c1+c2), see Graves 1996
+  fd->CFL = 0.857;
 
   //----------------------------------------------------------------------------
   // 1d scheme for different points to surface, or different half length

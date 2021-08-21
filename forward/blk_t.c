@@ -8,6 +8,7 @@
 #include <math.h>
 
 #include "fdlib_mem.h"
+#include "fdlib_math.h"
 #include "blk_t.h"
 
 //
@@ -2513,4 +2514,154 @@ blk_stg_ac1st_unpack_mesg_vel(fdstg_t *fd,mympi_t *mympi, gdinfo_t *gdinfo, wav_
   }
 
   return;
+}
+
+/*********************************************************************
+ * estimate dt
+ *********************************************************************/
+
+int
+blk_dt_esti_curv(gdinfo_t *gdinfo, gd_t *gdcurv, md_t *md,
+    float CFL, float *dtmax, float *dtmaxVp, float *dtmaxL,
+    int *dtmaxi, int *dtmaxj, int *dtmaxk)
+{
+  int ierr = 0;
+
+  float dtmax_local = 1.0e10;
+  float Vp;
+
+  float *restrict x3d = gdcurv->x3d;
+  float *restrict y3d = gdcurv->y3d;
+  float *restrict z3d = gdcurv->z3d;
+
+  for (int k = gdinfo->nk1; k < gdinfo->nk2; k++)
+  {
+    for (int j = gdinfo->nj1; j < gdinfo->nj2; j++)
+    {
+      for (int i = gdinfo->ni1; i < gdinfo->ni2; i++)
+      {
+        size_t iptr = i + j * gdinfo->siz_iy + k * gdinfo->siz_iz;
+
+        if (md->medium_type == CONST_MEDIUM_ELASTIC_ISO) {
+          Vp = sqrt( (md->lambda[iptr] + 2.0 * md->mu[iptr]) / md->rho[iptr] );
+        } else if (md->medium_type == CONST_MEDIUM_ELASTIC_ISO) {
+          Vp = sqrt( md->kappa[iptr] / md->rho[iptr] );
+        }
+
+        float dtLe = 1.0e20;
+        float p0[] = { x3d[iptr], y3d[iptr], z3d[iptr] };
+
+        // min L to 8 adjacent planes
+        for (int kk = -1; kk <1; kk++) {
+          for (int jj = -1; jj < 1; jj++) {
+            for (int ii = -1; ii < 1; ii++) {
+              if (ii != 0 && jj !=0 && kk != 0)
+              {
+                float p1[] = { x3d[iptr-ii], y3d[iptr-ii], z3d[iptr-ii] };
+                float p2[] = { x3d[iptr-jj*gdinfo->siz_iy],
+                               y3d[iptr-jj*gdinfo->siz_iy],
+                               z3d[iptr-jj*gdinfo->siz_iy] };
+                float p3[] = { x3d[iptr-kk*gdinfo->siz_iz],
+                               y3d[iptr-kk*gdinfo->siz_iz],
+                               z3d[iptr-kk*gdinfo->siz_iz] };
+
+                float L = fdlib_math_dist_point2plane(p0, p1, p2, p3);
+
+                if (dtLe > L) dtLe = L;
+              }
+            }
+          }
+        }
+
+        // convert to dt
+        float dt_point = CFL / Vp * dtLe;
+
+        // if smaller
+        if (dt_point < dtmax_local) {
+          dtmax_local = dt_point;
+          *dtmaxi = i;
+          *dtmaxj = j;
+          *dtmaxk = k;
+          *dtmaxVp = Vp;
+          *dtmaxL  = dtLe;
+        }
+
+      } // i
+    } // i
+  } //k
+
+  *dtmax = dtmax_local;
+
+  return ierr;
+}
+
+int
+blk_dt_esti_cart(gdinfo_t *gdinfo, gd_t *gdcart, md_t *md,
+    float CFL, float *dtmax, float *dtmaxVp, float *dtmaxL,
+    int *dtmaxi, int *dtmaxj, int *dtmaxk)
+{
+  int ierr = 0;
+
+  float dtmax_local = 1.0e10;
+  float Vp;
+
+  float dx = gdcart->dx;
+  float dy = gdcart->dy;
+  float dz = gdcart->dz;
+
+  // length to plane
+  float p0[] = { 0.0, 0.0, 0.0 };
+  float p1[] = {  dx, 0.0, 0.0 };
+  float p2[] = { 0.0,  dy, 0.0 };
+  float p3[] = { 0.0, 0.0,  dz };
+
+  float dtLe = fdlib_math_dist_point2plane(p0, p1, p2, p3);
+
+  for (int k = gdinfo->nk1; k < gdinfo->nk2; k++)
+  {
+    for (int j = gdinfo->nj1; j < gdinfo->nj2; j++)
+    {
+      for (int i = gdinfo->ni1; i < gdinfo->ni2; i++)
+      {
+        size_t iptr = i + j * gdinfo->siz_iy + k * gdinfo->siz_iz;
+
+        if (md->medium_type == CONST_MEDIUM_ELASTIC_ISO) {
+          Vp = sqrt( (md->lambda[iptr] + 2.0 * md->mu[iptr]) / md->rho[iptr] );
+        } else if (md->medium_type == CONST_MEDIUM_ELASTIC_ISO) {
+          Vp = sqrt( md->kappa[iptr] / md->rho[iptr] );
+        }
+
+        // convert to dt
+        float dt_point = CFL / Vp * dtLe;
+
+        // if smaller
+        if (dt_point < dtmax_local) {
+          dtmax_local = dt_point;
+          *dtmaxi = i;
+          *dtmaxj = j;
+          *dtmaxk = k;
+          *dtmaxVp = Vp;
+        }
+
+      } // i
+    } // i
+  } //k
+
+  *dtmax  = dtmax_local;
+  *dtmaxL = dtLe;
+
+  return ierr;
+}
+
+float
+blk_keep_two_digi(float dt)
+{
+  char str[40];
+  float dt_2;
+
+  sprintf(str, "%3.1e", dt);
+
+  sscanf(str, "%f", &dt_2);
+  
+  return dt_2;
 }

@@ -177,5 +177,17 @@ blk_stg_ac1st_pack_mesg_vel(fdstg_t *fd,
 void
 blk_stg_ac1st_unpack_mesg_vel(fdstg_t *fd,mympi_t *mympi, gdinfo_t *gdinfo, wav_t *wav,
       float *restrict rbuff, size_t siz_rbuff);
+int
+blk_dt_esti_curv(gdinfo_t *gdinfo, gd_t *gdcurv, md_t *md,
+    float CFL, float *dtmax, float *dtmaxVp, float *dtmaxL,
+    int *dtmaxi, int *dtmaxj, int *dtmaxk);
+
+int
+blk_dt_esti_cart(gdinfo_t *gdinfo, gd_t *gdcart, md_t *md,
+    float CFL, float *dtmax, float *dtmaxVp, float *dtmaxL,
+    int *dtmaxi, int *dtmaxj, int *dtmaxk);
+
+float
+blk_keep_two_digi(float dt);
 
 #endif
