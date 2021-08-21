@@ -10,16 +10,18 @@ clear all;
 % file and path name
 %parfnm='./project/test.json';
 %output_dir='./project/output';
-parfnm='/home/zhangw/work/cgfd_cart/08cout/test.json'
-output_dir='/home/zhangw/work/cgfd_cart/08cout/output'
+%parfnm='/home/zhangw/work/cgfd_cart/13nc/test.json'
+%output_dir='/home/zhangw/work/cgfd_cart/13nc/output'
+parfnm='/home/zhangw/work/cgfd_ac/00/test.json'
+output_dir='/home/zhangw/work/cgfd_ac/00/output'
 
 % which snapshot to plot
 id=1;
 
 %-- z slice
-%subs=[1,1,51];      % start from index '1'
-%subc=[-1,-1,1];     % '-1' to plot all points in this dimension
-%subt=[1,1,1];
+subs=[1,1,53];      % start from index '1'
+subc=[-1,-1,1];     % '-1' to plot all points in this dimension
+subt=[1,1,1];
 
 %-- y slice
 %subs=[1,41,1];      % start from index '1'
@@ -27,15 +29,18 @@ id=1;
 %subt=[1,1,1];
 
 %-- x slice
-subs=[41,1,1];      % start from index '1'
-subc=[1,-1,-1];     % '-1' to plot all points in this dimension
-subt=[1,1,1];
+%subs=[41,1,1];      % start from index '1'
+%subc=[1,-1,-1];     % '-1' to plot all points in this dimension
+%subt=[1,1,1];
 
 % variable and time to plot
-varnm='Vz';
+varnm='Vx';
 ns=1;
 ne=500;
 nt=50;
+%ns=2;
+%ne=500;
+%nt=2;
 
 % figure control parameters
 flag_km     = 1;

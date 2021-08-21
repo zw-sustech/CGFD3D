@@ -2977,7 +2977,9 @@ blk_keep_two_digi(float dt)
   char str[40];
   float dt_2;
 
-  sprintf(str, "%3.1e", dt);
+  sprintf(str, "%4.2e", dt);
+
+  str[3] = '0';
 
   sscanf(str, "%f", &dt_2);
   

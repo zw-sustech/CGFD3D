@@ -156,11 +156,11 @@ def draw_snap_pcolor(parfnm,coord_dir,snap_dir,id,subs,subc,subt,varnm,ns,ne,nt,
 if __name__ == '__main__':
     
     # parameter json filename with path
-    parfnm = '/home/zhangw/work/wpsfd_import/00/test.json'
+    parfnm = '/home/zhangw/work/wpsfd_dt/02/test.json'
     # snapshot nc file path
-    snap_dir = '/home/zhangw/work/wpsfd_import/00/output2'
+    snap_dir = '/home/zhangw/work/wpsfd_dt/02/output'
     # coord nc file path
-    coord_dir = '/home/zhangw/work/wpsfd_import/00/output'
+    coord_dir = '/home/zhangw/work/wpsfd_dt/02/output'
     
     # snapshot id
     id = 1
@@ -196,7 +196,7 @@ if __name__ == '__main__':
     # ending time step to plot
     ne = 500
     # time stride to plot
-    nt = 50
+    nt = 10
     
     # show figure or not
     flag_show = 1

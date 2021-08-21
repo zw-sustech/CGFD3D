@@ -18,8 +18,8 @@ from gather_coord import *
 
 # ---------------------------- parameters input --------------------------- #
 # file and path name
-parfnm= '/home/zhangw/work/cgfd_arc/07/test.json'
-snap_dir='/home/zhangw/work/cgfd_arc/07/output'
+parfnm= '/home/zhangw/work/cgfd_arc/09/test.json'
+snap_dir='/home/zhangw/work/cgfd_arc/09/output'
 
 # which snapshot to plot
 id=1
@@ -30,14 +30,14 @@ id=1
 #subt=[1,1,1]
 
 #- x plane
-#subs=[41,1,1]       # start from index '1'
-#subc=[1,-1,-1]      # '-1' to plot all points in this dimension
-#subt=[1,1,1]
+subs=[41,1,1]       # start from index '1'
+subc=[1,-1,-1]      # '-1' to plot all points in this dimension
+subt=[1,1,1]
 
 #- y plane
-subs=[1,41,1]       # start from index '1'
-subc=[-1,1,-1]      # '-1' to plot all points in this dimension
-subt=[1,1,1]
+#subs=[1,41,1]       # start from index '1'
+#subc=[-1,1,-1]      # '-1' to plot all points in this dimension
+#subt=[1,1,1]
 
 # variable and time to plot
 varnm='Vz'
