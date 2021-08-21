@@ -43,24 +43,52 @@ def gather_coord(coordinfo,coorddirvar,coord_dir):
                 subs=subs[::-1]
                 subc=subc[::-1]
                 subt=subt[::-1]
-                
-                xblk=np.array(coordnc.variables['x'][\
-                        subs[0]-1:subs[0]+subc[0]*subt[0]-1:subt[0],\
-                        subs[1]-1:subs[1]+subc[1]*subt[1]-1:subt[1],\
-                        subs[2]-1:subs[2]+subc[2]*subt[2]-1:subt[2]],\
-                        dtype=np.float64)
 
-                yblk=np.array(coordnc.variables['y'][\
-                        subs[0]-1:subs[0]+subc[0]*subt[0]-1:subt[0],\
-                        subs[1]-1:subs[1]+subc[1]*subt[1]-1:subt[1],\
-                        subs[2]-1:subs[2]+subc[2]*subt[2]-1:subt[2]],\
-                        dtype=np.float64)
+                # check dimension size of x,y,z to determine cart or curv
+                # x
+                num_dim_x=len(coordnc.variables['x'].dimensions)
+                if num_dim_x == 1:
+                    x1d=np.array(coordnc.variables['x'][\
+                            subs[2]-1:subs[2]+subc[2]*subt[2]-1:subt[2]],\
+                            dtype=np.float64)
+                    x3d=np.tile(x1d,(1,j2-j1+1,k2-k1+1))
+                    xblk=x3d.transpose(2,1,0)
+                else:
+                    xblk=np.array(coordnc.variables['x'][\
+                            subs[0]-1:subs[0]+subc[0]*subt[0]-1:subt[0],\
+                            subs[1]-1:subs[1]+subc[1]*subt[1]-1:subt[1],\
+                            subs[2]-1:subs[2]+subc[2]*subt[2]-1:subt[2]],\
+                            dtype=np.float64)
 
-                zblk=np.array(coordnc.variables['z'][\
-                        subs[0]-1:subs[0]+subc[0]*subt[0]-1:subt[0],\
-                        subs[1]-1:subs[1]+subc[1]*subt[1]-1:subt[1],\
-                        subs[2]-1:subs[2]+subc[2]*subt[2]-1:subt[2]],\
-                        dtype=np.float64)
+                # y
+                num_dim_y=len(coordnc.variables['y'].dimensions)
+                if num_dim_y == 1:
+                    y1d=np.array(coordnc.variables['y'][\
+                            subs[1]-1:subs[1]+subc[1]*subt[1]-1:subt[1]],\
+                            dtype=np.float64)
+                    y3d=np.tile(y1d,(1,i2-i1+1,k2-k1+1))
+                    yblk=y3d.transpose(2,0,1)
+                else:
+                    yblk=np.array(coordnc.variables['y'][\
+                            subs[0]-1:subs[0]+subc[0]*subt[0]-1:subt[0],\
+                            subs[1]-1:subs[1]+subc[1]*subt[1]-1:subt[1],\
+                            subs[2]-1:subs[2]+subc[2]*subt[2]-1:subt[2]],\
+                            dtype=np.float64)
+
+                # z
+                num_dim_z=len(coordnc.variables['z'].dimensions)
+                if num_dim_z == 1:
+                    z1d=np.array(coordnc.variables['z'][\
+                            subs[0]-1:subs[0]+subc[0]*subt[0]-1:subt[0]],\
+                            dtype=np.float64)
+                    z3d=np.tile(z1d,(1,j2-j1+1,i2-i1+1))
+                    zblk=z3d
+                else:
+                    zblk=np.array(coordnc.variables['z'][\
+                            subs[0]-1:subs[0]+subc[0]*subt[0]-1:subt[0],\
+                            subs[1]-1:subs[1]+subc[1]*subt[1]-1:subt[1],\
+                            subs[2]-1:subs[2]+subc[2]*subt[2]-1:subt[2]],\
+                            dtype=np.float64)
 
                 if n == 0:
                     xold=xblk
