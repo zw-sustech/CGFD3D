@@ -555,8 +555,8 @@ int main(int argc, char** argv)
 //-------------------------------------------------------------------------------
 
   if (myid==0 && verbose>0) fprintf(stdout,"init mesg ...\n"); 
-  blk_colcent_mesg_init(mympi, gdinfo->ni, gdinfo->nj, gdinfo->nk,
-                  fd->fdx_nghosts, fd->fdy_nghosts, wav->ncmp);
+  blk_macdrp_mesg_init(mympi, fd, gdinfo->ni, gdinfo->nj, gdinfo->nk,
+                  wav->ncmp);
 
 //-------------------------------------------------------------------------------
 //-- qc

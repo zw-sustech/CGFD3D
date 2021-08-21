@@ -437,58 +437,376 @@ blk_colcent_unpack_mesg(float *restrict rbuff,float *restrict w_cur,
       }
     }
   } // ivar
+
+  return;
 }
 
 /*********************************************************************
  * mpi message for macdrp scheme with rk
  *********************************************************************/
 
-//void
-//blk_macdrp_mesg_init(mympi_t *mympi,
-//                fd_t *fd,
-//                int ni,
-//                int nj,
-//                int nk,
-//                int num_of_vars)
-//{
-//  // mpi mesg
-//  int siz_x = (nj * nk * fdx_nghosts) * num_of_vars;
-//  int siz_y = (ni * nk * fdy_nghosts) * num_of_vars;
-//
-//  int siz_buff =(  ni * nk * fdy_nghosts * 2
-//                    + nj * nk * fdx_nghosts * 2) * num_of_vars;
-//  mympi->sbuff = (float *) fdlib_mem_malloc_1d(siz_buff * sizeof(MPI_FLOAT),"alloc sbuff");
-//  mympi->rbuff = (float *) fdlib_mem_malloc_1d(siz_buff * sizeof(MPI_FLOAT),"alloc rbuff");
-//  for (int iptr=0; iptr < siz_buff; iptr++) {
-//    mympi->rbuff[iptr] = 0.0;
-//  }
-//  mympi->siz_sbuff = siz_buff;
-//  mympi->siz_rbuff = siz_buff;
-//
-//  float *sbuff_x1 = mympi->sbuff;
-//  float *sbuff_x2 = sbuff_x1 + siz_x;
-//  float *sbuff_y1 = sbuff_x2 + siz_x;
-//  float *sbuff_y2 = sbuff_y1 + siz_y;
-//
-//  int tag[4] = { 11, 12, 21, 22 };
-//
-//  // send
-//  MPI_Send_init(sbuff_x1, siz_x, MPI_FLOAT, mympi->neighid[0], tag[0], mympi->topocomm, &(mympi->s_reqs[0]));
-//  MPI_Send_init(sbuff_x2, siz_x, MPI_FLOAT, mympi->neighid[1], tag[1], mympi->topocomm, &(mympi->s_reqs[1]));
-//  MPI_Send_init(sbuff_y1, siz_y, MPI_FLOAT, mympi->neighid[2], tag[2], mympi->topocomm, &(mympi->s_reqs[2]));
-//  MPI_Send_init(sbuff_y2, siz_y, MPI_FLOAT, mympi->neighid[3], tag[3], mympi->topocomm, &(mympi->s_reqs[3]));
-//
-//  float *rbuff_x1 = mympi->rbuff;
-//  float *rbuff_x2 = rbuff_x1 + siz_x;
-//  float *rbuff_y1 = rbuff_x2 + siz_x;
-//  float *rbuff_y2 = rbuff_y1 + siz_y;
-//
-//  // recv
-//  MPI_Recv_init(rbuff_x1, siz_x, MPI_FLOAT, mympi->neighid[0], tag[1], mympi->topocomm, &(mympi->r_reqs[0]));
-//  MPI_Recv_init(rbuff_x2, siz_x, MPI_FLOAT, mympi->neighid[1], tag[0], mympi->topocomm, &(mympi->r_reqs[1]));
-//  MPI_Recv_init(rbuff_y1, siz_y, MPI_FLOAT, mympi->neighid[2], tag[3], mympi->topocomm, &(mympi->r_reqs[2]));
-//  MPI_Recv_init(rbuff_y2, siz_y, MPI_FLOAT, mympi->neighid[3], tag[2], mympi->topocomm, &(mympi->r_reqs[3]));
-//}
+void
+blk_macdrp_mesg_init(mympi_t *mympi,
+                fd_t *fd,
+                int ni,
+                int nj,
+                int nk,
+                int num_of_vars)
+{
+  // alloc
+  mympi->pair_siz_sbuff_x1 = (size_t **)malloc(fd->num_of_pairs * sizeof(size_t *));
+  mympi->pair_siz_sbuff_x2 = (size_t **)malloc(fd->num_of_pairs * sizeof(size_t *));
+  mympi->pair_siz_sbuff_y1 = (size_t **)malloc(fd->num_of_pairs * sizeof(size_t *));
+  mympi->pair_siz_sbuff_y2 = (size_t **)malloc(fd->num_of_pairs * sizeof(size_t *));
+  mympi->pair_siz_rbuff_x1 = (size_t **)malloc(fd->num_of_pairs * sizeof(size_t *));
+  mympi->pair_siz_rbuff_x2 = (size_t **)malloc(fd->num_of_pairs * sizeof(size_t *));
+  mympi->pair_siz_rbuff_y1 = (size_t **)malloc(fd->num_of_pairs * sizeof(size_t *));
+  mympi->pair_siz_rbuff_y2 = (size_t **)malloc(fd->num_of_pairs * sizeof(size_t *));
+  mympi->pair_s_reqs       = (MPI_Request ***)malloc(fd->num_of_pairs * sizeof(MPI_Request **));
+  mympi->pair_r_reqs       = (MPI_Request ***)malloc(fd->num_of_pairs * sizeof(MPI_Request **));
+  for (int ipair = 0; ipair < fd->num_of_pairs; ipair++)
+  {
+    mympi->pair_siz_sbuff_x1[ipair] = (size_t *)malloc(fd->num_rk_stages * sizeof(size_t));
+    mympi->pair_siz_sbuff_x2[ipair] = (size_t *)malloc(fd->num_rk_stages * sizeof(size_t));
+    mympi->pair_siz_sbuff_y1[ipair] = (size_t *)malloc(fd->num_rk_stages * sizeof(size_t));
+    mympi->pair_siz_sbuff_y2[ipair] = (size_t *)malloc(fd->num_rk_stages * sizeof(size_t));
+    mympi->pair_siz_rbuff_x1[ipair] = (size_t *)malloc(fd->num_rk_stages * sizeof(size_t));
+    mympi->pair_siz_rbuff_x2[ipair] = (size_t *)malloc(fd->num_rk_stages * sizeof(size_t));
+    mympi->pair_siz_rbuff_y1[ipair] = (size_t *)malloc(fd->num_rk_stages * sizeof(size_t));
+    mympi->pair_siz_rbuff_y2[ipair] = (size_t *)malloc(fd->num_rk_stages * sizeof(size_t));
+    mympi->pair_s_reqs[ipair] = (MPI_Request **)malloc(fd->num_of_pairs * sizeof(MPI_Request *));
+    mympi->pair_r_reqs[ipair] = (MPI_Request **)malloc(fd->num_of_pairs * sizeof(MPI_Request *));
+
+    for (int istage = 0; istage < fd->num_rk_stages; istage++)
+    {
+      mympi->pair_s_reqs[ipair][istage] = (MPI_Request *)malloc(4 * sizeof(MPI_Request));
+      mympi->pair_r_reqs[ipair][istage] = (MPI_Request *)malloc(4 * sizeof(MPI_Request));
+    }
+  }
+
+  // mpi mesg
+  mympi->siz_sbuff = 0;
+  mympi->siz_rbuff = 0;
+  for (int ipair = 0; ipair < fd->num_of_pairs; ipair++)
+  {
+    for (int istage = 0; istage < fd->num_rk_stages; istage++)
+    {
+      fd_op_t *fdx_op = fd->pair_fdx_op[ipair][istage];
+      fd_op_t *fdy_op = fd->pair_fdy_op[ipair][istage];
+
+      // to x1, depends on right_len of x1 proc
+      mympi->pair_siz_sbuff_x1[ipair][istage] = (nj * nk * fdx_op->right_len) * num_of_vars;
+      // to x2, depends on left_len of x2 proc
+      mympi->pair_siz_sbuff_x2[ipair][istage] = (nj * nk * fdx_op->left_len ) * num_of_vars;
+
+      mympi->pair_siz_sbuff_y1[ipair][istage] = (ni * nk * fdy_op->right_len) * num_of_vars;
+      mympi->pair_siz_sbuff_y2[ipair][istage] = (ni * nk * fdy_op->left_len ) * num_of_vars;
+
+      // from x1, depends on left_len of cur proc
+      mympi->pair_siz_rbuff_x1[ipair][istage] = (nj * nk * fdx_op->left_len ) * num_of_vars;
+      // from x2, depends on right_len of cur proc
+      mympi->pair_siz_rbuff_x2[ipair][istage] = (nj * nk * fdx_op->right_len) * num_of_vars;
+
+      mympi->pair_siz_rbuff_y1[ipair][istage] = (ni * nk * fdy_op->left_len ) * num_of_vars;
+      mympi->pair_siz_rbuff_y2[ipair][istage] = (ni * nk * fdy_op->right_len) * num_of_vars;
+
+      size_t siz_s =  mympi->pair_siz_sbuff_x1[ipair][istage]
+                    + mympi->pair_siz_sbuff_x2[ipair][istage]
+                    + mympi->pair_siz_sbuff_y1[ipair][istage]
+                    + mympi->pair_siz_sbuff_y2[ipair][istage];
+      size_t siz_r =  mympi->pair_siz_rbuff_x1[ipair][istage]
+                    + mympi->pair_siz_rbuff_x2[ipair][istage]
+                    + mympi->pair_siz_rbuff_y1[ipair][istage]
+                    + mympi->pair_siz_rbuff_y2[ipair][istage];
+
+      if (siz_s > mympi->siz_sbuff) mympi->siz_sbuff = siz_s;
+      if (siz_r > mympi->siz_rbuff) mympi->siz_rbuff = siz_r;
+    }
+  }
+
+  mympi->sbuff = (float *) fdlib_mem_malloc_1d(mympi->siz_sbuff * sizeof(MPI_FLOAT),"alloc sbuff");
+  mympi->rbuff = (float *) fdlib_mem_malloc_1d(mympi->siz_rbuff * sizeof(MPI_FLOAT),"alloc rbuff");
+
+  // set up pers communication
+  for (int ipair = 0; ipair < fd->num_of_pairs; ipair++)
+  {
+    for (int istage = 0; istage < fd->num_rk_stages; istage++)
+    {
+      size_t siz_s_x1 = mympi->pair_siz_sbuff_x1[ipair][istage];
+      size_t siz_s_x2 = mympi->pair_siz_sbuff_x2[ipair][istage];
+      size_t siz_s_y1 = mympi->pair_siz_sbuff_y1[ipair][istage];
+      size_t siz_s_y2 = mympi->pair_siz_sbuff_y2[ipair][istage];
+
+      float *sbuff_x1 = mympi->sbuff;
+      float *sbuff_x2 = sbuff_x1 + siz_s_x1;
+      float *sbuff_y1 = sbuff_x2 + siz_s_x2;
+      float *sbuff_y2 = sbuff_y1 + siz_s_y1;
+
+      // npair: xx, nstage: x, 
+      int tag_pair_stage = ipair * 1000 + istage * 100;
+      int tag[4] = { tag_pair_stage+11, tag_pair_stage+12, tag_pair_stage+21, tag_pair_stage+22 };
+
+      // send
+      MPI_Send_init(sbuff_x1, siz_s_x1, MPI_FLOAT, mympi->neighid[0], tag[0], mympi->topocomm, &(mympi->pair_s_reqs[ipair][istage][0]));
+      MPI_Send_init(sbuff_x2, siz_s_x2, MPI_FLOAT, mympi->neighid[1], tag[1], mympi->topocomm, &(mympi->pair_s_reqs[ipair][istage][1]));
+      MPI_Send_init(sbuff_y1, siz_s_y1, MPI_FLOAT, mympi->neighid[2], tag[2], mympi->topocomm, &(mympi->pair_s_reqs[ipair][istage][2]));
+      MPI_Send_init(sbuff_y2, siz_s_y2, MPI_FLOAT, mympi->neighid[3], tag[3], mympi->topocomm, &(mympi->pair_s_reqs[ipair][istage][3]));
+
+      // recv
+      size_t siz_r_x1 = mympi->pair_siz_rbuff_x1[ipair][istage];
+      size_t siz_r_x2 = mympi->pair_siz_rbuff_x2[ipair][istage];
+      size_t siz_r_y1 = mympi->pair_siz_rbuff_y1[ipair][istage];
+      size_t siz_r_y2 = mympi->pair_siz_rbuff_y2[ipair][istage];
+
+      float *rbuff_x1 = mympi->rbuff;
+      float *rbuff_x2 = rbuff_x1 + siz_r_x1;
+      float *rbuff_y1 = rbuff_x2 + siz_r_x2;
+      float *rbuff_y2 = rbuff_y1 + siz_r_y1;
+
+      // recv
+      MPI_Recv_init(rbuff_x1, siz_r_x1, MPI_FLOAT, mympi->neighid[0], tag[1], mympi->topocomm, &(mympi->pair_r_reqs[ipair][istage][0]));
+      MPI_Recv_init(rbuff_x2, siz_r_x2, MPI_FLOAT, mympi->neighid[1], tag[0], mympi->topocomm, &(mympi->pair_r_reqs[ipair][istage][1]));
+      MPI_Recv_init(rbuff_y1, siz_r_y1, MPI_FLOAT, mympi->neighid[2], tag[3], mympi->topocomm, &(mympi->pair_r_reqs[ipair][istage][2]));
+      MPI_Recv_init(rbuff_y2, siz_r_y2, MPI_FLOAT, mympi->neighid[3], tag[2], mympi->topocomm, &(mympi->pair_r_reqs[ipair][istage][3]));
+    }
+  }
+
+  return;
+}
+
+void
+blk_macdrp_pack_mesg(float *restrict w_cur,float *restrict sbuff,
+                 int num_of_vars, gdinfo_t *gdinfo,
+                 fd_op_t *fdx_op, fd_op_t *fdy_op)
+{
+  int ni1 = gdinfo->ni1;
+  int ni2 = gdinfo->ni2;
+  int nj1 = gdinfo->nj1;
+  int nj2 = gdinfo->nj2;
+  int nk1 = gdinfo->nk1;
+  int nk2 = gdinfo->nk2;
+  size_t siz_line   = gdinfo->siz_line;
+  size_t siz_slice  = gdinfo->siz_slice;
+  size_t siz_volume = gdinfo->siz_volume;
+
+  size_t iptr_b = 0;
+
+  // to x1
+  for (int ivar=0; ivar<num_of_vars; ivar++)
+  {
+    size_t iptr_var = ivar * siz_volume;
+
+    for (int k=nk1; k<=nk2; k++)
+    {
+      size_t iptr_k = iptr_var + k * siz_slice;
+
+      for (int j=nj1; j<=nj2; j++)
+      {
+        size_t iptr_j = iptr_k + j * siz_line;
+
+        for (int i=ni1; i<ni1+fdx_op->right_len; i++)
+        {
+          sbuff[iptr_b] = w_cur[iptr_j + i];
+          iptr_b++;
+        }
+      }
+    }
+  }
+
+  // to x2
+  for (int ivar=0; ivar<num_of_vars; ivar++)
+  {
+    size_t iptr_var = ivar * siz_volume;
+
+    for (int k=nk1; k<=nk2; k++)
+    {
+      size_t iptr_k = iptr_var + k * siz_slice;
+
+      for (int j=nj1; j<=nj2; j++)
+      {
+        size_t iptr_j = iptr_k + j * siz_line;
+
+        for (int i=ni2- fdx_op->left_len +1; i<=ni2; i++)
+        {
+          sbuff[iptr_b] = w_cur[iptr_j + i];
+          iptr_b++;
+        }
+      }
+    }
+  }
+
+  // to y1
+  for (int ivar=0; ivar<num_of_vars; ivar++)
+  {
+    size_t iptr_var = ivar * siz_volume;
+
+    for (int k=nk1; k<=nk2; k++)
+    {
+      size_t iptr_k = iptr_var + k * siz_slice;
+
+      for (int j=nj1; j<nj1+ fdy_op->right_len; j++)
+      {
+        size_t iptr_j = iptr_k + j * siz_line;
+
+        for (int i=ni1; i<=ni2; i++)
+        {
+          sbuff[iptr_b] = w_cur[iptr_j + i];
+          iptr_b++;
+        }
+      }
+    }
+  }
+
+  // to y2
+  for (int ivar=0; ivar<num_of_vars; ivar++)
+  {
+    size_t iptr_var = ivar * siz_volume;
+
+    for (int k=nk1; k<=nk2; k++)
+    {
+      size_t iptr_k = iptr_var + k * siz_slice;
+
+      for (int j=nj2- fdy_op->left_len +1; j<=nj2; j++)
+      {
+        size_t iptr_j = iptr_k + j * siz_line;
+
+        for (int i=ni1; i<=ni2; i++)
+        {
+          sbuff[iptr_b] = w_cur[iptr_j + i];
+          iptr_b++;
+        }
+      }
+    }
+  } // ivar
+
+  return;
+}
+
+void
+blk_macdrp_unpack_mesg(float *restrict rbuff,float *restrict w_cur,
+                 int num_of_vars, gdinfo_t *gdinfo,
+                 fd_op_t *fdx_op, fd_op_t *fdy_op,
+                 size_t siz_x1, size_t siz_x2, size_t siz_y1, size_t siz_y2,
+                 int *neighid)
+{
+  int ni1 = gdinfo->ni1;
+  int ni2 = gdinfo->ni2;
+  int nj1 = gdinfo->nj1;
+  int nj2 = gdinfo->nj2;
+  int nk1 = gdinfo->nk1;
+  int nk2 = gdinfo->nk2;
+  size_t siz_line   = gdinfo->siz_line;
+  size_t siz_slice  = gdinfo->siz_slice;
+  size_t siz_volume = gdinfo->siz_volume;
+
+  size_t iptr_b = 0;
+
+  // from x1
+  float *restrict rbuff_x1 = rbuff;
+  if (neighid[0] != MPI_PROC_NULL) {
+    iptr_b = 0;
+    for (int ivar=0; ivar<num_of_vars; ivar++)
+    {
+      size_t iptr_var = ivar * siz_volume;
+
+      for (int k=nk1; k<=nk2; k++)
+      {
+        size_t iptr_k = iptr_var + k * siz_slice;
+
+        for (int j=nj1; j<=nj2; j++)
+        {
+          size_t iptr_j = iptr_k + j * siz_line;
+
+          for (int i=ni1- fdx_op->left_len; i<ni1; i++)
+          {
+            w_cur[iptr_j + i] = rbuff_x1[iptr_b];
+            iptr_b++;
+          }
+        }
+      }
+    }
+  }
+
+  // from x2
+  float *restrict rbuff_x2 = rbuff_x1 + siz_x1;
+  if (neighid[1] != MPI_PROC_NULL) {
+    iptr_b = 0;
+    for (int ivar=0; ivar<num_of_vars; ivar++)
+    {
+      size_t iptr_var = ivar * siz_volume;
+
+      for (int k=nk1; k<=nk2; k++)
+      {
+        size_t iptr_k = iptr_var + k * siz_slice;
+
+        for (int j=nj1; j<=nj2; j++)
+        {
+          size_t iptr_j = iptr_k + j * siz_line;
+
+          for (int i=ni2+1; i<=ni2+ fdx_op->right_len; i++)
+          {
+            w_cur[iptr_j + i] = rbuff_x2[iptr_b];
+            iptr_b++;
+          }
+        }
+      }
+    }
+  }
+
+  // from y1
+  float *restrict rbuff_y1 = rbuff_x2 + siz_x2;
+  if (neighid[2] != MPI_PROC_NULL) {
+    iptr_b = 0;
+    for (int ivar=0; ivar<num_of_vars; ivar++)
+    {
+      size_t iptr_var = ivar * siz_volume;
+
+      for (int k=nk1; k<=nk2; k++)
+      {
+        size_t iptr_k = iptr_var + k * siz_slice;
+
+        for (int j=nj1- fdy_op->left_len; j<nj1; j++)
+        {
+          size_t iptr_j = iptr_k + j * siz_line;
+
+          for (int i=ni1; i<=ni2; i++)
+          {
+            w_cur[iptr_j + i] = rbuff_y1[iptr_b];
+            iptr_b++;
+          }
+        }
+      }
+    }
+  }
+
+  // from y2
+  float *restrict rbuff_y2 = rbuff_y1 + siz_y1;
+  if (neighid[3] != MPI_PROC_NULL) {
+    iptr_b = 0;
+    for (int ivar=0; ivar<num_of_vars; ivar++)
+    {
+      size_t iptr_var = ivar * siz_volume;
+
+      for (int k=nk1; k<=nk2; k++)
+      {
+        size_t iptr_k = iptr_var + k * siz_slice;
+
+        for (int j=nj2+1; j<=nj2+ fdy_op->right_len; j++)
+        {
+          size_t iptr_j = iptr_k + j * siz_line;
+
+          for (int i=ni1; i<=ni2; i++)
+          {
+            w_cur[iptr_j + i] = rbuff_y2[iptr_b];
+            iptr_b++;
+          }
+        }
+      }
+    } // ivar
+  }
+
+  return;
+}
 
 /*********************************************************************
  * mpi message for el stg scheme

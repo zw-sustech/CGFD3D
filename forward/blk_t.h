@@ -127,6 +127,26 @@ blk_colcent_unpack_mesg(float *restrict rbuff,float *restrict w_cur,
                  int num_of_vars, gdinfo_t *gdinfo,
                  int   fdx_nghosts, int   fdy_nghosts);
 
+void
+blk_macdrp_mesg_init(mympi_t *mympi,
+                fd_t *fd,
+                int ni,
+                int nj,
+                int nk,
+                int num_of_vars);
+
+void
+blk_macdrp_pack_mesg(float *restrict w_cur,float *restrict sbuff,
+                 int num_of_vars, gdinfo_t *gdinfo,
+                 fd_op_t *fdx_op, fd_op_t *fdy_op);
+
+void
+blk_macdrp_unpack_mesg(float *restrict rbuff,float *restrict w_cur,
+                 int num_of_vars, gdinfo_t *gdinfo,
+                 fd_op_t *fdx_op, fd_op_t *fdy_op,
+                 size_t siz_x1, size_t siz_x2, size_t siz_y1, size_t siz_y2,
+                 int *neighid);
+
 int
 blk_print(blk_t *blk);
 

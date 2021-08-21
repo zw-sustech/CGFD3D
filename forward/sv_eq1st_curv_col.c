@@ -63,8 +63,6 @@ sv_eq1st_curv_col_allstep(
   MPI_Comm comm = mympi->comm;
   float *restrict sbuff = mympi->sbuff;
   float *restrict rbuff = mympi->rbuff;
-  MPI_Request *s_reqs = mympi->s_reqs;
-  MPI_Request *r_reqs = mympi->r_reqs;
 
   // local allocated array
   char ou_file[CONST_MAX_STRLEN];
@@ -79,6 +77,8 @@ sv_eq1st_curv_col_allstep(
   int   ipair, istage;
   float t_cur;
   float t_end; // time after this loop for nc output
+  // for mpi message
+  int   ipair_mpi, istage_mpi;
 
   // create slice nc output files
   if (myid==0 && verbose>0) fprintf(stdout,"prepare slice nc output ...\n"); 
@@ -153,6 +153,15 @@ sv_eq1st_curv_col_allstep(
     for (istage=0; istage<num_rk_stages; istage++)
     {
       if (myid==0 && verbose>10) fprintf(stdout, " --> istage=%d\n",istage);
+
+      // for mesg
+      if (istage != num_rk_stages-1) {
+        ipair_mpi = ipair;
+        istage_mpi = istage + 1;
+      } else {
+        ipair_mpi = (it + 1) % num_of_pairs;
+        istage_mpi = 0; 
+      }
 
       // use pointer to avoid 1 copy for previous level value
       if (istage==0) {
@@ -233,7 +242,7 @@ sv_eq1st_curv_col_allstep(
       }
 
       // recv mesg
-      MPI_Startall(num_of_r_reqs, r_reqs);
+      MPI_Startall(num_of_r_reqs, mympi->pair_r_reqs[ipair_mpi][istage_mpi]);
 
       // rk start
       if (istage==0)
@@ -246,10 +255,11 @@ sv_eq1st_curv_col_allstep(
             w_tmp[iptr] = w_pre[iptr] + coef_a * w_rhs[iptr];
         }
         // pack and isend
-        blk_colcent_pack_mesg(w_tmp, sbuff, wav->ncmp, gdinfo,
-                         fdx_max_half_len, fdy_max_half_len);
+        blk_macdrp_pack_mesg(w_tmp, sbuff, wav->ncmp, gdinfo,
+                         &(fd->pair_fdx_op[ipair_mpi][istage_mpi][fd->num_of_fdx_op-1]),
+                         &(fd->pair_fdy_op[ipair_mpi][istage_mpi][fd->num_of_fdy_op-1]));
 
-        MPI_Startall(num_of_s_reqs, s_reqs);
+        MPI_Startall(num_of_s_reqs, mympi->pair_s_reqs[ipair_mpi][istage_mpi]);
 
         // pml_tmp
         for (int idim=0; idim<CONST_NDIM; idim++) {
@@ -289,10 +299,11 @@ sv_eq1st_curv_col_allstep(
             w_tmp[iptr] = w_pre[iptr] + coef_a * w_rhs[iptr];
         }
         // pack and isend
-        blk_colcent_pack_mesg(w_tmp, sbuff, wav->ncmp, gdinfo,
-                         fdx_max_half_len, fdy_max_half_len);
+        blk_macdrp_pack_mesg(w_tmp, sbuff, wav->ncmp, gdinfo,
+                         &(fd->pair_fdx_op[ipair_mpi][istage_mpi][fd->num_of_fdx_op-1]),
+                         &(fd->pair_fdy_op[ipair_mpi][istage_mpi][fd->num_of_fdy_op-1]));
 
-        MPI_Startall(num_of_s_reqs, s_reqs);
+        MPI_Startall(num_of_s_reqs, mympi->pair_s_reqs[ipair_mpi][istage_mpi]);
 
         // pml_tmp
         for (int idim=0; idim<CONST_NDIM; idim++) {
@@ -331,10 +342,11 @@ sv_eq1st_curv_col_allstep(
             w_end[iptr] += coef_b * w_rhs[iptr];
         }
         // pack and isend
-        blk_colcent_pack_mesg(w_end, sbuff, wav->ncmp, gdinfo,
-                         fdx_max_half_len, fdy_max_half_len);
+        blk_macdrp_pack_mesg(w_end, sbuff, wav->ncmp, gdinfo,
+                         &(fd->pair_fdx_op[ipair_mpi][istage_mpi][fd->num_of_fdx_op-1]),
+                         &(fd->pair_fdy_op[ipair_mpi][istage_mpi][fd->num_of_fdy_op-1]));
 
-        MPI_Startall(num_of_s_reqs, s_reqs);
+        MPI_Startall(num_of_s_reqs, mympi->pair_s_reqs[ipair_mpi][istage_mpi]);
 
         // pml_end
         for (int idim=0; idim<CONST_NDIM; idim++) {
@@ -349,15 +361,27 @@ sv_eq1st_curv_col_allstep(
         }
       }
 
-      MPI_Waitall(num_of_s_reqs, s_reqs, MPI_STATUS_IGNORE);
-      MPI_Waitall(num_of_r_reqs, r_reqs, MPI_STATUS_IGNORE);
+      MPI_Waitall(num_of_s_reqs, mympi->pair_s_reqs[ipair_mpi][istage_mpi], MPI_STATUS_IGNORE);
+      MPI_Waitall(num_of_r_reqs, mympi->pair_r_reqs[ipair_mpi][istage_mpi], MPI_STATUS_IGNORE);
 
       if (istage != num_rk_stages-1) {
-        blk_colcent_unpack_mesg(rbuff, w_tmp,  wav->ncmp, gdinfo,
-                         fdx_max_half_len, fdy_max_half_len);
+        blk_macdrp_unpack_mesg(rbuff, w_tmp,  wav->ncmp, gdinfo,
+                         &(fd->pair_fdx_op[ipair_mpi][istage_mpi][fd->num_of_fdx_op-1]),
+                         &(fd->pair_fdy_op[ipair_mpi][istage_mpi][fd->num_of_fdy_op-1]),
+                         mympi->pair_siz_rbuff_x1[ipair_mpi][istage_mpi],
+                         mympi->pair_siz_rbuff_x2[ipair_mpi][istage_mpi],
+                         mympi->pair_siz_rbuff_y1[ipair_mpi][istage_mpi],
+                         mympi->pair_siz_rbuff_y2[ipair_mpi][istage_mpi],
+                         mympi->neighid);
      } else {
-        blk_colcent_unpack_mesg(rbuff, w_end,  wav->ncmp, gdinfo,
-                         fdx_max_half_len, fdy_max_half_len);
+        blk_macdrp_unpack_mesg(rbuff, w_end,  wav->ncmp, gdinfo,
+                         &(fd->pair_fdx_op[ipair_mpi][istage_mpi][fd->num_of_fdx_op-1]),
+                         &(fd->pair_fdy_op[ipair_mpi][istage_mpi][fd->num_of_fdy_op-1]),
+                         mympi->pair_siz_rbuff_x1[ipair_mpi][istage_mpi],
+                         mympi->pair_siz_rbuff_x2[ipair_mpi][istage_mpi],
+                         mympi->pair_siz_rbuff_y1[ipair_mpi][istage_mpi],
+                         mympi->pair_siz_rbuff_y2[ipair_mpi][istage_mpi],
+                         mympi->neighid);
      }
     } // RK stages
 
