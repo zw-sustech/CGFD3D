@@ -9,18 +9,18 @@ set -x
 MPIDIR=/export/apps/gnu-4.8.5/mpich-3.3
 
 EXEC_DIR=/home/zhangw/code/zwlab/CGFD3D-elastic
-EXEC_WAVE=$EXEC_DIR/cgfdm3d_elastic_mpi
+EXEC_WAVE=$EXEC_DIR/main_curv_col_el_3d
 
-PROJDIR=/home/zhangw/work/cgfd_arc/05pml
+PROJDIR=/home/zhangw/work/wpsfd_mpi/01
 
 parfile=${PROJDIR}/test.json
 
 #NUMPROCS=`grep ^num_threads_per_dim ${MAINCONF} | sed 's/=/ /g' | awk '{print $2 * $3 * $4}'`
-NUMPROCS=1
+NUMPROCS=2
 
 
 #/share/apps/DDT/ddt-19.0.5/bin/ddt  \
 #    $EXEC_DIR/seis3d_station $MAINCONF
 
 /export/apps/DDT/ddt-19.0.5/bin/ddt  \
-    $MPIDIR/bin/mpiexec -np $NUMPROCS $EXEC_DIR/cgfdm3d_elastic_mpi $parfile 100
+    $MPIDIR/bin/mpiexec -np $NUMPROCS $EXEC_WAVE $parfile 100
