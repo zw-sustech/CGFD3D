@@ -677,7 +677,7 @@ io_snapshot_locate(gdinfo_t *gdinfo,
     }
 
     // if in this proc
-    if (ngi>0 && ngj>0 & ngk>0)
+    if (ngi>0 && ngj>0 && ngk>0)
     {
       iosnap->i1[isnap]  = gd_info_ind_glphy2lcext_i(gi1, gdinfo);
       iosnap->j1[isnap]  = gd_info_ind_glphy2lcext_j(gj1, gdinfo);
