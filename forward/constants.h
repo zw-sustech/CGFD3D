@@ -18,4 +18,7 @@
 #define CONST_MEDIUM_ELASTIC_VTI   3
 #define CONST_MEDIUM_ELASTIC_ANISO 4
 
+// visco type
+#define CONST_VISCO_GRAVES_QS  1
+
 #endif

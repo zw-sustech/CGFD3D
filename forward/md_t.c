@@ -14,7 +14,7 @@
 #include "md_t.h"
 
 int
-md_init(gdinfo_t *gdinfo, md_t *md, int media_type)
+md_init(gdinfo_t *gdinfo, md_t *md, int media_type, int visco_type)
 {
   int ierr = 0;
 
@@ -36,6 +36,12 @@ md_init(gdinfo_t *gdinfo, md_t *md, int media_type)
     md->ncmp = 6; // 5 + rho
   } else {
     md->ncmp = 22; // 21 + rho
+  }
+
+  // visco
+  md->visco_type = visco_type;
+  if (visco_type == CONST_VISCO_GRAVES_QS) {
+   md->ncmp += 1;
   }
 
   /*
@@ -177,6 +183,13 @@ md_init(gdinfo_t *gdinfo, md_t *md, int media_type)
     icmp += 1;
     sprintf(cmp_name[icmp],"%s","c66");
     md->c66 = md->v4d + cmp_pos[icmp];
+  }
+
+  // plus Qs
+  if (visco_type == CONST_VISCO_GRAVES_QS) {
+    icmp += 1;
+    sprintf(cmp_name[icmp],"%s","Qs");
+    md->Qs = md->v4d + cmp_pos[icmp];
   }
   
   // set pointer
@@ -381,6 +394,36 @@ md_gen_test_el_iso(md_t *md)
         lam3d[iptr] = lam;
          mu3d[iptr] = mu;
         rho3d[iptr] = rho;
+      }
+    }
+  }
+
+  return ierr;
+}
+
+int
+md_gen_test_Qs(md_t *md, float Qs_freq)
+{
+  int ierr = 0;
+
+  int nx = md->nx;
+  int ny = md->ny;
+  int nz = md->nz;
+  int siz_line  = md->siz_iy;
+  int siz_slice = md->siz_iz;
+
+  md->visco_Qs_freq = Qs_freq;
+
+  float *Qs = md->Qs;
+
+  for (size_t k=0; k<nz; k++)
+  {
+    for (size_t j=0; j<ny; j++)
+    {
+      for (size_t i=0; i<nx; i++)
+      {
+        size_t iptr = i + j * siz_line + k * siz_slice;
+        Qs[iptr] = 20;
       }
     }
   }

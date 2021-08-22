@@ -80,15 +80,6 @@ int main(int argc, char** argv)
   if (myid==0 && verbose>0) par_print(par);
 
 //-------------------------------------------------------------------------------
-// set up based on input info
-//-------------------------------------------------------------------------------
-
-  // time
-  float   t0 = par->time_start;
-  float   dt = par->size_of_time_step;
-  int     nt_total = par->number_of_time_steps+1;
-
-//-------------------------------------------------------------------------------
 // init blk_t
 //-------------------------------------------------------------------------------
 
@@ -265,7 +256,7 @@ int main(int argc, char** argv)
 
   // allocate media vars
   if (myid==0 && verbose>0) fprintf(stdout,"allocate media vars ...\n"); 
-  md_init(gdinfo, md, par->media_itype);
+  md_init(gdinfo, md, par->media_itype, par->visco_itype);
 
   // read or discrete velocity model
   switch (par->media_input_itype)

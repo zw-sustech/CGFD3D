@@ -18,7 +18,7 @@ EXEC_DIR=/home/zhangw/code/zwlab/CGFD3D-elastic
 EXEC_WAVE=$EXEC_DIR/main_curv_col_el_3d
 
 #-- conf
-PROJDIR=/home/zhangw/work/wpsfd_dt/02
+PROJDIR=/home/zhangw/work/wpsfd_visco/01noQ
 PAR_FILE=${PROJDIR}/test.json
 GRID_DIR=${PROJDIR}/output
 MEDIA_DIR=${PROJDIR}/output
@@ -29,6 +29,7 @@ OUTPUT_DIR=${PROJDIR}/output
 TEST_INPUT_DIR=/home/zhangw/code/zwlab/CGFD3D-elastic/test
 IN_STATION_LIST_FILE=${TEST_INPUT_DIR}/test_station.sta
 IN_MEDIA_3LAY_FILE=${TEST_INPUT_DIR}/test_hill3d.md3lay
+IN_MEDIA_GRID_FILE=${TEST_INPUT_DIR}/test_hill3d.md3grd
 IN_SOURCE_FILE=${TEST_INPUT_DIR}/test_source.anasrc
 
 #-- create dir
@@ -49,12 +50,12 @@ ieof
 #----------------------------------------------------------------------
 cat << ieof > $PAR_FILE
 {
-  "number_of_total_grid_points_x" : 120,
+  "number_of_total_grid_points_x" : 100,
   "number_of_total_grid_points_y" : 100,
   "number_of_total_grid_points_z" : 60,
 
   "number_of_mpiprocs_x" : 2,
-  "number_of_mpiprocs_y" : 1,
+  "number_of_mpiprocs_y" : 2,
 
   "#size_of_time_step" : 0.008,
   "#size_of_time_step" : 0.015,
@@ -114,8 +115,8 @@ cat << ieof > $PAR_FILE
       },
       "#layer_interp" : {
         "in_grid_layer_file" : "$EXEC_DIR/test/test_grid.gdlay",
-        "refine_factor" : [ 1, 1, 2 ],
-        "horizontal_start_index" : [ 50, 50 ],
+        "refine_factor" : [ 1, 1, 1 ],
+        "horizontal_start_index" : [ 3, 3 ],
         "vertical_ToFreeSurf_resample_index" : 0
       }
   },
@@ -134,10 +135,15 @@ cat << ieof > $PAR_FILE
       "code_generate" : 1,
       "#in_3lay_file" : "${IN_MEDIA_3LAY_FILE}",
       "#equivalent_medium_method" : "har",
-      "#in_3grd_file" : "$PROJDIR/test/hill3d.md3grd"
+      "#in_3grd_file" : "$IN_MEDIA_GRID_FILE"
   },
   "is_export_media" : 1,
   "media_export_dir"  : "$MEDIA_DIR",
+
+  "#visco_config" : {
+      "type" : "graves_Qs",
+      "Qs_freq" : 1.0
+  },
 
   "source_input" : {
       "in_par" : {
@@ -193,7 +199,7 @@ cat << ieof > $PAR_FILE
     {
       "name" : "volume_vel",
       "grid_index_start" : [ 0, 0, 0 ],
-      "grid_index_count" : [ 120,100, 60 ],
+      "grid_index_count" : [ 100,100, 60 ],
       "grid_index_incre" : [  1, 1, 1 ],
       "time_index_start" : 0,
       "time_index_incre" : 1,
@@ -204,7 +210,7 @@ cat << ieof > $PAR_FILE
   ],
 
   "check_nan_every_nummber_of_steps" : 0,
-  "output_all" : 0 
+  "output_all" : 1 
 }
 ieof
 

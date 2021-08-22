@@ -111,6 +111,10 @@ typedef struct{
   char media_export_dir[PAR_MAX_STRLEN];
   char media_import_dir[PAR_MAX_STRLEN];
   char media_input_file[PAR_MAX_STRLEN];
+  // visco
+  char visco_type[PAR_MAX_STRLEN]; // graves_Qs
+  int  visco_itype; // graves_Qs
+  float visco_Qs_freq;
 
   // source
   int source_input_itype;

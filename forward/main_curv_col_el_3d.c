@@ -236,7 +236,7 @@ int main(int argc, char** argv)
 
         break;
   }
-  fprintf(stdout, " --> done\n"); fflush(stdout);
+  if (myid==0 && verbose>0) { fprintf(stdout, " --> done\n"); fflush(stdout); }
 
   // export metric
   if (par->is_export_metric==1)
@@ -248,20 +248,21 @@ int main(int argc, char** argv)
   } else {
     if (myid==0) fprintf(stdout,"do not export metric\n"); 
   }
-  fprintf(stdout, " --> done\n"); fflush(stdout);
+  if (myid==0 && verbose>0) { fprintf(stdout, " --> done\n"); fflush(stdout); }
 
 //-------------------------------------------------------------------------------
 //-- media generation or import
 //-------------------------------------------------------------------------------
 
   // allocate media vars
-  if (myid==0 && verbose>0) fprintf(stdout,"allocate media vars ...\n"); 
-  md_init(gdinfo, md, par->media_itype);
+  if (myid==0 && verbose>0) {fprintf(stdout,"allocate media vars ...\n"); fflush(stdout);}
+  md_init(gdinfo, md, par->media_itype, par->visco_itype);
 
   // read or discrete velocity model
   switch (par->media_input_itype)
   {
     case PAR_MEDIA_CODE :
+
         if (myid==0) fprintf(stdout,"generate simple medium in code ...\n"); 
 
         if (md->medium_type == CONST_MEDIUM_ELASTIC_ISO) {
@@ -270,6 +271,10 @@ int main(int argc, char** argv)
 
         if (md->medium_type == CONST_MEDIUM_ELASTIC_ANISO) {
           md_gen_test_el_aniso(md);
+        }
+
+        if (md->visco_type == CONST_VISCO_GRAVES_QS) {
+          md_gen_test_Qs(md, par->visco_Qs_freq);
         }
 
         break;

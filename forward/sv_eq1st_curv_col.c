@@ -254,6 +254,12 @@ sv_eq1st_curv_col_allstep(
         for (size_t iptr=0; iptr < wav->siz_ilevel; iptr++) {
             w_tmp[iptr] = w_pre[iptr] + coef_a * w_rhs[iptr];
         }
+
+        // apply Qs
+        //if (md->visco_type == CONST_VISCO_GRAVES_QS) {
+        //  sv_eq1st_curv_graves_Qs(w_tmp, wave->ncmp, gdinfo, md);
+        //}
+
         // pack and isend
         blk_macdrp_pack_mesg(w_tmp, sbuff, wav->ncmp, gdinfo,
                          &(fd->pair_fdx_op[ipair_mpi][istage_mpi][fd->num_of_fdx_op-1]),
@@ -298,6 +304,12 @@ sv_eq1st_curv_col_allstep(
         for (size_t iptr=0; iptr < wav->siz_ilevel; iptr++) {
             w_tmp[iptr] = w_pre[iptr] + coef_a * w_rhs[iptr];
         }
+
+        // apply Qs
+        //if (md->visco_type == CONST_VISCO_GRAVES_QS) {
+        //  sv_eq1st_curv_graves_Qs(w_tmp, wave->ncmp, gdinfo, md);
+        //}
+
         // pack and isend
         blk_macdrp_pack_mesg(w_tmp, sbuff, wav->ncmp, gdinfo,
                          &(fd->pair_fdx_op[ipair_mpi][istage_mpi][fd->num_of_fdx_op-1]),
@@ -341,6 +353,12 @@ sv_eq1st_curv_col_allstep(
         for (size_t iptr=0; iptr < wav->siz_ilevel; iptr++) {
             w_end[iptr] += coef_b * w_rhs[iptr];
         }
+
+        // apply Qs
+        if (md->visco_type == CONST_VISCO_GRAVES_QS) {
+          sv_eq1st_curv_graves_Qs(w_end, wav->ncmp, dt, gdinfo, md);
+        }
+        
         // pack and isend
         blk_macdrp_pack_mesg(w_end, sbuff, wav->ncmp, gdinfo,
                          &(fd->pair_fdx_op[ipair_mpi][istage_mpi][fd->num_of_fdx_op-1]),
@@ -455,4 +473,34 @@ sv_eq1st_curv_col_allstep(
   io_snap_nc_close(&iosnap_nc);
 
   return;
+}
+
+int
+sv_eq1st_curv_graves_Qs(float *w, int ncmp, float dt, gdinfo_t *gdinfo, md_t *md)
+{
+  int ierr = 0;
+
+  float coef = - PI * md->visco_Qs_freq * dt;
+
+  for (int icmp=0; icmp<ncmp; icmp++)
+  {
+    float *restrict var = w + icmp * gdinfo->siz_icmp;
+
+    for (int k = gdinfo->nk1; k <= gdinfo->nk2; k++)
+    {
+      for (int j = gdinfo->nj1; j <= gdinfo->nj2; j++)
+      {
+        for (int i = gdinfo->ni1; i <= gdinfo->ni2; i++)
+        {
+          size_t iptr = i + j * gdinfo->siz_iy + k * gdinfo->siz_iz;
+
+          float Qatt = expf( coef / md->Qs[iptr] );
+
+          var[iptr] *= Qatt;
+        }
+      }
+    }
+  }
+
+  return ierr;
 }

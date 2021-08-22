@@ -23,8 +23,7 @@ par_mpi_get(char *par_fname, int myid, MPI_Comm comm, par_t *par, int verbose)
     FILE *fp=fopen(par_fname,"r");
     if (!fp) {
       fprintf(stderr,"Error: can't open par file: %s\n", par_fname);
-      MPI_Finalize();
-      exit(1);
+      MPI_Abort(MPI_COMM_WORLD,9);
     }
     fseek(fp, 0, SEEK_END);
     long len = ftell(fp);
@@ -97,7 +96,7 @@ par_read_from_str(const char *str, par_t *par)
   cJSON *root = cJSON_Parse(str);
   if (NULL == root) {
     printf("Error at parsing json!\n");
-    exit(-1);
+    MPI_Abort(MPI_COMM_WORLD,9);
   }
 
   cJSON *item;
@@ -127,6 +126,7 @@ par_read_from_str(const char *str, par_t *par)
     // should be improved to allow input order change
     if (par->disg_num_level != cJSON_GetArraySize(item)) {
       fprintf(stderr,"ERROR: input size of dis_grid_at_zindx and dis_grid_factor diff\n");
+      MPI_Abort(MPI_COMM_WORLD,9);
     }
     par->disg_factor = (int *)malloc(par->disg_num_level * sizeof(int));
     for (int n=0; n < par->disg_num_level; n++) {
@@ -187,7 +187,7 @@ par_read_from_str(const char *str, par_t *par)
     fprintf(stderr," --> size_of_time_step   =%f\n", par->size_of_time_step);
     fprintf(stderr," --> time_window_length  =%f\n", par->time_window_length);
     fprintf(stderr,"Error: at lest one of above paras should > 0\n");
-    exit(-1);
+    MPI_Abort(MPI_COMM_WORLD,9);
   }
 
   if (par->size_of_time_step > 0.0)
@@ -196,7 +196,7 @@ par_read_from_str(const char *str, par_t *par)
     {
       fprintf(stderr,"Error: both size_of_time_step=%f, time_window_length=%f less 0\n",
              par->size_of_time_step, par->time_window_length);
-      exit(-1);
+      MPI_Abort(MPI_COMM_WORLD,9);
     }
 
     if (par->number_of_time_steps < 0) 
@@ -407,7 +407,8 @@ par_read_from_str(const char *str, par_t *par)
         } else if (strcmp(par->media_type, "ac_iso")==0) {
           par->media_itype = CONST_MEDIUM_ACOUSTIC_ISO;
         } else {
-          fprintf(stderr,"ERROR: media_type is unknown\n");
+          fprintf(stderr,"ERROR: media_type=%s is unknown\n",par->media_type);
+          MPI_Abort(MPI_COMM_WORLD,9);
         }
     }
     // if input by import
@@ -438,6 +439,27 @@ par_read_from_str(const char *str, par_t *par)
   }
   if (item = cJSON_GetObjectItem(root, "media_export_dir")) {
       sprintf(par->media_export_dir,"%s",item->valuestring);
+  }
+
+  //
+  //-- visco
+  //
+
+  par->visco_Qs_freq = 0.0;
+  par->visco_itype = 0;
+  if (item = cJSON_GetObjectItem(root, "visco_config")) {
+    if (subitem = cJSON_GetObjectItem(item, "type")) {
+        sprintf(par->visco_type, "%s", subitem->valuestring);
+        if (strcmp(par->visco_type, "graves_Qs")==0) {
+          par->visco_itype = CONST_VISCO_GRAVES_QS;
+        } else {
+          fprintf(stderr,"ERROR: visco_type is unknown\n");
+          MPI_Abort(MPI_COMM_WORLD,9);
+        }
+    }
+    if (subitem = cJSON_GetObjectItem(item, "Qs_freq")) {
+        par->visco_Qs_freq = subitem->valuedouble;
+    }
   }
 
   //
@@ -912,6 +934,17 @@ par_print(par_t *par)
   fprintf(stdout, " media_type = %s\n", par->media_type);
   fprintf(stdout, " media_export_dir = %s\n", par->media_export_dir);
   fprintf(stdout, " media_input_itype = %d\n", par->media_input_itype);
+
+
+  if (par->visco_itype == CONST_VISCO_GRAVES_QS) {
+    fprintf(stdout, "-------------------------------------------------------\n");
+    fprintf(stdout, "--> visco info.\n");
+    fprintf(stdout, "-------------------------------------------------------\n");
+    fprintf(stdout, " visco_type = %s\n", par->visco_type);
+    fprintf(stdout, " visco_Qs_freq = %f\n", par->visco_Qs_freq);
+  } else {
+    fprintf(stdout, "--> no visco\n");
+  }
   //if (par->media_input_itype == PAR_MEDIA_3LAY) {
   //  fprintf()
   //}

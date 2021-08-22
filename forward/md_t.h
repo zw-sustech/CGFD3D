@@ -32,6 +32,9 @@ typedef struct {
   float *lambda; // pointer to var
   float *mu;
 
+  // for visco attenuation
+  float *Qs;
+
   // for anisotropic media
   float *c11;
   float *c12;
@@ -55,6 +58,9 @@ typedef struct {
   float *c56;
   float *c66;
 
+  int visco_type;
+  float visco_Qs_freq;
+
 } md_t;
 
 /*************************************************
@@ -62,7 +68,7 @@ typedef struct {
  *************************************************/
 
 int
-md_init(gdinfo_t *gdinfo, md_t *md, int media_type);
+md_init(gdinfo_t *gdinfo, md_t *md, int media_type, int visco_type);
 
 int
 md_import(md_t *md, char *fname_coords, char *in_dir);
@@ -78,6 +84,9 @@ md_gen_test_ac_iso(md_t *md);
 
 int
 md_gen_test_el_iso(md_t *md);
+
+int
+md_gen_test_Qs(md_t *md, float Qs_freq);
 
 int
 md_gen_test_el_aniso(md_t *md);
