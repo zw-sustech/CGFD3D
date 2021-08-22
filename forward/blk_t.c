@@ -474,8 +474,8 @@ blk_macdrp_mesg_init(mympi_t *mympi,
     mympi->pair_siz_rbuff_x2[ipair] = (size_t *)malloc(fd->num_rk_stages * sizeof(size_t));
     mympi->pair_siz_rbuff_y1[ipair] = (size_t *)malloc(fd->num_rk_stages * sizeof(size_t));
     mympi->pair_siz_rbuff_y2[ipair] = (size_t *)malloc(fd->num_rk_stages * sizeof(size_t));
-    mympi->pair_s_reqs[ipair] = (MPI_Request **)malloc(fd->num_of_pairs * sizeof(MPI_Request *));
-    mympi->pair_r_reqs[ipair] = (MPI_Request **)malloc(fd->num_of_pairs * sizeof(MPI_Request *));
+    mympi->pair_s_reqs[ipair] = (MPI_Request **)malloc(fd->num_rk_stages * sizeof(MPI_Request *));
+    mympi->pair_r_reqs[ipair] = (MPI_Request **)malloc(fd->num_rk_stages * sizeof(MPI_Request *));
 
     for (int istage = 0; istage < fd->num_rk_stages; istage++)
     {
