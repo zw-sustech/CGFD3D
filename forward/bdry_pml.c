@@ -25,10 +25,10 @@
  */
 
 float
-bdry_pml_cal_R(int N)
+bdry_pml_cal_R(float num_lay)
 {
   // use corrected Rpp
-  return (float) (pow(10, -( (log10((double)N)-1.0)/log10(2.0) + 4.0)));
+  return (float) (pow(10, -( (log10((double)num_lay)-1.0)/log10(2.0) + 4.0)));
 }
 
 float
@@ -192,7 +192,7 @@ bdry_pml_set(gdinfo_t *gdinfo,
 
       // para
       int npoints = bdrypml->num_of_layers[idim][iside] + 1;
-      int num_lay = npoints - 1;
+      float num_lay = npoints - 1;
       float Rpp  = bdry_pml_cal_R(num_lay);
       float dmax = bdry_pml_cal_dmax(L0, in_velocity[idim][iside], Rpp);
       float amax = in_alpha_max[idim][iside];
@@ -224,6 +224,227 @@ bdry_pml_set(gdinfo_t *gdinfo,
         B[i] = 1.0 / B[i];
       }
 
+    } // iside
+  } // idim
+
+  // alloc auxvar
+  for (int idim=0; idim<CONST_NDIM; idim++)
+  {
+    for (int iside=0; iside<2; iside++)
+    {
+      int nx = (bdrypml->ni2[idim][iside] - bdrypml->ni1[idim][iside] + 1);
+      int ny = (bdrypml->nj2[idim][iside] - bdrypml->nj1[idim][iside] + 1);
+      int nz = (bdrypml->nk2[idim][iside] - bdrypml->nk1[idim][iside] + 1);
+
+      bdry_pml_auxvar_init(nx,ny,nz,wav,
+                           &(bdrypml->auxvar[idim][iside]),verbose);
+    } // iside
+  } // idim
+
+}
+
+void
+bdry_pml_set_stg(gdinfo_t *gdinfo,
+                 gd_t *gd,
+                 wav_t *wav,
+                 bdrypml_t *bdrypml,
+                 int   *neighid, 
+                 int   in_is_sides[][2],
+                 int   in_num_layers[][2],
+                 float in_alpha_max[][2], //
+                 float in_beta_max[][2], //
+                 float in_velocity[][2], //
+                 int verbose)
+{
+  int    ni1 = gdinfo->ni1;
+  int    ni2 = gdinfo->ni2;
+  int    nj1 = gdinfo->nj1;
+  int    nj2 = gdinfo->nj2;
+  int    nk1 = gdinfo->nk1;
+  int    nk2 = gdinfo->nk2;
+  int    nx  = gdinfo->nx ;
+  int    ny  = gdinfo->ny ;
+  int    nz  = gdinfo->nz ;
+  int    siz_line = gdinfo->siz_iy;
+  int    siz_slice = gdinfo->siz_iz;
+
+  // default disable
+  bdrypml->is_enable = 0;
+
+  // check each side
+  for (int idim=0; idim<CONST_NDIM; idim++)
+  {
+    for (int iside=0; iside<2; iside++)
+    {
+      int ind_1d = iside + idim * 2;
+
+      // default set to input
+      bdrypml->is_at_sides  [idim][iside] = in_is_sides[idim][iside];
+      bdrypml->num_of_layers[idim][iside] = in_num_layers[idim][iside];
+
+      // reset 0 if not mpi boundary
+      if (neighid[ind_1d] != MPI_PROC_NULL)
+      {
+        bdrypml->is_at_sides  [idim][iside] = 0;
+        bdrypml->num_of_layers[idim][iside] = 0;
+      }
+
+      // default loop index
+      bdrypml->ni1[idim][iside] = ni1;
+      bdrypml->ni2[idim][iside] = ni2;
+      bdrypml->nj1[idim][iside] = nj1;
+      bdrypml->nj2[idim][iside] = nj2;
+      bdrypml->nk1[idim][iside] = nk1;
+      bdrypml->nk2[idim][iside] = nk2;
+
+      // shrink to actual size
+      if (idim == 0 && iside ==0) { // x1
+        bdrypml->ni2[idim][iside] = ni1 + bdrypml->num_of_layers[idim][iside];
+      }
+      if (idim == 0 && iside ==1) { // x2
+        bdrypml->ni1[idim][iside] = ni2 - bdrypml->num_of_layers[idim][iside];
+      }
+      if (idim == 1 && iside ==0) { // y1
+        bdrypml->nj2[idim][iside] = nj1 + bdrypml->num_of_layers[idim][iside];
+      }
+      if (idim == 1 && iside ==1) { // y2
+        bdrypml->nj1[idim][iside] = nj2 - bdrypml->num_of_layers[idim][iside];
+      }
+      if (idim == 2 && iside ==0) { // z1
+        bdrypml->nk2[idim][iside] = nk1 + bdrypml->num_of_layers[idim][iside];
+      }
+      if (idim == 2 && iside ==1) { // z2
+        bdrypml->nk1[idim][iside] = nk2 - bdrypml->num_of_layers[idim][iside];
+      }
+
+      // enable if any side valid
+      if (bdrypml->is_at_sides  [idim][iside] == 1) {
+        bdrypml->is_enable = 1;
+      }
+
+    } // iside
+  } // idim
+
+  // alloc coef
+  bdrypml->A = (float ***)malloc(CONST_NDIM * sizeof(float**));
+  bdrypml->B = (float ***)malloc(CONST_NDIM * sizeof(float**));
+  bdrypml->D = (float ***)malloc(CONST_NDIM * sizeof(float**));
+
+  bdrypml->Am = (float ***)malloc(CONST_NDIM * sizeof(float**));
+  bdrypml->Bm = (float ***)malloc(CONST_NDIM * sizeof(float**));
+  bdrypml->Dm = (float ***)malloc(CONST_NDIM * sizeof(float**));
+
+  for (int idim=0; idim<CONST_NDIM; idim++)
+  {
+    bdrypml->A[idim] = (float **)malloc(2 * sizeof(float*));
+    bdrypml->B[idim] = (float **)malloc(2 * sizeof(float*));
+    bdrypml->D[idim] = (float **)malloc(2 * sizeof(float*));
+
+    bdrypml->Am[idim] = (float **)malloc(2 * sizeof(float*));
+    bdrypml->Bm[idim] = (float **)malloc(2 * sizeof(float*));
+    bdrypml->Dm[idim] = (float **)malloc(2 * sizeof(float*));
+
+    for (int iside=0; iside<2; iside++)
+    {
+      if (bdrypml->is_at_sides[idim][iside] == 1) {
+        int npoints = bdrypml->num_of_layers[idim][iside] + 1;
+        bdrypml->A[idim][iside] = (float *)malloc( npoints * sizeof(float));
+        bdrypml->B[idim][iside] = (float *)malloc( npoints * sizeof(float));
+        bdrypml->D[idim][iside] = (float *)malloc( npoints * sizeof(float));
+        bdrypml->Am[idim][iside] = (float *)malloc( npoints * sizeof(float));
+        bdrypml->Bm[idim][iside] = (float *)malloc( npoints * sizeof(float));
+        bdrypml->Dm[idim][iside] = (float *)malloc( npoints * sizeof(float));
+      } else {
+        bdrypml->A[idim][iside] = NULL;
+        bdrypml->B[idim][iside] = NULL;
+        bdrypml->D[idim][iside] = NULL;
+        bdrypml->Am[idim][iside] = NULL;
+        bdrypml->Bm[idim][iside] = NULL;
+        bdrypml->Dm[idim][iside] = NULL;
+      }
+    }
+  }
+
+  // cal coef for each dim and side
+  for (int idim=0; idim<CONST_NDIM; idim++)
+  {
+    for (int iside=0; iside<2; iside++)
+    {
+      // skip if not pml
+      if (bdrypml->is_at_sides[idim][iside] == 0) continue;
+
+      float *A = bdrypml->A[idim][iside];
+      float *B = bdrypml->B[idim][iside];
+      float *D = bdrypml->D[idim][iside];
+
+      float *Am = bdrypml->Am[idim][iside];
+      float *Bm = bdrypml->Bm[idim][iside];
+      float *Dm = bdrypml->Dm[idim][iside];
+
+      // esti L0 and dh
+      float L0, dh;
+      bdry_pml_cal_len_dh(gd,bdrypml->ni1[idim][iside],
+                             bdrypml->ni2[idim][iside],
+                             bdrypml->nj1[idim][iside],
+                             bdrypml->nj2[idim][iside],
+                             bdrypml->nk1[idim][iside],
+                             bdrypml->nk2[idim][iside],
+                             idim,
+                             &L0, &dh);
+
+      // adjust L0 to include half length
+      L0 += dh / 2.0;
+
+      // para
+      int npoints = bdrypml->num_of_layers[idim][iside] + 1;
+      float num_lay = npoints - 1 + 0.5; // staggered grid
+      float Rpp  = bdry_pml_cal_R(num_lay);
+      float dmax = bdry_pml_cal_dmax(L0, in_velocity[idim][iside], Rpp);
+      float amax = in_alpha_max[idim][iside];
+      float bmax = in_beta_max[idim][iside];
+
+      // from PML-interior to outer side
+      for (int n=0; n<npoints; n++)
+      {
+        float L, Lm;
+        int i;
+
+        // convert to grid index from left to right
+        if (iside == 0) // x1/y1/z1
+        { // first point at middle
+          Lm = n * dh;
+          L  = (n + 0.5 ) * dh;
+          i = npoints - 1 - n;
+        }
+        else // x2/y2/z2
+        { // first point at integer
+          L  = n * dh;
+          Lm = L + 0.5 * dh;
+          i = n; 
+        }
+
+        // regular point
+        D[i] = bdry_pml_cal_d( L, L0, dmax );
+        A[i] = bdry_pml_cal_a( L, L0, amax );
+        B[i] = bdry_pml_cal_b( L, L0, bmax );
+
+        // middle point
+        Dm[i] = bdry_pml_cal_d( Lm, L0, dmax );
+        Am[i] = bdry_pml_cal_a( Lm, L0, amax );
+        Bm[i] = bdry_pml_cal_b( Lm, L0, bmax );
+
+        // convert d_x to d_x/beta_x since only d_x/beta_x needed
+        D[i] /= B[i];
+        // covert ax = a_x + d_x/beta_x 
+        A[i] += D[i];
+        // covert bx = 1.0/bx 
+        B[i] = 1.0 / B[i];
+
+        // for middle point
+        Dm[i] /= Bm[i];
+        Am[i] += Dm[i];
+        Bm[i] = 1.0 / Bm[i];
+      }
     } // iside
   } // idim
 

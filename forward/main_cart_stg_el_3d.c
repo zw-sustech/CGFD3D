@@ -433,7 +433,7 @@ int main(int argc, char** argv)
   
   if (par->bdry_has_cfspml == 1)
   {
-    bdry_pml_set(gdinfo, gdcart, wav, bdrypml,
+    bdry_pml_set_stg(gdinfo, gdcart, wav, bdrypml,
                  mympi->neighid,
                  par->cfspml_is_sides,
                  par->abs_num_of_layers,

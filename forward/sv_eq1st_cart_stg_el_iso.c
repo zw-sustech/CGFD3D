@@ -782,6 +782,7 @@ sv_eq1st_cart_stg_el_iso_hook_cfspml(
   int i,j,k;
   int iptr, iptr_j, iptr_k, iptr_a;
   float coef_A, coef_B, coef_D, coef_rB_minus_1;
+  float coef_Am, coef_Bm, coef_Dm, coef_rBm_minus_1;
 
   // put fd op into local array
   int num_of_fdx_op = fd->num_of_fdx_op;
@@ -838,6 +839,9 @@ sv_eq1st_cart_stg_el_iso_hook_cfspml(
       float *restrict ptr_coef_A = bdrypml->A[idim][iside];
       float *restrict ptr_coef_B = bdrypml->B[idim][iside];
       float *restrict ptr_coef_D = bdrypml->D[idim][iside];
+      float *restrict ptr_coef_Am = bdrypml->Am[idim][iside];
+      float *restrict ptr_coef_Bm = bdrypml->Bm[idim][iside];
+      float *restrict ptr_coef_Dm = bdrypml->Dm[idim][iside];
 
       bdrypml_auxvar_t *auxvar = &(bdrypml->auxvar[idim][iside]);
 
@@ -865,7 +869,12 @@ sv_eq1st_cart_stg_el_iso_hook_cfspml(
               coef_D = ptr_coef_D[abs_i];
               coef_A = ptr_coef_A[abs_i];
               coef_B = ptr_coef_B[abs_i];
+              coef_Dm = ptr_coef_Dm[abs_i];
+              coef_Am = ptr_coef_Am[abs_i];
+              coef_Bm = ptr_coef_Bm[abs_i];
+
               coef_rB_minus_1 = coef_B - 1.0;
+              coef_rBm_minus_1 = coef_Bm - 1.0;
 
               // medium
               lam = lam3d[iptr];
@@ -882,6 +891,7 @@ sv_eq1st_cart_stg_el_iso_hook_cfspml(
               M_FD_SHIFT_PTR(DxVz, Vz_ptr, lfdx_len, lfdx_shift_F, lfdx_coef, n_fd);
 
               float r_dt_AD = 1.0/(2.0 + dt * ( coef_A + coef_D)) ;
+              float r_dt_ADm = 1.0/(2.0 + dt * ( coef_Am + coef_Dm)) ;
 
               // correct Txx,Tyy,Tzz
               float Vx1 = (2.0 * pml_DxVx[iptr_a] + dt* coef_D *DxVx ) * r_dt_AD;
@@ -891,12 +901,12 @@ sv_eq1st_cart_stg_el_iso_hook_cfspml(
               Tzz[iptr] += dt * lam    * Vx1_corr;
 
               // correct Tij
-              float Vz1 =  (2.0 * pml_DxVz[iptr_a] + dt * coef_D * DxVz ) * r_dt_AD; 
-              float Vz1_corr = coef_rB_minus_1 * DxVz - Vz1 * coef_B;
+              float Vz1 =  (2.0 * pml_DxVz[iptr_a] + dt * coef_Dm * DxVz ) * r_dt_ADm; 
+              float Vz1_corr = coef_rBm_minus_1 * DxVz - Vz1 * coef_Bm;
               Txz[iptr] += dt * mu * Vz1_corr;
 
-              float Vy1 =  (2.0 * pml_DxVy[iptr_a] + dt * coef_D * DxVy ) * r_dt_AD; 
-              float Vy1_corr = coef_rB_minus_1 * DxVy - Vy1 * coef_B;
+              float Vy1 =  (2.0 * pml_DxVy[iptr_a] + dt * coef_Dm * DxVy ) * r_dt_ADm; 
+              float Vy1_corr = coef_rBm_minus_1 * DxVy - Vy1 * coef_Bm;
               Txy[iptr] += dt * mu * Vy1_corr;
 
               // updat aux var
@@ -954,7 +964,13 @@ sv_eq1st_cart_stg_el_iso_hook_cfspml(
             coef_B = ptr_coef_B[abs_j];
             coef_rB_minus_1 = coef_B - 1.0;
 
+            coef_Dm = ptr_coef_Dm[abs_j];
+            coef_Am = ptr_coef_Am[abs_j];
+            coef_Bm = ptr_coef_Bm[abs_j];
+            coef_rBm_minus_1 = coef_Bm - 1.0;
+
             float r_dt_AD = 1.0/(2.0 + dt * ( coef_A + coef_D)) ;
+            float r_dt_ADm = 1.0/(2.0 + dt * ( coef_Am + coef_Dm)) ;
 
             for (i=abs_ni1; i<=abs_ni2; i++)
             {
@@ -981,14 +997,14 @@ sv_eq1st_cart_stg_el_iso_hook_cfspml(
               pml_DyVy[iptr_a] = 2.0 * Vy2 - pml_DyVy[iptr_a];
 
               // correct Tyz
-              float Vz2 =  (2.0 * pml_DyVz[iptr_a] + dt * coef_D * DyVz ) * r_dt_AD;
-              float Vz2_corr = coef_rB_minus_1 * DyVz - Vz2 * coef_B;
+              float Vz2 =  (2.0 * pml_DyVz[iptr_a] + dt * coef_Dm * DyVz ) * r_dt_ADm;
+              float Vz2_corr = coef_rBm_minus_1 * DyVz - Vz2 * coef_Bm;
               Tyz[iptr] += dt * mu * Vz2_corr;
               pml_DyVz[iptr_a] = 2.0 * Vz2 - pml_DyVz[iptr_a];
 
               // correct Txy
-              float Vx2 =  (2.0 * pml_DyVx[iptr_a] + dt * coef_D * DyVx ) * r_dt_AD;
-              float Vx2_corr = coef_rB_minus_1 * DyVx - Vx2 * coef_B;
+              float Vx2 =  (2.0 * pml_DyVx[iptr_a] + dt * coef_Dm * DyVx ) * r_dt_ADm;
+              float Vx2_corr = coef_rBm_minus_1 * DyVx - Vx2 * coef_Bm;
               Txy[iptr] += dt * mu * Vx2_corr;
               pml_DyVx[iptr_a] = 2.0 * Vx2 - pml_DyVx[iptr_a];
 
@@ -1037,6 +1053,14 @@ sv_eq1st_cart_stg_el_iso_hook_cfspml(
           coef_B = ptr_coef_B[abs_k];
           coef_rB_minus_1 = coef_B - 1.0;
 
+          coef_Dm = ptr_coef_Dm[abs_k];
+          coef_Am = ptr_coef_Am[abs_k];
+          coef_Bm = ptr_coef_Bm[abs_k];
+          coef_rBm_minus_1 = coef_Bm - 1.0;
+
+          float r_dt_AD = 1.0/(2.0 + dt * ( coef_A + coef_D)) ;
+          float r_dt_ADm = 1.0/(2.0 + dt * ( coef_Am + coef_Dm)) ;
+
           for (j=abs_nj1; j<=abs_nj2; j++)
           {
             iptr_j = iptr_k + j * siz_line;
@@ -1057,8 +1081,6 @@ sv_eq1st_cart_stg_el_iso_hook_cfspml(
               M_FD_SHIFT_PTR(DzVy, Vy_ptr, lfdz_len, lfdz_shift_F, lfdz_coef, n_fd);
               M_FD_SHIFT_PTR(DzVz, Vz_ptr, lfdz_len, lfdz_shift_B, lfdz_coef, n_fd);
 
-              float r_dt_AD = 1.0/(2.0 + dt * ( coef_A + coef_D)) ;
-
               // correct Txx,Tyy,Tzz
               float Vz3 =  (2.0 * pml_DzVz[iptr_a] + dt * coef_D * DzVz ) * r_dt_AD;
               float Vz3_corr = coef_rB_minus_1 * DzVz - Vz3 * coef_B;
@@ -1070,16 +1092,16 @@ sv_eq1st_cart_stg_el_iso_hook_cfspml(
               pml_DzVz[iptr_a] = 2.0 * Vz3 - pml_DzVz[iptr_a];
 
               // correct Tyz
-              float Vy3 =  (2.0 * pml_DzVy[iptr_a] + dt * coef_D * DzVy ) * r_dt_AD;
-              float Vy3_corr = coef_rB_minus_1 * DzVy - Vy3 * coef_B;
+              float Vy3 =  (2.0 * pml_DzVy[iptr_a] + dt * coef_Dm * DzVy ) * r_dt_ADm;
+              float Vy3_corr = coef_rBm_minus_1 * DzVy - Vy3 * coef_Bm;
 
               Tyz[iptr] += dt * mu * Vy3_corr;
 
               pml_DzVy[iptr_a] = 2.0 * Vy3 - pml_DzVy[iptr_a];
 
               // correct Txz
-              float Vx3 =  (2.0 * pml_DzVx[iptr_a] + dt * coef_D * DzVx ) * r_dt_AD;
-              float Vx3_corr = coef_rB_minus_1 * DzVx - Vx3 * coef_B;
+              float Vx3 =  (2.0 * pml_DzVx[iptr_a] + dt * coef_Dm * DzVx ) * r_dt_ADm;
+              float Vx3_corr = coef_rBm_minus_1 * DzVx - Vx3 * coef_Bm;
 
               Txz[iptr] += dt * mu * Vx3_corr;
 
@@ -1129,6 +1151,7 @@ sv_eq1st_cart_stg_el_iso_moment_cfspml(
   int i,j,k;
   int iptr, iptr_j, iptr_k, iptr_a;
   float coef_A, coef_B, coef_D, coef_rB_minus_1;
+  float coef_Am, coef_Bm, coef_Dm, coef_rBm_minus_1;
   float slw;
 
   float *restrict Txx_ptr;
@@ -1194,6 +1217,9 @@ sv_eq1st_cart_stg_el_iso_moment_cfspml(
       float *restrict ptr_coef_A = bdrypml->A[idim][iside];
       float *restrict ptr_coef_B = bdrypml->B[idim][iside];
       float *restrict ptr_coef_D = bdrypml->D[idim][iside];
+      float *restrict ptr_coef_Am = bdrypml->Am[idim][iside];
+      float *restrict ptr_coef_Bm = bdrypml->Bm[idim][iside];
+      float *restrict ptr_coef_Dm = bdrypml->Dm[idim][iside];
 
       bdrypml_auxvar_t *auxvar = &(bdrypml->auxvar[idim][iside]);
 
@@ -1224,6 +1250,14 @@ sv_eq1st_cart_stg_el_iso_moment_cfspml(
               coef_B = ptr_coef_B[abs_i];
               coef_rB_minus_1 = coef_B - 1.0;
 
+              coef_Dm = ptr_coef_Dm[abs_i];
+              coef_Am = ptr_coef_Am[abs_i];
+              coef_Bm = ptr_coef_Bm[abs_i];
+              coef_rBm_minus_1 = coef_Bm - 1.0;
+
+              float r_dt_AD = 1.0/(2.0 + dt * ( coef_A + coef_D)) ;
+              float r_dt_ADm = 1.0/(2.0 + dt * ( coef_Am + coef_Dm)) ;
+
               // medium
               slw = slw3d[iptr];
 
@@ -1236,11 +1270,9 @@ sv_eq1st_cart_stg_el_iso_moment_cfspml(
               M_FD_SHIFT_PTR(DxTxy, Txy_ptr, lfdx_len, lfdx_shift_B, lfdx_coef, n_fd);
               M_FD_SHIFT_PTR(DxTxz, Txz_ptr, lfdx_len, lfdx_shift_B, lfdx_coef, n_fd);
 
-              float r_dt_AD = 1.0/(2.0 + dt * ( coef_A + coef_D)) ;
-
               // correct Vx
-              float Txx1 = (2.0 * pml_DxTxx[iptr_a] + dt* coef_D *DxTxx ) * r_dt_AD;
-              float Txx1_corr = coef_rB_minus_1 * DxTxx - Txx1 * coef_B;
+              float Txx1 = (2.0 * pml_DxTxx[iptr_a] + dt* coef_Dm *DxTxx ) * r_dt_ADm;
+              float Txx1_corr = coef_rBm_minus_1 * DxTxx - Txx1 * coef_Bm;
               Vx[iptr] += dt * slw * Txx1_corr;
 
               // correct Vy
@@ -1291,7 +1323,13 @@ sv_eq1st_cart_stg_el_iso_moment_cfspml(
             coef_B = ptr_coef_B[abs_j];
             coef_rB_minus_1 = coef_B - 1.0;
 
+            coef_Dm = ptr_coef_Dm[abs_j];
+            coef_Am = ptr_coef_Am[abs_j];
+            coef_Bm = ptr_coef_Bm[abs_j];
+            coef_rBm_minus_1 = coef_Bm - 1.0;
+
             float r_dt_AD = 1.0/(2.0 + dt * ( coef_A + coef_D)) ;
+            float r_dt_ADm = 1.0/(2.0 + dt * ( coef_Am + coef_Dm)) ;
 
             for (i=abs_ni1; i<=abs_ni2; i++)
             {
@@ -1313,8 +1351,8 @@ sv_eq1st_cart_stg_el_iso_moment_cfspml(
               Vx[iptr] += dt * slw * Txy2_corr;
 
               // correct Vy
-              float Tyy2 = (2.0 * pml_DyTyy[iptr_a] + dt* coef_D *DyTyy ) * r_dt_AD;
-              float Tyy2_corr = coef_rB_minus_1 * DyTyy - Tyy2 * coef_B;
+              float Tyy2 = (2.0 * pml_DyTyy[iptr_a] + dt* coef_Dm *DyTyy ) * r_dt_ADm;
+              float Tyy2_corr = coef_rBm_minus_1 * DyTyy - Tyy2 * coef_Bm;
               Vy[iptr] += dt * slw * Tyy2_corr;
 
               // correct Vz
@@ -1356,7 +1394,13 @@ sv_eq1st_cart_stg_el_iso_moment_cfspml(
           coef_B = ptr_coef_B[abs_k];
           coef_rB_minus_1 = coef_B - 1.0;
 
+          coef_Dm = ptr_coef_Dm[abs_k];
+          coef_Am = ptr_coef_Am[abs_k];
+          coef_Bm = ptr_coef_Bm[abs_k];
+          coef_rBm_minus_1 = coef_Bm - 1.0;
+
           float r_dt_AD = 1.0/(2.0 + dt * ( coef_A + coef_D)) ;
+          float r_dt_ADm = 1.0/(2.0 + dt * ( coef_Am + coef_Dm)) ;
 
           for (j=abs_nj1; j<=abs_nj2; j++)
           {
@@ -1387,8 +1431,8 @@ sv_eq1st_cart_stg_el_iso_moment_cfspml(
               Vy[iptr] += dt * slw * Tyz3_corr;
 
               // correct Vz
-              float Tzz3 = (2.0 * pml_DzTzz[iptr_a] + dt* coef_D *DzTzz ) * r_dt_AD;
-              float Tzz3_corr = coef_rB_minus_1 * DzTzz - Tzz3 * coef_B;
+              float Tzz3 = (2.0 * pml_DzTzz[iptr_a] + dt* coef_Dm *DzTzz ) * r_dt_ADm;
+              float Tzz3_corr = coef_rBm_minus_1 * DzTzz - Tzz3 * coef_Bm;
               Vz[iptr] += dt * slw * Tzz3_corr;
 
               // updat aux var

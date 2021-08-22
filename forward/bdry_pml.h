@@ -59,6 +59,11 @@ typedef struct
   float ***B; // dim, side, length
   float ***D; // dim, side, length
 
+  // for middile point of staggered grid
+  float ***Am; // dim, side, length
+  float ***Bm; // dim, side, length
+  float ***Dm; // dim, side, length
+
   bdrypml_auxvar_t auxvar[CONST_NDIM][2];
 
 } bdrypml_t;
@@ -68,7 +73,7 @@ typedef struct
  *************************************************/
 
 float
-bdry_pml_cal_R(int N);
+bdry_pml_cal_R(float N);
 
 float
 bdry_pml_cal_dmax(float L, float Vp, float Rpp);
@@ -97,6 +102,19 @@ bdry_pml_set(gdinfo_t *gdinfo,
              float in_beta_max[][2], //
              float in_velocity[][2], //
              int verbose);
+
+void
+bdry_pml_set_stg(gdinfo_t *gdinfo,
+                 gd_t *gd,
+                 wav_t *wav,
+                 bdrypml_t *bdrypml,
+                 int   *neighid, 
+                 int   in_is_sides[][2],
+                 int   in_num_layers[][2],
+                 float in_alpha_max[][2], //
+                 float in_beta_max[][2], //
+                 float in_velocity[][2], //
+                 int verbose);
 
 // alloc auxvar
 void
