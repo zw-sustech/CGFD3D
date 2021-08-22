@@ -142,16 +142,8 @@ bdry_pml_set(gdinfo_t *gdinfo,
   } // idim
 
   // alloc coef
-  bdrypml->A = (float ***)malloc(CONST_NDIM * sizeof(float**));
-  bdrypml->B = (float ***)malloc(CONST_NDIM * sizeof(float**));
-  bdrypml->D = (float ***)malloc(CONST_NDIM * sizeof(float**));
-
   for (int idim=0; idim<CONST_NDIM; idim++)
   {
-    bdrypml->A[idim] = (float **)malloc(2 * sizeof(float*));
-    bdrypml->B[idim] = (float **)malloc(2 * sizeof(float*));
-    bdrypml->D[idim] = (float **)malloc(2 * sizeof(float*));
-
     for (int iside=0; iside<2; iside++)
     {
       if (bdrypml->is_at_sides[idim][iside] == 1) {
@@ -326,24 +318,8 @@ bdry_pml_set_stg(gdinfo_t *gdinfo,
   } // idim
 
   // alloc coef
-  bdrypml->A = (float ***)malloc(CONST_NDIM * sizeof(float**));
-  bdrypml->B = (float ***)malloc(CONST_NDIM * sizeof(float**));
-  bdrypml->D = (float ***)malloc(CONST_NDIM * sizeof(float**));
-
-  bdrypml->Am = (float ***)malloc(CONST_NDIM * sizeof(float**));
-  bdrypml->Bm = (float ***)malloc(CONST_NDIM * sizeof(float**));
-  bdrypml->Dm = (float ***)malloc(CONST_NDIM * sizeof(float**));
-
   for (int idim=0; idim<CONST_NDIM; idim++)
   {
-    bdrypml->A[idim] = (float **)malloc(2 * sizeof(float*));
-    bdrypml->B[idim] = (float **)malloc(2 * sizeof(float*));
-    bdrypml->D[idim] = (float **)malloc(2 * sizeof(float*));
-
-    bdrypml->Am[idim] = (float **)malloc(2 * sizeof(float*));
-    bdrypml->Bm[idim] = (float **)malloc(2 * sizeof(float*));
-    bdrypml->Dm[idim] = (float **)malloc(2 * sizeof(float*));
-
     for (int iside=0; iside<2; iside++)
     {
       if (bdrypml->is_at_sides[idim][iside] == 1) {

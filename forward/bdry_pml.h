@@ -55,14 +55,14 @@ typedef struct
   int nk1[CONST_NDIM][2];
   int nk2[CONST_NDIM][2];
 
-  float ***A; // dim, side, length
-  float ***B; // dim, side, length
-  float ***D; // dim, side, length
+  float *A[CONST_NDIM][2]; // dim, side, length
+  float *B[CONST_NDIM][2]; // dim, side, length
+  float *D[CONST_NDIM][2]; // dim, side, length
 
   // for middile point of staggered grid
-  float ***Am; // dim, side, length
-  float ***Bm; // dim, side, length
-  float ***Dm; // dim, side, length
+  float *Am[CONST_NDIM][2]; // dim, side, length
+  float *Bm[CONST_NDIM][2]; // dim, side, length
+  float *Dm[CONST_NDIM][2]; // dim, side, length
 
   bdrypml_auxvar_t auxvar[CONST_NDIM][2];
 
