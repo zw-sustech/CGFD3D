@@ -2862,7 +2862,7 @@ blk_dt_esti_curv(gdinfo_t *gdinfo, gd_t *gdcurv, md_t *md,
 
         if (md->medium_type == CONST_MEDIUM_ELASTIC_ISO) {
           Vp = sqrt( (md->lambda[iptr] + 2.0 * md->mu[iptr]) / md->rho[iptr] );
-        } else if (md->medium_type == CONST_MEDIUM_ELASTIC_ISO) {
+        } else if (md->medium_type == CONST_MEDIUM_ACOUSTIC_ISO) {
           Vp = sqrt( md->kappa[iptr] / md->rho[iptr] );
         }
 
@@ -2871,8 +2871,8 @@ blk_dt_esti_curv(gdinfo_t *gdinfo, gd_t *gdcurv, md_t *md,
 
         // min L to 8 adjacent planes
         for (int kk = -1; kk <1; kk++) {
-          for (int jj = -1; jj < 1; jj++) {
-            for (int ii = -1; ii < 1; ii++) {
+          for (int jj = -1; jj <= 1; jj++) {
+            for (int ii = -1; ii <= 1; ii++) {
               if (ii != 0 && jj !=0 && kk != 0)
               {
                 float p1[] = { x3d[iptr-ii], y3d[iptr-ii], z3d[iptr-ii] };
@@ -2945,7 +2945,7 @@ blk_dt_esti_cart(gdinfo_t *gdinfo, gd_t *gdcart, md_t *md,
 
         if (md->medium_type == CONST_MEDIUM_ELASTIC_ISO) {
           Vp = sqrt( (md->lambda[iptr] + 2.0 * md->mu[iptr]) / md->rho[iptr] );
-        } else if (md->medium_type == CONST_MEDIUM_ELASTIC_ISO) {
+        } else if (md->medium_type == CONST_MEDIUM_ACOUSTIC_ISO) {
           Vp = sqrt( md->kappa[iptr] / md->rho[iptr] );
         }
 
