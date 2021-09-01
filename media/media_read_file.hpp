@@ -10,8 +10,9 @@ FILE *gfopen(const char *filename, const char *mode);
 
 void read_interface_file(
     const char *interface_file,
-    int &NI,
-    Interfaces **interfaces);
+    bool first_read, // Is it the first para to be read
+    inter_t *interfaces,
+    float **var, float **var_grad, float **var_pow);
 
 void read_grid_file(
     const char *grid_file,
@@ -20,6 +21,6 @@ void read_grid_file(
     float Ymin, float Ymax,
     int &NL,
     std::vector<int> &NGz, // how many z-grid in each layer
-    Interfaces **interfaces);
+    inter_t **interfaces);
 
 #endif

@@ -291,15 +291,18 @@ int main(int argc, char** argv)
         float *lam3d = md->lambda;
         float  *mu3d = md->mu;
         float *rho3d = md->rho;
-        media_el_iso_layer2model(lam3d, mu3d, rho3d,
-                                 gdcurv->x3d,
-                                 gdcurv->y3d,
-                                 gdcurv->z3d,
-                                 gdcurv->nx,
-                                 gdcurv->ny,
-                                 gdcurv->nz,
-                                 par->media_input_file,
-                                 par->equivalent_medium_method);
+        media_layer2model_curv_el_iso(lam3d, mu3d, rho3d,
+                                      gdcurv->x3d,
+                                      gdcurv->y3d,
+                                      gdcurv->z3d,
+                                      gdcurv->nx,
+                                      gdcurv->ny,
+                                      gdcurv->nz,
+                                      par->media_input_file, //in_rho_file
+                                      par->media_input_file, //in_vp_file,
+                                      par->media_input_file, //in_vs_file,
+                                      par->equivalent_medium_method);
+
         break;
     }
 
