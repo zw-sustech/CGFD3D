@@ -32,7 +32,7 @@ md_init(gdinfo_t *gdinfo, md_t *md, int media_type, int visco_type)
     md->ncmp = 2;
   } else if (media_type == CONST_MEDIUM_ELASTIC_ISO) {
     md->ncmp = 3;
-  } else if (media_type == CONST_MEDIUM_ELASTIC_ISO) {
+  } else if (media_type == CONST_MEDIUM_ELASTIC_VTI) {
     md->ncmp = 6; // 5 + rho
   } else {
     md->ncmp = 22; // 21 + rho
