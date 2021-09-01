@@ -17,10 +17,6 @@ CC     :=  /share/apps/gnu-4.8.5/mpich-3.3/bin/mpicc
 CXX    :=  /share/apps/gnu-4.8.5/mpich-3.3/bin/mpicxx
 NETCDF :=  /share/apps/gnu-4.8.5/disable-netcdf-4.4.1
 
-# CC     :=  /home/zl/software/mpich3.2/bin/mpicc
-# CXX    :=  /home/zl/software/mpich3.2/bin/mpicxx
-# NETCDF :=  /home/zl/software/netcdf-4.4.1
-
 #-- 
 CFLAGS := -I$(NETCDF)/include -I./lib/ -I./forward/ -I./media/  $(CFLAGS)
 
@@ -65,7 +61,7 @@ main_curv_col_el_3d: \
 		media_layer2model.o \
 		media_grid2model.o \
 		media_geometry3d.o \
-		media_read_interface_file.o \
+		media_read_file.o \
 		gd_info.o gd_t.o md_t.o wav_t.o \
 		bdry_free.o bdry_pml.o src_t.o io_funcs.o \
 		blk_t.o \
@@ -82,7 +78,7 @@ main_curv_col_ac_3d: \
 		media_layer2model.o \
 		media_grid2model.o \
 		media_geometry3d.o \
-		media_read_interface_file.o \
+		media_read_file.o \
 		gd_info.o gd_t.o md_t.o wav_t.o \
 		bdry_free.o bdry_pml.o src_t.o io_funcs.o \
 		blk_t.o \
@@ -99,7 +95,7 @@ main_cart_col_el_3d: \
 		media_layer2model.o \
 		media_grid2model.o \
 		media_geometry3d.o \
-		media_read_interface_file.o \
+		media_read_file.o \
 		gd_info.o gd_t.o md_t.o wav_t.o \
 		bdry_free.o bdry_pml.o src_t.o io_funcs.o \
 		blk_t.o \
@@ -115,7 +111,7 @@ main_cart_stg_el_3d: \
 		media_layer2model.o \
 		media_grid2model.o \
 		media_geometry3d.o \
-		media_read_interface_file.o \
+		media_read_file.o \
 		gd_info.o gd_t.o md_t.o wav_t.o \
 		bdry_free.o bdry_pml.o src_t.o io_funcs.o \
 		blk_t.o \
@@ -130,7 +126,7 @@ main_cart_stg_ac_3d: \
 		media_layer2model.o \
 		media_grid2model.o \
 		media_geometry3d.o \
-		media_read_interface_file.o \
+		media_read_file.o \
 		gd_info.o gd_t.o md_t.o wav_t.o \
 		bdry_free.o bdry_pml.o src_t.o io_funcs.o \
 		blk_t.o \
@@ -146,7 +142,7 @@ media_layer2model.o: media/media_layer2model.cpp
 	${CXX} -c -o $@ $(CPPFLAGS) $<
 media_grid2model.o: media/media_grid2model.cpp
 	${CXX} -c -o $@ $(CPPFLAGS) $<
-media_read_interface_file.o: media/media_read_interface_file.cpp
+media_read_file.o: media/media_read_file.cpp
 	${CXX} -c -o $@ $(CPPFLAGS) $<
 cJSON.o: lib/cJSON.c
 	${CC} -c -o $@ $(CFLAGS) $<
