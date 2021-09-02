@@ -17,7 +17,7 @@
 #include <math.h>  
 #include "media_geometry3d.hpp"
 #include "media_grid2model.hpp"
-#include "media_read_interface_file.hpp"
+#include "media_read_file.hpp"
 #include "media_utility.hpp"
 
 //using namespace std;
@@ -27,13 +27,13 @@ int AssignGridMediaPara2Point(
     int ix, int iy, int iz, 
     Point3 A, 
     int NI, 
-    Interfaces *interfaces,
+    inter_t *interfaces,
     float &vp, 
     float &vs,
     float &rho)
 {
 
-    std::vector<float> altitude(NI, -FLT_MAX);
+    std::vector<float> elevation(NI, -FLT_MAX);
     /* All the given grid mesh is the same */
     float MINX = interfaces[0].MINX;
     float MINY = interfaces[0].MINY;
@@ -51,7 +51,7 @@ int AssignGridMediaPara2Point(
         YVEC[i] = MINY + DY*i;
 
     /* 
-     * For each interface, interpolate the altitude of the position
+     * For each interface, interpolate the elevation of the position
      *   to get where the Point A is located in xoy plane.
      */
     for (int ni = 0; ni < NI; ni++) {
@@ -64,20 +64,20 @@ int AssignGridMediaPara2Point(
             exit(1);
         }
 
-        /* Get the altitude for the corresponding xoy location */
-        altitude[ni] = BilinearInterpolation(XVEC, YVEC, interfaces[ni].altitude, A.x, A.y);
+        /* Get the elevation for the corresponding xoy location */
+        elevation[ni] = BilinearInterpolation(XVEC, YVEC, interfaces[ni].elevation, A.x, A.y);
     }
 
     /* which material is used, the z-grid is given from top to bottom */
-    int mi = findNearestGreaterIndex(A.z, altitude);
+    int mi = findNearestGreaterIndex(A.z, elevation);
 
     if (mi == -1) {   
-        /* The altitude is above the surface, assigned by the 1st layer para. */
+        /* The elevation is above the surface, assigned by the 1st layer para. */
         vp  = BilinearInterpolation(XVEC, YVEC, interfaces[0].vp  , A.x, A.y);
         vs  = BilinearInterpolation(XVEC, YVEC, interfaces[0].vs  , A.x, A.y);
         rho = BilinearInterpolation(XVEC, YVEC, interfaces[0].rho , A.x, A.y);        
     } else if (mi == NI-1) { 
-        /* The altitude is below the last layer, assigned by the last para */    
+        /* The elevation is below the last layer, assigned by the last para */    
         vp  = BilinearInterpolation(XVEC, YVEC, interfaces[mi].vp  , A.x, A.y);
         vs  = BilinearInterpolation(XVEC, YVEC, interfaces[mi].vs  , A.x, A.y);
         rho = BilinearInterpolation(XVEC, YVEC, interfaces[mi].rho , A.x, A.y);         
@@ -92,13 +92,13 @@ int AssignGridMediaPara2Point(
         float vs1  = BilinearInterpolation(XVEC, YVEC, interfaces[mi+1].vs  , A.x, A.y);
         float rho1 = BilinearInterpolation(XVEC, YVEC, interfaces[mi+1].rho , A.x, A.y); 
 
-        /* Init: if A.z is equal to the value in altitude, 
+        /* Init: if A.z is equal to the value in elevation, 
          *  assign the average value.        
          */
         float dis_r = 1.0/2.0;
 
-        if ( fabs(altitude[mi+1]-altitude[mi]) > 1e-6 ) {
-            dis_r = (A.z - altitude[mi])/(altitude[mi+1] - altitude[mi]);
+        if ( fabs(elevation[mi+1]-elevation[mi]) > 1e-6 ) {
+            dis_r = (A.z - elevation[mi])/(elevation[mi+1] - elevation[mi]);
         }
 
         vp  = vp0  + (vp1-vp0)   * dis_r;
@@ -116,9 +116,9 @@ int LayerNumberAtPoint(
     Point3 A, 
     int NL,
     std::vector<int> NGz, 
-    Interfaces *interfaces) 
+    inter_t *interfaces) 
 {
-    std::vector<float> altitude(NL, -FLT_MAX);
+    std::vector<float> elevation(NL, -FLT_MAX);
     float MINX = interfaces[0].MINX;
     float MINY = interfaces[0].MINY;
     float   DX = interfaces[0].DX;
@@ -150,15 +150,15 @@ int LayerNumberAtPoint(
             continue;
         }
 
-        /* Get the altitude for the corresponding location */
-        altitude[nl] = BilinearInterpolation(XVEC, YVEC, interfaces[ni].altitude, A.x, A.y);
+        /* Get the elevation for the corresponding location */
+        elevation[nl] = BilinearInterpolation(XVEC, YVEC, interfaces[ni].elevation, A.x, A.y);
         ni += NGz[nl];
     }
 
     /* Mark the layer number */
-    int mi = findNearestGreaterIndex(A.z, altitude);
+    int mi = findNearestGreaterIndex(A.z, elevation);
 
-    /* If the altitude is above the surface, it is assigned by the first layer para. */
+    /* If the elevation is above the surface, it is assigned by the first layer para. */
     if (mi == -1) mi = 0;
 
     return mi;
@@ -175,7 +175,7 @@ void iso_grid_loc(
     const float *Gridz,
     int NL, 
     std::vector <int> NGz,
-    Interfaces *interfaces,
+    inter_t *interfaces,
     float *lam3d,
     float *mu3d,
     float *rho3d)
@@ -220,7 +220,7 @@ void iso_grid_har(
     const float *Gridz,
     int NL, 
     std::vector <int> NGz,
-    Interfaces *interfaces,
+    inter_t *interfaces,
     float *lam3d,
     float *mu3d,
     float *rho3d) 
@@ -360,7 +360,7 @@ void media_el_iso_grid2model(
     // NL: n-layer
     int NL = 0; // N-layer
     std::vector<int> NGz;
-    Interfaces *interfaces = nullptr;
+    inter_t *interfaces = nullptr;
 
     /*Read interface file*/
     read_grid_file(grid_file, Xmin, Xmax, Ymin, Ymax, NL, NGz, &interfaces);
@@ -391,7 +391,7 @@ void media_el_iso_grid2model(
     }
 
     for (int ni = 0; ni < Ng; ni++) {
-        delete[] interfaces[ni].altitude;
+        delete[] interfaces[ni].elevation;
         delete[] interfaces[ni].rho;
         delete[] interfaces[ni].vp;
         delete[] interfaces[ni].vs;

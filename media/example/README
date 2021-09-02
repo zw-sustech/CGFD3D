@@ -1,0 +1,12 @@
+# A sample example
+
+
+Usage
+
+- edit and run generate_can4.m to built a modified model
+
+- make 
+
+- run ./test
+
+- edit and run draw_input_data.m to plot the input layer model, and the discrete output model

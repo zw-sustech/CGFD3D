@@ -1,7 +1,13 @@
 #include <iostream>
 #include <vector>
+#include <cfloat>
+#include <cmath>
 #include <string.h>
 #include "media_utility.hpp"
+
+bool isEqual(float a, float b) {
+    return abs(a-b) < FLT_EPSILON;
+}
 
 void GenerateHalfGrid(
     size_t nx, 
@@ -183,10 +189,10 @@ float BilinearInterpolation(
         else {
             float area = (x[ix+1] - x[ix]) * (y[iy+1] - y[iy]); 
 
-            vq =  *(v+indx)        * (x[ix+1] - xq) * (y[iy+1] - yq) 
-                + *(v+(indx+1   )) * (xq -   x[ix]) * (y[iy+1] - yq)
-                + *(v+(indx+NX  )) * (x[ix+1] - xq) * (yq - y[iy]  )
-                + *(v+(indx+1+NX)) * (xq -   x[ix]) * (yq - y[iy]  );
+            vq =  v[indx]      * (x[ix+1] - xq) * (y[iy+1] - yq) 
+                + v[indx+1]    * (xq -   x[ix]) * (y[iy+1] - yq)
+                + v[indx+NX]   * (x[ix+1] - xq) * (yq - y[iy]  )
+                + v[indx+1+NX] * (xq -   x[ix]) * (yq - y[iy]  );
 
             vq /= area;
         }

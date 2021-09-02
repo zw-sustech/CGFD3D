@@ -2,13 +2,13 @@
 #define __MEDIA_GRID2MODEL__
 
 #include "media_geometry3d.hpp"
-#include "media_read_interface_file.hpp"
+#include "media_read_file.hpp"
 
 int AssignGridMediaPara2Point(
     int ix, int iy, int iz, 
     Point3 A, 
     int NI, 
-    Interfaces *interfaces,
+    inter_t *interfaces,
     float &vp, 
     float &vs,
     float &rho);
@@ -17,7 +17,7 @@ int LayerNumberAtPoint(
     Point3 A, 
     int NL,
     std::vector<int> NGz, 
-    Interfaces *interfaces);
+    inter_t *interfaces);
 
 void iso_grid_loc(
     size_t nx, 
@@ -28,7 +28,7 @@ void iso_grid_loc(
     const float *Gridz,
     int NL, 
     std::vector <int> NGz,
-    Interfaces *interfaces,
+    inter_t *interfaces,
     float *lam3d,
     float *mu3d,
     float *rho3d);
@@ -42,7 +42,7 @@ void iso_grid_har(
     const float *Gridz,
     int NL, 
     std::vector <int> NGz,
-    Interfaces *interfaces,
+    inter_t *interfaces,
     float *lam3d,
     float *mu3d,
     float *rho3d);
