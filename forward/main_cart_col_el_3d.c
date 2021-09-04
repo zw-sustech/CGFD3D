@@ -286,11 +286,11 @@ int main(int argc, char** argv)
     if (myid==0)
     {
        int dtmax_mpi_id = 0;
-       dtmax = 0.0;
+       dtmax = 1e19;
        for (int n=0; n < mpi_size; n++)
        {
         fprintf(stdout,"max allowed dt at each proc: id=%d, dtmax=%f\n", n, dt_est[n]);
-        if (dt_est[n] > dtmax) {
+        if (dtmax > dt_est[n]) {
           dtmax = dt_est[n];
           dtmax_mpi_id = n;
         }
