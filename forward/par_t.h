@@ -105,12 +105,22 @@ typedef struct{
   // medium
   char media_type[PAR_MAX_STRLEN]; // iso, vti, or aniso
   int  media_itype; // iso, vti, or aniso
+  char media_input_type[PAR_MAX_STRLEN]; // in_code, import, file
   int media_input_itype;
+
   int is_export_media;
   char equivalent_medium_method[PAR_MAX_STRLEN]; // For layer2model
   char media_export_dir[PAR_MAX_STRLEN];
   char media_import_dir[PAR_MAX_STRLEN];
-  char media_input_file[PAR_MAX_STRLEN];
+  char media_input_rho[PAR_MAX_STRLEN];
+  char media_input_Vp [PAR_MAX_STRLEN];
+  char media_input_Vs [PAR_MAX_STRLEN];
+  char media_input_epsilon[PAR_MAX_STRLEN];
+  char media_input_delta[PAR_MAX_STRLEN];
+  char media_input_gamma[PAR_MAX_STRLEN];
+  char media_input_azimuth[PAR_MAX_STRLEN];
+  char media_input_dip[PAR_MAX_STRLEN];
+
   // visco
   char visco_type[PAR_MAX_STRLEN]; // graves_Qs
   int  visco_itype; // graves_Qs

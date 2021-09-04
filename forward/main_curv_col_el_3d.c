@@ -281,7 +281,7 @@ int main(int argc, char** argv)
 
     case PAR_MEDIA_IMPORT :
         if (myid==0) fprintf(stdout,"import discrete medium file ...\n"); 
-        md_import(md, blk->output_fname_part, par->grid_import_dir);
+        md_import(md, blk->output_fname_part, par->media_import_dir);
 
         break;
 
@@ -298,9 +298,9 @@ int main(int argc, char** argv)
                                       gdcurv->nx,
                                       gdcurv->ny,
                                       gdcurv->nz,
-                                      par->media_input_file, //in_rho_file
-                                      par->media_input_file, //in_vp_file,
-                                      par->media_input_file, //in_vs_file,
+                                      par->media_input_rho, //in_rho_file
+                                      par->media_input_Vp, //in_vp_file,
+                                      par->media_input_Vs, //in_vs_file,
                                       par->equivalent_medium_method);
 
         break;
@@ -322,7 +322,7 @@ int main(int argc, char** argv)
                                 gdcurv->nz,
                                 gdcurv->xmin, gdcurv->xmax,   //float Xmin, float Xmax,
                                 gdcurv->ymin, gdcurv->ymax,   //float Ymin, float Ymax, 
-                                par->media_input_file,
+                                par->media_input_Vp,
                                 par->equivalent_medium_method); 
         break;
     }
@@ -372,13 +372,13 @@ int main(int argc, char** argv)
        dtmax = 0.0;
        for (int n=0; n < mpi_size; n++)
        {
-        fprintf(stdout,"max allowed dt at each proc: id=%d, dtmax=%f\n", n, dt_est[n]);
+        fprintf(stdout,"max allowed dt at each proc: id=%d, dtmax=%g\n", n, dt_est[n]);
         if (dt_est[n] > dtmax) {
           dtmax = dt_est[n];
           dtmax_mpi_id = n;
         }
        }
-       fprintf(stdout,"Global maximum allowed time step is %f at thread %d\n", dtmax, dtmax_mpi_id);
+       fprintf(stdout,"Global maximum allowed time step is %g at thread %d\n", dtmax, dtmax_mpi_id);
 
        // check valid
        if (dtmax <= 0.0) {
@@ -391,7 +391,7 @@ int main(int argc, char** argv)
           dt       = blk_keep_two_digi(dtmax);
           nt_total = (int) (par->time_window_length / dt + 0.5);
 
-          fprintf(stdout, "-> Set dt       = %f according to maximum allowed value\n", dt);
+          fprintf(stdout, "-> Set dt       = %g according to maximum allowed value\n", dt);
           fprintf(stdout, "-> Set nt_total = %d\n", nt_total);
        }
 
