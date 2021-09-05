@@ -2862,6 +2862,13 @@ blk_dt_esti_curv(gdinfo_t *gdinfo, gd_t *gdcurv, md_t *md,
 
         if (md->medium_type == CONST_MEDIUM_ELASTIC_ISO) {
           Vp = sqrt( (md->lambda[iptr] + 2.0 * md->mu[iptr]) / md->rho[iptr] );
+        } else if (md->medium_type == CONST_MEDIUM_ELASTIC_VTI) {
+          float Vpv = sqrt( md->c33[iptr] / md->rho[iptr] );
+          float Vph = sqrt( md->c11[iptr] / md->rho[iptr] );
+          Vp = Vph > Vpv ? Vph : Vpv;
+        } else if (md->medium_type == CONST_MEDIUM_ELASTIC_ANISO) {
+          // need to implement accurate solution
+          Vp = sqrt( md->c11[iptr] / md->rho[iptr] );
         } else if (md->medium_type == CONST_MEDIUM_ACOUSTIC_ISO) {
           Vp = sqrt( md->kappa[iptr] / md->rho[iptr] );
         }
@@ -2945,6 +2952,13 @@ blk_dt_esti_cart(gdinfo_t *gdinfo, gd_t *gdcart, md_t *md,
 
         if (md->medium_type == CONST_MEDIUM_ELASTIC_ISO) {
           Vp = sqrt( (md->lambda[iptr] + 2.0 * md->mu[iptr]) / md->rho[iptr] );
+        } else if (md->medium_type == CONST_MEDIUM_ELASTIC_VTI) {
+          float Vpv = sqrt( md->c33[iptr] / md->rho[iptr] );
+          float Vph = sqrt( md->c11[iptr] / md->rho[iptr] );
+          Vp = Vph > Vpv ? Vph : Vpv;
+        } else if (md->medium_type == CONST_MEDIUM_ELASTIC_ANISO) {
+          // need to implement accurate solution
+          Vp = sqrt( md->c11[iptr] / md->rho[iptr] );
         } else if (md->medium_type == CONST_MEDIUM_ACOUSTIC_ISO) {
           Vp = sqrt( md->kappa[iptr] / md->rho[iptr] );
         }
