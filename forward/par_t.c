@@ -402,6 +402,8 @@ par_read_from_str(const char *str, par_t *par)
         sprintf(par->media_type, "%s", subitem->valuestring);
         if (strcmp(par->media_type, "elastic_iso")==0) {
           par->media_itype = CONST_MEDIUM_ELASTIC_ISO;
+        } else if (strcmp(par->media_type, "elastic_vti")==0) {
+          par->media_itype = CONST_MEDIUM_ELASTIC_VTI;
         } else if (strcmp(par->media_type, "elastic_aniso")==0) {
           par->media_itype = CONST_MEDIUM_ELASTIC_ANISO;
         } else if (strcmp(par->media_type, "acoustic_iso")==0) {
@@ -739,6 +741,9 @@ par_read_from_str(const char *str, par_t *par)
 
   // set values to default ones if no input
 
+  //-- check conditions
+
+  // not implement dt estimation for general anisotropic media yet
   return ierr;
 }
 

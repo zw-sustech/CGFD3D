@@ -98,6 +98,29 @@ md_init(gdinfo_t *gdinfo, md_t *md, int media_type, int visco_type)
     md->mu = md->v4d + cmp_pos[icmp];
   }
 
+  // vti
+  if (media_type == CONST_MEDIUM_ELASTIC_VTI) {
+    icmp += 1;
+    sprintf(cmp_name[icmp],"%s","c11");
+    md->c11 = md->v4d + cmp_pos[icmp];
+
+    icmp += 1;
+    sprintf(cmp_name[icmp],"%s","c13");
+    md->c13 = md->v4d + cmp_pos[icmp];
+
+    icmp += 1;
+    sprintf(cmp_name[icmp],"%s","c33");
+    md->c33 = md->v4d + cmp_pos[icmp];
+
+    icmp += 1;
+    sprintf(cmp_name[icmp],"%s","c55");
+    md->c55 = md->v4d + cmp_pos[icmp];
+
+    icmp += 1;
+    sprintf(cmp_name[icmp],"%s","c66");
+    md->c66 = md->v4d + cmp_pos[icmp];
+  }
+
   // aniso
   if (media_type == CONST_MEDIUM_ELASTIC_ANISO) {
     icmp += 1;
@@ -424,6 +447,43 @@ md_gen_test_Qs(md_t *md, float Qs_freq)
       {
         size_t iptr = i + j * siz_line + k * siz_slice;
         Qs[iptr] = 20;
+      }
+    }
+  }
+
+  return ierr;
+}
+
+int
+md_gen_test_el_vti(md_t *md)
+{
+  int ierr = 0;
+
+  int nx = md->nx;
+  int ny = md->ny;
+  int nz = md->nz;
+  int siz_line  = md->siz_iy;
+  int siz_slice = md->siz_iz;
+
+  for (size_t k=0; k<nz; k++)
+  {
+    for (size_t j=0; j<ny; j++)
+    {
+      for (size_t i=0; i<nx; i++)
+      {
+        size_t iptr = i + j * siz_line + k * siz_slice;
+
+        float rho=1500.0;
+
+        md->rho[iptr] = rho;
+
+	      md->c11[iptr] = 25.2*1e9;//lam + 2.0f*mu;
+	      md->c13[iptr] = 10.9620*1e9;//lam;
+	      md->c33[iptr] = 18.0*1e9;//lam + 2.0f*mu;
+	      md->c55[iptr] = 5.12*1e9;//mu;
+        md->c66[iptr] = 7.1680*1e9;//mu;
+        //-- Vp ~ sqrt(c11/rho) = 4098
+        
       }
     }
   }

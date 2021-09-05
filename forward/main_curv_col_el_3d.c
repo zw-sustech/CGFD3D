@@ -269,6 +269,10 @@ int main(int argc, char** argv)
           md_gen_test_el_iso(md);
         }
 
+        if (md->medium_type == CONST_MEDIUM_ELASTIC_VTI) {
+          md_gen_test_el_vti(md);
+        }
+
         if (md->medium_type == CONST_MEDIUM_ELASTIC_ANISO) {
           md_gen_test_el_aniso(md);
         }

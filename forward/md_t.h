@@ -89,6 +89,9 @@ int
 md_gen_test_Qs(md_t *md, float Qs_freq);
 
 int
+md_gen_test_el_vti(md_t *md);
+
+int
 md_gen_test_el_aniso(md_t *md);
 
 int

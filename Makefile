@@ -67,7 +67,9 @@ main_curv_col_el_3d: \
 		blk_t.o \
 		sv_eq1st_curv_col.o \
 		sv_eq1st_curv_col_ac_iso.o \
-		sv_eq1st_curv_col_el_aniso.o sv_eq1st_curv_col_el_iso.o \
+		sv_eq1st_curv_col_el_iso.o \
+		sv_eq1st_curv_col_el_vti.o \
+		sv_eq1st_curv_col_el_aniso.o \
 		main_curv_col_el_3d.o
 	$(CXX) -o $@ $^ $(LDFLAGS)
 
@@ -181,6 +183,8 @@ blk_t.o: forward/blk_t.c
 sv_eq1st_curv_col.o:          forward/sv_eq1st_curv_col.c
 	${CC} -c -o $@ $(CFLAGS) $<
 sv_eq1st_curv_col_el_iso.o:   forward/sv_eq1st_curv_col_el_iso.c
+	${CC} -c -o $@ $(CFLAGS) $<
+sv_eq1st_curv_col_el_vti.o: forward/sv_eq1st_curv_col_el_vti.c
 	${CC} -c -o $@ $(CFLAGS) $<
 sv_eq1st_curv_col_el_aniso.o: forward/sv_eq1st_curv_col_el_aniso.c
 	${CC} -c -o $@ $(CFLAGS) $<
