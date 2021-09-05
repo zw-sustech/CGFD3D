@@ -744,6 +744,13 @@ par_read_from_str(const char *str, par_t *par)
   //-- check conditions
 
   // not implement dt estimation for general anisotropic media yet
+  if (par->media_itype == CONST_MEDIUM_ELASTIC_ANISO &&
+      par->size_of_time_step < 0.0)
+  {
+    fprintf(stderr, "ERROR: have not implemented dt estimation for anisotropic media\n");
+    MPI_Abort(MPI_COMM_WORLD,1);
+  }
+
   return ierr;
 }
 
