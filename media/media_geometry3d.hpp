@@ -31,10 +31,11 @@ Vector3 Cross(Vector3 A, Vector3 B);
 double Area2 (Point3 A, Point3 B, Point3 C);
 bool PointInTri(Point3 P, Point3 P0, Point3 P1, Point3 P2);
 double Volume6(Point3 A, Point3 B, Point3 C, Point3 D);
+
 /* 
  * If the number of points is 3, calculate the normal directly;
  * if the number of points > 3, just use first two points.
-*/
+ */
 struct Face {
     std::vector<Point3> v;
     Vector3 normal() const { 

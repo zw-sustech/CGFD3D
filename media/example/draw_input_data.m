@@ -41,11 +41,12 @@ for ni = 1:NI
 end
 
 if draw_out_model
-    nx = 501;  ny = 501; nz = 300;
-    x0 = -2500; y0 = 0; z0 = -3000;
+    nx = 501;  ny = 501; nz = 450;
+    x0 = -2000; y0 = 0; z0 = -4500;
     dx = 10; dy = 10; dz = 10;
     data_file = 'rho.dat';
-    xslice = [-2000,0,2000];
+ %   xslice = [-2000,0,2000];
+ xslice = [];
     yslice = [5000];
     zslice = [];
     drawmodel(nx, ny, nz, x0, y0, z0, dx, dy, dz, data_file, xslice, yslice, zslice);

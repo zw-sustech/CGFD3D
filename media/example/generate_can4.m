@@ -30,7 +30,7 @@ for ni = 2:NI
 end
 
 
-MINX = -2500.0; DX = 500.0; NX = 11;
+MINX = -2500.0; DX = 500.0; NX = 21;
 MINY = 0.0; DY = 500.0; NY = 21;
 
 xvec = [0:NX-1]*DX + MINX;
@@ -42,6 +42,9 @@ for ni = 1:NI
     for j =1:NY
         for i = 1:NX
             elevation(j,i,ni) = H(ni) * min(1, (2500-xvec(i))/1500);
+            if (xvec(i) > 2500)
+                elevation(j,i,ni) = 0;
+            end
         end
     end
 end
