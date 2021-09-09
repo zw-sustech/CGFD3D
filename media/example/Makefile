@@ -25,7 +25,7 @@ CC := gcc
 #- debug
 #CFLAGS   := -g $(CFLAGS)
 #- O3
-CFLAGS   := -O3 $(CFLAGS)
+CFLAGS   := -O3 -I../$(CFLAGS)
 CPPFLAGS := -g -O3 -std=c++11 -I../ $(CPPFLAGS)
 
 #- static
@@ -53,8 +53,8 @@ test: \
 	$(CXX) -o $@ $^ $(LDFLAGS)
 
 
-test.o: test.cpp 
-	${CXX} -c -o $@ $(CPPFLAGS) $<
+test.o: test.c 
+	${CC} -c -o $@ $(CFLAGS) $<
 media_geometry3d.o: ../media_geometry3d.cpp 
 	${CXX} -c -o $@ $(CPPFLAGS) $<
 media_utility.o: ../media_utility.cpp 

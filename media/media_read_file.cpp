@@ -5,7 +5,7 @@ FILE *gfopen(const char *filename, const char *mode)
 {
     FILE *fp;
     if ((fp = fopen(filename,mode)) == NULL) {
-        fprintf(stderr, "Cannot open %s, " \
+        fprintf(stderr, "Error: Cannot open %s, " \
             "please check your file path and run-directory.\n",filename);
         exit(1);
     }

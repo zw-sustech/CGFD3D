@@ -12,6 +12,7 @@ fclose(fid);
 u = permute(reshape(data, nx, ny, nz),[2 1 3]);
 
 %figure;
+figure;
 h = slice(xvec,yvec,zvec,u,xslice,yslice,zslice);
 set(h, 'edgecolor','none');
 grid off;
