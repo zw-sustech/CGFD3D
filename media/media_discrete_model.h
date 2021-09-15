@@ -1,3 +1,6 @@
+#ifndef MEDIA_DISCRETE_MODEL_H
+#define MEDIA_DISCRETE_MODEL_H
+
 // for C code call
 #define MEDIA_USE_CART 1
 #define MEDIA_USE_VMAP 2
@@ -231,3 +234,5 @@ void media_el_iso_grid2model(
     float Ymin, float Ymax, 
     const char *grid_file,
     const char *equivalent_medium_method); 
+
+#endif
