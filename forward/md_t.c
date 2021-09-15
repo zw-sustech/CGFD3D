@@ -577,3 +577,20 @@ md_rho_to_slow(float *restrict rho, size_t siz_volume)
 
   return ierr;
 }
+
+int
+md_ac_Vp_to_kappa(float *restrict rho, float *restrict kappa, size_t siz_volume)
+{
+  int ierr = 0;
+
+  for (size_t iptr=0; iptr<siz_volume; iptr++) {
+    if (rho[iptr] > 1e-10) {
+      float Vp = kappa[iptr];
+      kappa[iptr] = Vp * Vp * rho[iptr];
+    } else {
+      kappa[iptr] = 0.0;
+    }
+  }
+
+  return ierr;
+}
