@@ -51,7 +51,7 @@ struct Face {
 };
 
 struct Mesh3 {
-    Point3 v[8]; // vetex: clockwise, and from z = 0 plane to z = +z plane
+    Point3 v[8]; // vetex: counterclockwise, and from z = 0 plane to z = +z plane
     Mesh3 (Point3 A, Point3 B, Point3 C, Point3 D, Point3 E, Point3 F, Point3 G, Point3 H) {
         this->v[0] = A;
         this->v[1] = B;

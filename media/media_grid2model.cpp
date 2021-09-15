@@ -19,7 +19,6 @@
 #include "media_grid2model.hpp"
 #include "media_read_file.hpp"
 #include "media_utility.hpp"
-
 //using namespace std;
 
 
@@ -240,18 +239,18 @@ void iso_grid_har(
         NL, NGz, interfaces, lam3d, mu3d, rho3d);
     
     /* For equivalent medium parameterization method */
-    float *Hx = new float [siz_volume]; 
-    float *Hy = new float [siz_volume]; 
-    float *Hz = new float [siz_volume]; 
+    float *Hx = nullptr;//new float [siz_volume]; 
+    float *Hy = nullptr;//new float [siz_volume]; 
+    float *Hz = nullptr;//new float [siz_volume]; 
     int   *MaterNum  = new int[siz_volume];
 
     /* init the Hx, Hy, and Hz */
-    for (size_t i = 0; i < siz_volume; i++) {
-        Hx[i] = Gridx[i];
-        Hy[i] = Gridy[i];
-        Hz[i] = Gridz[i];
-    }
-    GenerateHalfGrid(nx, ny, nz, Gridx, Gridy, Gridz, Hx, Hy, Hz); 
+//    for (size_t i = 0; i < siz_volume; i++) {
+//        Hx[i] = Gridx[i];
+//        Hy[i] = Gridy[i];
+//        Hz[i] = Gridz[i];
+//    }
+    GenerateHalfGrid(nx, ny, nz, 3, Gridx, Gridy, Gridz, &Hx, &Hy, &Hz); 
 
     /* 
      * Mark the layer number at the half grid,
@@ -307,8 +306,6 @@ void iso_grid_har(
 
                         AssignGridMediaPara2Point(i, j, k, SubGrid[isg],
                             NI, interfaces, vp, vs, rho);
-
-
 
                         float mu =  vs*vs*rho;
                         float lambda = vp*vp*rho - 2.0*mu;
@@ -390,12 +387,12 @@ void media_el_iso_grid2model(
         Ng += NGz[nl];
     }
 
-    for (int ni = 0; ni < Ng; ni++) {
-        delete[] interfaces[ni].elevation;
-        delete[] interfaces[ni].rho;
-        delete[] interfaces[ni].vp;
-        delete[] interfaces[ni].vs;
-    }
+//    for (int ni = 0; ni < Ng; ni++) {
+//        delete[] interfaces[ni].elevation;
+//        delete[] interfaces[ni].rho;
+//        delete[] interfaces[ni].vp;
+//        delete[] interfaces[ni].vs;
+//    }
 
     delete[] interfaces;
     
