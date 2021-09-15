@@ -30,7 +30,7 @@ CPPFLAGS := -O3 -std=c++11 $(CPPFLAGS)
 #- static
 #LDFLAGS := $(NETCDF)/lib/libnetcdf.a -lm -static $(LDFLAGS)
 #- dynamic
-#LDFLAGS := -L$(NETCDF)/lib -lnetcdf -lm $(LDFLAGS)
+LDFLAGS := -L$(NETCDF)/lib -lnetcdf -lm $(LDFLAGS)
 
 #- pg
 #CFLAGS   := -Wall -pg $(CFLAGS)
@@ -90,7 +90,9 @@ main_curv_col_ac_3d: \
 		blk_t.o \
 		sv_eq1st_curv_col.o \
 		sv_eq1st_curv_col_ac_iso.o \
-		sv_eq1st_curv_col_el_aniso.o sv_eq1st_curv_col_el_iso.o \
+		sv_eq1st_curv_col_el_iso.o \
+		sv_eq1st_curv_col_el_vti.o \
+		sv_eq1st_curv_col_el_aniso.o \
 		main_curv_col_ac_3d.o
 	$(CXX) -o $@ $^ $(LDFLAGS)
 
