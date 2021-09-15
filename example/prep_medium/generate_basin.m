@@ -33,6 +33,7 @@ num_of_layer = 3;
 
 %- roughly depth of each interface
 dep     = [-1e3, basin_r0, 3e3, 10e3];
+%dep     = [0, basin_r0, 3e3, 10e3];
 
 Vp      = [ 1500, 3000, 5000, 8000];
 Vp_grad = [ 0.2 ,  0.0, 0.0,  0 ];
@@ -62,7 +63,7 @@ for i = 1 : nx
     %if in basin
     if r2d <= basin_r0
       %-- (x-x0)^2 + (y-y0)^2 + (e-e0)^2 = r^2
-      elev_int(j,i,2) = - (sqrt( basin_r0^2 - r2d^2 ) + basin_e0 ) + elev_int(j,i,2);
+      elev_int(j,i,2) = - (sqrt( basin_r0^2 - r2d^2 ) + basin_e0 );
     end
 end
 end
