@@ -10,9 +10,7 @@ FILE *gfopen(const char *filename, const char *mode);
 
 void read_interface_file(
     const char *interface_file,
-    bool first_read, // Is it the first para to be read
-    inter_t *interfaces,
-    float **var, float **var_grad, float **var_pow);
+    inter_t *interfaces);
 
 void read_grid_file(
     const char *grid_file,

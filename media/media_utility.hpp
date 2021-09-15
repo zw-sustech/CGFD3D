@@ -2,26 +2,33 @@
 #define __MEDIA_UTILITY__
 #include "media_geometry3d.hpp"
 
+// for equivalent medium parametrization
+#define NG 8
+
 // for media type
-#define ONE_COMPONENT       0 /* var */
-#define ELASTIC_ISOTROPIC   1 /* vp, vs, rho*/
-#define ELASTIC_VTI_PREM    2 /* vph, vpv, vsh, vsv, rho, eta */
-#define ELASTIC_VTI_THOMSEN 3 /* vpv, vsv, epsilon, delta, gamma, rho */
-#define ELASTIC_VTI_CIJ     4 /* c11 c33 c44 c66 c13 rho */
-#define ELASTIC_TTI_THOMSEN 5 /* vp0, vs0, epsilon, delta, gamma, rho, azimuth, dip */
-#define ELASTIC_TTI_BOND    6 /* c11 c33 c44 c66 c13 rho azimuth dip */
-#define ELASTIC_TTI_CIJ     7 /* c11 c12 c13 c14 c15 c16 c22 c23 c24 c25 c26 c33 c34 c35 c36 c44 c45 c46 c55 c56 c66 rho*/
-#define ACOUSTIC_ISOTROPIC  8 /* vp, rho */
+#define ONE_COMPONENT       0  /* var */
+#define ACOUSTIC_ISOTROPIC  10 /* rho vp */
+#define ELASTIC_ISOTROPIC   21 /* rho vp vs*/
+#define ELASTIC_VTI_PREM    22 /* rho vph vpv vsh vsv eta */
+#define ELASTIC_VTI_THOMSEN 23 /* rho vp0 vs0 epsilon delta gamma */
+#define ELASTIC_VTI_CIJ     24 /* rho c11 c33 c55 c66 c13 */
+#define ELASTIC_TTI_THOMSEN 25 /* rho vp0 vs0 epsilon delta gamma azimuth dip */
+#define ELASTIC_TTI_BOND    26 /* rho c11 c33 c55 c66 c13 azimuth dip */
+#define ELASTIC_ANISO_CIJ   27 /* rho c11 c12 c13 c14 c15 c16 c22 c23 c24 c25 c26 c33 c34 c35 c36 c44 c45 c46 c55 c56 c66 */
+
+#define GRID_CART 1
+#define GRID_VMAP 2
+#define GRID_CURV 3
 
 /* 
  * number used for divided the mesh, 
  * for equivalent medium parameterization
  */
-#define NG 8
 
 /* Interface information from the interface file (different media type) */
 struct inter_t{
-    /* all the interfaces are given by the same interface_file mesh. */
+    int media_type = 0 ;
+    /* all the interfaces are given by the same interface_file mesh. */    
     size_t  NI = 0; // number of interfaces
     size_t  NX = 0;
     size_t  NY = 0;
@@ -60,6 +67,14 @@ struct inter_t{
     float *dip          = nullptr;
     float *dip_grad     = nullptr;
     float *dip_pow      = nullptr;
+
+    // for thomsen
+    float *vp0      = nullptr;
+    float *vs0      = nullptr;
+    float *vp0_grad = nullptr;
+    float *vs0_grad = nullptr;
+    float *vp0_pow  = nullptr;
+    float *vs0_pow  = nullptr;
 
     // for vti_prem
     float *vph      = nullptr;
@@ -151,7 +166,12 @@ struct inter_t{
     ~inter_t() {
         // ni*slice
         if (elevation != nullptr) delete [] elevation;
-    
+
+        // for one component
+        if (var      != nullptr) delete [] var     ; 
+        if (var_grad != nullptr) delete [] var_grad;
+        if (var_pow  != nullptr) delete [] var_pow ;
+
         // for acoustic + elastic
         if (vp       != nullptr) delete [] vp      ;
         if (rho      != nullptr) delete [] rho     ;
@@ -197,11 +217,14 @@ struct inter_t{
         if (vsv_pow  != nullptr) delete [] vsv_pow ;
         if (eta_pow  != nullptr) delete [] eta_pow ;
     
-        // for one component
-        if (var      != nullptr) delete [] var     ; 
-        if (var_grad != nullptr) delete [] var_grad;
-        if (var_pow  != nullptr) delete [] var_pow ;
-    
+        // for thomsen
+        if (vp0      != nullptr) delete [] vp0     ;
+        if (vs0      != nullptr) delete [] vs0     ;
+        if (vp0_grad != nullptr) delete [] vp0_grad;
+        if (vs0_grad != nullptr) delete [] vs0_grad;
+        if (vp0_pow  != nullptr) delete [] vp0_pow ;
+        if (vs0_pow  != nullptr) delete [] vs0_pow ;
+
         // for anisotropy c_ij, call one component
         if (c11 != nullptr) delete [] c11;
         if (c12 != nullptr) delete [] c12;
@@ -224,27 +247,27 @@ struct inter_t{
         if (c55 != nullptr) delete [] c55;
         if (c56 != nullptr) delete [] c56;
         if (c66 != nullptr) delete [] c66;
-        if (c11_gard != nullptr) delete [] c11_gard;
-        if (c12_gard != nullptr) delete [] c12_gard;
-        if (c13_gard != nullptr) delete [] c13_gard;
-        if (c14_gard != nullptr) delete [] c14_gard;
-        if (c15_gard != nullptr) delete [] c15_gard;
-        if (c16_gard != nullptr) delete [] c16_gard;
-        if (c22_gard != nullptr) delete [] c22_gard;
-        if (c23_gard != nullptr) delete [] c23_gard;
-        if (c24_gard != nullptr) delete [] c24_gard;
-        if (c25_gard != nullptr) delete [] c25_gard;
-        if (c26_gard != nullptr) delete [] c26_gard;
-        if (c33_gard != nullptr) delete [] c33_gard;
-        if (c34_gard != nullptr) delete [] c34_gard;
-        if (c35_gard != nullptr) delete [] c35_gard;
-        if (c36_gard != nullptr) delete [] c36_gard;
-        if (c44_gard != nullptr) delete [] c44_gard;
-        if (c45_gard != nullptr) delete [] c45_gard;
-        if (c46_gard != nullptr) delete [] c46_gard;
-        if (c55_gard != nullptr) delete [] c55_gard;
-        if (c56_gard != nullptr) delete [] c56_gard;
-        if (c66_gard != nullptr) delete [] c66_gard;
+        if (c11_grad != nullptr) delete [] c11_grad;
+        if (c12_grad != nullptr) delete [] c12_grad;
+        if (c13_grad != nullptr) delete [] c13_grad;
+        if (c14_grad != nullptr) delete [] c14_grad;
+        if (c15_grad != nullptr) delete [] c15_grad;
+        if (c16_grad != nullptr) delete [] c16_grad;
+        if (c22_grad != nullptr) delete [] c22_grad;
+        if (c23_grad != nullptr) delete [] c23_grad;
+        if (c24_grad != nullptr) delete [] c24_grad;
+        if (c25_grad != nullptr) delete [] c25_grad;
+        if (c26_grad != nullptr) delete [] c26_grad;
+        if (c33_grad != nullptr) delete [] c33_grad;
+        if (c34_grad != nullptr) delete [] c34_grad;
+        if (c35_grad != nullptr) delete [] c35_grad;
+        if (c36_grad != nullptr) delete [] c36_grad;
+        if (c44_grad != nullptr) delete [] c44_grad;
+        if (c45_grad != nullptr) delete [] c45_grad;
+        if (c46_grad != nullptr) delete [] c46_grad;
+        if (c55_grad != nullptr) delete [] c55_grad;
+        if (c56_grad != nullptr) delete [] c56_grad;
+        if (c66_grad != nullptr) delete [] c66_grad;
         if (c11_pow != nullptr) delete [] c11_pow;
         if (c12_pow != nullptr) delete [] c12_pow;
         if (c13_pow != nullptr) delete [] c13_pow;
@@ -272,33 +295,6 @@ struct inter_t{
 
 
 bool isEqual(float a, float b);
-
-int NumOfValues(std::vector<int> v, int NI);
-
-void GenerateHalfGrid(
-    size_t nx, 
-    size_t ny, 
-    size_t nz,
-    const float *Gridx, 
-    const float *Gridy, 
-    const float *Gridz,
-    float *halfGridx,
-    float *halfGridy,
-    float *halfGridz);
-
-Point3 *MeshSubdivide(Mesh3 M);
-
-/* Reference: Bond, 1943, The Mathematics of the Physical Properties of Crystals */
-/* theta: dip, phi: azimuth*/
-void BondTransform(float c11, float c12, float c13, float c14, float c15, float c16, 
-                   float c22, float c23, float c24, float c25, float c26, float c33,
-                   float c34, float c35, float c36, float c44, float c45, float c46,
-                   float c55, float c56, float c66, float theta, float phi, 
-                   float &c11_tti, float &c12_tti, float &c13_tti, float &c14_tti, float &c15_tti, float &c16_tti, 
-                   float &c22_tti, float &c23_tti, float &c24_tti, float &c25_tti, float &c26_tti, float &c33_tti,
-                   float &c34_tti, float &c35_tti, float &c36_tti, float &c44_tti, float &c45_tti, float &c46_tti,
-                   float &c55_tti, float &c56_tti, float &c66_tti); 
-
 
 /*------ find point and interpolation -------*/
 int findLastGreaterEqualIndex(
@@ -343,5 +339,75 @@ public:
     friend std::ostream &operator<< <T>(std::ostream& out, const Matrix<T> &mat);
 };
 /*-----------------------------------------*/
+
+int NumOfValues(std::vector<int> v, int NI);
+
+void GenerateHalfGrid(
+    size_t nx, 
+    size_t ny, 
+    size_t nz,
+    int grid_type, 
+    const float *Gridx, 
+    const float *Gridy, 
+    const float *Gridz,
+    float **halfGridx,
+    float **halfGridy,
+    float **halfGridz);
+
+int NumOfValues(std::vector<int> v, int NI);
+
+Mesh3 GenerateHalfMesh(int grid_type,
+                size_t ix, size_t iy, size_t iz, size_t indx, 
+                size_t siz_line, size_t siz_slice, size_t siz_volume,
+                float *Hx, float *Hy, float *Hz);
+
+Point3 *MeshSubdivide(Mesh3 M);
+
+//======================for vti and tti ====================================
+void para2vti(
+    std::vector<float> var, // input var
+    int media_type, // return cij
+    float &c11_3d,
+    float &c33_3d,
+    float &c55_3d,
+    float &c66_3d,
+    float &c13_3d,
+    float &rho_3d); 
+
+/* Reference: Bond, 1943, The Mathematics of the Physical Properties of Crystals */
+/* theta: dip, phi: azimuth*/
+void BondTransform(float c11, float c12, float c13, float c14, float c15, float c16, 
+                   float c22, float c23, float c24, float c25, float c26, float c33,
+                   float c34, float c35, float c36, float c44, float c45, float c46,
+                   float c55, float c56, float c66, float theta, float phi, 
+                   float &c11_tti, float &c12_tti, float &c13_tti, float &c14_tti, float &c15_tti, float &c16_tti, 
+                   float &c22_tti, float &c23_tti, float &c24_tti, float &c25_tti, float &c26_tti, float &c33_tti,
+                   float &c34_tti, float &c35_tti, float &c36_tti, float &c44_tti, float &c45_tti, float &c46_tti,
+                   float &c55_tti, float &c56_tti, float &c66_tti);
+
+void para2tti(std::vector<float> var, // input var
+             int media_type, // return cij
+             float &c11_3d,
+             float &c12_3d,
+             float &c13_3d,
+             float &c14_3d,
+             float &c15_3d,
+             float &c16_3d,
+             float &c22_3d,
+             float &c23_3d,
+             float &c24_3d,
+             float &c25_3d,
+             float &c26_3d,
+             float &c33_3d,
+             float &c34_3d,
+             float &c35_3d,
+             float &c36_3d,
+             float &c44_3d,
+             float &c45_3d,
+             float &c46_3d,
+             float &c55_3d,
+             float &c56_3d,
+             float &c66_3d,
+             float &rho_3d);
 
 #endif

@@ -2,9 +2,10 @@ clear all;
 
 draw_out_model = 1;
 
-filename = 'can4_rho.md3lay'
+filename = 'can4.md3lay'
 fid = fopen(filename, 'r');
 
+media_type = fscanf(fid, '%s\n', 1) 
 NI = fscanf(fid, '%d\n', 1); 
 NX = fscanf(fid, '%d\n', 1); 
 NY = fscanf(fid, '%d\n', 1); 
@@ -17,9 +18,15 @@ for ni = 1:NI
     for j = 1:NY
         for i = 1:NX
             elevation(j,i,ni) = fscanf(fid, '%f',1);
-            data(j,i,ni) = fscanf(fid, '%f', 1);
-            par_grad(j,i,ni) = fscanf(fid, '%f', 1);
-            par_pow(j,i, ni) = fscanf(fid, '%f', 1);
+            rho(j,i,ni) = fscanf(fid, '%f', 1);
+            rho_grad(j,i,ni) = fscanf(fid, '%f', 1);
+            rho_pow(j,i, ni) = fscanf(fid, '%f', 1);
+            vp(j,i,ni) = fscanf(fid, '%f', 1);
+            vp_grad(j,i,ni) = fscanf(fid, '%f', 1);
+            vp_pow(j,i, ni) = fscanf(fid, '%f', 1); 
+            vs(j,i,ni) = fscanf(fid, '%f', 1);
+            vs_grad(j,i,ni) = fscanf(fid, '%f', 1);
+            vs_pow(j,i, ni) = fscanf(fid, '%f', 1);
         end
     end
 end
@@ -44,10 +51,11 @@ if draw_out_model
     nx = 501;  ny = 501; nz = 450;
     x0 = -2000; y0 = 0; z0 = -4500;
     dx = 10; dy = 10; dz = 10;
-    data_file = 'rho.dat';
+    data_file = 'rho3.dat';
  %   xslice = [-2000,0,2000];
- xslice = [];
-    yslice = [5000];
+    xslice = [];
+    yslice = [500];
     zslice = [];
-    drawmodel(nx, ny, nz, x0, y0, z0, dx, dy, dz, data_file, xslice, yslice, zslice);
+%    drawmodel(nx, ny, nz, x0, y0, z0, dx, dy, dz, data_file, xslice, yslice, zslice);
 end
+

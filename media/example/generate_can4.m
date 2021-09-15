@@ -4,9 +4,15 @@
 clear all;
 close all;
 
-if_write_rho = 1;
-if_write_vp = 1;
-if_write_vs = 1;
+% 3lay header: 
+%  one_component, 
+%  acoustic_isotropic, 
+%  elastic_isotropic, 
+%  elastic_vti_prem, elastic_vti_thomsen, elastic_vti_cij,
+%  elastic_tti_thomsen, elastic_tti_bond,
+%  elastic_aniso_cij
+media_type = 'elastic_isotropic'
+if_write = 1;
 
 NI = 4;
 
@@ -64,44 +70,21 @@ end
 %figure;
 %drawmodel(501,501,300,-2500,0,-3000,10,10,10,'rho.dat',[],0,[]);
 
-if if_write_rho
-	fid = fopen('can4_rho.md3lay','w');
+if if_write
+	fid = fopen('can4.md3lay','w');
+	fprintf(fid, '%s\n',media_type);
 	fprintf(fid, '%d\n', NI);
 	fprintf(fid, '%d %d %f %f %f %f\n', NX, NY, MINX, MINY, DX, DY);
     for ni = 1:NI
         for j = 1:NY
             for i = 1:NX
-              	fprintf(fid, '%f %f %f %f\n', elevation(j,i,ni), rho(ni), par_grad, par_pow);
+              	fprintf(fid, '%f %f %f %f ', elevation(j,i,ni), rho(ni), par_grad, par_pow);
+              	fprintf(fid, '%f %f %f ', vp(ni), par_grad, par_pow);
+              	fprintf(fid, '%f %f %f\n', vs(ni), par_grad, par_pow);
             end
         end
     end
     fclose(fid);
 end
 
-if if_write_vp
-	fid = fopen('can4_vp.md3lay','w');
-	fprintf(fid, '%d\n', NI);
-	fprintf(fid, '%d %d %f %f %f %f\n', NX, NY, MINX, MINY, DX, DY);
-    for ni = 1:NI
-        for j = 1:NY
-            for i = 1:NX
-              	fprintf(fid, '%f %f %f %f\n', elevation(j,i,ni), vp(ni), par_grad, par_pow);
-            end
-        end
-    end
-    fclose(fid);
-end
 
-if if_write_vs
-	fid = fopen('can4_vs.md3lay','w');
-	fprintf(fid, '%d\n', NI);
-	fprintf(fid, '%d %d %f %f %f %f\n', NX, NY, MINX, MINY, DX, DY);
-    for ni = 1:NI
-        for j = 1:NY
-            for i = 1:NX
-              	fprintf(fid, '%f %f %f %f\n', elevation(j,i,ni), vs(ni), par_grad, par_pow);
-            end
-        end
-    end
-    fclose(fid);
-end
