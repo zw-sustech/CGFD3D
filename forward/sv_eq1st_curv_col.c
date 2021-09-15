@@ -135,6 +135,10 @@ sv_eq1st_curv_col_allstep(
     {
       sv_eq1st_curv_col_el_aniso_dvh2dvz(gdinfo,metric,md,bdryfree,verbose);
     }
+    else if (md->medium_type == CONST_MEDIUM_ACOUSTIC_ISO)
+    {
+      // no need
+    }
     else
     {
       fprintf(stderr,"ERROR: conversion matrix for medium_type=%d is not implemented\n",
