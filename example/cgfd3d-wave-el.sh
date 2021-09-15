@@ -22,7 +22,7 @@ echo "EXEC_WAVE=$EXEC_WAVE"
 INPUTDIR=`pwd`
 
 #-- output and conf
-PROJDIR=~/work/cgfd3d-wave/00
+PROJDIR=~/work/cgfd3d-wave/01
 PAR_FILE=${PROJDIR}/test.json
 GRID_DIR=${PROJDIR}/output
 MEDIA_DIR=${PROJDIR}/output
@@ -57,7 +57,7 @@ cat << ieof > $PAR_FILE
   "#size_of_time_step" : 0.008,
   "#size_of_time_step" : 0.015,
   "#number_of_time_steps" : 500,
-  "time_window_length" : 8,
+  "time_window_length" : 4,
   "check_stability" : 1,
 
   "boundary_x_left" : {
@@ -106,11 +106,11 @@ cat << ieof > $PAR_FILE
 
   "grid_generation_method" : {
       "#import" : "$GRID_DIR",
-      "#cartesian" : {
+      "cartesian" : {
         "origin"  : [0.0, 0.0, -5900.0 ],
         "inteval" : [ 100.0, 100.0, 100.0 ]
       },
-      "layer_interp" : {
+      "#layer_interp" : {
         "in_grid_layer_file" : "$INPUTDIR/prep_grid/random_topo.gdlay",
         "refine_factor" : [ 1, 1, 1 ],
         "horizontal_start_index" : [ 3, 3 ],
@@ -126,16 +126,19 @@ cat << ieof > $PAR_FILE
   },
   "is_export_metric" : 1,
 
-  "media_input" : {
+  "medium" : {
       "type" : "elastic_iso",
-      "#method" : "code_generate",
-      "#method" : "import",
-      "#import_dir" : "$MEDIA_DIR",
-      "method" : "layer_file",
+      "input_cmp_type" : "velocity",
+      "#type" : "elastic_vti",
+      "#input_cmp_type" : "thomsen",
+      "input_format"   : "layer_file",
       "in_rho" : "$INPUTDIR/prep_medium/basin_rho.md3lay",
       "in_Vp"  : "$INPUTDIR/prep_medium/basin_Vp.md3lay",
       "in_Vs"  : "$INPUTDIR/prep_medium/basin_Vs.md3lay",
-      "equivalent_medium_method" : "loc"
+      "in_epsilon"  : "$INPUTDIR/prep_medium/basin_epsilon.md3lay",
+      "in_gamma"  : "$INPUTDIR/prep_medium/basin_gamma.md3lay",
+      "in_delta"  : "$INPUTDIR/prep_medium/basin_delta.md3lay",
+      "equivalent_medium_method" : "har"
   },
   "is_export_media" : 1,
   "media_export_dir"  : "$MEDIA_DIR",
@@ -150,16 +153,16 @@ cat << ieof > $PAR_FILE
          "name" : "evt_by_par",
          "source" : [
             {
-                "index" : [ 40, 49, 50 ],
+                "index" : [ 80, 49, 50 ],
                 "#coord" : [ 4000, 4000, -1000 ],
                 "wavelet_name" : "ricker",
-                "ricker_center_frequency" : 0.5,
-                "ricker_peak_time" : 2.0,
+                "ricker_center_frequency" : 2.0,
+                "ricker_peak_time" : 0.5,
                 "#wavelet_name" : "gaussian",
                 "#gaussian_rms_width" : 2.0,
                 "#gaussian_peak_time" : 0.5,
                 "start_time" : 0.0,
-                "end_time"   : 4.0,
+                "end_time"   : 1.0,
                 "#force_vector" : [ 0.0, 0.0, 1e16],
                 "moment_tensor" : [ 1e16, 1e16, 1e16, 0.0, 0.0, 0.0]
             }
