@@ -24,6 +24,10 @@
 #define PAR_MEDIA_3LAY   3
 #define PAR_MEDIA_3GRD   4
 
+#define PAR_MEDIA_CMP_VELOCITY 1
+#define PAR_MEDIA_CMP_THOMSEN  2
+#define PAR_MEDIA_CMP_CIJ      3
+
 #define PAR_SOURCE_JSON  1
 #define PAR_SOURCE_FILE  3
 
@@ -105,12 +109,29 @@ typedef struct{
   // medium
   char media_type[PAR_MAX_STRLEN]; // iso, vti, or aniso
   int  media_itype; // iso, vti, or aniso
-  int media_input_itype;
+  char media_input_type[PAR_MAX_STRLEN]; // in_code, import, file
+  int  media_input_itype;
+  char media_input_cmptype[PAR_MAX_STRLEN]; // cij, thomson
+  int  media_input_icmptype;
+
   int is_export_media;
   char equivalent_medium_method[PAR_MAX_STRLEN]; // For layer2model
   char media_export_dir[PAR_MAX_STRLEN];
   char media_import_dir[PAR_MAX_STRLEN];
-  char media_input_file[PAR_MAX_STRLEN];
+  char media_input_rho[PAR_MAX_STRLEN];
+  char media_input_Vp [PAR_MAX_STRLEN];
+  char media_input_Vs [PAR_MAX_STRLEN];
+  char media_input_epsilon[PAR_MAX_STRLEN];
+  char media_input_delta[PAR_MAX_STRLEN];
+  char media_input_gamma[PAR_MAX_STRLEN];
+  char media_input_azimuth[PAR_MAX_STRLEN];
+  char media_input_dip[PAR_MAX_STRLEN];
+  char media_input_c11[PAR_MAX_STRLEN];
+  char media_input_c33[PAR_MAX_STRLEN];
+  char media_input_c55[PAR_MAX_STRLEN];
+  char media_input_c66[PAR_MAX_STRLEN];
+  char media_input_c13[PAR_MAX_STRLEN];
+
   // visco
   char visco_type[PAR_MAX_STRLEN]; // graves_Qs
   int  visco_itype; // graves_Qs

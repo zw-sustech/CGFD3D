@@ -278,20 +278,35 @@ int main(int argc, char** argv)
         break;
 
     case PAR_MEDIA_3LAY : {
+
         if (myid==0) fprintf(stdout,"read and discretize 3D layer medium file ...\n"); 
 
-        float *lam3d = md->lambda;
-        float  *mu3d = md->mu;
-        float *rho3d = md->rho;
-        media_el_iso_layer2model(lam3d, mu3d, rho3d,
-                                 gdcurv->x3d,
-                                 gdcurv->y3d,
-                                 gdcurv->z3d,
-                                 gdcurv->nx,
-                                 gdcurv->ny,
-                                 gdcurv->nz,
-                                 par->media_input_file,
+        // read rho
+        media_layer2model_onecmp(md->rho,
+                                 gdcurv->x3d, gdcurv->y3d, gdcurv->z3d,
+                                 gdcurv->nx, gdcurv->ny, gdcurv->nz,
+                                 MEDIA_USE_CURV,
+                                 par->media_input_rho,
                                  par->equivalent_medium_method);
+
+        if (par->media_input_icmptype == PAR_MEDIA_CMP_VELOCITY) {
+          // read Vp
+          media_layer2model_onecmp(md->kappa,
+                                   gdcurv->x3d, gdcurv->y3d, gdcurv->z3d,
+                                   gdcurv->nx, gdcurv->ny, gdcurv->nz,
+                                   MEDIA_USE_CURV,
+                                   par->media_input_Vp,
+                                   par->equivalent_medium_method);
+          // convert Vp to kappa
+          md_ac_Vp_to_kappa(md->rho, md->kappa, md->siz_icmp);
+        }
+        else
+        {
+          fprintf(stderr,"ERROR: media_input_icmptype=%d is not supported for ac_iso!\n",
+                    par->media_input_icmptype);
+          MPI_Abort(MPI_COMM_WORLD,1);
+        }
+
         break;
     }
 
@@ -311,7 +326,7 @@ int main(int argc, char** argv)
                                 gdcurv->nz,
                                 gdcurv->xmin, gdcurv->xmax,   //float Xmin, float Xmax,
                                 gdcurv->ymin, gdcurv->ymax,   //float Ymin, float Ymax, 
-                                par->media_input_file,
+                                par->media_input_Vp,
                                 par->equivalent_medium_method); 
         break;
     }
@@ -358,11 +373,11 @@ int main(int argc, char** argv)
     if (myid==0)
     {
        int dtmax_mpi_id = 0;
-       dtmax = 0.0;
+       dtmax = 1e19;
        for (int n=0; n < mpi_size; n++)
        {
         fprintf(stdout,"max allowed dt at each proc: id=%d, dtmax=%f\n", n, dt_est[n]);
-        if (dt_est[n] > dtmax) {
+        if (dtmax > dt_est[n]) {
           dtmax = dt_est[n];
           dtmax_mpi_id = n;
         }
@@ -552,8 +567,8 @@ int main(int argc, char** argv)
 //-------------------------------------------------------------------------------
 
   if (myid==0 && verbose>0) fprintf(stdout,"init mesg ...\n"); 
-  blk_colcent_mesg_init(mympi, gdinfo->ni, gdinfo->nj, gdinfo->nk,
-                  fd->fdx_nghosts, fd->fdy_nghosts, wav->ncmp);
+  blk_macdrp_mesg_init(mympi, fd, gdinfo->ni, gdinfo->nj, gdinfo->nk,
+                  wav->ncmp);
 
 //-------------------------------------------------------------------------------
 //-- qc

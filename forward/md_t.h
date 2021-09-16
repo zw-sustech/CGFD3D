@@ -89,10 +89,15 @@ int
 md_gen_test_Qs(md_t *md, float Qs_freq);
 
 int
+md_gen_test_el_vti(md_t *md);
+
+int
 md_gen_test_el_aniso(md_t *md);
 
 int
 md_rho_to_slow(float *restrict rho, size_t siz_volume);
 
+int
+md_ac_Vp_to_kappa(float *restrict rho, float *restrict kappa, size_t siz_volume);
 
 #endif

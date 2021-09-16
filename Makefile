@@ -25,13 +25,18 @@ CFLAGS := -I$(NETCDF)/include -I./lib/ -I./forward/ -I./media/  $(CFLAGS)
 #CPPFLAGS := -g -std=c++11 $(CPPFLAGS)
 #- O3
 CFLAGS   := -O3 $(CFLAGS)
-CPPFLAGS := -O2 -std=c++11 $(CPPFLAGS)
+CPPFLAGS := -O3 -std=c++11 $(CPPFLAGS)
 
 #- static
 #LDFLAGS := $(NETCDF)/lib/libnetcdf.a -lm -static $(LDFLAGS)
-LDFLAGS := -lm  $(LDFLAGS) $(NETCDF)/lib/libnetcdf.a
+LDFLAGS := -lm $(NETCDF)/lib/libnetcdf.a -lm $(LDFLAGS)
 #- dynamic
 #LDFLAGS := -L$(NETCDF)/lib -lnetcdf -lm $(LDFLAGS)
+
+#- pg
+#CFLAGS   := -Wall -pg $(CFLAGS)
+#CPPFLAGS := -Wall -pg $(CPPFLAGS)
+#LDFLAGS := -pg $(LDFLAGS) 
 
 #-------------------------------------------------------------------------------
 # target
@@ -67,7 +72,9 @@ main_curv_col_el_3d: \
 		blk_t.o \
 		sv_eq1st_curv_col.o \
 		sv_eq1st_curv_col_ac_iso.o \
-		sv_eq1st_curv_col_el_aniso.o sv_eq1st_curv_col_el_iso.o \
+		sv_eq1st_curv_col_el_iso.o \
+		sv_eq1st_curv_col_el_vti.o \
+		sv_eq1st_curv_col_el_aniso.o \
 		main_curv_col_el_3d.o
 	$(CXX) -o $@ $^ $(LDFLAGS)
 
@@ -84,7 +91,9 @@ main_curv_col_ac_3d: \
 		blk_t.o \
 		sv_eq1st_curv_col.o \
 		sv_eq1st_curv_col_ac_iso.o \
-		sv_eq1st_curv_col_el_aniso.o sv_eq1st_curv_col_el_iso.o \
+		sv_eq1st_curv_col_el_iso.o \
+		sv_eq1st_curv_col_el_vti.o \
+		sv_eq1st_curv_col_el_aniso.o \
 		main_curv_col_ac_3d.o
 	$(CXX) -o $@ $^ $(LDFLAGS)
 
@@ -181,6 +190,8 @@ blk_t.o: forward/blk_t.c
 sv_eq1st_curv_col.o:          forward/sv_eq1st_curv_col.c
 	${CC} -c -o $@ $(CFLAGS) $<
 sv_eq1st_curv_col_el_iso.o:   forward/sv_eq1st_curv_col_el_iso.c
+	${CC} -c -o $@ $(CFLAGS) $<
+sv_eq1st_curv_col_el_vti.o: forward/sv_eq1st_curv_col_el_vti.c
 	${CC} -c -o $@ $(CFLAGS) $<
 sv_eq1st_curv_col_el_aniso.o: forward/sv_eq1st_curv_col_el_aniso.c
 	${CC} -c -o $@ $(CFLAGS) $<

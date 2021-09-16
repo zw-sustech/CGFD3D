@@ -12,9 +12,10 @@
 #include "fdlib_math.h"
 #include "blk_t.h"
 #include "sv_eq1st_curv_col.h"
-#include "sv_eq1st_curv_col_el_iso.h"
-#include "sv_eq1st_curv_col_el_aniso.h"
 #include "sv_eq1st_curv_col_ac_iso.h"
+#include "sv_eq1st_curv_col_el_iso.h"
+#include "sv_eq1st_curv_col_el_vti.h"
+#include "sv_eq1st_curv_col_el_aniso.h"
 
 //#define SV_ELISO1ST_CURV_MACDRP_DEBUG
 
@@ -126,9 +127,23 @@ sv_eq1st_curv_col_allstep(
     {
       sv_eq1st_curv_col_el_iso_dvh2dvz(gdinfo,metric,md,bdryfree,verbose);
     }
+    else if (md->medium_type == CONST_MEDIUM_ELASTIC_VTI)
+    {
+      sv_eq1st_curv_col_el_vti_dvh2dvz(gdinfo,metric,md,bdryfree,verbose);
+    }
     else if (md->medium_type == CONST_MEDIUM_ELASTIC_ANISO)
     {
       sv_eq1st_curv_col_el_aniso_dvh2dvz(gdinfo,metric,md,bdryfree,verbose);
+    }
+    else if (md->medium_type == CONST_MEDIUM_ACOUSTIC_ISO)
+    {
+      // no need
+    }
+    else
+    {
+      fprintf(stderr,"ERROR: conversion matrix for medium_type=%d is not implemented\n",
+                    md->medium_type);
+      MPI_Abort(MPI_COMM_WORLD,1);
     }
   }
 
@@ -214,18 +229,18 @@ sv_eq1st_curv_col_allstep(
           break;
         }
 
-        //case CONST_MEDIUM_ELASTIC_VTI : {
-        //  sv_eq1st_curv_col_el_vti_onestage(
-        //      w_cur,w_rhs,wav,
-        //      gdinfo, metric, md, bdryfree, bdrypml, src,
-        //      fd->num_of_fdx_op, fd->pair_fdx_op[ipair][istage],
-        //      fd->num_of_fdy_op, fd->pair_fdy_op[ipair][istage],
-        //      fd->num_of_fdz_op, fd->pair_fdz_op[ipair][istage],
-        //      fd->fdz_max_len,
-        //      myid, verbose);
+        case CONST_MEDIUM_ELASTIC_VTI : {
+          sv_eq1st_curv_col_el_vti_onestage(
+              w_cur,w_rhs,wav,
+              gdinfo, metric, md, bdryfree, bdrypml, src,
+              fd->num_of_fdx_op, fd->pair_fdx_op[ipair][istage],
+              fd->num_of_fdy_op, fd->pair_fdy_op[ipair][istage],
+              fd->num_of_fdz_op, fd->pair_fdz_op[ipair][istage],
+              fd->fdz_max_len,
+              myid, verbose);
 
-        //  break;
-        //}
+          break;
+        }
 
         case CONST_MEDIUM_ACOUSTIC_ISO : {
           sv_eq1st_curv_col_ac_iso_onestage(

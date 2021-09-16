@@ -474,8 +474,8 @@ blk_macdrp_mesg_init(mympi_t *mympi,
     mympi->pair_siz_rbuff_x2[ipair] = (size_t *)malloc(fd->num_rk_stages * sizeof(size_t));
     mympi->pair_siz_rbuff_y1[ipair] = (size_t *)malloc(fd->num_rk_stages * sizeof(size_t));
     mympi->pair_siz_rbuff_y2[ipair] = (size_t *)malloc(fd->num_rk_stages * sizeof(size_t));
-    mympi->pair_s_reqs[ipair] = (MPI_Request **)malloc(fd->num_of_pairs * sizeof(MPI_Request *));
-    mympi->pair_r_reqs[ipair] = (MPI_Request **)malloc(fd->num_of_pairs * sizeof(MPI_Request *));
+    mympi->pair_s_reqs[ipair] = (MPI_Request **)malloc(fd->num_rk_stages * sizeof(MPI_Request *));
+    mympi->pair_r_reqs[ipair] = (MPI_Request **)malloc(fd->num_rk_stages * sizeof(MPI_Request *));
 
     for (int istage = 0; istage < fd->num_rk_stages; istage++)
     {
@@ -2862,7 +2862,14 @@ blk_dt_esti_curv(gdinfo_t *gdinfo, gd_t *gdcurv, md_t *md,
 
         if (md->medium_type == CONST_MEDIUM_ELASTIC_ISO) {
           Vp = sqrt( (md->lambda[iptr] + 2.0 * md->mu[iptr]) / md->rho[iptr] );
-        } else if (md->medium_type == CONST_MEDIUM_ELASTIC_ISO) {
+        } else if (md->medium_type == CONST_MEDIUM_ELASTIC_VTI) {
+          float Vpv = sqrt( md->c33[iptr] / md->rho[iptr] );
+          float Vph = sqrt( md->c11[iptr] / md->rho[iptr] );
+          Vp = Vph > Vpv ? Vph : Vpv;
+        } else if (md->medium_type == CONST_MEDIUM_ELASTIC_ANISO) {
+          // need to implement accurate solution
+          Vp = sqrt( md->c11[iptr] / md->rho[iptr] );
+        } else if (md->medium_type == CONST_MEDIUM_ACOUSTIC_ISO) {
           Vp = sqrt( md->kappa[iptr] / md->rho[iptr] );
         }
 
@@ -2871,8 +2878,8 @@ blk_dt_esti_curv(gdinfo_t *gdinfo, gd_t *gdcurv, md_t *md,
 
         // min L to 8 adjacent planes
         for (int kk = -1; kk <1; kk++) {
-          for (int jj = -1; jj < 1; jj++) {
-            for (int ii = -1; ii < 1; ii++) {
+          for (int jj = -1; jj <= 1; jj++) {
+            for (int ii = -1; ii <= 1; ii++) {
               if (ii != 0 && jj !=0 && kk != 0)
               {
                 float p1[] = { x3d[iptr-ii], y3d[iptr-ii], z3d[iptr-ii] };
@@ -2945,7 +2952,14 @@ blk_dt_esti_cart(gdinfo_t *gdinfo, gd_t *gdcart, md_t *md,
 
         if (md->medium_type == CONST_MEDIUM_ELASTIC_ISO) {
           Vp = sqrt( (md->lambda[iptr] + 2.0 * md->mu[iptr]) / md->rho[iptr] );
-        } else if (md->medium_type == CONST_MEDIUM_ELASTIC_ISO) {
+        } else if (md->medium_type == CONST_MEDIUM_ELASTIC_VTI) {
+          float Vpv = sqrt( md->c33[iptr] / md->rho[iptr] );
+          float Vph = sqrt( md->c11[iptr] / md->rho[iptr] );
+          Vp = Vph > Vpv ? Vph : Vpv;
+        } else if (md->medium_type == CONST_MEDIUM_ELASTIC_ANISO) {
+          // need to implement accurate solution
+          Vp = sqrt( md->c11[iptr] / md->rho[iptr] );
+        } else if (md->medium_type == CONST_MEDIUM_ACOUSTIC_ISO) {
           Vp = sqrt( md->kappa[iptr] / md->rho[iptr] );
         }
 
@@ -2977,9 +2991,11 @@ blk_keep_two_digi(float dt)
   char str[40];
   float dt_2;
 
-  sprintf(str, "%4.2e", dt);
+  sprintf(str, "%6.4e", dt);
 
   str[3] = '0';
+  str[4] = '0';
+  str[5] = '0';
 
   sscanf(str, "%f", &dt_2);
   

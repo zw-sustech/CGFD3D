@@ -357,7 +357,7 @@ par_read_from_str(const char *str, par_t *par)
            par->grid_layer_start[i] = cJSON_GetArrayItem(thirditem, i)->valueint;
          }
        }
-       if (thirditem = cJSON_GetObjectItem(subitem, "vertical_ToFreeSurf_resample_index")) {
+       if (thirditem = cJSON_GetObjectItem(subitem, "vertical_last_to_top")) {
          par->grid_layer_start[CONST_NDIM-1] = thirditem->valueint;
        }
     }
@@ -396,40 +396,163 @@ par_read_from_str(const char *str, par_t *par)
   //
 
   par->media_input_itype = PAR_MEDIA_IMPORT;
-  if (item = cJSON_GetObjectItem(root, "media_input")) {
+  if (item = cJSON_GetObjectItem(root, "medium")) {
     // medium is iso, vti or aniso
     if (subitem = cJSON_GetObjectItem(item, "type")) {
         sprintf(par->media_type, "%s", subitem->valuestring);
-        if (strcmp(par->media_type, "el_iso")==0) {
+        if (strcmp(par->media_type, "elastic_iso")==0) {
           par->media_itype = CONST_MEDIUM_ELASTIC_ISO;
-        } else if (strcmp(par->media_type, "el_aniso")==0) {
+        } else if (strcmp(par->media_type, "elastic_vti")==0) {
+          par->media_itype = CONST_MEDIUM_ELASTIC_VTI;
+        } else if (strcmp(par->media_type, "elastic_aniso")==0) {
           par->media_itype = CONST_MEDIUM_ELASTIC_ANISO;
-        } else if (strcmp(par->media_type, "ac_iso")==0) {
+        } else if (strcmp(par->media_type, "acoustic_iso")==0) {
           par->media_itype = CONST_MEDIUM_ACOUSTIC_ISO;
         } else {
           fprintf(stderr,"ERROR: media_type=%s is unknown\n",par->media_type);
           MPI_Abort(MPI_COMM_WORLD,9);
         }
     }
-    // if input by import
-    if (subitem = cJSON_GetObjectItem(item, "import")) {
-        par->media_input_itype = PAR_MEDIA_IMPORT;
-        sprintf(par->media_import_dir, "%s", subitem->valuestring);
+
+    // input method
+    if (subitem = cJSON_GetObjectItem(item, "input_format")) {
+        sprintf(par->media_input_type, "%s", subitem->valuestring);
     }
-    // if input by generate in side
-    if (subitem = cJSON_GetObjectItem(item, "code_generate")) {
+    // if input by code
+    if (strcmp(par->media_input_type, "code_generate")==0)
+    {
         par->media_input_itype = PAR_MEDIA_CODE;
     }
-    if (subitem = cJSON_GetObjectItem(item, "in_3lay_file")) {
-        par->media_input_itype = PAR_MEDIA_3LAY;
-        sprintf(par->media_input_file, "%s", subitem->valuestring);
+    // if input by import
+    else if (strcmp(par->media_input_type, "import")==0)
+    { 
+        par->media_input_itype = PAR_MEDIA_IMPORT;
+        if (subitem = cJSON_GetObjectItem(item, "import_dir")) {
+          sprintf(par->media_import_dir, "%s", subitem->valuestring);
+        }
     }
+    // if input by layer file
+    else if (strcmp(par->media_input_type, "layer_file")==0)
+    {
+        par->media_input_itype = PAR_MEDIA_3LAY;
+    }
+    // if input by layer file
+    else if (strcmp(par->media_input_type, "grid_file")==0)
+    {
+        par->media_input_itype = PAR_MEDIA_3GRD;
+    }
+
+    // input cmp type
+    if (subitem = cJSON_GetObjectItem(item, "input_cmp_type")) {
+        sprintf(par->media_input_cmptype, "%s", subitem->valuestring);
+    }
+    // if input by code
+    if (strcmp(par->media_input_cmptype, "velocity")==0)
+    {
+        par->media_input_icmptype = PAR_MEDIA_CMP_VELOCITY;
+    }
+    // if input by import
+    else if (strcmp(par->media_input_cmptype, "thomsen")==0)
+    { 
+        par->media_input_icmptype = PAR_MEDIA_CMP_THOMSEN;
+    }
+    // if input by layer file
+    else if (strcmp(par->media_input_cmptype, "cij")==0)
+    {
+        par->media_input_icmptype = PAR_MEDIA_CMP_CIJ;
+    }
+    // error
+    else 
+    {
+        fprintf(stderr,"ERROR: input_cmp_type=%d is unknown\n",
+                  par->media_input_icmptype);
+        MPI_Abort(MPI_COMM_WORLD,1);
+    }
+
+    // read in file name
+    if (par->media_input_itype == PAR_MEDIA_3GRD ||
+        par->media_input_itype==PAR_MEDIA_3LAY)
+    {
+      // rho is independent cmp type
+      if (subitem = cJSON_GetObjectItem(item, "in_rho")) {
+        sprintf(par->media_input_rho, "%s", subitem->valuestring);
+      }
+
+      // stiffness tensor
+
+      // ac_iso
+      if (par->media_itype == CONST_MEDIUM_ACOUSTIC_ISO) {
+        if (par->media_input_icmptype == PAR_MEDIA_CMP_VELOCITY) {
+          if (subitem = cJSON_GetObjectItem(item, "in_Vp")) {
+            sprintf(par->media_input_Vp, "%s", subitem->valuestring);
+          }
+        } else {
+          fprintf(stderr,"ERROR: icmptype=%d is not supported for ac_iso\n",
+                    par->media_input_icmptype);
+          MPI_Abort(MPI_COMM_WORLD,1);
+        }
+      }
+
+      // el_iso
+      if (par->media_itype == CONST_MEDIUM_ELASTIC_ISO) {
+        if (par->media_input_icmptype == PAR_MEDIA_CMP_VELOCITY) {
+          if (subitem = cJSON_GetObjectItem(item, "in_Vp")) {
+            sprintf(par->media_input_Vp, "%s", subitem->valuestring);
+          }
+          if (subitem = cJSON_GetObjectItem(item, "in_Vs")) {
+            sprintf(par->media_input_Vs, "%s", subitem->valuestring);
+          }
+        } else {
+          fprintf(stderr,"ERROR: icmptype=%d is not supported for el_iso\n",
+                    par->media_input_icmptype);
+          MPI_Abort(MPI_COMM_WORLD,1);
+        }
+      }
+
+      // el_vti
+      if (par->media_itype == CONST_MEDIUM_ELASTIC_VTI) {
+        if (par->media_input_icmptype == PAR_MEDIA_CMP_THOMSEN) {
+          if (subitem = cJSON_GetObjectItem(item, "in_Vp")) {
+            sprintf(par->media_input_Vp, "%s", subitem->valuestring);
+          }
+          if (subitem = cJSON_GetObjectItem(item, "in_Vs")) {
+            sprintf(par->media_input_Vs, "%s", subitem->valuestring);
+          }
+          if (subitem = cJSON_GetObjectItem(item, "in_epsilon")) {
+            sprintf(par->media_input_epsilon, "%s", subitem->valuestring);
+          }
+          if (subitem = cJSON_GetObjectItem(item, "in_delta")) {
+            sprintf(par->media_input_delta, "%s", subitem->valuestring);
+          }
+          if (subitem = cJSON_GetObjectItem(item, "in_gamma")) {
+            sprintf(par->media_input_gamma, "%s", subitem->valuestring);
+          }
+        } else if (par->media_input_icmptype == PAR_MEDIA_CMP_CIJ) {
+          if (subitem = cJSON_GetObjectItem(item, "in_C11")) {
+            sprintf(par->media_input_c11, "%s", subitem->valuestring);
+          }
+          if (subitem = cJSON_GetObjectItem(item, "in_C33")) {
+            sprintf(par->media_input_c33, "%s", subitem->valuestring);
+          }
+          if (subitem = cJSON_GetObjectItem(item, "in_C55")) {
+            sprintf(par->media_input_c55, "%s", subitem->valuestring);
+          }
+          if (subitem = cJSON_GetObjectItem(item, "in_C66")) {
+            sprintf(par->media_input_c66, "%s", subitem->valuestring);
+          }
+          if (subitem = cJSON_GetObjectItem(item, "in_C13")) {
+            sprintf(par->media_input_c13, "%s", subitem->valuestring);
+          }
+        } else {
+          fprintf(stderr,"ERROR: icmptype=%d is not supported for el_vti\n",
+                    par->media_input_icmptype);
+          MPI_Abort(MPI_COMM_WORLD,1);
+        }
+      } // vti
+    } // by read
+
     if (subitem = cJSON_GetObjectItem(item, "equivalent_medium_method")) {
         sprintf(par->equivalent_medium_method, "%s", subitem->valuestring);
-    }
-    if (subitem = cJSON_GetObjectItem(item, "in_3grd_file")) {
-        par->media_input_itype = PAR_MEDIA_3GRD;
-        sprintf(par->media_input_file, "%s", subitem->valuestring);
     }
   }
 
@@ -712,6 +835,16 @@ par_read_from_str(const char *str, par_t *par)
 
   // set values to default ones if no input
 
+  //-- check conditions
+
+  // not implement dt estimation for general anisotropic media yet
+  if (par->media_itype == CONST_MEDIUM_ELASTIC_ANISO &&
+      par->size_of_time_step < 0.0)
+  {
+    fprintf(stderr, "ERROR: have not implemented dt estimation for anisotropic media\n");
+    MPI_Abort(MPI_COMM_WORLD,1);
+  }
+
   return ierr;
 }
 
@@ -933,8 +1066,9 @@ par_print(par_t *par)
   fprintf(stdout, "-------------------------------------------------------\n");
   fprintf(stdout, " media_type = %s\n", par->media_type);
   fprintf(stdout, " media_export_dir = %s\n", par->media_export_dir);
-  fprintf(stdout, " media_input_itype = %d\n", par->media_input_itype);
 
+  fprintf(stdout, " media_input_type = %s\n", par->media_input_type);
+  fprintf(stdout, " media_input_itype = %d\n", par->media_input_itype);
 
   if (par->visco_itype == CONST_VISCO_GRAVES_QS) {
     fprintf(stdout, "-------------------------------------------------------\n");

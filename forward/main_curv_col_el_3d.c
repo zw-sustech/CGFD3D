@@ -261,12 +261,16 @@ int main(int argc, char** argv)
   // read or discrete velocity model
   switch (par->media_input_itype)
   {
-    case PAR_MEDIA_CODE :
+    case PAR_MEDIA_CODE : {
 
         if (myid==0) fprintf(stdout,"generate simple medium in code ...\n"); 
 
         if (md->medium_type == CONST_MEDIUM_ELASTIC_ISO) {
           md_gen_test_el_iso(md);
+        }
+
+        if (md->medium_type == CONST_MEDIUM_ELASTIC_VTI) {
+          md_gen_test_el_vti(md);
         }
 
         if (md->medium_type == CONST_MEDIUM_ELASTIC_ANISO) {
@@ -278,30 +282,76 @@ int main(int argc, char** argv)
         }
 
         break;
+    }
 
-    case PAR_MEDIA_IMPORT :
+    case PAR_MEDIA_IMPORT : {
+
         if (myid==0) fprintf(stdout,"import discrete medium file ...\n"); 
-        md_import(md, blk->output_fname_part, par->grid_import_dir);
+        md_import(md, blk->output_fname_part, par->media_import_dir);
 
         break;
+    }
 
     case PAR_MEDIA_3LAY : {
+
         if (myid==0) fprintf(stdout,"read and discretize 3D layer medium file ...\n"); 
 
-        float *lam3d = md->lambda;
-        float  *mu3d = md->mu;
-        float *rho3d = md->rho;
-        media_layer2model_curv_el_iso(lam3d, mu3d, rho3d,
-                                      gdcurv->x3d,
-                                      gdcurv->y3d,
-                                      gdcurv->z3d,
-                                      gdcurv->nx,
-                                      gdcurv->ny,
-                                      gdcurv->nz,
-                                      par->media_input_file, //in_rho_file
-                                      par->media_input_file, //in_vp_file,
-                                      par->media_input_file, //in_vs_file,
-                                      par->equivalent_medium_method);
+        if (md->medium_type == CONST_MEDIUM_ELASTIC_ISO)
+        {
+          if (par->media_input_icmptype == PAR_MEDIA_CMP_VELOCITY) {
+            media_layer2model_el_iso(md->lambda, md->mu, md->rho,
+                                     gdcurv->x3d, gdcurv->y3d, gdcurv->z3d,
+                                     gdcurv->nx, gdcurv->ny, gdcurv->nz,
+                                     MEDIA_USE_CURV,
+                                     par->media_input_rho, //in_rho_file
+                                     par->media_input_Vp, //in_vp_file,
+                                     par->media_input_Vs, //in_vs_file,
+                                     par->equivalent_medium_method);
+          } else {
+            fprintf(stderr,"ERROR: media_input_icmptype=%d is not supported for el_iso!\n",
+                      par->media_input_icmptype);
+            MPI_Abort(MPI_COMM_WORLD,-1);
+          }
+        }
+        else if (md->medium_type == CONST_MEDIUM_ELASTIC_VTI)
+        {
+          if (par->media_input_icmptype == PAR_MEDIA_CMP_THOMSEN)
+          {
+            media_layer2model_vti_thomsen(md->rho, md->c11, md->c33,
+                                          md->c55,md->c66,md->c13,
+                                          gdcurv->x3d, gdcurv->y3d, gdcurv->z3d,
+                                          gdcurv->nx, gdcurv->ny, gdcurv->nz,
+                                          MEDIA_USE_CURV,
+                                          par->media_input_rho, //in_rho_file
+                                          par->media_input_Vp, //in_vp_file,
+                                          par->media_input_Vs, //in_vs_file,
+                                          par->media_input_epsilon,
+                                          par->media_input_delta,
+                                          par->media_input_gamma,
+                                          par->equivalent_medium_method);
+          }
+          else if (par->media_input_icmptype == PAR_MEDIA_CMP_CIJ)
+          {
+            media_layer2model_vti_cij(md->rho, md->c11, md->c33,
+                                          md->c55,md->c66,md->c13,
+                                          gdcurv->x3d, gdcurv->y3d, gdcurv->z3d,
+                                          gdcurv->nx, gdcurv->ny, gdcurv->nz,
+                                          MEDIA_USE_CURV,
+                                          par->media_input_rho, //in_rho_file
+                                          par->media_input_c11, //in_vp_file,
+                                          par->media_input_c33, //in_vs_file,
+                                          par->media_input_c55,
+                                          par->media_input_c66,
+                                          par->media_input_c13,
+                                          par->equivalent_medium_method);
+          }
+          else
+          {
+            fprintf(stderr,"ERROR: media_input_icmptype=%d is not supported for el_vti!\n",
+                      par->media_input_icmptype);
+            MPI_Abort(MPI_COMM_WORLD,-1);
+          }
+        }
 
         break;
     }
@@ -322,7 +372,7 @@ int main(int argc, char** argv)
                                 gdcurv->nz,
                                 gdcurv->xmin, gdcurv->xmax,   //float Xmin, float Xmax,
                                 gdcurv->ymin, gdcurv->ymax,   //float Ymin, float Ymax, 
-                                par->media_input_file,
+                                par->media_input_Vp,
                                 par->equivalent_medium_method); 
         break;
     }
@@ -369,16 +419,16 @@ int main(int argc, char** argv)
     if (myid==0)
     {
        int dtmax_mpi_id = 0;
-       dtmax = 0.0;
+       dtmax = 1e19;
        for (int n=0; n < mpi_size; n++)
        {
-        fprintf(stdout,"max allowed dt at each proc: id=%d, dtmax=%f\n", n, dt_est[n]);
-        if (dt_est[n] > dtmax) {
+        fprintf(stdout,"max allowed dt at each proc: id=%d, dtmax=%g\n", n, dt_est[n]);
+        if (dtmax > dt_est[n]) {
           dtmax = dt_est[n];
           dtmax_mpi_id = n;
         }
        }
-       fprintf(stdout,"Global maximum allowed time step is %f at thread %d\n", dtmax, dtmax_mpi_id);
+       fprintf(stdout,"Global maximum allowed time step is %g at thread %d\n", dtmax, dtmax_mpi_id);
 
        // check valid
        if (dtmax <= 0.0) {
@@ -391,7 +441,7 @@ int main(int argc, char** argv)
           dt       = blk_keep_two_digi(dtmax);
           nt_total = (int) (par->time_window_length / dt + 0.5);
 
-          fprintf(stdout, "-> Set dt       = %f according to maximum allowed value\n", dt);
+          fprintf(stdout, "-> Set dt       = %g according to maximum allowed value\n", dt);
           fprintf(stdout, "-> Set nt_total = %d\n", nt_total);
        }
 

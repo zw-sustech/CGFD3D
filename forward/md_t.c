@@ -32,7 +32,7 @@ md_init(gdinfo_t *gdinfo, md_t *md, int media_type, int visco_type)
     md->ncmp = 2;
   } else if (media_type == CONST_MEDIUM_ELASTIC_ISO) {
     md->ncmp = 3;
-  } else if (media_type == CONST_MEDIUM_ELASTIC_ISO) {
+  } else if (media_type == CONST_MEDIUM_ELASTIC_VTI) {
     md->ncmp = 6; // 5 + rho
   } else {
     md->ncmp = 22; // 21 + rho
@@ -96,6 +96,29 @@ md_init(gdinfo_t *gdinfo, md_t *md, int media_type, int visco_type)
     icmp += 1;
     sprintf(cmp_name[icmp],"%s","mu");
     md->mu = md->v4d + cmp_pos[icmp];
+  }
+
+  // vti
+  if (media_type == CONST_MEDIUM_ELASTIC_VTI) {
+    icmp += 1;
+    sprintf(cmp_name[icmp],"%s","c11");
+    md->c11 = md->v4d + cmp_pos[icmp];
+
+    icmp += 1;
+    sprintf(cmp_name[icmp],"%s","c13");
+    md->c13 = md->v4d + cmp_pos[icmp];
+
+    icmp += 1;
+    sprintf(cmp_name[icmp],"%s","c33");
+    md->c33 = md->v4d + cmp_pos[icmp];
+
+    icmp += 1;
+    sprintf(cmp_name[icmp],"%s","c55");
+    md->c55 = md->v4d + cmp_pos[icmp];
+
+    icmp += 1;
+    sprintf(cmp_name[icmp],"%s","c66");
+    md->c66 = md->v4d + cmp_pos[icmp];
   }
 
   // aniso
@@ -432,6 +455,43 @@ md_gen_test_Qs(md_t *md, float Qs_freq)
 }
 
 int
+md_gen_test_el_vti(md_t *md)
+{
+  int ierr = 0;
+
+  int nx = md->nx;
+  int ny = md->ny;
+  int nz = md->nz;
+  int siz_line  = md->siz_iy;
+  int siz_slice = md->siz_iz;
+
+  for (size_t k=0; k<nz; k++)
+  {
+    for (size_t j=0; j<ny; j++)
+    {
+      for (size_t i=0; i<nx; i++)
+      {
+        size_t iptr = i + j * siz_line + k * siz_slice;
+
+        float rho=1500.0;
+
+        md->rho[iptr] = rho;
+
+	      md->c11[iptr] = 25.2*1e9;//lam + 2.0f*mu;
+	      md->c13[iptr] = 10.9620*1e9;//lam;
+	      md->c33[iptr] = 18.0*1e9;//lam + 2.0f*mu;
+	      md->c55[iptr] = 5.12*1e9;//mu;
+        md->c66[iptr] = 7.1680*1e9;//mu;
+        //-- Vp ~ sqrt(c11/rho) = 4098
+        
+      }
+    }
+  }
+
+  return ierr;
+}
+
+int
 md_gen_test_el_aniso(md_t *md)
 {
   int ierr = 0;
@@ -512,6 +572,23 @@ md_rho_to_slow(float *restrict rho, size_t siz_volume)
       rho[iptr] = 1.0 / rho[iptr];
     } else {
       rho[iptr] = 0.0;
+    }
+  }
+
+  return ierr;
+}
+
+int
+md_ac_Vp_to_kappa(float *restrict rho, float *restrict kappa, size_t siz_volume)
+{
+  int ierr = 0;
+
+  for (size_t iptr=0; iptr<siz_volume; iptr++) {
+    if (rho[iptr] > 1e-10) {
+      float Vp = kappa[iptr];
+      kappa[iptr] = Vp * Vp * rho[iptr];
+    } else {
+      kappa[iptr] = 0.0;
     }
   }
 
