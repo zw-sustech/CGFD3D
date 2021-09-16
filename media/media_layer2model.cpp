@@ -199,15 +199,15 @@ int media_layer2model_el_vti(
 {
 
     inter_t interfaces;
-    int md_type = interfaces.media_type;
 
     /* Read interface file */
     read_interface_file(in_3lay_file, &interfaces);   
 
-    if (md_type != ELASTIC_VTI_PREM || md_type != ELASTIC_VTI_THOMSEN || md_type != ELASTIC_VTI_CIJ) {
-        fprintf(stderr, "ERROR: The media_layer2model_el_vti function only supports "\
+    int md_type = interfaces.media_type;
+    if (md_type != ELASTIC_VTI_PREM && md_type != ELASTIC_VTI_THOMSEN && md_type != ELASTIC_VTI_CIJ) {
+        fprintf(stderr, "ERROR: media_type: %d. The media_layer2model_el_vti function only supports "\
                 "elastic_vti_prem, elastic_vti_thomsen, elastic_vti_cij, "\
-                "please check the media_type of %s! \n", in_3lay_file);        
+                "please check the media_type of %s! \n", md_type, in_3lay_file);        
         fflush(stderr);
         exit(1);
     }
@@ -288,11 +288,12 @@ int media_layer2model_el_aniso(
 {
 
     inter_t interfaces;
-    int md_type = interfaces.media_type;
     size_t siz_volume = nx*ny*nz;
 
     /* Read interface file */
     read_interface_file(in_3lay_file, &interfaces);   
+
+    int md_type = interfaces.media_type;
 
     // the function does not support one component and acoustic wave
     // if the 
@@ -307,23 +308,39 @@ int media_layer2model_el_aniso(
         fflush(stderr);
         exit(1);
     }
-//    } else if ( (md_type == ELASTIC_ISOTROPIC|| md_type == ELASTIC_VTI_PREM || 
-//            md_type == ELASTIC_VTI_THOMSEN || md_type == ELASTIC_VTI_CIJ)
-//            && (equivalent_medium_method, "tti") != 0) {
-//        fprintf(stderr, "ERROR: When the media_type is elastic_isotrpic or elastic_vti_*, "\
-//                " the media_layer2model_el_aniso function only supports tti equivalent_medium_method," \
-//                "please check the media_type of %s or the equivalent_medium_method! \n", in_3lay_file);        
-//        fflush(stderr);
-//        exit(1);        
-//    }
 
     //- isotropic: loc, har, tti
     if (md_type == ELASTIC_ISOTROPIC) {
-
-        if (strcmp(equivalent_medium_method,"loc") == 0 || strcmp(equivalent_medium_method,"har") == 0) {
-            media_layer2model_el_iso(c13, c44, rho, x3d, y3d, z3d, 
-                nx, ny, nz, grid_type, in_3lay_file, equivalent_medium_method);
-            for (size_t i = 0; i < siz_volume; i++) {
+        if (strcmp(equivalent_medium_method, "loc") == 0) {
+            parametrization_layer_el_iso_loc(nx, ny, nz, x3d, y3d, z3d, grid_type, 
+                interfaces, c13, c44, rho);
+            for (size_t i = 0; i < siz_volume; ++i) {
+                c11[i] = c13[i] + 2.0*c44[i]; 
+                c22[i] = c11[i]; c33[i] = c11[i]; 
+                c12[i] = c13[i]; c23[i] = c13[i];
+                c55[i] = c44[i]; c66[i] = c44[i];
+                c14[i] = 0.0; c24[i] = 0.0;  c34[i] = 0.0;  
+                c15[i] = 0.0; c25[i] = 0.0;  c35[i] = 0.0; 
+                c16[i] = 0.0; c26[i] = 0.0;  c36[i] = 0.0;
+                c45[i] = 0.0; c46[i] = 0.0;  c56[i] = 0.0;
+            }
+        } else if (strcmp(equivalent_medium_method, "har") == 0) {
+            parametrization_layer_el_iso_har(nx, ny, nz, x3d, y3d, z3d, grid_type, 
+                interfaces, c13, c44, rho);
+            for (size_t i = 0; i < siz_volume; ++i) {
+                c11[i] = c13[i] + 2.0*c44[i]; 
+                c22[i] = c11[i]; c33[i] = c11[i]; 
+                c12[i] = c13[i]; c23[i] = c13[i];
+                c55[i] = c44[i]; c66[i] = c44[i];
+                c14[i] = 0.0; c24[i] = 0.0;  c34[i] = 0.0;  
+                c15[i] = 0.0; c25[i] = 0.0;  c35[i] = 0.0; 
+                c16[i] = 0.0; c26[i] = 0.0;  c36[i] = 0.0;
+                c45[i] = 0.0; c46[i] = 0.0;  c56[i] = 0.0;
+            }
+        } else if (strcmp(equivalent_medium_method, "ari") == 0) {
+            parametrization_layer_el_iso_ari(nx, ny, nz, x3d, y3d, z3d, grid_type, 
+                interfaces, c13, c44, rho);
+            for (size_t i = 0; i < siz_volume; ++i) {
                 c11[i] = c13[i] + 2.0*c44[i]; 
                 c22[i] = c11[i]; c33[i] = c11[i]; 
                 c12[i] = c13[i]; c23[i] = c13[i];
@@ -340,14 +357,40 @@ int media_layer2model_el_aniso(
             fflush(stderr);
             exit(1);        
         }
-
+    // vti: loc, har, ari    
     } else if (md_type == ELASTIC_VTI_PREM || md_type == ELASTIC_VTI_THOMSEN || md_type == ELASTIC_VTI_CIJ) {
 
-        if (strcmp(equivalent_medium_method,"loc") == 0 || strcmp(equivalent_medium_method,"har") == 0
-            || strcmp(equivalent_medium_method,"ari") == 0) {
+        if (strcmp(equivalent_medium_method, "loc") == 0) {
+            parametrization_layer_el_vti_loc(nx, ny, nz, x3d, y3d, z3d, grid_type, 
+                interfaces, c11, c33, c55, c66, c13, rho);
+            for (size_t i = 0; i < siz_volume; i++) {
+                c12[i] = c11[i]-2.0*c66[i];
+                c22[i] = c11[i];
+                c23[i] = c13[i];
+                c44[i] = c55[i];
+                c14[i] = 0.0; c24[i] = 0.0;  c34[i] = 0.0;  
+                c15[i] = 0.0; c25[i] = 0.0;  c35[i] = 0.0; 
+                c16[i] = 0.0; c26[i] = 0.0;  c36[i] = 0.0;
+                c45[i] = 0.0; c46[i] = 0.0;  c56[i] = 0.0;
+            }
 
-            media_layer2model_el_vti(rho, c11, c33, c55, c66, c13, x3d, y3d, z3d,
-                        nx, ny, nz, grid_type, in_3lay_file, equivalent_medium_method);
+        } else if (strcmp(equivalent_medium_method, "har") == 0) {
+            parametrization_layer_el_vti_har(nx, ny, nz, x3d, y3d, z3d, grid_type, 
+                interfaces, c11, c33, c55, c66, c13, rho);
+            for (size_t i = 0; i < siz_volume; i++) {
+                c12[i] = c11[i]-2.0*c66[i];
+                c22[i] = c11[i];
+                c23[i] = c13[i];
+                c44[i] = c55[i];
+                c14[i] = 0.0; c24[i] = 0.0;  c34[i] = 0.0;  
+                c15[i] = 0.0; c25[i] = 0.0;  c35[i] = 0.0; 
+                c16[i] = 0.0; c26[i] = 0.0;  c36[i] = 0.0;
+                c45[i] = 0.0; c46[i] = 0.0;  c56[i] = 0.0;
+            }
+
+        } else if (strcmp(equivalent_medium_method, "ari") == 0) {
+            parametrization_layer_el_vti_ari(nx, ny, nz, x3d, y3d, z3d, grid_type, 
+                interfaces, c11, c33, c55, c66, c13, rho);
 
             for (size_t i = 0; i < siz_volume; i++) {
                 c12[i] = c11[i]-2.0*c66[i];
