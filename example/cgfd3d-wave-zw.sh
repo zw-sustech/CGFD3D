@@ -15,14 +15,14 @@ MPIDIR=/share/apps/gnu-4.8.5/mpich-3.3
 
 #-- program related dir
 #EXEC_WAVE=/home/zhangw/code/zwlab/CGFD3D-elastic/main_curv_col_el_3d
-EXEC_WAVE=`pwd`/../main_curv_col_ac_3d
+EXEC_WAVE=`pwd`/../main_curv_col_el_3d
 echo "EXEC_WAVE=$EXEC_WAVE"
 
 #-- input dir
 INPUTDIR=`pwd`
 
 #-- output and conf
-PROJDIR=~/work/cgfd3d-wave-ac/02
+PROJDIR=~/work/cgfd3d-wave/02har
 PAR_FILE=${PROJDIR}/test.json
 GRID_DIR=${PROJDIR}/output
 MEDIA_DIR=${PROJDIR}/output
@@ -47,16 +47,16 @@ ieof
 #----------------------------------------------------------------------
 cat << ieof > $PAR_FILE
 {
-  "number_of_total_grid_points_x" : 120,
-  "number_of_total_grid_points_y" : 100,
-  "number_of_total_grid_points_z" : 60,
+  "number_of_total_grid_points_x" : 480,
+  "number_of_total_grid_points_y" : 400,
+  "number_of_total_grid_points_z" : 201,
 
-  "number_of_mpiprocs_x" : 1,
-  "number_of_mpiprocs_y" : 1,
+  "number_of_mpiprocs_x" : 4,
+  "number_of_mpiprocs_y" : 4,
 
   "#size_of_time_step" : 0.008,
-  "#size_of_time_step" : 0.015,
-  "#number_of_time_steps" : 500,
+  "#size_of_time_step" : 0.018,
+  "#number_of_time_steps" : 222,
   "time_window_length" : 4,
   "check_stability" : 1,
 
@@ -107,8 +107,8 @@ cat << ieof > $PAR_FILE
   "grid_generation_method" : {
       "#import" : "$GRID_DIR",
       "cartesian" : {
-        "origin"  : [0.0, 0.0, -5900.0 ],
-        "inteval" : [ 100.0, 100.0, 100.0 ]
+        "origin"  : [0.0, 0.0, -5000.0 ],
+        "inteval" : [ 25, 25, 25 ]
       },
       "#layer_interp" : {
         "in_grid_layer_file" : "$INPUTDIR/prep_grid/random_topo.gdlay",
@@ -127,10 +127,14 @@ cat << ieof > $PAR_FILE
   "is_export_metric" : 1,
 
   "medium" : {
-      "type" : "acoustic_iso",
-      "#code" : "func_name_here",
-      "import" : "$MEDIA_DIR",
-      "infile_layer" : "$INPUTDIR/prep_medium/basin_ac_iso.md3lay",
+      "type" : "elastic_iso",
+      "input_cmp_type" : "velocity",
+      "#type" : "elastic_vti",
+      "#input_cmp_type" : "thomsen",
+      "input_format"   : "layer_file",
+      "in_rho" : "$INPUTDIR/prep_medium/basin_rho.md3lay",
+      "in_Vp"  : "$INPUTDIR/prep_medium/basin_Vp.md3lay",
+      "in_Vs"  : "$INPUTDIR/prep_medium/basin_Vs.md3lay",
       "equivalent_medium_method" : "har"
   },
   "is_export_media" : 1,
@@ -146,7 +150,7 @@ cat << ieof > $PAR_FILE
          "name" : "evt_by_par",
          "source" : [
             {
-                "index" : [ 80, 49, 50 ],
+                "index" : [ 160, 200, 195 ],
                 "#coord" : [ 4000, 4000, -1000 ],
                 "wavelet_name" : "ricker",
                 "ricker_center_frequency" : 2.0,
@@ -195,7 +199,7 @@ cat << ieof > $PAR_FILE
     {
       "name" : "volume_vel",
       "grid_index_start" : [ 0, 0, 0 ],
-      "grid_index_count" : [ 120,100, 60 ],
+      "grid_index_count" : [ 480, 400, 201 ],
       "grid_index_incre" : [  1, 1, 1 ],
       "time_index_start" : 0,
       "time_index_incre" : 1,
