@@ -199,15 +199,16 @@ int media_layer2model_el_vti(
 {
 
     inter_t interfaces;
-    int md_type = interfaces.media_type;
 
     /* Read interface file */
     read_interface_file(in_3lay_file, &interfaces);   
 
-    if (md_type != ELASTIC_VTI_PREM || md_type != ELASTIC_VTI_THOMSEN || md_type != ELASTIC_VTI_CIJ) {
-        fprintf(stderr, "ERROR: The media_layer2model_el_vti function only supports "\
+    int md_type = interfaces.media_type;
+
+    if (md_type != ELASTIC_VTI_PREM && md_type != ELASTIC_VTI_THOMSEN && md_type != ELASTIC_VTI_CIJ) {
+        fprintf(stderr, "ERROR: md_type=%d, the media_layer2model_el_vti function only supports "\
                 "elastic_vti_prem, elastic_vti_thomsen, elastic_vti_cij, "\
-                "please check the media_type of %s! \n", in_3lay_file);        
+                "please check the media_type of %s! \n", md_type,in_3lay_file);        
         fflush(stderr);
         exit(1);
     }
@@ -288,11 +289,12 @@ int media_layer2model_el_aniso(
 {
 
     inter_t interfaces;
-    int md_type = interfaces.media_type;
     size_t siz_volume = nx*ny*nz;
 
     /* Read interface file */
     read_interface_file(in_3lay_file, &interfaces);   
+
+    int md_type = interfaces.media_type;
 
     // the function does not support one component and acoustic wave
     // if the 
