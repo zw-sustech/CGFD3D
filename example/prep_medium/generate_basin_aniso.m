@@ -36,30 +36,10 @@ num_of_layer = 3;
 %- roughly depth of each interface
 %dep     = [-1e3, basin_r0, 3e3, 10e3];
 dep     = [0, basin_r0, 3e3, 10e3];
-
-Vp      = [ 1500, 3000, 5000, 8000];
-Vp_grad = [ 0.2 ,  0.0, 0.0,  0 ];
-Vp_pow  = [ 1.0 ,  1.0, 1.0,  1 ];
-
-Vs       = [ 1000, 1500, 2500, 3000 ];
-Vs_grad  = [ 0.2 ,  0.0, 0.0,  0 ];
-Vs_pow  = [ 1.0 ,  1.0, 1.0,  1 ];
-
-den      = [ 1000, 2000, 3000, 3500 ];
-den_grad = [ 0.2 ,  0.0, 0.0,  0 ];
-den_pow  = [ 1.0 ,  1.0, 1.0,  1 ];
-
-epsilon      = [ 0.5,   0.1, 0.2, 0.3];
-epsilon_grad = [ 0.2 ,  0.0, 0.0,  0 ];
-epsilon_pow  = [ 1.0 ,  1.0, 1.0,  1 ];
-
-gamma      = [ 0.4,   0.2, 0.1, 0.3];
-gamma_grad = [ 0.2 ,  0.0, 0.0,  0 ];
-gamma_pow  = [ 1.0 ,  1.0, 1.0,  1 ];
-
-delta      = [ 0.5,   0.1, 0.2, 0.3];
-delta_grad = [ 0.2 ,  0.0, 0.0,  0 ];
-delta_pow  = [ 1.0 ,  1.0, 1.0,  1 ];
+den_grad = [0, 0, 0, 0];
+den_pow  = [0, 0, 0, 0];
+C_grad = [0, 0, 0, 0];
+C_pow  = [0, 0, 0, 0];
 
 %-- construct 3D structure,
 %--   grad and pow are general 1D enough
@@ -68,29 +48,26 @@ delta_pow  = [ 1.0 ,  1.0, 1.0,  1 ];
 
 %-- calculate elevation of each interface
 lay_elev = zeros(ny, nx, num_of_layer+1);
-lay_Vp   = zeros(ny, nx, num_of_layer+1);
-lay_Vs   = zeros(ny, nx, num_of_layer+1);
 lay_den  = zeros(ny, nx, num_of_layer+1);
-lay_epsilon = zeros(ny, nx, num_of_layer+1);
-lay_gamma   = zeros(ny, nx, num_of_layer+1);
-lay_delta   = zeros(ny, nx, num_of_layer+1);
+lay_C    = zeros(21, ny, nx, num_of_layer+1);
 
 %-- 1st: free surface
-lay_Vp     (:,:,1) =      Vp(1);
-lay_Vs     (:,:,1) =      Vs(1);
-lay_den    (:,:,1) =     den(1);
-lay_epsilon(:,:,1) = epsilon(1);
-lay_gamma  (:,:,1) = gamma  (1);
-lay_delta  (:,:,1) = delta  (1);
 lay_elev   (:,:,1) =    -dep(1);
+lay_den    (:,:,1) =     1e3;
+lay_C      ( 1,:,:,1) = 25.2*1e9   ; %C11
+lay_C      ( 3,:,:,1) = 10.9620*1e9; %C13
+lay_C      (12,:,:,1) = 18.0*1e9   ; %C33
+lay_C      (19,:,:,1) = 5.12*1e9   ; %C55
+lay_C      (21,:,:,1) = 7.168*1e9  ; %C66
 
 %-- 2nd: basin
-lay_Vp     (:,:,2) =      Vp(2);
-lay_Vs     (:,:,2) =      Vs(2);
-lay_den    (:,:,2) =     den(2);
-lay_epsilon(:,:,2) = epsilon(2);
-lay_gamma  (:,:,2) = gamma  (2);
-lay_delta  (:,:,2) = delta  (2);
+lay_den    (   :,:,2) =     1.5e3;
+lay_C      ( 1,:,:,2) = 25.2*1e9    * 2; %C11
+lay_C      ( 3,:,:,2) = 10.9620*1e9 * 2; %C13
+lay_C      (12,:,:,2) = 18.0*1e9    * 2; %C33
+lay_C      (19,:,:,2) = 5.12*1e9    * 2; %C55
+lay_C      (21,:,:,2) = 7.168*1e9   * 2; %C66
+
 lay_elev(:,:,2) = lay_elev(:,:,1);
 for j = 1 : ny
 for i = 1 : nx
@@ -104,12 +81,12 @@ end
 end
 
 %-- 3rd: topo
-lay_Vp     (:,:,3) =      Vp(3);
-lay_Vs     (:,:,3) =      Vs(3);
-lay_den    (:,:,3) =     den(3);
-lay_epsilon(:,:,3) = epsilon(3);
-lay_gamma  (:,:,3) = gamma  (3);
-lay_delta  (:,:,3) = delta  (3);
+lay_den    (   :,:,3) =     1.2e3;
+lay_C      ( 1,:,:,3) = 25.2*1e9    * 1.5; %C11
+lay_C      ( 3,:,:,3) = 10.9620*1e9 * 1.5; %C13
+lay_C      (12,:,:,3) = 18.0*1e9    * 1.5; %C33
+lay_C      (19,:,:,3) = 5.12*1e9    * 1.5; %C55
+lay_C      (21,:,:,3) = 7.168*1e9   * 1.5; %C66
 
 num_circle_x = 3; %- how many circle along x
 num_circle_y = 1; %- how many circle along y
@@ -120,13 +97,15 @@ lay_elev(:,:,3) =    cos(num_circle_x * x2d / Lx * 2*pi)  ...
                   - dep(3);
 
 %-- 4rd: topo
-lay_Vp     (:,:,4) =      Vp(4);
-lay_Vs     (:,:,4) =      Vs(4);
-lay_den    (:,:,4) =     den(4);
-lay_epsilon(:,:,4) = epsilon(4);
-lay_gamma  (:,:,4) = gamma  (4);
-lay_delta  (:,:,4) = delta  (4);
+lay_den    (   :,:,4) =     1.0e3;
+lay_C      ( 1,:,:,4) = 25.2*1e9    ; %C11
+lay_C      ( 3,:,:,4) = 10.9620*1e9 ; %C13
+lay_C      (12,:,:,4) = 18.0*1e9    ; %C33
+lay_C      (19,:,:,4) = 5.12*1e9    ; %C55
+lay_C      (21,:,:,4) = 7.168*1e9   ; %C66
+
 lay_elev(:,:,4) = -dep(4);
+
 
 %------------------------------------------------------------------------------
 %-- plot
@@ -157,9 +136,9 @@ end
 %  elastic_vti_prem, elastic_vti_thomsen, elastic_vti_cij,
 %  elastic_tti_thomsen, elastic_tti_bond,
 %  elastic_aniso_cij
-media_type = 'elastic_vti_thomsen'
+media_type = 'elastic_aniso_cij'
 
-fnm_ou = 'basin_el_vti.md3lay'
+fnm_ou = 'basin_el_aniso.md3lay'
 
 fid = fopen(fnm_ou,'w');
 
@@ -181,15 +160,9 @@ fprintf(fid, '%d %d %f %f %f %f\n', nx, ny, x0, y0, dx, dy);
               % rho
             	fprintf(fid, ' %g %g %g', lay_den(j,i,ilay), den_grad(ilay), den_pow(ilay));
               % Vp
-            	fprintf(fid, ' %g %g %g', lay_Vp(j,i,ilay), Vp_grad(ilay), Vp_pow(ilay));
-              % Vs
-            	fprintf(fid, ' %g %g %g', lay_Vs(j,i,ilay), Vs_grad(ilay), Vs_pow(ilay));
-              % epsilon
-            	fprintf(fid, ' %g %g %g', lay_epsilon(j,i,ilay), epsilon_grad(ilay), epsilon_pow(ilay));
-              % delta
-            	fprintf(fid, ' %g %g %g', lay_delta(j,i,ilay), delta_grad(ilay), delta_pow(ilay));
-              % gamma
-            	fprintf(fid, ' %g %g %g', lay_gamma(j,i,ilay), gamma_grad(ilay), gamma_pow(ilay));
+              for n = 1 : 21
+            	  fprintf(fid, ' %g', lay_C(n,j,i,ilay), C_grad(ilay), C_pow(ilay));
+              end
               % return
             	fprintf(fid, '\n');
           end

@@ -298,59 +298,36 @@ int main(int argc, char** argv)
 
         if (md->medium_type == CONST_MEDIUM_ELASTIC_ISO)
         {
-          if (par->media_input_icmptype == PAR_MEDIA_CMP_VELOCITY) {
             media_layer2model_el_iso(md->lambda, md->mu, md->rho,
                                      gdcurv->x3d, gdcurv->y3d, gdcurv->z3d,
                                      gdcurv->nx, gdcurv->ny, gdcurv->nz,
                                      MEDIA_USE_CURV,
-                                     par->media_input_rho, //in_rho_file
-                                     par->media_input_Vp, //in_vp_file,
-                                     par->media_input_Vs, //in_vs_file,
+                                     par->media_input_file,
                                      par->equivalent_medium_method);
-          } else {
-            fprintf(stderr,"ERROR: media_input_icmptype=%d is not supported for el_iso!\n",
-                      par->media_input_icmptype);
-            MPI_Abort(MPI_COMM_WORLD,-1);
-          }
         }
         else if (md->medium_type == CONST_MEDIUM_ELASTIC_VTI)
         {
-          if (par->media_input_icmptype == PAR_MEDIA_CMP_THOMSEN)
-          {
-            media_layer2model_vti_thomsen(md->rho, md->c11, md->c33,
-                                          md->c55,md->c66,md->c13,
-                                          gdcurv->x3d, gdcurv->y3d, gdcurv->z3d,
-                                          gdcurv->nx, gdcurv->ny, gdcurv->nz,
-                                          MEDIA_USE_CURV,
-                                          par->media_input_rho, //in_rho_file
-                                          par->media_input_Vp, //in_vp_file,
-                                          par->media_input_Vs, //in_vs_file,
-                                          par->media_input_epsilon,
-                                          par->media_input_delta,
-                                          par->media_input_gamma,
-                                          par->equivalent_medium_method);
-          }
-          else if (par->media_input_icmptype == PAR_MEDIA_CMP_CIJ)
-          {
-            media_layer2model_vti_cij(md->rho, md->c11, md->c33,
-                                          md->c55,md->c66,md->c13,
-                                          gdcurv->x3d, gdcurv->y3d, gdcurv->z3d,
-                                          gdcurv->nx, gdcurv->ny, gdcurv->nz,
-                                          MEDIA_USE_CURV,
-                                          par->media_input_rho, //in_rho_file
-                                          par->media_input_c11, //in_vp_file,
-                                          par->media_input_c33, //in_vs_file,
-                                          par->media_input_c55,
-                                          par->media_input_c66,
-                                          par->media_input_c13,
-                                          par->equivalent_medium_method);
-          }
-          else
-          {
-            fprintf(stderr,"ERROR: media_input_icmptype=%d is not supported for el_vti!\n",
-                      par->media_input_icmptype);
-            MPI_Abort(MPI_COMM_WORLD,-1);
-          }
+            media_layer2model_el_vti(md->rho, md->c11, md->c33,
+                                     md->c55,md->c66,md->c13,
+                                     gdcurv->x3d, gdcurv->y3d, gdcurv->z3d,
+                                     gdcurv->nx, gdcurv->ny, gdcurv->nz,
+                                     MEDIA_USE_CURV,
+                                     par->media_input_file,
+                                     par->equivalent_medium_method);
+        } else if (md->medium_type == CONST_MEDIUM_ELASTIC_ANISO)
+        {
+            media_layer2model_el_aniso(md->rho,
+                                     md->c11,md->c12,md->c13,md->c14,md->c15,md->c16,
+                                             md->c22,md->c23,md->c24,md->c25,md->c26,
+                                                     md->c33,md->c34,md->c35,md->c36,
+                                                             md->c44,md->c45,md->c46,
+                                                                     md->c55,md->c56,
+                                                                             md->c66,
+                                     gdcurv->x3d, gdcurv->y3d, gdcurv->z3d,
+                                     gdcurv->nx, gdcurv->ny, gdcurv->nz,
+                                     MEDIA_USE_CURV,
+                                     par->media_input_file,
+                                     par->equivalent_medium_method);
         }
 
         break;

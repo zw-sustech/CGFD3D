@@ -61,6 +61,14 @@ delta      = [ 0.5,   0.1, 0.2, 0.3];
 delta_grad = [ 0.2 ,  0.0, 0.0,  0 ];
 delta_pow  = [ 1.0 ,  1.0, 1.0,  1 ];
 
+azi      = [ 45,   90, 0, 0];
+azi_grad = [ 0.0 ,  0.0, 0.0,  0 ];
+azi_pow  = [ 1.0 ,  1.0, 1.0,  1 ];
+
+dip      = [ 45,   90, 0.0, 0.0];
+dip_grad = [ 0.0 ,  0.0, 0.0,  0 ];
+dip_pow  = [ 1.0 ,  1.0, 1.0,  1 ];
+
 %-- construct 3D structure,
 %--   grad and pow are general 1D enough
 
@@ -74,6 +82,8 @@ lay_den  = zeros(ny, nx, num_of_layer+1);
 lay_epsilon = zeros(ny, nx, num_of_layer+1);
 lay_gamma   = zeros(ny, nx, num_of_layer+1);
 lay_delta   = zeros(ny, nx, num_of_layer+1);
+lay_azi   = zeros(ny, nx, num_of_layer+1);
+lay_dip   = zeros(ny, nx, num_of_layer+1);
 
 %-- 1st: free surface
 lay_Vp     (:,:,1) =      Vp(1);
@@ -82,6 +92,8 @@ lay_den    (:,:,1) =     den(1);
 lay_epsilon(:,:,1) = epsilon(1);
 lay_gamma  (:,:,1) = gamma  (1);
 lay_delta  (:,:,1) = delta  (1);
+lay_azi    (:,:,1) =   azi  (1);
+lay_dip    (:,:,1) =   dip  (1);
 lay_elev   (:,:,1) =    -dep(1);
 
 %-- 2nd: basin
@@ -91,6 +103,8 @@ lay_den    (:,:,2) =     den(2);
 lay_epsilon(:,:,2) = epsilon(2);
 lay_gamma  (:,:,2) = gamma  (2);
 lay_delta  (:,:,2) = delta  (2);
+lay_azi    (:,:,2) =   azi  (2);
+lay_dip    (:,:,2) =   dip  (2);
 lay_elev(:,:,2) = lay_elev(:,:,1);
 for j = 1 : ny
 for i = 1 : nx
@@ -110,6 +124,8 @@ lay_den    (:,:,3) =     den(3);
 lay_epsilon(:,:,3) = epsilon(3);
 lay_gamma  (:,:,3) = gamma  (3);
 lay_delta  (:,:,3) = delta  (3);
+lay_azi    (:,:,3) =   azi  (3);
+lay_dip    (:,:,3) =   dip  (3);
 
 num_circle_x = 3; %- how many circle along x
 num_circle_y = 1; %- how many circle along y
@@ -126,6 +142,8 @@ lay_den    (:,:,4) =     den(4);
 lay_epsilon(:,:,4) = epsilon(4);
 lay_gamma  (:,:,4) = gamma  (4);
 lay_delta  (:,:,4) = delta  (4);
+lay_azi    (:,:,4) =   azi  (4);
+lay_dip    (:,:,4) =   dip  (4);
 lay_elev(:,:,4) = -dep(4);
 
 %------------------------------------------------------------------------------
@@ -157,9 +175,9 @@ end
 %  elastic_vti_prem, elastic_vti_thomsen, elastic_vti_cij,
 %  elastic_tti_thomsen, elastic_tti_bond,
 %  elastic_aniso_cij
-media_type = 'elastic_vti_thomsen'
+media_type = 'elastic_tti_thomsen'
 
-fnm_ou = 'basin_el_vti.md3lay'
+fnm_ou = 'basin_el_tti.md3lay'
 
 fid = fopen(fnm_ou,'w');
 
@@ -190,11 +208,14 @@ fprintf(fid, '%d %d %f %f %f %f\n', nx, ny, x0, y0, dx, dy);
             	fprintf(fid, ' %g %g %g', lay_delta(j,i,ilay), delta_grad(ilay), delta_pow(ilay));
               % gamma
             	fprintf(fid, ' %g %g %g', lay_gamma(j,i,ilay), gamma_grad(ilay), gamma_pow(ilay));
+              % azimuth
+            	fprintf(fid, ' %g %g %g', lay_azi(j,i,ilay), azi_grad(ilay), azi_pow(ilay));
+              % dip
+            	fprintf(fid, ' %g %g %g', lay_dip(j,i,ilay), dip_grad(ilay), dip_pow(ilay));
               % return
             	fprintf(fid, '\n');
           end
       end
   end
 fclose(fid);
-
 

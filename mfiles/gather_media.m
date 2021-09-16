@@ -1,27 +1,27 @@
-function [V,varargout] = gather_media(mediainfo,varargin)
+function [V,varargout] = gather_media(mediainfo,varnm,media_dir)
 
 % gather media data
 % Author:   Yuanhang Huo
 % Email:    yhhuo@mail.ustc.edu.cn
 % Date:     2021.05.31
 
-nargs=nargin-1;
+%nargs=nargin-1;
 
-n=1;
-while n<=nargs
-    
-    if numel(varargin{n})==1 | ~isnumeric(varargin{n})
-        switch varargin{n}
-            case {'rho','lambda','mu'}
-                varnm=varargin{n};
-            case 'mediadir'
-                media_dir=varargin{n+1}; n=n+1;
-        end
-    end
-    
-    n=n+1;
-    
-end
+%n=1;
+%while n<=nargs
+%    
+%    if numel(varargin{n})==1 | ~isnumeric(varargin{n})
+%        switch varargin{n}
+%            case {'rho','lambda','mu','kappa'}
+%                varnm=varargin{n};
+%            case 'mediadir'
+%                media_dir=varargin{n+1}; n=n+1;
+%        end
+%    end
+%    
+%    n=n+1;
+%    
+%end
 
 % check path exists
 if ~ exist(media_dir,'dir')

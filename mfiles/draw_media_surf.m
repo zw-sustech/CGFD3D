@@ -8,13 +8,18 @@ clear all;
 
 % -------------------------- parameters input -------------------------- %
 % file and path name
-parfnm='./project/test.json';
-output_dir='./project/output';
+
+%media_type = 'ac_iso';
+%parfnm='/home/zhangw/work/cgfd3d-wave-ac/02/test.json'
+%output_dir='/home/zhangw/work/cgfd3d-wave-ac/02/output'
+media_type = 'el_iso';
+parfnm='/home/zhangw/work/cgfd3d-wave-el/04/test.json'
+output_dir='/home/zhangw/work/cgfd3d-wave-el/04/output'
 
 % which media profile to plot
-subs=[50,5,5];      % start from index '1'
-subc=[1,-1,-1];     % '-1' to plot all points in this dimension
-subt=[2,1,2];
+subs=[1,50,1];      % start from index '1'
+subc=[-1,1,-1];     % '-1' to plot all points in this dimension
+subt=[1,1,1];
 
 % variable to plot
 % 'Vp', 'Vs', 'rho', 'lambda', 'mu'
@@ -51,21 +56,26 @@ end
 % load media data
 switch varnm
     case 'Vp'
-        rho=gather_media(mediainfo,'rho','mediadir',output_dir);
-        mu=gather_media(mediainfo,'mu','mediadir',output_dir);
-        lambda=gather_media(mediainfo,'lambda','mediadir',output_dir);
-        v=( (lambda+2*mu)./rho ).^0.5;
+        rho=gather_media(mediainfo,'rho',output_dir);
+        if strcmp(media_type,'ac_iso') == 1
+          kappa=gather_media(mediainfo,'kappa',output_dir);
+          v=( (kappa)./rho ).^0.5;
+        elseif strcmp(media_type,'el_iso') == 1
+          mu=gather_media(mediainfo,'mu',output_dir);
+          lambda=gather_media(mediainfo,'lambda',output_dir);
+          v=( (lambda+2*mu)./rho ).^0.5;
+        end
         v=v/1e3;
     case 'Vs'
-        rho=gather_media(mediainfo,'rho','mediadir',output_dir);
-        mu=gather_media(mediainfo,'mu','mediadir',output_dir);
+        rho=gather_media(mediainfo,'rho',output_dir);
+        mu=gather_media(mediainfo,'mu',output_dir);
         v=( mu./rho ).^0.5;
         v=v/1e3;
     case 'rho'
-        v=gather_media(mediainfo,varnm,'mediadir',output_dir);
+        v=gather_media(mediainfo,varnm,output_dir);
         v=v/1e3;
     otherwise
-        v=gather_media(mediainfo,varnm,'mediadir',output_dir);
+        v=gather_media(mediainfo,varnm,output_dir);
 end
 
 

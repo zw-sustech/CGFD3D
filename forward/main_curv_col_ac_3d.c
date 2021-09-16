@@ -281,31 +281,12 @@ int main(int argc, char** argv)
 
         if (myid==0) fprintf(stdout,"read and discretize 3D layer medium file ...\n"); 
 
-        // read rho
-        media_layer2model_onecmp(md->rho,
+        media_layer2model_ac_iso(md->rho, md->kappa,
                                  gdcurv->x3d, gdcurv->y3d, gdcurv->z3d,
                                  gdcurv->nx, gdcurv->ny, gdcurv->nz,
                                  MEDIA_USE_CURV,
-                                 par->media_input_rho,
+                                 par->media_input_file,
                                  par->equivalent_medium_method);
-
-        if (par->media_input_icmptype == PAR_MEDIA_CMP_VELOCITY) {
-          // read Vp
-          media_layer2model_onecmp(md->kappa,
-                                   gdcurv->x3d, gdcurv->y3d, gdcurv->z3d,
-                                   gdcurv->nx, gdcurv->ny, gdcurv->nz,
-                                   MEDIA_USE_CURV,
-                                   par->media_input_Vp,
-                                   par->equivalent_medium_method);
-          // convert Vp to kappa
-          md_ac_Vp_to_kappa(md->rho, md->kappa, md->siz_icmp);
-        }
-        else
-        {
-          fprintf(stderr,"ERROR: media_input_icmptype=%d is not supported for ac_iso!\n",
-                    par->media_input_icmptype);
-          MPI_Abort(MPI_COMM_WORLD,1);
-        }
 
         break;
     }
@@ -313,21 +294,6 @@ int main(int argc, char** argv)
     case PAR_MEDIA_3GRD : {
         if (myid==0) fprintf(stdout,"read and descretize 3D grid medium file ...\n"); 
 
-        float *lam3d = md->lambda;
-        float  *mu3d = md->mu;
-        float *rho3d = md->rho;
-
-        media_el_iso_grid2model(lam3d, mu3d, rho3d,
-                                gdcurv->x3d,
-                                gdcurv->y3d,
-                                gdcurv->z3d,
-                                gdcurv->nx,
-                                gdcurv->ny,
-                                gdcurv->nz,
-                                gdcurv->xmin, gdcurv->xmax,   //float Xmin, float Xmax,
-                                gdcurv->ymin, gdcurv->ymax,   //float Ymin, float Ymax, 
-                                par->media_input_Vp,
-                                par->equivalent_medium_method); 
         break;
     }
   }

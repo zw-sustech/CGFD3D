@@ -118,6 +118,9 @@ typedef struct{
   char equivalent_medium_method[PAR_MAX_STRLEN]; // For layer2model
   char media_export_dir[PAR_MAX_STRLEN];
   char media_import_dir[PAR_MAX_STRLEN];
+  char media_input_file[PAR_MAX_STRLEN];
+
+  // following not used 
   char media_input_rho[PAR_MAX_STRLEN];
   char media_input_Vp [PAR_MAX_STRLEN];
   char media_input_Vs [PAR_MAX_STRLEN];
