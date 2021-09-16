@@ -573,11 +573,11 @@ void BondTransform(float c11, float c12, float c13, float c14, float c15, float 
     // C = R * C_vti * R^T
     C = R * C0 *R.transpose();
 
-    c11_tti = C(1,1); c12_tti = C(1,2); c13_tti = C(1,3); c14_tti = C(1,4); c15_tti = C(1,5); c16_tti = C(1,6);
-    c22_tti = C(2,2); c23_tti = C(2,3); c24_tti = C(2,4); c25_tti = C(2,5); c26_tti = C(2,6);
-    c33_tti = C(3,3); c34_tti = C(3,4); c35_tti = C(3,5); c36_tti = C(3,6);
-    c44_tti = C(4,4); c45_tti = C(4,5); c46_tti = C(4,6);
-    c55_tti = C(5,5); c56_tti = C(5,6); c66_tti = C(6,6);
+    c11_tti = C(0,0); c12_tti = C(0,1); c13_tti = C(0,2); c14_tti = C(0,3); c15_tti = C(0,4); c16_tti = C(0,5);
+    c22_tti = C(1,1); c23_tti = C(1,2); c24_tti = C(1,3); c25_tti = C(1,4); c26_tti = C(1,5);
+    c33_tti = C(2,2); c34_tti = C(2,3); c35_tti = C(2,4); c36_tti = C(2,5);
+    c44_tti = C(3,3); c45_tti = C(3,4); c46_tti = C(3,5);
+    c55_tti = C(4,4); c56_tti = C(4,5); c66_tti = C(5,5);
 }
 
 void para2tti(std::vector<float> var, // input var
