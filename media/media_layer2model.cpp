@@ -59,10 +59,10 @@ int media_layer2model_onecmp(float *var3d,
         exit(1);
     }
 
-    if (interfaces.elevation != nullptr) delete [] interfaces.elevation;
-    if (interfaces.var       != nullptr) delete [] interfaces.var;
-    if (interfaces.var_grad  != nullptr) delete [] interfaces.var_grad;
-    if (interfaces.var_pow   != nullptr) delete [] interfaces.var_pow;
+//    if (interfaces.elevation != nullptr) delete [] interfaces.elevation;
+//    if (interfaces.var       != nullptr) delete [] interfaces.var;
+//    if (interfaces.var_grad  != nullptr) delete [] interfaces.var_grad;
+//    if (interfaces.var_pow   != nullptr) delete [] interfaces.var_pow;
 
     return 0;
 }
@@ -109,13 +109,13 @@ int media_layer2model_ac_iso(
         exit(1);
     }
 
-    if (interfaces.elevation != nullptr) delete [] interfaces.elevation;
-    if (interfaces.vp       != nullptr) delete [] interfaces.vp;
-    if (interfaces.rho      != nullptr) delete [] interfaces.rho;
-    if (interfaces.vp_grad  != nullptr) delete [] interfaces.vp_grad;
-    if (interfaces.rho_grad != nullptr) delete [] interfaces.rho_grad;
-    if (interfaces.vp_pow   != nullptr) delete [] interfaces.vp_pow;
-    if (interfaces.rho_pow  != nullptr) delete [] interfaces.rho_pow;
+//    if (interfaces.elevation != nullptr) delete [] interfaces.elevation;
+//    if (interfaces.vp       != nullptr) delete [] interfaces.vp;
+//    if (interfaces.rho      != nullptr) delete [] interfaces.rho;
+//    if (interfaces.vp_grad  != nullptr) delete [] interfaces.vp_grad;
+//    if (interfaces.rho_grad != nullptr) delete [] interfaces.rho_grad;
+//    if (interfaces.vp_pow   != nullptr) delete [] interfaces.vp_pow;
+//    if (interfaces.rho_pow  != nullptr) delete [] interfaces.rho_pow;
 
     return 0; 
 }
@@ -164,7 +164,7 @@ int media_layer2model_el_iso(
         fflush(stderr);
         exit(1);
     }
-
+/*
     if (interfaces.elevation != nullptr) delete [] interfaces.elevation;
     if (interfaces.vp       != nullptr) delete [] interfaces.vp;
     if (interfaces.rho      != nullptr) delete [] interfaces.rho;
@@ -175,7 +175,7 @@ int media_layer2model_el_iso(
     if (interfaces.vs       != nullptr) delete [] interfaces.vs;
     if (interfaces.vs_grad  != nullptr) delete [] interfaces.vs_grad;
     if (interfaces.vs_pow   != nullptr) delete [] interfaces.vs_pow;
-
+*/
     return 0; 
 }
 
@@ -229,7 +229,7 @@ int media_layer2model_el_vti(
         fflush(stderr);
         exit(1);
     }
-
+/*
     if (interfaces.elevation != nullptr) delete [] interfaces.elevation;
     if (interfaces.rho != nullptr)       delete [] interfaces.rho;
     if (interfaces.vpv != nullptr)       delete [] interfaces.vpv;
@@ -263,7 +263,7 @@ int media_layer2model_el_vti(
     if (interfaces.c55_pow != nullptr) delete [] interfaces.c55_pow;
     if (interfaces.c66_pow != nullptr) delete [] interfaces.c66_pow;
     if (interfaces.c13_pow != nullptr) delete [] interfaces.c13_pow;
-
+*/
     return 0; 
 }
 
@@ -354,7 +354,7 @@ int media_layer2model_el_aniso(
         } else if(strcmp(equivalent_medium_method,"tti") == 0) {
 // TODO: tti equivalent medium method for iso
         } else {
-            fprintf(stderr, "ERROR: no such equivalent_medium_method: %s", equivalent_medium_method);        
+            fprintf(stderr, "ERROR: no such equivalent_medium_method: %s!\n", equivalent_medium_method);        
             fflush(stderr);
             exit(1);        
         }
@@ -407,7 +407,7 @@ int media_layer2model_el_aniso(
         } else if(strcmp(equivalent_medium_method,"tti") == 0) {
 // TODO: tti equivalent medium for vti
         } else {
-            fprintf(stderr, "ERROR: no such equivalent_medium_method: %s", equivalent_medium_method);        
+            fprintf(stderr, "ERROR: no such equivalent_medium_method: %s! \n", equivalent_medium_method);        
             fflush(stderr);
             exit(1);        
         }
@@ -427,14 +427,14 @@ int media_layer2model_el_aniso(
         } else if(strcmp(equivalent_medium_method,"tti") == 0) {
 // TODO: tti equivalent medium for tti
         } else { //default
-            fprintf(stderr, "ERROR: no such equivalent_medium_method: %s", equivalent_medium_method);        
+            fprintf(stderr, "ERROR: no such equivalent_medium_method: %s! \n", equivalent_medium_method);        
             fflush(stderr);
             exit(1);        
         }
     }
 
     if (interfaces.elevation != nullptr) delete [] interfaces.elevation;
-
+/*
     // for elastic
     if (interfaces.vp       != nullptr) delete [] interfaces.vp      ;
     if (interfaces.rho      != nullptr) delete [] interfaces.rho     ;
@@ -551,7 +551,8 @@ int media_layer2model_el_aniso(
     if (interfaces.c46_pow != nullptr) delete [] interfaces.c46_pow;
     if (interfaces.c55_pow != nullptr) delete [] interfaces.c55_pow;
     if (interfaces.c56_pow != nullptr) delete [] interfaces.c56_pow;
-    if (interfaces.c66_pow != nullptr) delete [] interfaces.c66_pow;        
+    if (interfaces.c66_pow != nullptr) delete [] interfaces.c66_pow; 
+    */       
     return 0; 
 }
 
@@ -573,7 +574,7 @@ void PrintIsPointOutOfInterfaceRange(Point3 A,
 int AssignLayerMediaPara2Point(
     size_t ix, size_t iy, size_t iz,         /* To print error messages */ 
     Point3 A,  
-    inter_t interfaces,
+    inter_t &interfaces,
     int media_type,                /* the type can be found in media_utility.hpp */ 
     std::vector<float> &var)
 {
@@ -626,12 +627,12 @@ int AssignLayerMediaPara2Point(
 //- Calculate the value of the point for different media type (to avoid multiple geometric calculations) 
 //   for layer2model
 void CalPointValue_layer(int media_type, 
-                   inter_t interfaces,
+                   inter_t &interfaces,
                    size_t slice, 
-                   std::vector<float> xvec,  /* interface mesh */
-                   std::vector<float> yvec,
-                   Point3 A,
-                   std::vector<float> elevation, /*the elevation of point A at the projection position of the interface mesh. */
+                   std::vector<float> &xvec,  /* interface mesh */
+                   std::vector<float> &yvec,
+                   Point3 &A,
+                   std::vector<float> &elevation, /*the elevation of point A at the projection position of the interface mesh. */
                    int mi,
                    std::vector<float> &var)
 {
@@ -1031,16 +1032,16 @@ void parametrization_layer_onecmp_loc(
     const float *Gridy, 
     const float *Gridz,
     int grid_type,
-    inter_t interfaces,
+    inter_t &interfaces,
     float *var3d)
 {
     size_t siz_line   = nx; 
     size_t siz_slice  = nx * ny; 
     size_t siz_volume = nx * ny * nz;
 
-    for (size_t k = 0; k < nz; k++) {
-        for (size_t j = 0; j < ny; j++) {
-            for (size_t i = 0; i < nx; i++) {
+    for (size_t k = 0; k < nz; ++k) {
+        for (size_t j = 0; j < ny; ++j) {
+            for (size_t i = 0; i < nx; ++i) {
                 
                 std::vector<float> var(1, 0.0);
 
@@ -1075,7 +1076,7 @@ void parametrization_layer_ac_iso_loc(
     const float *Gridy, 
     const float *Gridz,
     int grid_type, 
-    inter_t interfaces,
+    inter_t &interfaces,
     float *kappa,
     float *rho3d)
 {
@@ -1083,9 +1084,9 @@ void parametrization_layer_ac_iso_loc(
     size_t siz_slice  = nx * ny; 
     size_t siz_volume = nx * ny * nz;
 
-    for (size_t k = 0; k < nz; k++) {
-        for (size_t j = 0; j < ny; j++) {
-            for (size_t i = 0; i < nx; i++) {
+    for (size_t k = 0; k < nz; ++k) {
+        for (size_t j = 0; j < ny; ++j) {
+            for (size_t i = 0; i < nx; ++i) {
 
                 std::vector<float> var(2, 0.0); // rho, vp
 
@@ -1124,7 +1125,7 @@ void parametrization_layer_el_iso_loc(
     const float *Gridy, 
     const float *Gridz,
     int grid_type, 
-    inter_t interfaces,
+    inter_t &interfaces,
     float *lam3d,
     float *mu3d,
     float *rho3d)
@@ -1133,9 +1134,9 @@ void parametrization_layer_el_iso_loc(
     size_t siz_slice  = nx * ny; 
     size_t siz_volume = nx * ny * nz;
 
-    for (size_t k = 0; k < nz; k++) {
-        for (size_t j = 0; j < ny; j++) {
-            for (size_t i = 0; i < nx; i++) {
+    for (size_t k = 0; k < nz; ++k) {
+        for (size_t j = 0; j < ny; ++j) {
+            for (size_t i = 0; i < nx; ++i) {
 
                 std::vector<float> var(3, 0.0); // rho, vp, vs
 
@@ -1175,7 +1176,7 @@ void parametrization_layer_el_vti_loc(
     const float *Gridy, 
     const float *Gridz,
     int grid_type, 
-    inter_t interfaces,
+    inter_t &interfaces,
     float *c11,
     float *c33,
     float *c55,
@@ -1189,9 +1190,9 @@ void parametrization_layer_el_vti_loc(
 
     int media_type = interfaces.media_type;
 
-    for (size_t k = 0; k < nz; k++) {
-        for (size_t j = 0; j < ny; j++) {
-            for (size_t i = 0; i < nx; i++) {
+    for (size_t k = 0; k < nz; ++k) {
+        for (size_t j = 0; j < ny; ++j) {
+            for (size_t i = 0; i < nx; ++i) {
 
 
                 size_t indx =  i + j * siz_line + k * siz_slice;
@@ -1227,7 +1228,7 @@ void parametrization_layer_el_aniso_loc(
     const float *Gridy, 
     const float *Gridz,
     int grid_type, 
-    inter_t interfaces,
+    inter_t &interfaces,
     float *c11,
     float *c12,
     float *c13,
@@ -1256,9 +1257,9 @@ void parametrization_layer_el_aniso_loc(
     size_t siz_volume = nx * ny * nz;
     int media_type = interfaces.media_type;
 
-    for (size_t k = 0; k < nz; k++) {
-        for (size_t j = 0; j < ny; j++) {
-            for (size_t i = 0; i < nx; i++) {
+    for (size_t k = 0; k < nz; ++k) {
+        for (size_t j = 0; j < ny; ++j) {
+            for (size_t i = 0; i < nx; ++i) {
 
                 size_t indx =  i + j * siz_line + k * siz_slice;
 
@@ -1289,7 +1290,7 @@ void parametrization_layer_el_aniso_loc(
     }
 }
 
-//======================== averaging method ===================================
+//======================== averaging/equivalent medium method ==================================
 
 /* 
  * For half-grid point, marked the materials number.  
@@ -1299,7 +1300,7 @@ void MarkInterfaceNumber(
         float *Hx, float *Hy, float *Hz,
         size_t nx, size_t ny, size_t nz,
         int *MaterNum, // nx*ny*nz
-        inter_t interfaces) 
+        inter_t &interfaces) 
 {
     float MINX = interfaces.MINX;
     float MINY = interfaces.MINY;
@@ -1316,10 +1317,10 @@ void MarkInterfaceNumber(
     std::vector<float> XVEC(NX), YVEC(NY);
    
     // x-vector and y-vector of interfaces mesh
-    for (size_t i = 0; i < NX; ++i) {
+    for (size_t i = 0; i < NX; i++) {
         XVEC[i] = MINX + DX*i;
     }
-    for (size_t i = 0; i < NY; ++i) {
+    for (size_t i = 0; i < NY; i++) {
         YVEC[i] = MINY + DY*i;
     }
 
@@ -1330,15 +1331,15 @@ void MarkInterfaceNumber(
         // elevation[indx_in_xy][ni]
         std::vector<std::vector<float>> elevation(siz_slice, std::vector<float>(NI, -FLT_MAX));
         
-        for (size_t j = 0; j < ny; ++j) {
-            for (size_t i = 0; i < nx; ++i) {
+        for (size_t j = 0; j < ny; j++) {
+            for (size_t i = 0; i < nx; i++) {
                 size_t indx_in_slice = i + j*nx;
-                for (size_t ni = 0; ni < NI; ++ni) {
+                for (size_t ni = 0; ni < NI; ni++) {
                     elevation[indx_in_slice][ni] = BilinearInterpolation(
                         XVEC, YVEC, interfaces.elevation+ni*inter_slice, Hx[i], Hy[j]);
                 }
 
-                for (size_t k = 0; k < nz; ++k) {
+                for (size_t k = 0; k < nz; k++) {
                     size_t indx = indx_in_slice + k*siz_slice;
                     /* use which material */
                     int mi = -1;
@@ -1359,8 +1360,8 @@ void MarkInterfaceNumber(
 
     } else {
         std::vector<float> elevation(NI, -FLT_MAX);
-        for (size_t indx = 0; indx < siz_volume; ++indx) {
-            for (size_t ni = 0; ni < NI; ++ni) {
+        for (size_t indx = 0; indx < siz_volume; indx++) {
+            for (size_t ni = 0; ni < NI; ni++) {
                 /* Get the elevation for the corresponding location */
                 elevation[ni] = BilinearInterpolation(XVEC, YVEC, 
                     interfaces.elevation + ni*inter_slice, Hx[indx], Hy[indx]);
@@ -1390,7 +1391,7 @@ void parametrization_layer_onecmp_har(
     const float *Gridy, 
     const float *Gridz,
     int grid_type,
-    inter_t interfaces,
+    inter_t &interfaces,
     float *var3d) 
 {
 
@@ -1398,6 +1399,7 @@ void parametrization_layer_onecmp_har(
     size_t siz_slice = ny * siz_line;
     size_t siz_volume = nz * siz_slice;
     size_t NI = interfaces.NI;
+    float slowk = 1.0/(ny-2); // for print progress
 
     // assign the local value first.
     parametrization_layer_onecmp_loc(nx, ny, nz, Gridx, Gridy, Gridz,
@@ -1412,9 +1414,10 @@ void parametrization_layer_onecmp_har(
     MarkInterfaceNumber(grid_type, Hx, Hy, Hz, 
         nx, ny, nz, MaterNum, interfaces);
 
-    for (size_t k = 1; k < nz; k++) {
-        for (size_t j = 1; j < ny; j++) {
-            for (size_t i = 1; i < nx; i++) {
+    for (size_t j = 1; j < ny-1; j++) {
+        printProgress(slowk*j);
+        for (size_t k = 1; k < nz-1; k++) {
+            for (size_t i = 1; i < nx-1; i++) {
                 size_t indx =  i + j * siz_line + k * siz_slice; 
                 // check if the mesh have different values;
                 std::vector<int> v(8);
@@ -1475,13 +1478,14 @@ void parametrization_layer_onecmp_ari(
     const float *Gridy, 
     const float *Gridz,
     int grid_type,
-    inter_t interfaces,
+    inter_t &interfaces,
     float *var3d) 
 {
     size_t siz_line = nx;
     size_t siz_slice = ny * siz_line;
     size_t siz_volume = nz * siz_slice;
     size_t NI = interfaces.NI;
+    float slowk = 1.0/(ny-2); // for print progress
 
     // assign the local value first.
     parametrization_layer_onecmp_loc(nx, ny, nz, Gridx, Gridy, Gridz,
@@ -1496,9 +1500,10 @@ void parametrization_layer_onecmp_ari(
     MarkInterfaceNumber(grid_type, Hx, Hy, Hz, 
         nx, ny, nz, MaterNum, interfaces);
 
-    for (size_t k = 1; k < nz; k++) {
-        for (size_t j = 1; j < ny; j++) {
-            for (size_t i = 1; i < nx; i++) {
+    for (size_t j = 1; j < ny-1; j++) {
+        printProgress(slowk*j);
+        for (size_t k = 1; k < nz-1; k++) {
+            for (size_t i = 1; i < nx-1; i++) {
                 size_t indx =  i + j * siz_line + k * siz_slice; 
                 // check if the mesh have different values;
                 std::vector<int> v(8);
@@ -1559,7 +1564,7 @@ void parametrization_layer_ac_iso_har(
     const float *Gridy, 
     const float *Gridz,
     int grid_type,
-    inter_t interfaces,
+    inter_t &interfaces,
     float *kappa, 
     float *rho3d) 
 {
@@ -1568,6 +1573,7 @@ void parametrization_layer_ac_iso_har(
     size_t siz_slice = ny * siz_line;
     size_t siz_volume = nz * siz_slice;
     size_t NI = interfaces.NI;
+    float slowk = 1.0/(ny-2); // for print progress
 
     // assign the local value first.
     parametrization_layer_ac_iso_loc(nx, ny, nz, Gridx, Gridy, Gridz,
@@ -1582,9 +1588,10 @@ void parametrization_layer_ac_iso_har(
     MarkInterfaceNumber(grid_type, Hx, Hy, Hz, 
         nx, ny, nz, MaterNum, interfaces);
 
-    for (size_t k = 1; k < nz; k++) {
-        for (size_t j = 1; j < ny; j++) {
-            for (size_t i = 1; i < nx; i++) {
+    for (size_t j = 1; j < ny-1; ++j) {
+        printProgress(slowk*j);
+        for (size_t k = 1; k < nz-1; ++k) {
+            for (size_t i = 1; i < nx-1; ++i) {
                 size_t indx =  i + j * siz_line + k * siz_slice; 
                 // check if the mesh have different values;
                 std::vector<int> v(8);
@@ -1649,7 +1656,7 @@ void parametrization_layer_ac_iso_ari(
     const float *Gridy, 
     const float *Gridz,
     int grid_type,
-    inter_t interfaces,
+    inter_t &interfaces,
     float *kappa, 
     float *rho3d) 
 {
@@ -1658,6 +1665,7 @@ void parametrization_layer_ac_iso_ari(
     size_t siz_slice = ny * siz_line;
     size_t siz_volume = nz * siz_slice;
     size_t NI = interfaces.NI;
+    float slowk = 1.0/(ny-2); // for print progress
 
     // assign the local value first.
     parametrization_layer_ac_iso_loc(nx, ny, nz, Gridx, Gridy, Gridz,
@@ -1672,9 +1680,10 @@ void parametrization_layer_ac_iso_ari(
     MarkInterfaceNumber(grid_type, Hx, Hy, Hz, 
         nx, ny, nz, MaterNum, interfaces);
 
-    for (size_t k = 1; k < nz; k++) {
-        for (size_t j = 1; j < ny; j++) {
-            for (size_t i = 1; i < nx; i++) {
+    for (size_t j = 1; j < ny-1; j++) {
+        printProgress(slowk*j);
+        for (size_t k = 1; k < nz-1; k++) {
+            for (size_t i = 1; i < nx-1; i++) {
                 size_t indx =  i + j * siz_line + k * siz_slice; 
                 // check if the mesh have different values;
                 std::vector<int> v(8);
@@ -1743,7 +1752,7 @@ void parametrization_layer_el_iso_har(
     const float *Gridy, 
     const float *Gridz,
     int grid_type,
-    inter_t interfaces,
+    inter_t &interfaces,
     float *lam3d,
     float *mu3d,
     float *rho3d) 
@@ -1753,6 +1762,8 @@ void parametrization_layer_el_iso_har(
     size_t siz_slice = ny * siz_line;
     size_t siz_volume = nz * siz_slice;
     size_t NI = interfaces.NI;
+    float slowk = 1.0/(ny-2); // for print progress
+
 
     // assign the local value first.
     parametrization_layer_el_iso_loc(nx, ny, nz, Gridx, Gridy, Gridz,
@@ -1767,9 +1778,11 @@ void parametrization_layer_el_iso_har(
     MarkInterfaceNumber(grid_type, Hx, Hy, Hz, 
         nx, ny, nz, MaterNum, interfaces);
 
-    for (size_t k = 1; k < nz; k++) {
-        for (size_t j = 1; j < ny; j++) {
-            for (size_t i = 1; i < nx; i++) {
+    std::cout <<"\n"; // for printing progress
+    for (size_t j = 1; j < ny-1; j++) {
+        printProgress(slowk*j);
+        for (size_t k = 1; k < nz-1; k++) {
+            for (size_t i = 1; i < nx-1; i++) {
                 size_t indx =  i + j * siz_line + k * siz_slice; 
                 // check if the mesh have different values;
                 std::vector<int> v(8);
@@ -1844,7 +1857,7 @@ void parametrization_layer_el_iso_ari(
     const float *Gridy, 
     const float *Gridz,
     int grid_type,
-    inter_t interfaces,
+    inter_t &interfaces,
     float *lam3d,
     float *mu3d,
     float *rho3d) 
@@ -1854,6 +1867,7 @@ void parametrization_layer_el_iso_ari(
     size_t siz_slice = ny * siz_line;
     size_t siz_volume = nz * siz_slice;
     size_t NI = interfaces.NI;
+    float slowk = 1.0/(ny-2); // for print progress
 
     // assign the local value first.
     parametrization_layer_el_iso_loc(nx, ny, nz, Gridx, Gridy, Gridz,
@@ -1868,9 +1882,10 @@ void parametrization_layer_el_iso_ari(
     MarkInterfaceNumber(grid_type, Hx, Hy, Hz, 
         nx, ny, nz, MaterNum, interfaces);
 
-    for (size_t k = 1; k < nz; k++) {
-        for (size_t j = 1; j < ny; j++) {
-            for (size_t i = 1; i < nx; i++) {
+    for (size_t j = 1; j < ny-1; j++) {
+        printProgress(slowk*j);
+        for (size_t k = 1; k < nz-1; k++) {
+            for (size_t i = 1; i < nx-1; i++) {
                 size_t indx =  i + j * siz_line + k * siz_slice; 
                 // check if the mesh have different values;
                 std::vector<int> v(8);
@@ -1942,7 +1957,7 @@ void parametrization_layer_el_vti_har(
     const float *Gridy, 
     const float *Gridz,
     int grid_type, 
-    inter_t interfaces,
+    inter_t &interfaces,
     float *c11,
     float *c33,
     float *c55,
@@ -1954,9 +1969,10 @@ void parametrization_layer_el_vti_har(
     size_t siz_line = nx;
     size_t siz_slice = ny * siz_line;
     size_t siz_volume = nz * siz_slice;
-    size_t NI = interfaces.NI;
-    
+    size_t NI = interfaces.NI;    
     int media_type = interfaces.media_type;
+    float slowk = 1.0/(ny-2); // for print progress
+
 
     // assign the local value first.
     parametrization_layer_el_vti_loc(nx, ny, nz, Gridx, Gridy, Gridz,
@@ -1971,9 +1987,10 @@ void parametrization_layer_el_vti_har(
     MarkInterfaceNumber(grid_type, Hx, Hy, Hz, 
         nx, ny, nz, MaterNum, interfaces);
 
-    for (size_t k = 1; k < nz; k++) {
-        for (size_t j = 1; j < ny; j++) {
-            for (size_t i = 1; i < nx; i++) {
+    for (size_t j = 1; j < ny-1; j++) {
+        printProgress(slowk*j);
+        for (size_t k = 1; k < nz-1; k++) {
+            for (size_t i = 1; i < nx-1; i++) {
                 size_t indx =  i + j * siz_line + k * siz_slice; 
                 // check if the mesh have different values;
                 std::vector<int> v(8);
@@ -2056,7 +2073,7 @@ void parametrization_layer_el_vti_ari(
     const float *Gridy, 
     const float *Gridz,
     int grid_type, 
-    inter_t interfaces,
+    inter_t &interfaces,
     float *c11,
     float *c33,
     float *c55,
@@ -2069,8 +2086,8 @@ void parametrization_layer_el_vti_ari(
     size_t siz_slice = ny * siz_line;
     size_t siz_volume = nz * siz_slice;
     size_t NI = interfaces.NI;
-
     int media_type = interfaces.media_type;
+    float slowk = 1.0/(ny-2); // for print progress
 
     // assign the local value first.
     parametrization_layer_el_vti_loc(nx, ny, nz, Gridx, Gridy, Gridz,
@@ -2085,9 +2102,10 @@ void parametrization_layer_el_vti_ari(
     MarkInterfaceNumber(grid_type, Hx, Hy, Hz, 
         nx, ny, nz, MaterNum, interfaces);
 
-    for (size_t k = 1; k < nz; k++) {
-        for (size_t j = 1; j < ny; j++) {
-            for (size_t i = 1; i < nx; i++) {
+    for (size_t j = 1; j < ny-1; j++) {
+        printProgress(slowk*j);
+        for (size_t k = 1; k < nz-1; k++) {
+            for (size_t i = 1; i < nx-1; i++) {
                 size_t indx =  i + j * siz_line + k * siz_slice; 
                 // check if the mesh have different values;
                 std::vector<int> v(8);
@@ -2171,7 +2189,7 @@ void parametrization_layer_el_aniso_har(
     const float *Gridy, 
     const float *Gridz,
     int grid_type, 
-    inter_t interfaces,
+    inter_t &interfaces,
     float *c11,
     float *c12,
     float *c13,
@@ -2200,8 +2218,8 @@ void parametrization_layer_el_aniso_har(
     size_t siz_slice = ny * siz_line;
     size_t siz_volume = nz * siz_slice;
     size_t NI = interfaces.NI;
-
     int media_type = interfaces.media_type;
+    float slowk = 1.0/(ny-2); // for print progress
 
     // assign the local value first.
     parametrization_layer_el_aniso_loc(nx, ny, nz, Gridx, Gridy, Gridz,
@@ -2218,9 +2236,10 @@ void parametrization_layer_el_aniso_har(
     MarkInterfaceNumber(grid_type, Hx, Hy, Hz, 
         nx, ny, nz, MaterNum, interfaces);
 
-    for (size_t k = 1; k < nz; k++) {
-        for (size_t j = 1; j < ny; j++) {
-            for (size_t i = 1; i < nx; i++) {
+    for (size_t j = 1; j < ny-1; j++) {
+        printProgress(slowk*j);
+        for (size_t k = 1; k < nz-1; k++) {
+            for (size_t i = 1; i < nx-1; i++) {
                 size_t indx =  i + j * siz_line + k * siz_slice; 
                 // check if the mesh have different values;
                 std::vector<int> v(8);
@@ -2363,7 +2382,7 @@ void parametrization_layer_el_aniso_ari(
     const float *Gridy, 
     const float *Gridz,
     int grid_type, 
-    inter_t interfaces,
+    inter_t &interfaces,
     float *c11,
     float *c12,
     float *c13,
@@ -2392,8 +2411,8 @@ void parametrization_layer_el_aniso_ari(
     size_t siz_slice = ny * siz_line;
     size_t siz_volume = nz * siz_slice;
     size_t NI = interfaces.NI;
-
     int media_type = interfaces.media_type;
+    float slowk = 1.0/(ny-2); // for print progress
 
     // assign the local value first.
     parametrization_layer_el_aniso_loc(nx, ny, nz, Gridx, Gridy, Gridz,
@@ -2410,9 +2429,10 @@ void parametrization_layer_el_aniso_ari(
     MarkInterfaceNumber(grid_type, Hx, Hy, Hz, 
         nx, ny, nz, MaterNum, interfaces);
 
-    for (size_t k = 1; k < nz; k++) {
-        for (size_t j = 1; j < ny; j++) {
-            for (size_t i = 1; i < nx; i++) {
+    for (size_t j = 1; j < ny-1; j++) {
+        printProgress(slowk*j);
+        for (size_t k = 1; k < nz-1; k++) {
+            for (size_t i = 1; i < nx-1; i++) {
                 size_t indx =  i + j * siz_line + k * siz_slice; 
                 // check if the mesh have different values;
                 std::vector<int> v(8);
@@ -2504,7 +2524,6 @@ void parametrization_layer_el_aniso_ari(
                         ari_c55 += c55_p;
                         ari_c56 += c56_p;
                         ari_c66 += c66_p;
-                        
                         ari_rho += rho_p;
                     }
 

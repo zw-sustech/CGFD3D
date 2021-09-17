@@ -98,19 +98,19 @@ void PrintIsPointOutOfInterfaceRange(Point3 A,
 int AssignLayerMediaPara2Point(
     size_t ix, size_t iy, size_t iz,         /* To print error messages */ 
     Point3 A,  
-    inter_t interfaces,
+    inter_t &interfaces,
     int media_type,                /* the type can be found in media_utility.hpp */ 
     std::vector<float> &var); 
 
 //- Calculate the value of the point for different media type (to avoid multiple geometric calculations) 
 //   for layer2model
 void CalPointValue_layer(int media_type, 
-                   inter_t interfaces,
+                   inter_t &interfaces,
                    size_t slice, 
-                   std::vector<float> xvec,  /* interface mesh */
-                   std::vector<float> yvec,
-                   Point3 A,
-                   std::vector<float> elevation, /*the elevation of point A at the projection position of the interface mesh. */
+                   std::vector<float> &xvec,  /* interface mesh */
+                   std::vector<float> &yvec,
+                   Point3 &A,
+                   std::vector<float> &elevation, /*the elevation of point A at the projection position of the interface mesh. */
                    int mi,
                    std::vector<float> &var);
 
@@ -123,7 +123,7 @@ void parametrization_layer_onecmp_loc(
     const float *Gridy, 
     const float *Gridz,
     int grid_type,
-    inter_t interfaces,
+    inter_t &interfaces,
     float *var3d);
 
 //- 1. assign the parameter directly (use the local values): isotropic, acoustic 
@@ -135,7 +135,7 @@ void parametrization_layer_ac_iso_loc(
     const float *Gridy, 
     const float *Gridz,
     int grid_type, 
-    inter_t interfaces,
+    inter_t &interfaces,
     float *kappa,
     float *rho3d);
 
@@ -148,7 +148,7 @@ void parametrization_layer_el_iso_loc(
     const float *Gridy, 
     const float *Gridz,
     int grid_type, 
-    inter_t interfaces,
+    inter_t &interfaces,
     float *lam3d,
     float *mu3d,
     float *rho3d);
@@ -162,7 +162,7 @@ void parametrization_layer_el_vti_loc(
     const float *Gridy, 
     const float *Gridz,
     int grid_type, 
-    inter_t interfaces,
+    inter_t &interfaces,
     float *c11,
     float *c33,
     float *c55,
@@ -179,7 +179,7 @@ void parametrization_layer_el_aniso_loc(
     const float *Gridy, 
     const float *Gridz,
     int grid_type, 
-    inter_t interfaces,
+    inter_t &interfaces,
     float *c11,
     float *c12,
     float *c13,
@@ -208,7 +208,7 @@ void MarkInterfaceNumber(
         float *Hx, float *Hy, float *Hz,
         size_t nx, size_t ny, size_t nz,
         int *MaterNum, // nx*ny*nz
-        inter_t interfaces);
+        inter_t &interfaces);
 
 //- 0.1 Assign the parameter by volume harmonic averaging
 //- one component
@@ -220,7 +220,7 @@ void parametrization_layer_onecmp_har(
     const float *Gridy, 
     const float *Gridz,
     int grid_type,
-    inter_t interfaces,
+    inter_t &interfaces,
     float *var3d);
 
 //- 0.1 Assign the parameter by volume arithmetic averaging
@@ -233,7 +233,7 @@ void parametrization_layer_onecmp_ari(
     const float *Gridy, 
     const float *Gridz,
     int grid_type,
-    inter_t interfaces,
+    inter_t &interfaces,
     float *var3d);
 
 //- 1.0 Assign the parameter by volume harmonic averaging (kappa)
@@ -246,7 +246,7 @@ void parametrization_layer_ac_iso_har(
     const float *Gridy, 
     const float *Gridz,
     int grid_type,
-    inter_t interfaces,
+    inter_t &interfaces,
     float *kappa, 
     float *rho3d);
 
@@ -260,7 +260,7 @@ void parametrization_layer_ac_iso_ari(
     const float *Gridy, 
     const float *Gridz,
     int grid_type,
-    inter_t interfaces,
+    inter_t &interfaces,
     float *kappa, 
     float *rho3d);
 
@@ -276,7 +276,7 @@ void parametrization_layer_el_iso_har(
     const float *Gridy, 
     const float *Gridz,
     int grid_type,
-    inter_t interfaces,
+    inter_t &interfaces,
     float *lam3d,
     float *mu3d,
     float *rho3d);
@@ -291,7 +291,7 @@ void parametrization_layer_el_iso_ari(
     const float *Gridy, 
     const float *Gridz,
     int grid_type,
-    inter_t interfaces,
+    inter_t &interfaces,
     float *lam3d,
     float *mu3d,
     float *rho3d);
@@ -306,7 +306,7 @@ void parametrization_layer_el_vti_har(
     const float *Gridy, 
     const float *Gridz,
     int grid_type, 
-    inter_t interfaces,
+    inter_t &interfaces,
     float *c11,
     float *c33,
     float *c55,
@@ -324,7 +324,7 @@ void parametrization_layer_el_vti_ari(
     const float *Gridy, 
     const float *Gridz,
     int grid_type, 
-    inter_t interfaces,
+    inter_t &interfaces,
     float *c11,
     float *c33,
     float *c55,
@@ -342,7 +342,7 @@ void parametrization_layer_el_aniso_har(
     const float *Gridy, 
     const float *Gridz,
     int grid_type, 
-    inter_t interfaces,
+    inter_t &interfaces,
     float *c11,
     float *c12,
     float *c13,
@@ -376,7 +376,7 @@ void parametrization_layer_el_aniso_ari(
     const float *Gridy, 
     const float *Gridz,
     int grid_type, 
-    inter_t interfaces,
+    inter_t &interfaces,
     float *c11,
     float *c12,
     float *c13,

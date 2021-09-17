@@ -162,7 +162,7 @@ struct inter_t{
     float *c55_pow = nullptr;
     float *c56_pow = nullptr;
     float *c66_pow = nullptr;
-/*
+
     ~inter_t() {
         // ni*slice
         if (elevation != nullptr) delete [] elevation;
@@ -290,11 +290,13 @@ struct inter_t{
         if (c56_pow != nullptr) delete [] c56_pow;
         if (c66_pow != nullptr) delete [] c66_pow;        
     }
-*/
+
 };
 
 
 bool isEqual(float a, float b);
+
+void printProgress(float slowk);
 
 /*------ find point and interpolation -------*/
 int findLastGreaterEqualIndex(
