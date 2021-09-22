@@ -334,23 +334,48 @@ int main(int argc, char** argv)
     }
 
     case PAR_MEDIA_3GRD : {
+
         if (myid==0) fprintf(stdout,"read and descretize 3D grid medium file ...\n"); 
 
-        float *lam3d = md->lambda;
-        float  *mu3d = md->mu;
-        float *rho3d = md->rho;
-
-        media_el_iso_grid2model(lam3d, mu3d, rho3d,
-                                gdcurv->x3d,
-                                gdcurv->y3d,
-                                gdcurv->z3d,
-                                gdcurv->nx,
-                                gdcurv->ny,
-                                gdcurv->nz,
-                                gdcurv->xmin, gdcurv->xmax,   //float Xmin, float Xmax,
-                                gdcurv->ymin, gdcurv->ymax,   //float Ymin, float Ymax, 
-                                par->media_input_Vp,
-                                par->equivalent_medium_method); 
+        if (md->medium_type == CONST_MEDIUM_ELASTIC_ISO)
+        {
+            media_grid2model_el_iso(md->rho,md->lambda, md->mu, 
+                                     gdcurv->x3d, gdcurv->y3d, gdcurv->z3d,
+                                     gdcurv->nx, gdcurv->ny, gdcurv->nz,
+                                     gdcurv->xmin,gdcurv->xmax,
+                                     gdcurv->ymin,gdcurv->ymax,
+                                     MEDIA_USE_CURV,
+                                     par->media_input_file,
+                                     par->equivalent_medium_method);
+        }
+        else if (md->medium_type == CONST_MEDIUM_ELASTIC_VTI)
+        {
+            media_grid2model_el_vti(md->rho, md->c11, md->c33,
+                                     md->c55,md->c66,md->c13,
+                                     gdcurv->x3d, gdcurv->y3d, gdcurv->z3d,
+                                     gdcurv->nx, gdcurv->ny, gdcurv->nz,
+                                     gdcurv->xmin,gdcurv->xmax,
+                                     gdcurv->ymin,gdcurv->ymax,
+                                     MEDIA_USE_CURV,
+                                     par->media_input_file,
+                                     par->equivalent_medium_method);
+        } else if (md->medium_type == CONST_MEDIUM_ELASTIC_ANISO)
+        {
+            media_grid2model_el_aniso(md->rho,
+                                     md->c11,md->c12,md->c13,md->c14,md->c15,md->c16,
+                                             md->c22,md->c23,md->c24,md->c25,md->c26,
+                                                     md->c33,md->c34,md->c35,md->c36,
+                                                             md->c44,md->c45,md->c46,
+                                                                     md->c55,md->c56,
+                                                                             md->c66,
+                                     gdcurv->x3d, gdcurv->y3d, gdcurv->z3d,
+                                     gdcurv->nx, gdcurv->ny, gdcurv->nz,
+                                     gdcurv->xmin,gdcurv->xmax,
+                                     gdcurv->ymin,gdcurv->ymax,
+                                     MEDIA_USE_CURV,
+                                     par->media_input_file,
+                                     par->equivalent_medium_method);
+        }
         break;
     }
   }
