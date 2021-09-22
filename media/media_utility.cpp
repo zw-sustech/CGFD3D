@@ -10,6 +10,27 @@ bool isEqual(float a, float b) {
     return abs(a-b) < FLT_EPSILON;
 }
 
+void printProgress(float slowk) {
+    std::cout << "\33[1A";
+    if (slowk > 1) slowk = 1;
+    int p = slowk * 50;
+    std::cout << "  [" + std::string(p, '=') + ">" + std::string(50-p, ' ') << "]" << std::endl;
+    fflush(stdout);
+}
+
+void PrintIsPointOutOfInterfaceRange(Point3 A, 
+    int ix, int iy, int iz, 
+    float MINX, float MAXX, float MINY, float MAXY) 
+{
+    if (A.x < MINX || A.x > MAXX || A.y < MINY || A.y > MAXY) {
+        fprintf(stderr,"Error: Grid(%d, %d, %d) = (%f, %f, %f) is out of the INTERFACES MESH (x in [%f %f], y in [%f %f]), "\
+                       "please check the interfaces file!\n", ix, iy, iz, A.x, A.y, A.z, MINX, MAXX, MINY, MAXY);
+        fflush(stderr);
+        exit(1);
+    }
+
+}
+
 
 /* 
  * Find the last index of the x-vector greater than or equal to value, (x[i] >= value)
@@ -186,8 +207,11 @@ Matrix<T>::~Matrix(){
 // get value
 template<typename T>
 T& Matrix<T>::operator()(int i, int j) const {
-    if (i < 0 || i > row-1 || i < 0 || j > col -1)
-        throw "Out of bound!";
+    if (i < 0 || i > row-1 || i < 0 || j > col-1) {
+        fprintf(stderr,"i=%d, j=%d out of bound!\n", i, j);
+        fflush(stderr);
+        exit(1);
+    }
     return p[i*col+j];
 }
 
@@ -195,7 +219,7 @@ T& Matrix<T>::operator()(int i, int j) const {
 template<typename T>
 Matrix<T> Matrix<T>::operator=(const Matrix<T> &mat){
     if (row != mat.row || col != mat.col) {
-        fprintf(stderr,"The row and column do not match!");
+        fprintf(stderr,"The row and column do not match!\n");
         fflush(stderr);
         exit(1);
     } 
@@ -332,15 +356,15 @@ void GenerateHalfGrid(
         *Hy = new float [ny]; 
         *Hz = new float [nz]; 
 
-        for (size_t i = 0; i < nx-1; ++i)
+        for (size_t i = 0; i < nx-1; i++)
             (*Hx)[i] = (Gx[i+1] + Gx[i])/2.0;
         (*Hx)[nx-1] = Gx[nx-1];
 
-        for (size_t i = 0; i < ny-1; ++i)
+        for (size_t i = 0; i < ny-1; i++)
             (*Hy)[i] = (Gy[i+1] + Gy[i])/2.0;
         (*Hy)[ny-1] = Gy[ny-1];
 
-        for (size_t i = 0; i < nz-1; ++i)
+        for (size_t i = 0; i < nz-1; i++)
             (*Hz)[i] = (Gz[i+1] + Gz[i])/2.0;
         (*Hz)[nz-1] = Gz[nz-1];
 
@@ -350,20 +374,20 @@ void GenerateHalfGrid(
         *Hy = new float [ny]; 
         *Hz = new float [siz_volume]; 
 
-        for (size_t i = 0; i < nx-1; ++i)
+        for (size_t i = 0; i < nx-1; i++)
             (*Hx)[i] = (Gx[i+1] + Gx[i])/2.0;
         (*Hx)[nx-1] = Gx[nx-1];
 
-        for (size_t i = 0; i < ny-1; ++i)
+        for (size_t i = 0; i < ny-1; i++)
             (*Hy)[i] = (Gy[i+1] + Gy[i])/2.0;
         (*Hy)[ny-1] = Gy[ny-1];
 
         for (size_t i = 0; i < siz_volume; ++i)
             (*Hz)[i] = Gz[i];
 
-        for (size_t k = 0; k < nz-1; ++k) {
-            for (size_t j = 0; j < ny-1; ++j) {
-                for (size_t i = 0; i < nx-1; ++i) {
+        for (size_t k = 0; k < nz-1; k++) {
+            for (size_t j = 0; j < ny-1; j++) {
+                for (size_t i = 0; i < nx-1; i++) {
                     size_t indx =  i + j * siz_line + k * siz_slice;
                     (*Hz)[indx] = (Gz[indx]           + Gz[indx+1]                  + 
                         Gz[indx+siz_line+1]           + Gz[indx+siz_line]           + 
