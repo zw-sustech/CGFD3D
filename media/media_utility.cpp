@@ -14,9 +14,23 @@ void printProgress(float slowk) {
     std::cout << "\33[1A";
     if (slowk > 1) slowk = 1;
     int p = slowk * 50;
-    std::cout << "[" + std::string(p, '=') + ">" + std::string(50-p, ' ') << "]" << std::endl;
+    std::cout << "  [" + std::string(p, '=') + ">" + std::string(50-p, ' ') << "]" << std::endl;
     fflush(stdout);
 }
+
+void PrintIsPointOutOfInterfaceRange(Point3 A, 
+    int ix, int iy, int iz, 
+    float MINX, float MAXX, float MINY, float MAXY) 
+{
+    if (A.x < MINX || A.x > MAXX || A.y < MINY || A.y > MAXY) {
+        fprintf(stderr,"Error: Grid(%d, %d, %d) = (%f, %f, %f) is out of the INTERFACES MESH (x in [%f %f], y in [%f %f]), "\
+                       "please check the interfaces file!\n", ix, iy, iz, A.x, A.y, A.z, MINX, MAXX, MINY, MAXY);
+        fflush(stderr);
+        exit(1);
+    }
+
+}
+
 
 /* 
  * Find the last index of the x-vector greater than or equal to value, (x[i] >= value)

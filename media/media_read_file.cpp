@@ -1,5 +1,6 @@
 #include <iostream>
 #include <string.h>
+#include <math.h>
 #include "media_read_file.hpp"
 #include "media_utility.hpp"
 
@@ -609,8 +610,6 @@ void read_interface_file(
             interfaces->c56_grad = new float[inter_volume]; interfaces->c66_grad = new float[inter_volume];
             interfaces->c56_pow  = new float[inter_volume]; interfaces->c66_pow  = new float[inter_volume];
 
-
-
             for (size_t ni = 0; ni < NI; ni++) {
                 for (size_t j = 0; j < NY; j++) {
                     for (size_t i = 0; i < NX; i++) {
@@ -656,7 +655,7 @@ void read_interface_file(
             }
         break;
         default: // for self-check
-            fprintf(stderr,"ERROR: Unknow meida (for self code check, please contact Luqian Jiang)");
+            fprintf(stderr,"ERROR: Unknow media (for self code check, please contact Luqian Jiang)");
             fflush(stderr);
             exit(1);
 
@@ -682,13 +681,15 @@ void read_grid_file(
     float Ymin, float Ymax,
     int &NL,
     std::vector<int> &NGz, // how many z-grid in each layer
-    inter_t **interfaces)
+    inter_t *interfaces)
 {
     FILE *file = gfopen(grid_file, "r");
     FILE *tmp_file = tmpfile();
 
     char  line[MAX_BUF_LEN];
-    int   NX = 0, NY = 0, NI = 0;
+    char  media_type[MAX_BUF_LEN];
+    int NX = 0, NY = 0; 
+    size_t NI = 0;
     float DX = 0, DY = 0;
     float MINX = 0, MINY = 0;
 
@@ -706,8 +707,40 @@ void read_grid_file(
     /* Read the temporary data file, Can not use the feof() */
     while(feof(tmp_file) != EOF)
     {
+
+        if (fscanf(tmp_file, "%s", media_type) < 1) {
+            fprintf(stderr,"ERROR: The GRID MEIDA FILE is wrong, please give a media_type!\n");
+            fflush(stderr);
+            exit(1);
+        } 
+
+        if (strcmp(media_type, "one_component") == 0) {
+            interfaces->media_type = ONE_COMPONENT; 
+        } else if (strcmp(media_type, "acoustic_isotropic") == 0) {
+            interfaces->media_type = ACOUSTIC_ISOTROPIC; 
+        } else if (strcmp(media_type, "elastic_isotropic") == 0) {
+            interfaces->media_type = ELASTIC_ISOTROPIC; 
+        } else if (strcmp(media_type, "elastic_vti_prem") == 0) {
+            interfaces->media_type = ELASTIC_VTI_PREM; 
+        } else if (strcmp(media_type, "elastic_vti_thomsen") == 0) {
+            interfaces->media_type = ELASTIC_VTI_THOMSEN; 
+        } else if (strcmp(media_type, "elastic_vti_cij") == 0) {
+            interfaces->media_type = ELASTIC_VTI_CIJ; 
+        } else if (strcmp(media_type, "elastic_tti_thomsen") == 0) {
+            interfaces->media_type = ELASTIC_TTI_THOMSEN; 
+        } else if (strcmp(media_type, "elastic_tti_bond") == 0) {
+            interfaces->media_type = ELASTIC_TTI_BOND;
+        } else if (strcmp(media_type, "elastic_aniso_cij") == 0) {
+            interfaces->media_type = ELASTIC_ANISO_CIJ; 
+        } else {
+            fprintf(stderr,"ERROR: The media_type %s is not supported, "\
+                    "please check %s!\n", media_type, grid_file);
+            fflush(stderr);
+            exit(1);
+        }
+
         if (fscanf(tmp_file, "%d", &NL) < 1) {
-            fprintf(stderr,"ERROR: The MEDIA GRID FILE is wrong, " \
+            fprintf(stderr,"ERROR: The GRID MEIDA FILE is wrong, " \
                 "please give a number of layers! \n");
             fflush(stderr);
             exit(1);
@@ -722,7 +755,7 @@ void read_grid_file(
         for (int i = 0; i < NL; i++) {
             int ng_i = 0;
             if (fscanf(tmp_file, "%d",&ng_i) < 1) {
-                fprintf(stderr,"ERROR: The MEDIA GRID FILE is wrong, " \
+                fprintf(stderr,"ERROR: The GRID MEIDA FILE is wrong, " \
                     "please give the number of grids in the %d-th layer! \n", i);
                 fflush(stderr);
                 exit(1);
@@ -731,11 +764,8 @@ void read_grid_file(
             NGz.push_back(ng_i);
         }
 
-        /* malloc interface */
-        (*interfaces) = new inter_t [NI];
-
         if (fscanf(tmp_file, "%d %d %f %f %f %f", &NX, &NY, &MINX, &MINY, &DX, &DY) < 6) {
-            fprintf(stderr,"ERROR: The INTERFACES FILE is wrong, " \
+            fprintf(stderr,"ERROR: The GRID MEIDA FILE is wrong, " \
                 "please check the given interfaces mesh! \n");
             fflush(stderr);
             exit(1);
@@ -750,8 +780,8 @@ void read_grid_file(
         /* the range need to read */
         size_t ix0 = (Xmin-MINX)/DX;
         size_t iy0 = (Ymin-MINY)/DY;
-        size_t ix1 = (Xmax-MINX)/DX+1;
-        size_t iy1 = (Ymax-MINY)/DY+1;
+        size_t ix1 = ceil((Xmax-MINX)/DX);
+        size_t iy1 = ceil((Ymax-MINY)/DY);
         size_t nx  = ix1-ix0+1;
         size_t ny  = iy1-iy0+1;
         float minx = ix0 * DX + MINX;
@@ -759,72 +789,475 @@ void read_grid_file(
 
 
         /* The given media domain must bigger than the calculation domain */
-        if (ix0 < 0 || ix1 >= NX ) {
+        if (ix0 < 0 || ix1 > NX ) {
             fprintf(stderr,"ERROR: The given media range is smaller than "\
                 "the calculation grid range in x-direction! \n");
             fflush(stderr); 
             exit(1); 
         }
-        if (iy0 < 0 || iy0 >= NY) {
+        if (iy0 < 0 || iy0 > NY) {
             fprintf(stderr, "ERROR: The given media range is smaller than "\
                 "the calculation grid range in y-direction! \n");
             fflush(stderr); 
             exit(1);             
         }
 
-        for (int ni = 0; ni < NI; ni++) {
+        interfaces -> NI = NI;
+        interfaces -> NX = nx;
+        interfaces -> NY = ny;
+       // interfaces -> NX = NX;
+       // interfaces -> NY = NY;
+        interfaces -> DX = DX; 
+        interfaces -> DY = DY; 
+        interfaces -> MINX = minx;
+        interfaces -> MINY = miny;
 
-            (*interfaces)[ni].NX    = nx;
-            (*interfaces)[ni].NY    = ny;
-            (*interfaces)[ni].DX    = DX;
-            (*interfaces)[ni].DY    = DY;
-            (*interfaces)[ni].MINX  = minx;
-            (*interfaces)[ni].MINY  = miny;
-                  
-            (*interfaces)[ni].elevation = new float [nx*ny];
-            (*interfaces)[ni].vp        = new float [nx*ny];
-            (*interfaces)[ni].vs        = new float [nx*ny];
-            (*interfaces)[ni].rho       = new float [nx*ny];
+        // for read interface info
+        size_t inter_line = nx;
+        size_t inter_slice = nx*ny;
+        size_t inter_volume = inter_slice*NI;
 
-            for (size_t iy = 0; iy < NY; iy++) {
-                
-                for (size_t ix = 0; ix < NX; ix++) {
+        interfaces->elevation = new float[inter_volume];
 
-                    if (ix >= ix0 && ix <= ix1 && iy >= iy0 && iy <= iy1) {
+        switch (interfaces -> media_type) 
+        {
+        case ONE_COMPONENT:
+            interfaces->var = new float[inter_volume];
+            for (size_t ni = 0; ni < NI; ni++) {
+                for (size_t iy = 0; iy < NY; iy++) {
+                    for (size_t ix = 0; ix < NX; ix++) {
 
-                        size_t indx = (ix-ix0) + nx * (iy-iy0);
+                        if (ix >= ix0 && ix <= ix1 && iy >= iy0 && iy <= iy1) {
 
-                        int u = fscanf(tmp_file, "%f %f %f %f",
-                                       &(*interfaces)[ni].elevation[indx],  // elevation
-                                       &(*interfaces)[ni].vp[indx],  
-                                       &(*interfaces)[ni].vs[indx],  
-                                       &(*interfaces)[ni].rho[indx] );
-    
-                        if (u < 4) {
-                            fprintf(stderr,"ERROR: The INTERFACES FILE is wrong, " \
-                                "please check the grid data of #%d z-grid! \n", ni);
-                            fflush(stderr);
-                            exit(1);
+                            size_t indx = (ix-ix0) + (iy-iy0) * inter_line + ni*inter_slice;
+                            int num_read = 0;
+                            num_read = fscanf( tmp_file, "%f %f",
+                                               &(interfaces->elevation[indx]), 
+                                               &(interfaces->var[indx]      ));
+                            if (num_read < 2) {
+                                fprintf(stderr, "ERROR: The GRID MEIDA FILE is wrong, " \
+                                    "please check the grid data of #%li!\n", ni);
+                                fflush(stderr);
+                                exit(1);
+                            } 
+                        } else { // read the data no used.
+                            float tmp[2];
+                            int u = fscanf(tmp_file, "%f %f", tmp, tmp+1);
+                            if (u < 2) {
+                                fprintf(stderr,"ERROR: The GRID MEIDA FILE is wrong, " \
+                                    "please check the grid data of #%li z-grid! \n", ni);
+                                fflush(stderr);
+                                exit(1);
+                            }
                         }
-                    } else { // read the data no used.
-                        float tmp[4];
-                        int u = fscanf(tmp_file, "%f %f %f %f", tmp, tmp+1, tmp+2, tmp+3);
-                        if (u < 4) {
-                            fprintf(stderr,"ERROR: The INTERFACES FILE is wrong, " \
-                                "please check the grid data of #%d z-grid! \n", ni);
-                            fflush(stderr);
-                            exit(1);
+                        
+                    }
+                }
+            }
+        break;
+
+        case ACOUSTIC_ISOTROPIC:
+            interfaces->rho = new float[inter_volume];
+            interfaces->vp  = new float[inter_volume];
+
+            for (size_t ni = 0; ni < NI; ni++) {
+                for (size_t iy = 0; iy < NY; iy++) {
+                    for (size_t ix = 0; ix < NX; ix++) {
+
+                        if (ix >= ix0 && ix <= ix1 && iy >= iy0 && iy <= iy1) {
+                            size_t indx = (ix-ix0) + (iy-iy0) * inter_line + ni*inter_slice;
+                            int num_read = 0;
+                            num_read = fscanf( tmp_file, "%f %f %f",
+                                              &(interfaces->elevation[indx]), 
+                                              &(interfaces->rho[indx]      ),
+                                              &(interfaces->vp[indx]       ));
+                            if (num_read < 3) {
+                                fprintf(stderr, "ERROR: The GRID MEIDA FILE is wrong, " \
+                                    "please check the interfaces data of #%li layer!\n", ni);
+                                fflush(stderr);
+                                exit(1);
+                            } 
+                        } else { // read the data no used.
+                            float tmp[3];
+                            int u = fscanf(tmp_file, "%f %f %f", tmp, tmp+1, tmp+2);
+                            if (u < 3) {
+                                fprintf(stderr,"ERROR: The GRID MEIDA FILE is wrong, " \
+                                    "please check the grid data of #%li z-grid! \n", ni);
+                                fflush(stderr);
+                                exit(1);
+                            }
+                        
                         }
                     }
-                        
                 }
-            
             }
-        }
-
-        // end of the info
         break;
-    } 
+
+        case ELASTIC_ISOTROPIC:
+            interfaces->rho = new float[inter_volume];
+            interfaces->vp  = new float[inter_volume];
+            interfaces->vs  = new float[inter_volume];
+            for (size_t ni = 0; ni < NI; ni++) {
+                for (size_t iy = 0; iy < NY; iy++) {
+                    for (size_t ix = 0; ix < NX; ix++) {
+
+                        if (ix >= ix0 && ix <= ix1 && iy >= iy0 && iy <= iy1) {
+                            size_t indx = (ix-ix0) + (iy-iy0) * inter_line + ni*inter_slice;
+                            int num_read = 0;
+                            num_read = fscanf( tmp_file, "%f %f %f %f",
+                                              &(interfaces->elevation[indx]), 
+                                              &(interfaces->rho[indx]      ),
+                                              &(interfaces->vp[indx]       ),
+                                              &(interfaces->vs[indx]       ));
+                            if (num_read < 4) {
+                                fprintf(stderr, "ERROR: The GRID MEIDA FILE is wrong, " \
+                                    "please check the interfaces data of #%li layer!\n", ni);
+                                fflush(stderr);
+                                exit(1);
+                            } 
+                        } else { // read the data no used.
+                            float tmp[4];
+                            int u = fscanf(tmp_file, "%f %f %f %f", tmp, tmp+1, tmp+2, tmp+3);
+                            if (u < 4) {
+                                fprintf(stderr,"ERROR: The GRID MEIDA FILE is wrong, " \
+                                    "please check the grid data of #%li z-grid! \n", ni);
+                                fflush(stderr);
+                                exit(1);
+                            }
+                                
+                        }
+                        
+                    }
+                }
+            }
+        break;
+
+        case ELASTIC_VTI_PREM:
+            interfaces->rho = new float[inter_volume];
+            interfaces->vph = new float[inter_volume];
+            interfaces->vpv = new float[inter_volume];
+            interfaces->vsh = new float[inter_volume];
+            interfaces->vsv = new float[inter_volume];
+            interfaces->eta = new float[inter_volume];
+
+            for (size_t ni = 0; ni < NI; ni++) {
+                for (size_t iy = 0; iy < NY; iy++) {
+                    for (size_t ix = 0; ix < NX; ix++) {
+
+                        if (ix >= ix0 && ix <= ix1 && iy >= iy0 && iy <= iy1) {
+                            size_t indx = (ix-ix0) + (iy-iy0) * inter_line + ni*inter_slice;
+                            int num_read = 0;
+                            num_read = fscanf( tmp_file, "%f %f %f %f %f %f %f",
+                                              &(interfaces->elevation[indx]), 
+                                              &(interfaces->rho[indx]      ),
+                                              &(interfaces->vph[indx]      ),
+                                              &(interfaces->vpv[indx]      ),
+                                              &(interfaces->vsh[indx]      ),
+                                              &(interfaces->vsv[indx]      ),
+                                              &(interfaces->eta[indx]      ) );
+                            if (num_read < 7) {
+                                fprintf(stderr, "ERROR: The GRID MEIDA FILE is wrong, " \
+                                    "please check the interfaces data of #%li layer!\n", ni);
+                                fflush(stderr);
+                                exit(1);
+                            } 
+                        
+                        } else { // read the data no used.
+                            float tmp[7];
+                            int u = fscanf(tmp_file, "%f %f %f %f %f %f %f", 
+                                tmp, tmp+1, tmp+2, tmp+3, tmp+4, tmp+5, tmp+6);
+                            if (u < 7) {
+                                fprintf(stderr,"ERROR: The GRID MEIDA FILE is wrong, " \
+                                    "please check the grid data of #%li z-grid! \n", ni);
+                                fflush(stderr);
+                                exit(1);
+                            }
+                        }
+
+                    }
+                }
+            }
+        break;
+
+        case ELASTIC_VTI_THOMSEN:
+            interfaces->rho = new float[inter_volume];
+            interfaces->vp0 = new float[inter_volume];
+            interfaces->vs0 = new float[inter_volume];
+            interfaces->epsilon = new float[inter_volume];
+            interfaces->delta = new float[inter_volume];
+            interfaces->gamma = new float[inter_volume];
+
+            for (size_t ni = 0; ni < NI; ni++) {
+                for (size_t iy = 0; iy < NY; iy++) {
+                    for (size_t ix = 0; ix < NX; ix++) {
+                        if (ix >= ix0 && ix <= ix1 && iy >= iy0 && iy <= iy1) {
+                            size_t indx = (ix-ix0) + (iy-iy0) * inter_line + ni*inter_slice;
+                            int num_read = 0;
+                            num_read = fscanf( tmp_file, "%f %f %f %f %f %f %f",
+                                              &(interfaces->elevation[indx]), 
+                                              &(interfaces->rho[indx]      ),
+                                              &(interfaces->vp0[indx]      ),
+                                              &(interfaces->vs0[indx]      ),
+                                              &(interfaces->epsilon[indx]  ),
+                                              &(interfaces->delta[indx]    ),
+                                              &(interfaces->gamma[indx]    ) );
+                            if (num_read < 7) {
+                                fprintf(stderr, "ERROR: The GRID MEIDA FILE is wrong, " \
+                                    "please check the interfaces data of #%li layer!\n", ni);
+                                fflush(stderr);
+                                exit(1);
+                            }
+                        } else { // read the data no used.
+                            float tmp[7];
+                            int u = fscanf(tmp_file, "%f %f %f %f %f %f %f", 
+                                tmp, tmp+1, tmp+2, tmp+3, tmp+4, tmp+5, tmp+6);
+                            if (u < 7) {
+                                fprintf(stderr,"ERROR: The GRID MEIDA FILE is wrong, " \
+                                    "please check the grid data of #%li z-grid! \n", ni);
+                                fflush(stderr);
+                                exit(1);
+                            }
+                        }
+
+                    }
+                }
+            }
+        break;
+
+        case ELASTIC_VTI_CIJ:
+            interfaces->rho = new float[inter_volume];
+            interfaces->c11 = new float[inter_volume];
+            interfaces->c33 = new float[inter_volume];
+            interfaces->c55 = new float[inter_volume];
+            interfaces->c66 = new float[inter_volume];
+            interfaces->c13 = new float[inter_volume];
+
+            for (size_t ni = 0; ni < NI; ni++) {
+                for (size_t iy = 0; iy < NY; iy++) {
+                    for (size_t ix = 0; ix < NX; ix++) {
+                        if (ix >= ix0 && ix <= ix1 && iy >= iy0 && iy <= iy1) {
+                            size_t indx = (ix-ix0) + (iy-iy0) * inter_line + ni*inter_slice;
+                            int num_read = 0;
+                            num_read = fscanf( tmp_file, "%f %f %f %f %f %f %f",
+                                              &(interfaces->elevation[indx]), 
+                                              &(interfaces->rho[indx]      ),
+                                              &(interfaces->c11[indx]      ),
+                                              &(interfaces->c33[indx]      ),
+                                              &(interfaces->c55[indx]      ),
+                                              &(interfaces->c66[indx]      ),
+                                              &(interfaces->c13[indx]      ) );
+                            if (num_read < 7) {
+                                fprintf(stderr, "ERROR: The GRID MEIDA FILE is wrong, " \
+                                    "please check the interfaces data of #%li layer!\n", ni);
+                                fflush(stderr);
+                                exit(1);
+                            }
+                        
+                        } else { // read the data no used.
+                            float tmp[7];
+                            int u = fscanf(tmp_file, "%f %f %f %f %f %f %f", 
+                                tmp, tmp+1, tmp+2, tmp+3, tmp+4, tmp+5, tmp+6);
+                            if (u < 7) {
+                                fprintf(stderr,"ERROR: The GRID MEIDA FILE is wrong, " \
+                                    "please check the grid data of #%li z-grid! \n", ni);
+                                fflush(stderr);
+                                exit(1);
+                            }
+                        }
+                    }
+                }
+            }
+        break; 
+
+        case ELASTIC_TTI_THOMSEN:
+            interfaces->rho = new float[inter_volume];
+            interfaces->vp0 = new float[inter_volume];
+            interfaces->vs0 = new float[inter_volume];
+            interfaces->epsilon = new float[inter_volume];
+            interfaces->delta = new float[inter_volume];
+            interfaces->gamma = new float[inter_volume];
+            interfaces->azimuth = new float[inter_volume];
+            interfaces->dip = new float[inter_volume];
+
+            for (size_t ni = 0; ni < NI; ni++) {
+                for (size_t iy = 0; iy < NY; iy++) {
+                    for (size_t ix = 0; ix < NX; ix++) {
+                        if (ix >= ix0 && ix <= ix1 && iy >= iy0 && iy <= iy1) {
+                            size_t indx = (ix-ix0) + (iy-iy0) * inter_line + ni*inter_slice;
+                            int num_read = 0;
+                            num_read = fscanf( tmp_file, "%f %f %f %f %f %f %f %f %f",
+                                              &(interfaces->elevation[indx]), 
+                                              &(interfaces->rho[indx]      ),
+                                              &(interfaces->vp0[indx]      ),
+                                              &(interfaces->vs0[indx]      ),
+                                              &(interfaces->epsilon[indx]  ),
+                                              &(interfaces->delta[indx]    ),
+                                              &(interfaces->gamma[indx]    ),
+                                              &(interfaces->azimuth[indx]  ),
+                                              &(interfaces->dip[indx]      ) );
+                            if (num_read < 9) {
+                                fprintf(stderr, "ERROR: The GRID MEIDA FILE is wrong, " \
+                                    "please check the interfaces data of #%li layer!\n", ni);
+                                fflush(stderr);
+                                exit(1);
+                            } 
+                        } else { // read the data no used.
+                            float tmp[9];
+                            int u = fscanf(tmp_file, "%f %f %f %f %f %f %f %f %f", 
+                                tmp, tmp+1, tmp+2, tmp+3, tmp+4, tmp+5, tmp+6, tmp+7, tmp+8);
+                            if (u < 9) {
+                                fprintf(stderr,"ERROR: The GRID MEIDA FILE is wrong, " \
+                                    "please check the grid data of #%li z-grid! \n", ni);
+                                fflush(stderr);
+                                exit(1);
+                            }
+                        }
+                    }
+                }
+            }
+        break;               
+
+        case ELASTIC_TTI_BOND:
+            interfaces->rho = new float[inter_volume];
+            interfaces->c11 = new float[inter_volume];
+            interfaces->c33 = new float[inter_volume];
+            interfaces->c55 = new float[inter_volume];
+            interfaces->c66 = new float[inter_volume];
+            interfaces->c13 = new float[inter_volume];
+            interfaces->azimuth = new float[inter_volume];
+            interfaces->dip = new float[inter_volume];
+
+            for (size_t ni = 0; ni < NI; ni++) {
+                for (size_t iy = 0; iy < NY; iy++) {
+                    for (size_t ix = 0; ix < NX; ix++) {
+                        if (ix >= ix0 && ix <= ix1 && iy >= iy0 && iy <= iy1) {
+                            size_t indx = (ix-ix0) + (iy-iy0) * inter_line + ni*inter_slice;
+                            int num_read = 0;
+                            num_read = fscanf( tmp_file, "%f %f %f %f %f %f %f %f %f",
+                                              &(interfaces->elevation[indx]), 
+                                              &(interfaces->rho[indx]      ),
+                                              &(interfaces->c11[indx]      ),
+                                              &(interfaces->c33[indx]      ),
+                                              &(interfaces->c55[indx]      ),
+                                              &(interfaces->c66[indx]      ),
+                                              &(interfaces->c13[indx]      ),
+                                              &(interfaces->azimuth[indx]  ),
+                                              &(interfaces->dip[indx]      ) );
+                            if (num_read < 9) {
+                                fprintf(stderr, "ERROR: The GRID MEIDA FILE is wrong, " \
+                                    "please check the interfaces data of #%li layer!\n", ni);
+                                fflush(stderr);
+                                exit(1);
+                            } 
+    
+                        } else { // read the data no used.
+                            float tmp[9];
+                            int u = fscanf(tmp_file, "%f %f %f %f %f %f %f %f %f", 
+                                tmp, tmp+1, tmp+2, tmp+3, tmp+4, tmp+5, tmp+6, tmp+7, tmp+8);
+                            if (u < 9) {
+                                fprintf(stderr,"ERROR: The GRID MEIDA FILE is wrong, " \
+                                    "please check the grid data of #%li z-grid! \n", ni);
+                                fflush(stderr);
+                                exit(1);
+                            }
+                        }
+                    }
+                }
+            }
+        break;
+
+        case ELASTIC_ANISO_CIJ:
+            interfaces->rho = new float[inter_volume];
+            interfaces->c11 = new float[inter_volume];
+            interfaces->c12 = new float[inter_volume];
+            interfaces->c13 = new float[inter_volume];
+            interfaces->c14 = new float[inter_volume];
+            interfaces->c15 = new float[inter_volume];
+            interfaces->c16 = new float[inter_volume];
+
+            interfaces->c22 = new float[inter_volume];
+            interfaces->c23 = new float[inter_volume];
+            interfaces->c24 = new float[inter_volume];
+            interfaces->c25 = new float[inter_volume];
+            interfaces->c26 = new float[inter_volume];
+
+            interfaces->c33 = new float[inter_volume];
+            interfaces->c34 = new float[inter_volume];
+            interfaces->c35 = new float[inter_volume];
+            interfaces->c36 = new float[inter_volume];
+
+            interfaces->c44 = new float[inter_volume];
+            interfaces->c45 = new float[inter_volume];
+            interfaces->c46 = new float[inter_volume];
+            interfaces->c55 = new float[inter_volume];
+            interfaces->c56 = new float[inter_volume];
+            interfaces->c66 = new float[inter_volume];
+
+            for (size_t ni = 0; ni < NI; ni++) {
+                for (size_t iy = 0; iy < NY; iy++) {
+                    for (size_t ix = 0; ix < NX; ix++) {
+                        if (ix >= ix0 && ix <= ix1 && iy >= iy0 && iy <= iy1) {
+                            size_t indx = (ix-ix0) + (iy-iy0) * inter_line + ni*inter_slice;
+                            int num_read = 0;
+                            num_read = fscanf( tmp_file, "%f %f %f %f %f %f %f %f %f %f" \
+                                                "%f %f %f %f %f %f %f %f %f %f %f %f %f" ,
+                                                &(interfaces->elevation[indx]),
+                                                &(interfaces->rho[indx]),
+                                                &(interfaces->c11[indx]),
+                                                &(interfaces->c12[indx]),
+                                                &(interfaces->c13[indx]),
+                                                &(interfaces->c14[indx]),
+                                                &(interfaces->c15[indx]),
+                                                &(interfaces->c16[indx]),
+                                                &(interfaces->c22[indx]),
+                                                &(interfaces->c23[indx]),
+                                                &(interfaces->c24[indx]),
+                                                &(interfaces->c25[indx]),
+                                                &(interfaces->c26[indx]),
+                                                &(interfaces->c33[indx]),
+                                                &(interfaces->c34[indx]),
+                                                &(interfaces->c35[indx]),
+                                                &(interfaces->c36[indx]),
+                                                &(interfaces->c44[indx]),
+                                                &(interfaces->c45[indx]),
+                                                &(interfaces->c46[indx]),
+                                                &(interfaces->c55[indx]),
+                                                &(interfaces->c56[indx]),
+                                                &(interfaces->c66[indx]) );
+                            if (num_read < 23) {
+                                fprintf(stderr, "ERROR: The GRID MEIDA FILE is wrong, " \
+                                    "please check the interfaces data of #%li layer!\n", ni);
+                                fflush(stderr);
+                                exit(1);
+                            } 
+                        
+                        } else { // read the data no used.
+                            float tmp[23];
+                            int u = fscanf( tmp_file, "%f %f %f %f %f %f %f %f %f %f" \
+                                            "%f %f %f %f %f %f %f %f %f %f %f %f %f" ,
+                                            tmp, tmp+1, tmp+2, tmp+3, tmp+4, tmp+5, tmp+6, tmp+7,
+                                            tmp+8, tmp+9, tmp+10, tmp+11, tmp+12, tmp+13, tmp+14,
+                                            tmp+15, tmp+16, tmp+17, tmp+18, tmp+19, tmp+20, tmp+21, tmp+22);
+                            if (u < 23) {
+                                fprintf(stderr,"ERROR: The GRID MEIDA FILE is wrong, " \
+                                    "please check the grid data of #%li z-grid! \n", ni);
+                                fflush(stderr);
+                                exit(1);
+                            }
+                        }
+                    }
+                }
+            }
+        break;
+
+        default:
+            fprintf(stderr, "ERROR: Unknow media_type %s (for code check)\n", media_type);
+            fflush(stderr);
+            exit(1);
+        }
+        break;
+    }
+
     fclose(file);   
     fclose(tmp_file);    
 }

@@ -29,7 +29,7 @@
 struct inter_t{
     int media_type = 0 ;
     /* all the interfaces are given by the same interface_file mesh. */    
-    size_t  NI = 0; // number of interfaces
+    size_t  NI = 0; // number of interfaces (layer2model), sum of ngz (grid2model)
     size_t  NX = 0;
     size_t  NY = 0;
     float   DX = FLT_MAX;
@@ -297,6 +297,10 @@ struct inter_t{
 bool isEqual(float a, float b);
 
 void printProgress(float slowk);
+
+void PrintIsPointOutOfInterfaceRange(Point3 A, 
+    int ix, int iy, int iz, 
+    float MINX, float MAXX, float MINY, float MAXY);
 
 /*------ find point and interpolation -------*/
 int findLastGreaterEqualIndex(

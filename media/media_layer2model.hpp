@@ -91,9 +91,7 @@ int media_layer2model_el_aniso(
 }
 #endif
 
-void PrintIsPointOutOfInterfaceRange(Point3 A, 
-    int ix, int iy, int iz, 
-    float MINX, float MAXX, float MINY, float MAXY);
+
 
 int AssignLayerMediaPara2Point(
     size_t ix, size_t iy, size_t iz,         /* To print error messages */ 

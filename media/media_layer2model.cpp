@@ -42,7 +42,8 @@ int media_layer2model_onecmp(float *var3d,
   
     if (interfaces.media_type != ONE_COMPONENT) {
         fprintf(stderr, "ERROR: The media_layer2model_onecmp function only supports "\
-                "one_component, please check the media_type of %s! \n", in_var_file);        
+                "one_component, please check the media_type %s in %s! \n", 
+                interfaces.media_type, in_var_file);        
         fflush(stderr);
         exit(1);
     }
@@ -54,15 +55,11 @@ int media_layer2model_onecmp(float *var3d,
     } else if (strcmp(average_method, "ari") == 0) {      //arithemtic
         parametrization_layer_onecmp_ari(nx, ny, nz, x3d, y3d, z3d, grid_type, interfaces, var3d);
     } else {                                                        // default = loc
-        fprintf(stderr, "ERROR: Wrong average method %s for one_component \n", average_method);        
+        fprintf(stderr, "ERROR: Wrong average method %s for one_component. \n", average_method);        
         fflush(stderr);
         exit(1);
     }
 
-//    if (interfaces.elevation != nullptr) delete [] interfaces.elevation;
-//    if (interfaces.var       != nullptr) delete [] interfaces.var;
-//    if (interfaces.var_grad  != nullptr) delete [] interfaces.var_grad;
-//    if (interfaces.var_pow   != nullptr) delete [] interfaces.var_pow;
 
     return 0;
 }
@@ -109,13 +106,6 @@ int media_layer2model_ac_iso(
         exit(1);
     }
 
-//    if (interfaces.elevation != nullptr) delete [] interfaces.elevation;
-//    if (interfaces.vp       != nullptr) delete [] interfaces.vp;
-//    if (interfaces.rho      != nullptr) delete [] interfaces.rho;
-//    if (interfaces.vp_grad  != nullptr) delete [] interfaces.vp_grad;
-//    if (interfaces.rho_grad != nullptr) delete [] interfaces.rho_grad;
-//    if (interfaces.vp_pow   != nullptr) delete [] interfaces.vp_pow;
-//    if (interfaces.rho_pow  != nullptr) delete [] interfaces.rho_pow;
 
     return 0; 
 }
@@ -164,18 +154,7 @@ int media_layer2model_el_iso(
         fflush(stderr);
         exit(1);
     }
-/*
-    if (interfaces.elevation != nullptr) delete [] interfaces.elevation;
-    if (interfaces.vp       != nullptr) delete [] interfaces.vp;
-    if (interfaces.rho      != nullptr) delete [] interfaces.rho;
-    if (interfaces.vp_grad  != nullptr) delete [] interfaces.vp_grad;
-    if (interfaces.rho_grad != nullptr) delete [] interfaces.rho_grad;
-    if (interfaces.vp_pow   != nullptr) delete [] interfaces.vp_pow;
-    if (interfaces.rho_pow  != nullptr) delete [] interfaces.rho_pow;
-    if (interfaces.vs       != nullptr) delete [] interfaces.vs;
-    if (interfaces.vs_grad  != nullptr) delete [] interfaces.vs_grad;
-    if (interfaces.vs_pow   != nullptr) delete [] interfaces.vs_pow;
-*/
+
     return 0; 
 }
 
@@ -229,41 +208,7 @@ int media_layer2model_el_vti(
         fflush(stderr);
         exit(1);
     }
-/*
-    if (interfaces.elevation != nullptr) delete [] interfaces.elevation;
-    if (interfaces.rho != nullptr)       delete [] interfaces.rho;
-    if (interfaces.vpv != nullptr)       delete [] interfaces.vpv;
-    if (interfaces.vsv != nullptr)       delete [] interfaces.vsv;
-    if (interfaces.vpv != nullptr)       delete [] interfaces.vpv;
-    if (interfaces.vsv != nullptr)       delete [] interfaces.vsv;
-    if (interfaces.eta != nullptr)       delete [] interfaces.eta;
-    if (interfaces.rho_grad != nullptr)  delete [] interfaces.rho_grad;
-    if (interfaces.vpv_grad != nullptr)  delete [] interfaces.vpv_grad;
-    if (interfaces.vsv_grad != nullptr)  delete [] interfaces.vsv_grad;
-    if (interfaces.vpv_grad != nullptr)  delete [] interfaces.vpv_grad;
-    if (interfaces.vsv_grad != nullptr)  delete [] interfaces.vsv_grad;
-    if (interfaces.eta_grad != nullptr)  delete [] interfaces.eta_grad;  
-    if (interfaces.rho_pow != nullptr)   delete [] interfaces.rho_pow;
-    if (interfaces.vpv_pow != nullptr)   delete [] interfaces.vpv_pow;
-    if (interfaces.vsv_pow != nullptr)   delete [] interfaces.vsv_pow;
-    if (interfaces.vpv_pow != nullptr)   delete [] interfaces.vpv_pow;
-    if (interfaces.vsv_pow != nullptr)   delete [] interfaces.vsv_pow;
-    if (interfaces.eta_pow != nullptr)   delete [] interfaces.eta_pow;
-    if (interfaces.gamma   != nullptr)   delete [] interfaces.gamma;
-    if (interfaces.gamma_pow != nullptr)    delete [] interfaces.gamma_pow;
-    if (interfaces.gamma_grad != nullptr)   delete [] interfaces.gamma_grad;
-    if (interfaces.epsilon != nullptr)      delete [] interfaces.epsilon;
-    if (interfaces.epsilon_pow != nullptr)  delete [] interfaces.epsilon_pow;
-    if (interfaces.epsilon_grad != nullptr) delete [] interfaces.epsilon_grad;
-    if (interfaces.delta != nullptr)        delete [] interfaces.delta;
-    if (interfaces.delta_grad != nullptr)   delete [] interfaces.delta_grad;
-    if (interfaces.delta_pow != nullptr)    delete [] interfaces.delta_pow;
-    if (interfaces.c11_pow != nullptr) delete [] interfaces.c11_pow;
-    if (interfaces.c33_pow != nullptr) delete [] interfaces.c33_pow;
-    if (interfaces.c55_pow != nullptr) delete [] interfaces.c55_pow;
-    if (interfaces.c66_pow != nullptr) delete [] interfaces.c66_pow;
-    if (interfaces.c13_pow != nullptr) delete [] interfaces.c13_pow;
-*/
+
     return 0; 
 }
 
@@ -433,143 +378,10 @@ int media_layer2model_el_aniso(
         }
     }
 
-    if (interfaces.elevation != nullptr) delete [] interfaces.elevation;
-/*
-    // for elastic
-    if (interfaces.vp       != nullptr) delete [] interfaces.vp      ;
-    if (interfaces.rho      != nullptr) delete [] interfaces.rho     ;
-    if (interfaces.vp_grad  != nullptr) delete [] interfaces.vp_grad ;
-    if (interfaces.rho_grad != nullptr) delete [] interfaces.rho_grad;
-    if (interfaces.vp_pow   != nullptr) delete [] interfaces.vp_pow  ;
-    if (interfaces.rho_pow  != nullptr) delete [] interfaces.rho_pow ;
-    if (interfaces.vs       != nullptr) delete [] interfaces.vs      ;
-    if (interfaces.vs_grad  != nullptr) delete [] interfaces.vs_grad ;
-    if (interfaces.vs_pow   != nullptr) delete [] interfaces.vs_pow  ;
-    
-    // for anisotropy (thomsen)
-    if (interfaces.epsilon      != nullptr) delete [] interfaces.epsilon     ;
-    if (interfaces.epsilon_grad != nullptr) delete [] interfaces.epsilon_grad;
-    if (interfaces.epsilon_pow  != nullptr) delete [] interfaces.epsilon_pow ;
-    if (interfaces.delta        != nullptr) delete [] interfaces.delta       ;
-    if (interfaces.delta_grad   != nullptr) delete [] interfaces.delta_grad  ;
-    if (interfaces.delta_pow    != nullptr) delete [] interfaces.delta_pow   ;
-    if (interfaces.gamma        != nullptr) delete [] interfaces.gamma       ;
-    if (interfaces.gamma_grad   != nullptr) delete [] interfaces.gamma_grad  ;
-    if (interfaces.gamma_pow    != nullptr) delete [] interfaces.gamma_pow   ;
-    if (interfaces.azimuth      != nullptr) delete [] interfaces.azimuth     ;
-    if (interfaces.azimuth_grad != nullptr) delete [] interfaces.azimuth_grad;
-    if (interfaces.azimuth_pow  != nullptr) delete [] interfaces.azimuth_pow ;
-    if (interfaces.dip          != nullptr) delete [] interfaces.dip         ;
-    if (interfaces.dip_grad     != nullptr) delete [] interfaces.dip_grad    ;
-    if (interfaces.dip_pow      != nullptr) delete [] interfaces.dip_pow     ;
-    
-    // for vti_prem
-    if (interfaces.vph      != nullptr) delete [] interfaces.vph     ;
-    if (interfaces.vpv      != nullptr) delete [] interfaces.vpv     ;
-    if (interfaces.vsh      != nullptr) delete [] interfaces.vsh     ;
-    if (interfaces.vsv      != nullptr) delete [] interfaces.vsv     ;
-    if (interfaces.eta      != nullptr) delete [] interfaces.eta     ;
-    if (interfaces.vph_grad != nullptr) delete [] interfaces.vph_grad;
-    if (interfaces.vpv_grad != nullptr) delete [] interfaces.vpv_grad;
-    if (interfaces.vsh_grad != nullptr) delete [] interfaces.vsh_grad;
-    if (interfaces.vsv_grad != nullptr) delete [] interfaces.vsv_grad;
-    if (interfaces.eta_grad != nullptr) delete [] interfaces.eta_grad;
-    if (interfaces.vph_pow  != nullptr) delete [] interfaces.vph_pow ;
-    if (interfaces.vpv_pow  != nullptr) delete [] interfaces.vpv_pow ;
-    if (interfaces.vsh_pow  != nullptr) delete [] interfaces.vsh_pow ;
-    if (interfaces.vsv_pow  != nullptr) delete [] interfaces.vsv_pow ;
-    if (interfaces.eta_pow  != nullptr) delete [] interfaces.eta_pow ;
-    
-    // for thomsen
-    if (interfaces.vp0      != nullptr) delete [] interfaces.vp0     ;
-    if (interfaces.vs0      != nullptr) delete [] interfaces.vs0     ;
-    if (interfaces.vp0_grad != nullptr) delete [] interfaces.vp0_grad;
-    if (interfaces.vs0_grad != nullptr) delete [] interfaces.vs0_grad;
-    if (interfaces.vp0_pow  != nullptr) delete [] interfaces.vp0_pow ;
-    if (interfaces.vs0_pow  != nullptr) delete [] interfaces.vs0_pow ;
-
-    // for anisotropy c_ij, call one component
-    if (interfaces.c11 != nullptr) delete [] interfaces.c11;
-    if (interfaces.c12 != nullptr) delete [] interfaces.c12;
-    if (interfaces.c13 != nullptr) delete [] interfaces.c13;
-    if (interfaces.c14 != nullptr) delete [] interfaces.c14;
-    if (interfaces.c15 != nullptr) delete [] interfaces.c15;
-    if (interfaces.c16 != nullptr) delete [] interfaces.c16;
-    if (interfaces.c22 != nullptr) delete [] interfaces.c22;
-    if (interfaces.c23 != nullptr) delete [] interfaces.c23;
-    if (interfaces.c24 != nullptr) delete [] interfaces.c24;
-    if (interfaces.c25 != nullptr) delete [] interfaces.c25;
-    if (interfaces.c26 != nullptr) delete [] interfaces.c26;
-    if (interfaces.c33 != nullptr) delete [] interfaces.c33;
-    if (interfaces.c34 != nullptr) delete [] interfaces.c34;
-    if (interfaces.c35 != nullptr) delete [] interfaces.c35;
-    if (interfaces.c36 != nullptr) delete [] interfaces.c36;
-    if (interfaces.c44 != nullptr) delete [] interfaces.c44;
-    if (interfaces.c45 != nullptr) delete [] interfaces.c45;
-    if (interfaces.c46 != nullptr) delete [] interfaces.c46;
-    if (interfaces.c55 != nullptr) delete [] interfaces.c55;
-    if (interfaces.c56 != nullptr) delete [] interfaces.c56;
-    if (interfaces.c66 != nullptr) delete [] interfaces.c66;
-    if (interfaces.c11_grad != nullptr) delete [] interfaces.c11_grad;
-    if (interfaces.c12_grad != nullptr) delete [] interfaces.c12_grad;
-    if (interfaces.c13_grad != nullptr) delete [] interfaces.c13_grad;
-    if (interfaces.c14_grad != nullptr) delete [] interfaces.c14_grad;
-    if (interfaces.c15_grad != nullptr) delete [] interfaces.c15_grad;
-    if (interfaces.c16_grad != nullptr) delete [] interfaces.c16_grad;
-    if (interfaces.c22_grad != nullptr) delete [] interfaces.c22_grad;
-    if (interfaces.c23_grad != nullptr) delete [] interfaces.c23_grad;
-    if (interfaces.c24_grad != nullptr) delete [] interfaces.c24_grad;
-    if (interfaces.c25_grad != nullptr) delete [] interfaces.c25_grad;
-    if (interfaces.c26_grad != nullptr) delete [] interfaces.c26_grad;
-    if (interfaces.c33_grad != nullptr) delete [] interfaces.c33_grad;
-    if (interfaces.c34_grad != nullptr) delete [] interfaces.c34_grad;
-    if (interfaces.c35_grad != nullptr) delete [] interfaces.c35_grad;
-    if (interfaces.c36_grad != nullptr) delete [] interfaces.c36_grad;
-    if (interfaces.c44_grad != nullptr) delete [] interfaces.c44_grad;
-    if (interfaces.c45_grad != nullptr) delete [] interfaces.c45_grad;
-    if (interfaces.c46_grad != nullptr) delete [] interfaces.c46_grad;
-    if (interfaces.c55_grad != nullptr) delete [] interfaces.c55_grad;
-    if (interfaces.c56_grad != nullptr) delete [] interfaces.c56_grad;
-    if (interfaces.c66_grad != nullptr) delete [] interfaces.c66_grad;
-    if (interfaces.c11_pow != nullptr) delete [] interfaces.c11_pow;
-    if (interfaces.c12_pow != nullptr) delete [] interfaces.c12_pow;
-    if (interfaces.c13_pow != nullptr) delete [] interfaces.c13_pow;
-    if (interfaces.c14_pow != nullptr) delete [] interfaces.c14_pow;
-    if (interfaces.c15_pow != nullptr) delete [] interfaces.c15_pow;
-    if (interfaces.c16_pow != nullptr) delete [] interfaces.c16_pow;
-    if (interfaces.c22_pow != nullptr) delete [] interfaces.c22_pow;
-    if (interfaces.c23_pow != nullptr) delete [] interfaces.c23_pow;
-    if (interfaces.c24_pow != nullptr) delete [] interfaces.c24_pow;
-    if (interfaces.c25_pow != nullptr) delete [] interfaces.c25_pow;
-    if (interfaces.c26_pow != nullptr) delete [] interfaces.c26_pow;
-    if (interfaces.c33_pow != nullptr) delete [] interfaces.c33_pow;
-    if (interfaces.c34_pow != nullptr) delete [] interfaces.c34_pow;
-    if (interfaces.c35_pow != nullptr) delete [] interfaces.c35_pow;
-    if (interfaces.c36_pow != nullptr) delete [] interfaces.c36_pow;
-    if (interfaces.c44_pow != nullptr) delete [] interfaces.c44_pow;
-    if (interfaces.c45_pow != nullptr) delete [] interfaces.c45_pow;
-    if (interfaces.c46_pow != nullptr) delete [] interfaces.c46_pow;
-    if (interfaces.c55_pow != nullptr) delete [] interfaces.c55_pow;
-    if (interfaces.c56_pow != nullptr) delete [] interfaces.c56_pow;
-    if (interfaces.c66_pow != nullptr) delete [] interfaces.c66_pow; 
-    */       
     return 0; 
 }
 
 /*=================================================================================*/
-
-void PrintIsPointOutOfInterfaceRange(Point3 A, 
-    int ix, int iy, int iz, 
-    float MINX, float MAXX, float MINY, float MAXY) 
-{
-    if (A.x < MINX || A.x > MAXX || A.y < MINY || A.y > MAXY) {
-        fprintf(stderr,"Error: Grid(%d, %d, %d) = (%f, %f, %f) is out of the INTERFACES MESH (x in [%f %f], y in [%f %f]), "\
-                       "please check the interfaces file!\n", ix, iy, iz, A.x, A.y, A.z, MINX, MAXX, MINY, MAXY);
-        fflush(stderr);
-        exit(1);
-    }
-
-}
 
 int AssignLayerMediaPara2Point(
     size_t ix, size_t iy, size_t iz,         /* To print error messages */ 
@@ -613,11 +425,11 @@ int AssignLayerMediaPara2Point(
     /* Find which material_index to use */
     int mi = findLastGreaterEqualIndex(A.z, elevation);
 
-    if (mi == -1) {
-        fprintf(stderr,"Warning: z-location of Grid(%li, %li, %li) = (%f, %f, %f) is higher than the given elevation in " \
-            "the interfaces file, it assigned by the top medium! \n", ix, iy, iz, A.x, A.y, A.z);
-        fflush(stderr);
-    }
+//    if (mi == -1) {
+//        fprintf(stderr,"Warning: z-location of Grid(%li, %li, %li) = (%f, %f, %f) is higher than the given elevation in " \
+//            "the interfaces file, it assigned by the top medium! \n", ix, iy, iz, A.x, A.y, A.z);
+//        fflush(stderr);
+//    }
     
     CalPointValue_layer(media_type, interfaces, interface_slice, XVEC, YVEC, A, elevation, mi, var);
 
@@ -1414,6 +1226,7 @@ void parametrization_layer_onecmp_har(
     MarkInterfaceNumber(grid_type, Hx, Hy, Hz, 
         nx, ny, nz, MaterNum, interfaces);
 
+    std::cout <<"\n"; // for printing progress
     for (size_t j = 1; j < ny-1; j++) {
         printProgress(slowk*j);
         for (size_t k = 1; k < nz-1; k++) {
@@ -1450,7 +1263,7 @@ void parametrization_layer_onecmp_har(
                         AssignLayerMediaPara2Point(i, j, k,
                             SubGrid[isg], interfaces, ONE_COMPONENT, var);
 
-                        vol_var += 1.0/var[0];
+                        vol_var += (1.0/var[0]);
                     }
 
                     var3d[indx] = nsg*1.0/vol_var;
@@ -1500,6 +1313,7 @@ void parametrization_layer_onecmp_ari(
     MarkInterfaceNumber(grid_type, Hx, Hy, Hz, 
         nx, ny, nz, MaterNum, interfaces);
 
+    std::cout <<"\n"; // for printing progress
     for (size_t j = 1; j < ny-1; j++) {
         printProgress(slowk*j);
         for (size_t k = 1; k < nz-1; k++) {
@@ -1588,6 +1402,7 @@ void parametrization_layer_ac_iso_har(
     MarkInterfaceNumber(grid_type, Hx, Hy, Hz, 
         nx, ny, nz, MaterNum, interfaces);
 
+    std::cout <<"\n"; // for printing progress
     for (size_t j = 1; j < ny-1; ++j) {
         printProgress(slowk*j);
         for (size_t k = 1; k < nz-1; ++k) {
@@ -1680,6 +1495,7 @@ void parametrization_layer_ac_iso_ari(
     MarkInterfaceNumber(grid_type, Hx, Hy, Hz, 
         nx, ny, nz, MaterNum, interfaces);
 
+    std::cout <<"\n"; // for printing progress
     for (size_t j = 1; j < ny-1; j++) {
         printProgress(slowk*j);
         for (size_t k = 1; k < nz-1; k++) {
@@ -1882,6 +1698,7 @@ void parametrization_layer_el_iso_ari(
     MarkInterfaceNumber(grid_type, Hx, Hy, Hz, 
         nx, ny, nz, MaterNum, interfaces);
 
+    std::cout <<"\n"; // for printing progress
     for (size_t j = 1; j < ny-1; j++) {
         printProgress(slowk*j);
         for (size_t k = 1; k < nz-1; k++) {
@@ -1987,6 +1804,7 @@ void parametrization_layer_el_vti_har(
     MarkInterfaceNumber(grid_type, Hx, Hy, Hz, 
         nx, ny, nz, MaterNum, interfaces);
 
+    std::cout <<"\n"; // for printing progress
     for (size_t j = 1; j < ny-1; j++) {
         printProgress(slowk*j);
         for (size_t k = 1; k < nz-1; k++) {
@@ -2102,6 +1920,7 @@ void parametrization_layer_el_vti_ari(
     MarkInterfaceNumber(grid_type, Hx, Hy, Hz, 
         nx, ny, nz, MaterNum, interfaces);
 
+    std::cout <<"\n"; // for printing progress
     for (size_t j = 1; j < ny-1; j++) {
         printProgress(slowk*j);
         for (size_t k = 1; k < nz-1; k++) {
@@ -2236,6 +2055,7 @@ void parametrization_layer_el_aniso_har(
     MarkInterfaceNumber(grid_type, Hx, Hy, Hz, 
         nx, ny, nz, MaterNum, interfaces);
 
+    std::cout <<"\n"; // for printing progress
     for (size_t j = 1; j < ny-1; j++) {
         printProgress(slowk*j);
         for (size_t k = 1; k < nz-1; k++) {
@@ -2429,6 +2249,7 @@ void parametrization_layer_el_aniso_ari(
     MarkInterfaceNumber(grid_type, Hx, Hy, Hz, 
         nx, ny, nz, MaterNum, interfaces);
 
+    std::cout <<"\n"; // for printing progress
     for (size_t j = 1; j < ny-1; j++) {
         printProgress(slowk*j);
         for (size_t k = 1; k < nz-1; k++) {

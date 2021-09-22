@@ -14,12 +14,12 @@ int main()
     size_t siz_slice  = nx * ny; 
     size_t siz_volume = nx * ny * nz;
 
-    float *x1d = (float*) malloc(nx*sizeof(float));
-    float *y1d = (float*) malloc(ny*sizeof(float));
-    float *z1d = (float*) malloc(nz*sizeof(float));
-    float *x3d = (float*) malloc(siz_volume*sizeof(float));
-    float *y3d = (float*) malloc(siz_volume*sizeof(float));
-    float *z3d = (float*) malloc(siz_volume*sizeof(float));
+    float *x1d =   (float*) malloc(nx*sizeof(float));
+    float *y1d =   (float*) malloc(ny*sizeof(float));
+    float *z1d =   (float*) malloc(nz*sizeof(float));
+    float *x3d =   (float*) malloc(siz_volume*sizeof(float));
+    float *y3d =   (float*) malloc(siz_volume*sizeof(float));
+    float *z3d =   (float*) malloc(siz_volume*sizeof(float));
     float *lam3d = (float*) malloc(siz_volume*sizeof(float));
     float *mu3d  = (float*) malloc(siz_volume*sizeof(float));
     float *rho3d = (float*) malloc(siz_volume*sizeof(float));
@@ -43,13 +43,11 @@ int main()
     }
 
 
- //   cout << Gridx[0] << " " << Gridx[siz_volume-1] << endl;
- //   cout << Gridy[0] << " " << Gridy[siz_volume-1] << endl;
-
     if (grid_type == MEDIA_USE_CART)
-        media_layer2model_el_iso( lam3d, mu3d, rho3d,
-            x1d, y1d, z1d, nx,ny, nz, MEDIA_USE_CART, 
-            "can4.md3lay","har"); 
+        media_grid2model_el_iso( rho3d, lam3d, mu3d,
+            x1d, y1d, z1d, nx,ny, nz, 
+            x1d[0], x1d[nx-1], y1d[0], y1d[ny-1],
+            MEDIA_USE_CART, "can4.md3grd","har"); 
     else if (grid_type == MEDIA_USE_VMAP)
         media_layer2model_el_iso( lam3d, mu3d, rho3d,
             x1d, y1d, z3d, nx, ny, nz, MEDIA_USE_VMAP,
