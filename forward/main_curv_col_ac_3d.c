@@ -292,7 +292,17 @@ int main(int argc, char** argv)
     }
 
     case PAR_MEDIA_3GRD : {
+
         if (myid==0) fprintf(stdout,"read and descretize 3D grid medium file ...\n"); 
+
+        media_grid2model_ac_iso(md->rho, md->kappa,
+                                 gdcurv->x3d, gdcurv->y3d, gdcurv->z3d,
+                                 gdcurv->nx, gdcurv->ny, gdcurv->nz,
+                                 gdcurv->xmin,gdcurv->xmax,
+                                 gdcurv->ymin,gdcurv->ymax,
+                                 MEDIA_USE_CURV,
+                                 par->media_input_file,
+                                 par->equivalent_medium_method);
 
         break;
     }
