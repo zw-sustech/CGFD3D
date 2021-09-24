@@ -1,9 +1,9 @@
-function snapinfo = locate_media(parfnm,varargin)
+function mediainfo = locate_media(parfnm,varargin)
 
-% locate snapshot index in mpi threads
+% locate media index in mpi threads
 % Author:   Yuanhang Huo
 % Email:    yhhuo@mail.ustc.edu.cn
-% Date:     2021.05.31
+% Date:     2021.06.06
 
 gtstart  = 1;
 gtcount  = -1;
@@ -30,8 +30,8 @@ while n<=nargin-1
                 if length(gsubt)==4
                     gtstride=gsubt(4);gsubt=gsubt(1:3);
                 end
-            case 'outdir'
-                output_dir=varargin{n+1}; n=n+1;
+            case 'mediadir'
+                media_dir=varargin{n+1}; n=n+1;
         end
     end
     
@@ -46,43 +46,44 @@ end
 
 % read parameters file
 par=loadjson(parfnm);
-snap_subs=[1, 1, 1];
-snap_subc=[-1,-1,-1];
-snap_subt=[1, 1, 1];
+media_subs=[1, 1, 1];
+media_subc=[-1,-1,-1];
+media_subt=[1, 1, 1];
 snap_tinv=1;
 ngijk=[par.number_of_total_grid_points_x,...
        par.number_of_total_grid_points_y,...
        par.number_of_total_grid_points_z];
 
 % reset count=-1 to total number
-indx=find(snap_subc==-1);
-snap_subc(indx)=fix((ngijk(indx)-snap_subs(indx))./snap_subt(indx))+1;
-snap_sube=snap_subs+(snap_subc-1).*snap_subt;
+indx=find(media_subc==-1);
+media_subc(indx)=fix((ngijk(indx)-media_subs(indx))./media_subt(indx))+1;
+snap_sube=media_subs+(media_subc-1).*media_subt;
 
 indx=find(gsubc==-1);
-gsubc(indx)=fix((snap_subc(indx)-gsubs(indx))./gsubt(indx))+1;
+gsubc(indx)=fix((media_subc(indx)-gsubs(indx))./gsubt(indx))+1;
 gsube=gsubs+(gsubc-1).*gsubt;
 
 % search the nc file headers to locate the threads/processors
-snapprefix=par.snapshot{id}.name;
-snaplist=dir([output_dir,'/',snapprefix,'*.nc']);
+mediaprefix='media';
+medialist=dir([media_dir,'/',mediaprefix,'*.nc']);
 n=1;
-for i=1:length(snaplist)
+for i=1:length(medialist)
     
-    snapnm=[output_dir,'/',snaplist(i).name];
-    xyzs=double(nc_attget(snapnm,nc_global,'first_index_to_snapshot_output'));
+    medianm=[media_dir,'/',medialist(i).name];
+    xyzs=double(nc_attget(medianm,nc_global,'global_index_of_first_physical_points'));
     xs=xyzs(1);
     ys=xyzs(2);
-    xc=nc_getdiminfo(snapnm,'i').Length;
-    yc=nc_getdiminfo(snapnm,'j').Length;
+    xyzc=double(nc_attget(medianm,nc_global,'count_of_physical_points'));
+    xc=xyzc(1);
+    yc=xyzc(2);
     xarray=[xs:xs+xc-1];
     yarray=[ys:ys+yc-1];
     if length(find(xarray>=gsubs(1)-1 & xarray<=gsube(1)-1)) ~= 0 && ...
        length(find(yarray>=gsubs(2)-1 & yarray<=gsube(2)-1)) ~= 0
-        px(n)=str2num(snaplist(i).name( strfind(snaplist(i).name,'px' )+2 : ...
-                                        strfind(snaplist(i).name,'_py')-1));
-        py(n)=str2num(snaplist(i).name( strfind(snaplist(i).name,'py' )+2 : ...
-                                        strfind(snaplist(i).name,'.nc')-1));
+        px(n)=str2num(medialist(i).name( strfind(medialist(i).name,'px' )+2 : ...
+                                         strfind(medialist(i).name,'_py')-1));
+        py(n)=str2num(medialist(i).name( strfind(medialist(i).name,'py' )+2 : ...
+                                         strfind(medialist(i).name,'.nc')-1));
         n=n+1;
     end
     
@@ -94,15 +95,16 @@ for ip=1:length(px)
     
     nthd=nthd+1;
     
-    snapnm=[output_dir,'/',snapprefix,'_px',num2str(px(ip)),...
+    medianm=[media_dir,'/',mediaprefix,'_px',num2str(px(ip)),...
             '_py',num2str(py(ip)),'.nc'];
-    xyzs=double(nc_attget(snapnm,nc_global,'first_index_to_snapshot_output'));
+    xyzs=double(nc_attget(medianm,nc_global,'global_index_of_first_physical_points'));
     xs=xyzs(1);
     ys=xyzs(2);
     zs=xyzs(3);
-    xc=nc_getdiminfo(snapnm,'i').Length;
-    yc=nc_getdiminfo(snapnm,'j').Length;
-    zc=nc_getdiminfo(snapnm,'k').Length;
+    xyzc=double(nc_attget(medianm,nc_global,'count_of_physical_points'));
+    xc=xyzc(1);
+    yc=xyzc(2);
+    zc=xyzc(3);
     xe=xs+xc-1;
     ye=ys+yc-1;
     ze=zs+zc-1;
@@ -114,28 +116,30 @@ for ip=1:length(px)
     gzarray=gsubs(3):gsubt(3):gsube(3);
     gzarray=gzarray-1;
     
-    snapinfo(nthd).thisid=[px(ip),py(ip)];
+    mediainfo(nthd).thisid=[px(ip),py(ip)];
     i=find(gxarray>=xs & gxarray<=xe);
     j=find(gyarray>=ys & gyarray<=ye);
     k=find(gzarray>=zs & gzarray<=ze);
-    snapinfo(nthd).indxs=[i(1),j(1),k(1)];
-    snapinfo(nthd).indxe=[i(end),j(end),k(end)];
-    snapinfo(nthd).indxc=snapinfo(nthd).indxe-snapinfo(nthd).indxs+1;
+    mediainfo(nthd).indxs=[i(1),j(1),k(1)];
+    mediainfo(nthd).indxe=[i(end),j(end),k(end)];
+    mediainfo(nthd).indxc=mediainfo(nthd).indxe-mediainfo(nthd).indxs+1;
     
-    snapinfo(nthd).wsubs=double(nc_attget(snapnm,nc_global,'first_index_in_this_thread_with_ghosts'))...
-        +(snapinfo(nthd).subs-1).*snap_subt+1;
-    snapinfo(nthd).wsubc=snapinfo(nthd).indxc;
-    snapinfo(nthd).wsubt=snap_subt.*gsubt;
+    mediainfo(nthd).subs=[ gxarray(i(1))-xs+1, ...
+                           gyarray(j(1))-ys+1, ...
+                           gzarray(k(1))-zs+1 ];
+    mediainfo(nthd).subc=mediainfo(nthd).indxc;
+    mediainfo(nthd).subt=gsubt;
     
-    snapinfo(nthd).subs=[ gxarray(i(1))-xs+1, ...
-                          gyarray(j(1))-ys+1, ...
-                          gzarray(k(1))-zs+1 ];
-    snapinfo(nthd).subc=snapinfo(nthd).indxc;
-    snapinfo(nthd).subt=gsubt;
+    mediainfo(nthd).wsubs=double(nc_attget(medianm,nc_global,'local_index_of_first_physical_points'))...
+        +(mediainfo(nthd).subs-1).*media_subt+1;
+    mediainfo(nthd).wsubc=mediainfo(nthd).indxc;
+    mediainfo(nthd).wsubt=media_subt.*gsubt;
     
-    snapinfo(nthd).tinv=snap_tinv;
+    mediainfo(nthd).tinv=snap_tinv;
     
-    snapinfo(nthd).ttriple=[gtstart,gtcount,gtstride];
+    mediainfo(nthd).fnmprefix=mediaprefix;
+    
+    mediainfo(nthd).ttriple=[gtstart,gtcount,gtstride];
     
 end
 

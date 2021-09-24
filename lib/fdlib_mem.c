@@ -92,16 +92,16 @@ fdlib_mem_calloc_1d_float(size_t n, float v0, char *msg)
     return NULL;
   }
 
-  float *buff = (float *) malloc( n * sizeof(float));
-  if ( buff == NULL ) {
+  float *var = (float *) malloc( n * sizeof(float));
+  if ( var == NULL ) {
     fprintf(stderr, "Error: can't malloc enough mem (%s)!\n", msg);
         fflush(stderr);
     exit(-1);
   }
 
-  for (size_t i = 0; i < n; i++ ) buff[i] = v0;
+  for (size_t i = 0; i < n; i++ ) var[i] = v0;
 
-  return buff;
+  return var;
 }
 
 //-------------------------------------------------------------------------------

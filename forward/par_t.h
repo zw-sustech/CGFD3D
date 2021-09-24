@@ -6,7 +6,7 @@
 #include <string.h>
 
 #include "cJSON.h"
-#include "fd_t.h"
+#include "constants.h"
 #include "par_t.h"
 
 #define PAR_MAX_STRLEN 1000
@@ -24,11 +24,14 @@
 #define PAR_MEDIA_3LAY   3
 #define PAR_MEDIA_3GRD   4
 
-#define PAR_SOURCE_SINGLE_FORCE  1
-#define PAR_SOURCE_SINGLE_MOMENT 2
-#define PAR_SOURCE_FILE          3
+#define PAR_MEDIA_CMP_VELOCITY 1
+#define PAR_MEDIA_CMP_THOMSEN  2
+#define PAR_MEDIA_CMP_CIJ      3
 
-struct par_t{
+#define PAR_SOURCE_JSON  1
+#define PAR_SOURCE_FILE  3
+
+typedef struct{
 
   //-- dirs and file name
   //char project_dir  [PAR_MAX_STRLEN];
@@ -49,8 +52,9 @@ struct par_t{
   int   time_start_index;
   int   time_end_index;
   float time_start;
-  float time_end  ;
-  float length_of_time_window_in_second;
+  //float time_end  ;
+  float time_check_stability;
+  float time_window_length;
 
   // for each block
   //char grid_name[PAR_MAX_STRLEN];
@@ -60,14 +64,27 @@ struct par_t{
   int  number_of_total_grid_points_y;
   int  number_of_total_grid_points_z;
 
-  // boundary, FD_NDIM_2
+  // dis grid
+  int disg_num_level;
+  int *disg_at_zindx;
+  int *disg_factor;
+
+  // boundary, CONST_NDIM_2
   char **boundary_type_name;
   
-  // abs
-  int   abs_num_of_layers[FD_NDIM_2];
-  float cfspml_alpha_max[FD_NDIM_2];
-  float cfspml_beta_max[FD_NDIM_2];
-  float cfspml_velocity[FD_NDIM_2];
+  // abs layer-based, for pml or exp
+  int   abs_num_of_layers[CONST_NDIM][2];
+
+  // pml
+  int   cfspml_is_sides[CONST_NDIM][2];
+  float cfspml_alpha_max[CONST_NDIM][2];
+  float cfspml_beta_max[CONST_NDIM][2];
+  float cfspml_velocity[CONST_NDIM][2];
+  int   bdry_has_cfspml;
+
+  // free
+  int   free_is_sides[CONST_NDIM][2];
+  int   bdry_has_free;
 
   // grid
   int grid_generation_itype;
@@ -76,11 +93,12 @@ struct par_t{
   char grid_export_dir[PAR_MAX_STRLEN];
   char grid_import_dir[PAR_MAX_STRLEN];
 
-  float cartesian_grid_origin[FD_NDIM];
-  float cartesian_grid_stepsize[FD_NDIM];
+  float cartesian_grid_origin[CONST_NDIM];
+  float cartesian_grid_stepsize[CONST_NDIM];
 
   char in_grid_layer_file[PAR_MAX_STRLEN];
-  int  grid_layer_interp_factor[FD_NDIM];
+  int  grid_layer_resample_factor[CONST_NDIM];
+  int  grid_layer_start[CONST_NDIM];
 
   // metric
   int metric_method_itype;
@@ -89,11 +107,38 @@ struct par_t{
   char metric_import_dir[PAR_MAX_STRLEN];
 
   // medium
-  int media_input_itype;
+  char media_type[PAR_MAX_STRLEN]; // iso, vti, or aniso
+  int  media_itype; // iso, vti, or aniso
+  char media_input_type[PAR_MAX_STRLEN]; // in_code, import, file
+  int  media_input_itype;
+  char media_input_cmptype[PAR_MAX_STRLEN]; // cij, thomson
+  int  media_input_icmptype;
+
   int is_export_media;
+  char equivalent_medium_method[PAR_MAX_STRLEN]; // For layer2model
   char media_export_dir[PAR_MAX_STRLEN];
   char media_import_dir[PAR_MAX_STRLEN];
   char media_input_file[PAR_MAX_STRLEN];
+
+  // following not used 
+  char media_input_rho[PAR_MAX_STRLEN];
+  char media_input_Vp [PAR_MAX_STRLEN];
+  char media_input_Vs [PAR_MAX_STRLEN];
+  char media_input_epsilon[PAR_MAX_STRLEN];
+  char media_input_delta[PAR_MAX_STRLEN];
+  char media_input_gamma[PAR_MAX_STRLEN];
+  char media_input_azimuth[PAR_MAX_STRLEN];
+  char media_input_dip[PAR_MAX_STRLEN];
+  char media_input_c11[PAR_MAX_STRLEN];
+  char media_input_c33[PAR_MAX_STRLEN];
+  char media_input_c55[PAR_MAX_STRLEN];
+  char media_input_c66[PAR_MAX_STRLEN];
+  char media_input_c13[PAR_MAX_STRLEN];
+
+  // visco
+  char visco_type[PAR_MAX_STRLEN]; // graves_Qs
+  int  visco_itype; // graves_Qs
+  float visco_Qs_freq;
 
   // source
   int source_input_itype;
@@ -101,15 +146,29 @@ struct par_t{
   int is_export_source;
   char source_export_dir[PAR_MAX_STRLEN];
 
-  float source_coords[FD_NDIM];
-  int   source_gridindex[FD_NDIM];
+  //float source_coords[CONST_NDIM];
+  //int   source_index[CONST_NDIM];
+  //char  source_name[PAR_MAX_STRLEN];
+  //char  wavelet_name[PAR_MAX_STRLEN];
+  //float wavelet_coefs[10]; // maximum 10 coefficients for wavelet
+  //float wavelet_tstart;
+  //float wavelet_tend;
+  //float source_force_vector[CONST_NDIM];
+  //float source_moment_tensor[CONST_NDIM_2];
+
   char  source_name[PAR_MAX_STRLEN];
-  char  wavelet_name[PAR_MAX_STRLEN];
-  float wavelet_coefs[10]; // maximum 10 coefficients for wavelet
-  float wavelet_tstart;
-  float wavelet_tend;
-  float source_force_vector[FD_NDIM];
-  float source_moment_tensor[FD_NDIM_2];
+  int   source_number;
+  float **source_coords;
+  int   **source_index;
+  float **source_inc; // for index with shift
+  char  **wavelet_name;
+  float **wavelet_coefs; // maximum 10 coefficients for wavelet
+  float *wavelet_tstart;
+  float *wavelet_tend;
+  float **source_force_vector;
+  float **source_moment_tensor;
+  int   *source_force_actived;
+  int   *source_moment_actived;
 
   // output
   // receiver
@@ -144,26 +203,28 @@ struct par_t{
   // misc
   int check_nan_every_nummber_of_steps;
   int output_all;
-};
+} par_t;
 
 void
-par_mpi_get(char *par_fname, int myid, MPI_Comm comm, struct par_t *par, int verbose);
+par_mpi_get(char *par_fname, int myid, MPI_Comm comm, par_t *par, int verbose);
 
 void
-par_read_from_file(char *par_fname, int myid, MPI_Comm comm, struct par_t *par, int verbose);
+par_read_from_file(char *par_fname, int myid, MPI_Comm comm, par_t *par, int verbose);
 
-void 
-par_read_from_str(const char *str, struct par_t *par);
+int 
+par_read_from_str(const char *str, par_t *par);
 
 void 
 par_read_json_cfspml(cJSON *item,
       int *nlay, float *amax, float *bmax, float *vel);
 void 
-par_read_json_source(cJSON *item, char *wavelet_type_name,
-      char *src_name, float *src_coord, int *grid_index,
+par_read_json_source(cJSON *item,
+      float *src_coord, int *grid_index, float *grid_inc,
+      float *force_vector,  int *force_actived,
+      float *moment_vector, int *moment_actived,
       char *wavelet_name, float *wavelet_coefs, float *t_start, float *t_end);
 
-void
-par_print(struct par_t *par);
+int
+par_print(par_t *par);
 
 #endif

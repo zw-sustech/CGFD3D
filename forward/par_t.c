@@ -14,7 +14,7 @@
  * for MPI, master read, broadcast to all procs
  */
 void
-par_mpi_get(char *par_fname, int myid, MPI_Comm comm, struct par_t *par, int verbose)
+par_mpi_get(char *par_fname, int myid, MPI_Comm comm, par_t *par, int verbose)
 {
   char *str;
 
@@ -23,8 +23,7 @@ par_mpi_get(char *par_fname, int myid, MPI_Comm comm, struct par_t *par, int ver
     FILE *fp=fopen(par_fname,"r");
     if (!fp) {
       fprintf(stderr,"Error: can't open par file: %s\n", par_fname);
-      MPI_Finalize();
-      exit(1);
+      MPI_Abort(MPI_COMM_WORLD,9);
     }
     fseek(fp, 0, SEEK_END);
     long len = ftell(fp);
@@ -60,7 +59,7 @@ par_mpi_get(char *par_fname, int myid, MPI_Comm comm, struct par_t *par, int ver
  * for non-MPI, read from file
  */
 void
-par_read_from_file(char *par_fname, int myid, MPI_Comm comm, struct par_t *par, int verbose)
+par_read_from_file(char *par_fname, int myid, MPI_Comm comm, par_t *par, int verbose)
 {
   //
   // read whole file inot str
@@ -82,12 +81,14 @@ par_read_from_file(char *par_fname, int myid, MPI_Comm comm, struct par_t *par, 
 /*
  * funcs to get par from alread read in str
  */
-void 
-par_read_from_str(const char *str, struct par_t *par)
+int 
+par_read_from_str(const char *str, par_t *par)
 {
+  int ierr = 0;
+
   // allocate
-  par->boundary_type_name = (char **)malloc(FD_NDIM_2 * sizeof(char*));
-  for (int i=0; i<FD_NDIM_2; i++) {
+  par->boundary_type_name = (char **)malloc(CONST_NDIM_2 * sizeof(char*));
+  for (int i=0; i<CONST_NDIM_2; i++) {
     par->boundary_type_name[i] = (char *)malloc(10*sizeof(char));
   }
 
@@ -95,7 +96,7 @@ par_read_from_str(const char *str, struct par_t *par)
   cJSON *root = cJSON_Parse(str);
   if (NULL == root) {
     printf("Error at parsing json!\n");
-    exit(-1);
+    MPI_Abort(MPI_COMM_WORLD,9);
   }
 
   cJSON *item;
@@ -112,6 +113,27 @@ par_read_from_str(const char *str, struct par_t *par)
     par->number_of_total_grid_points_z = item->valueint;
   }
 
+  // dis grid
+  par->disg_num_level = 0;
+  if (item = cJSON_GetObjectItem(root, "dis_grid_at_zindx")) {
+    par->disg_num_level = cJSON_GetArraySize(item);
+    par->disg_at_zindx = (int *)malloc(par->disg_num_level * sizeof(int));
+    for (int n=0; n < par->disg_num_level; n++) {
+      par->disg_at_zindx[n] = cJSON_GetArrayItem(item, n)->valueint;
+    }
+  }
+  if (item = cJSON_GetObjectItem(root, "dis_grid_factor")) {
+    // should be improved to allow input order change
+    if (par->disg_num_level != cJSON_GetArraySize(item)) {
+      fprintf(stderr,"ERROR: input size of dis_grid_at_zindx and dis_grid_factor diff\n");
+      MPI_Abort(MPI_COMM_WORLD,9);
+    }
+    par->disg_factor = (int *)malloc(par->disg_num_level * sizeof(int));
+    for (int n=0; n < par->disg_num_level; n++) {
+      par->disg_factor[n] = cJSON_GetArrayItem(item, n)->valueint;
+    }
+  }
+
   // default mpi threads
   par->number_of_mpiprocs_x = 1;
   par->number_of_mpiprocs_y = 1;
@@ -126,7 +148,9 @@ par_read_from_str(const char *str, struct par_t *par)
   // set default values to negative
   par->size_of_time_step = -1.0;
   par->number_of_time_steps = -1;
-  par->length_of_time_window_in_second = -1.0;
+  par->time_window_length = -1.0;
+  par->time_start = 0.0;
+  par->time_check_stability = 1;
 
   if (item = cJSON_GetObjectItem(root, "size_of_time_step")) {
     par->size_of_time_step = item->valuedouble;
@@ -134,37 +158,84 @@ par_read_from_str(const char *str, struct par_t *par)
   if (item = cJSON_GetObjectItem(root, "number_of_time_steps")) {
     par->number_of_time_steps = item->valueint;
   }
-  if (item = cJSON_GetObjectItem(root, "length_of_time_window_in_second")) {
-    par->length_of_time_window_in_second = item->valuedouble;
+  if (item = cJSON_GetObjectItem(root, "time_window_length")) {
+    par->time_window_length = item->valuedouble;
   }
-  if (par->size_of_time_step > 0.0 && par->number_of_time_steps > 0) {
-    par->length_of_time_window_in_second = par->size_of_time_step *
-                                           par->number_of_time_steps;
-  } else {
-    fprintf(stderr,"Error: size_of_time_step=%f, number_of_time_steps=%d\n",
-           par->size_of_time_step, par->number_of_time_steps);
-    fprintf(stderr,"       auto estimate time step has not been implemented\n");
+  if (item = cJSON_GetObjectItem(root, "time_start")) {
+    par->time_start = item->valuedouble;
+  }
+  if (item = cJSON_GetObjectItem(root, "time_check_stability")) {
+    par->time_check_stability = item->valueint;
   }
 
-  par->time_start = 0.0;
-  par->time_end   = par->time_start + 
-          par->number_of_time_steps * par->size_of_time_step;
+  // check 
+  //int num_time_minus = 0;
+  //if (par->size_of_time_step    < 0.0) num_time_minus += 1;
+  //if (par->time_window_length   < 0.0) num_time_minus += 1;
+  //if (par->number_of_time_steps < 0  ) num_time_minus += 1;
+  //if (num_time_minus >= 2)
+  //{
+  //  fprintf(stderr," --> size_of_time_step   =%f\n", par->size_of_time_step);
+  //  fprintf(stderr," --> number_of_time_steps=%d\n", par->number_of_time_steps);
+  //  fprintf(stderr," --> time_window_length  =%f\n", par->time_window_length);
+  //  fprintf(stderr,"Error: at lest two of above three paras should > 0\n");
+  //  exit(-1);
+  //}
+
+  if (par->size_of_time_step < 0.0 && par->time_window_length < 0)
+  {
+    fprintf(stderr," --> size_of_time_step   =%f\n", par->size_of_time_step);
+    fprintf(stderr," --> time_window_length  =%f\n", par->time_window_length);
+    fprintf(stderr,"Error: at lest one of above paras should > 0\n");
+    MPI_Abort(MPI_COMM_WORLD,9);
+  }
+
+  if (par->size_of_time_step > 0.0)
+  {
+    if (par->number_of_time_steps < 0 && par->time_window_length < 0.0)
+    {
+      fprintf(stderr,"Error: both size_of_time_step=%f, time_window_length=%f less 0\n",
+             par->size_of_time_step, par->time_window_length);
+      MPI_Abort(MPI_COMM_WORLD,9);
+    }
+
+    if (par->number_of_time_steps < 0) 
+    {
+      par->number_of_time_steps = (int)(par->time_window_length / par->size_of_time_step + 0.5);
+    }
+
+    par->time_window_length = par->size_of_time_step * par->number_of_time_steps;
+  }
+
+  //par->time_end   = par->time_start + 
+  //        par->number_of_time_steps * par->size_of_time_step;
   //int     nt_total = (int) ((par->time_end - par->time_start) / dt+0.5);
 
-  // cfspml default values
-  for (int i = 0; i < FD_NDIM_2; i++) {
-    par->abs_num_of_layers[i] = 0;
+  //
+  // boundary default values
+  //
+  for (int idim=0; idim < CONST_NDIM; idim++) {
+    for (int iside=0; iside < 2; iside++) {
+      par->abs_num_of_layers[idim][iside] = 0;
+      par->cfspml_is_sides[idim][iside] = 0;
+      par->free_is_sides  [idim][iside] = 0;
+    }
   }
+  par->bdry_has_cfspml = 0;
+  par->bdry_has_free   = 0;
+
   // x1 boundary, no default yet
   if (item = cJSON_GetObjectItem(root, "boundary_x_left"))
   {
     if (subitem = cJSON_GetObjectItem(item, "cfspml")) {
        sprintf(par->boundary_type_name[0], "%s", "cfspml");
        par_read_json_cfspml(subitem,
-                            par->abs_num_of_layers+0,
-                            par->cfspml_alpha_max +0,
-                            par->cfspml_beta_max  +0,
-                            par->cfspml_velocity  +0);
+                            &(par->abs_num_of_layers[0][0]),
+                            &(par->cfspml_alpha_max [0][0]),
+                            &(par->cfspml_beta_max  [0][0]),
+                            &(par->cfspml_velocity  [0][0]));
+      par->cfspml_is_sides[0][0] = 1;
+      par->bdry_has_cfspml = 1;
     }
   }
   // x2 boundary, no default yet
@@ -173,10 +244,12 @@ par_read_from_str(const char *str, struct par_t *par)
     if (subitem = cJSON_GetObjectItem(item, "cfspml")) {
        sprintf(par->boundary_type_name[1], "%s", "cfspml");
        par_read_json_cfspml(subitem,
-                            par->abs_num_of_layers+1,
-                            par->cfspml_alpha_max +1,
-                            par->cfspml_beta_max  +1,
-                            par->cfspml_velocity  +1);
+                            &(par->abs_num_of_layers[0][1]),
+                            &(par->cfspml_alpha_max [0][1]),
+                            &(par->cfspml_beta_max  [0][1]),
+                            &(par->cfspml_velocity  [0][1]));
+      par->cfspml_is_sides[0][1] = 1;
+      par->bdry_has_cfspml = 1;
     }
   }
   // y1 boundary, no default yet
@@ -185,10 +258,12 @@ par_read_from_str(const char *str, struct par_t *par)
     if (subitem = cJSON_GetObjectItem(item, "cfspml")) {
        sprintf(par->boundary_type_name[2], "%s", "cfspml");
        par_read_json_cfspml(subitem,
-                            par->abs_num_of_layers+2,
-                            par->cfspml_alpha_max +2,
-                            par->cfspml_beta_max  +2,
-                            par->cfspml_velocity  +2);
+                            &(par->abs_num_of_layers[1][0]),
+                            &(par->cfspml_alpha_max [1][0]),
+                            &(par->cfspml_beta_max  [1][0]),
+                            &(par->cfspml_velocity  [1][0]));
+      par->cfspml_is_sides[1][0] = 1;
+      par->bdry_has_cfspml = 1;
     }
   }
   // y2 boundary, no default yet
@@ -197,10 +272,12 @@ par_read_from_str(const char *str, struct par_t *par)
     if (subitem = cJSON_GetObjectItem(item, "cfspml")) {
        sprintf(par->boundary_type_name[3], "%s", "cfspml");
        par_read_json_cfspml(subitem,
-                            par->abs_num_of_layers+3,
-                            par->cfspml_alpha_max +3,
-                            par->cfspml_beta_max  +3,
-                            par->cfspml_velocity  +3);
+                            &(par->abs_num_of_layers[1][1]),
+                            &(par->cfspml_alpha_max [1][1]),
+                            &(par->cfspml_beta_max  [1][1]),
+                            &(par->cfspml_velocity  [1][1]));
+      par->cfspml_is_sides[1][1] = 1;
+      par->bdry_has_cfspml = 1;
     }
   }
   // z1 boundary, no default yet
@@ -209,10 +286,12 @@ par_read_from_str(const char *str, struct par_t *par)
     if (subitem = cJSON_GetObjectItem(item, "cfspml")) {
        sprintf(par->boundary_type_name[4], "%s", "cfspml");
        par_read_json_cfspml(subitem,
-                            par->abs_num_of_layers+4,
-                            par->cfspml_alpha_max +4,
-                            par->cfspml_beta_max  +4,
-                            par->cfspml_velocity  +4);
+                            &(par->abs_num_of_layers[2][0]),
+                            &(par->cfspml_alpha_max [2][0]),
+                            &(par->cfspml_beta_max  [2][0]),
+                            &(par->cfspml_velocity  [2][0]));
+      par->cfspml_is_sides[2][0] = 1;
+      par->bdry_has_cfspml = 1;
     }
   }
   // z2 boundary, no default yet
@@ -221,13 +300,17 @@ par_read_from_str(const char *str, struct par_t *par)
     if (subitem = cJSON_GetObjectItem(item, "cfspml")) {
        sprintf(par->boundary_type_name[5], "%s", "cfspml");
        par_read_json_cfspml(subitem,
-                            par->abs_num_of_layers+5,
-                            par->cfspml_alpha_max +5,
-                            par->cfspml_beta_max  +5,
-                            par->cfspml_velocity  +5);
+                            &(par->abs_num_of_layers[2][1]),
+                            &(par->cfspml_alpha_max [2][1]),
+                            &(par->cfspml_beta_max  [2][1]),
+                            &(par->cfspml_velocity  [2][1]));
+      par->cfspml_is_sides[2][1] = 1;
+      par->bdry_has_cfspml = 1;
     }
     if (subitem = cJSON_GetObjectItem(item, "free")) {
-       sprintf(par->boundary_type_name[5], "%s", "free");
+      sprintf(par->boundary_type_name[5], "%s", "free");
+      par->free_is_sides[2][1] = 1;
+      par->bdry_has_free = 1;
     }
   }
 
@@ -248,12 +331,12 @@ par_read_from_str(const char *str, struct par_t *par)
     if (subitem = cJSON_GetObjectItem(item, "cartesian")) {
        par->grid_generation_itype = PAR_GRID_CARTESIAN;
        if (thirditem = cJSON_GetObjectItem(subitem, "origin")) {
-         for (int i = 0; i < FD_NDIM; i++) {
+         for (int i = 0; i < CONST_NDIM; i++) {
            par->cartesian_grid_origin[i] = cJSON_GetArrayItem(thirditem, i)->valuedouble;
          }
        }
        if (thirditem = cJSON_GetObjectItem(subitem, "inteval")) {
-         for (int i = 0; i < FD_NDIM; i++) {
+         for (int i = 0; i < CONST_NDIM; i++) {
            par->cartesian_grid_stepsize[i] = cJSON_GetArrayItem(thirditem, i)->valuedouble;
          }
        }
@@ -265,9 +348,17 @@ par_read_from_str(const char *str, struct par_t *par)
           sprintf(par->in_grid_layer_file, "%s", thirditem->valuestring);
        }
        if (thirditem = cJSON_GetObjectItem(subitem, "refine_factor")) {
-         for (int i = 0; i < FD_NDIM; i++) {
-           par->grid_layer_interp_factor[i] = cJSON_GetArrayItem(thirditem, i)->valueint;
+         for (int i = 0; i < CONST_NDIM; i++) {
+           par->grid_layer_resample_factor[i] = cJSON_GetArrayItem(thirditem, i)->valueint;
          }
+       }
+       if (thirditem = cJSON_GetObjectItem(subitem, "horizontal_start_index")) {
+         for (int i = 0; i < CONST_NDIM-1; i++) {
+           par->grid_layer_start[i] = cJSON_GetArrayItem(thirditem, i)->valueint;
+         }
+       }
+       if (thirditem = cJSON_GetObjectItem(subitem, "vertical_last_to_top")) {
+         par->grid_layer_start[CONST_NDIM-1] = thirditem->valueint;
        }
     }
   }
@@ -305,21 +396,55 @@ par_read_from_str(const char *str, struct par_t *par)
   //
 
   par->media_input_itype = PAR_MEDIA_IMPORT;
-  if (item = cJSON_GetObjectItem(root, "media_input")) {
-    if (subitem = cJSON_GetObjectItem(item, "import")) {
+  if (item = cJSON_GetObjectItem(root, "medium"))
+  {
+    // medium is iso, vti or aniso
+    if (subitem = cJSON_GetObjectItem(item, "type")) {
+        sprintf(par->media_type, "%s", subitem->valuestring);
+        if (strcmp(par->media_type, "elastic_iso")==0) {
+          par->media_itype = CONST_MEDIUM_ELASTIC_ISO;
+        } else if (strcmp(par->media_type, "elastic_vti")==0) {
+          par->media_itype = CONST_MEDIUM_ELASTIC_VTI;
+        } else if (strcmp(par->media_type, "elastic_aniso")==0) {
+          par->media_itype = CONST_MEDIUM_ELASTIC_ANISO;
+        } else if (strcmp(par->media_type, "acoustic_iso")==0) {
+          par->media_itype = CONST_MEDIUM_ACOUSTIC_ISO;
+        } else {
+          fprintf(stderr,"ERROR: media_type=%s is unknown\n",par->media_type);
+          MPI_Abort(MPI_COMM_WORLD,9);
+        }
+    }
+
+    // input by
+    // if input by code
+    if (subitem = cJSON_GetObjectItem(item, "code")) 
+    {
+        par->media_input_itype = PAR_MEDIA_CODE;
+    }
+
+    // if input by import
+    if (subitem = cJSON_GetObjectItem(item, "import")) 
+    { 
         par->media_input_itype = PAR_MEDIA_IMPORT;
         sprintf(par->media_import_dir, "%s", subitem->valuestring);
     }
-    if (subitem = cJSON_GetObjectItem(item, "code_generate")) {
-        par->media_input_itype = PAR_MEDIA_CODE;
-    }
-    if (subitem = cJSON_GetObjectItem(item, "in_3lay_file")) {
+
+    // if input by layer file
+    if (subitem = cJSON_GetObjectItem(item, "infile_layer")) 
+    {
         par->media_input_itype = PAR_MEDIA_3LAY;
         sprintf(par->media_input_file, "%s", subitem->valuestring);
     }
-    if (subitem = cJSON_GetObjectItem(item, "in_3grd_file")) {
+
+    // if input by grid file
+    if (subitem = cJSON_GetObjectItem(item, "infile_grid"))
+    {
         par->media_input_itype = PAR_MEDIA_3GRD;
         sprintf(par->media_input_file, "%s", subitem->valuestring);
+    }
+
+    if (subitem = cJSON_GetObjectItem(item, "equivalent_medium_method")) {
+        sprintf(par->equivalent_medium_method, "%s", subitem->valuestring);
     }
   }
 
@@ -332,43 +457,82 @@ par_read_from_str(const char *str, struct par_t *par)
   }
 
   //
+  //-- visco
+  //
+
+  par->visco_Qs_freq = 0.0;
+  par->visco_itype = 0;
+  if (item = cJSON_GetObjectItem(root, "visco_config")) {
+    if (subitem = cJSON_GetObjectItem(item, "type")) {
+        sprintf(par->visco_type, "%s", subitem->valuestring);
+        if (strcmp(par->visco_type, "graves_Qs")==0) {
+          par->visco_itype = CONST_VISCO_GRAVES_QS;
+        } else {
+          fprintf(stderr,"ERROR: visco_type is unknown\n");
+          MPI_Abort(MPI_COMM_WORLD,9);
+        }
+    }
+    if (subitem = cJSON_GetObjectItem(item, "Qs_freq")) {
+        par->visco_Qs_freq = subitem->valuedouble;
+    }
+  }
+
+  //
   //-- source
   //
 
   // default: grid index to negative for determine grid or loc
 
-  for (int i = 0; i < FD_NDIM; i++) par->source_gridindex[i] = -1;
-  
-  par->source_input_itype = PAR_SOURCE_SINGLE_FORCE;
-  if (item = cJSON_GetObjectItem(root, "source_input")) {
-    if (subitem = cJSON_GetObjectItem(item, "single_force"))
+  par->source_input_itype = PAR_SOURCE_JSON;
+  if (item = cJSON_GetObjectItem(root, "source_input"))
+  {
+    // if input in json
+    if (subitem = cJSON_GetObjectItem(item, "in_par"))
     {
-       par->source_input_itype = PAR_SOURCE_SINGLE_FORCE;
-       if (thirditem = cJSON_GetObjectItem(subitem, "force_vector")) {
-         for (int i = 0; i < FD_NDIM; i++) {
-           par->source_force_vector[i] = cJSON_GetArrayItem(thirditem, i)->valuedouble;
-         }
+       par->source_input_itype = PAR_SOURCE_JSON;
+       // get name
+       if (thirditem = cJSON_GetObjectItem(subitem, "name")) {
+          sprintf(par->source_name,"%s",thirditem->valuestring);
        }
-       par_read_json_source(subitem,"source_time_functon",
-                par->source_name,par->source_coords, par->source_gridindex,
-                par->wavelet_name, par->wavelet_coefs,
-                &(par->wavelet_tstart), &(par->wavelet_tend));
+       // get number
+       if (thirditem = cJSON_GetObjectItem(subitem, "source")) {
+          par->source_number = cJSON_GetArraySize(thirditem);
+          // alloc source vars
+          par->source_coords  = (float **)malloc(par->source_number*sizeof(float*));
+          par->source_index   = (int   **)malloc(par->source_number*sizeof(int  *));
+          par->source_inc     = (float **)malloc(par->source_number*sizeof(float*));
+          par->wavelet_name   = (char **)malloc(par->source_number*sizeof(char*));
+          par->wavelet_coefs  = (float **)malloc(par->source_number*sizeof(float*));
+          par->wavelet_tstart = (float *)malloc(par->source_number*sizeof(float));
+          par->wavelet_tend   = (float *)malloc(par->source_number*sizeof(float));
+          par->source_force_vector  = (float **)malloc(par->source_number*sizeof(float*));
+          par->source_moment_tensor = (float **)malloc(par->source_number*sizeof(float*));
+          par->source_force_actived = (int *)malloc(par->source_number*sizeof(int));
+          par->source_moment_actived= (int *)malloc(par->source_number*sizeof(int));
+          for (int is=0; is < par->source_number; is++) 
+          {
+            par->source_coords[is]  = (float *)malloc(CONST_NDIM*sizeof(float));
+            par->source_index [is]  = (int   *)malloc(CONST_NDIM*sizeof(int  ));
+            par->source_inc   [is]  = (float *)malloc(CONST_NDIM*sizeof(float));
+            par->wavelet_name [is]  = (char  *)malloc(100*sizeof(char));
+            par->wavelet_coefs[is]  = (float *)malloc(10*sizeof(float));
+            par->source_force_vector [is] = (float *)malloc(CONST_NDIM*sizeof(float));
+            par->source_moment_tensor[is] = (float *)malloc(CONST_NDIM_2*sizeof(float));
+          }
+       }
+       // for each source
+       for (int is=0; is < par->source_number; is++)
+       {
+          par_read_json_source(cJSON_GetArrayItem(thirditem, is),
+                   par->source_coords[is], par->source_index[is], par->source_inc[is],
+                   par->source_force_vector[is] , &(par->source_force_actived[is]),
+                   par->source_moment_tensor[is], &(par->source_moment_actived[is]),
+                   par->wavelet_name[is], par->wavelet_coefs[is],
+                   &(par->wavelet_tstart[is]), &(par->wavelet_tend[is]));
+       }
     }
 
-    if (subitem = cJSON_GetObjectItem(item, "single_moment"))
-    {
-       par->source_input_itype = PAR_SOURCE_SINGLE_MOMENT;
-       if (thirditem = cJSON_GetObjectItem(subitem, "moment_tensor")) {
-         for (int i = 0; i < FD_NDIM_2; i++) {
-           par->source_moment_tensor[i] = cJSON_GetArrayItem(thirditem, i)->valuedouble;
-         }
-       }
-       par_read_json_source(subitem,"moment_rate_functon",
-                par->source_name,par->source_coords, par->source_gridindex,
-                par->wavelet_name, par->wavelet_coefs,
-                &(par->wavelet_tstart), &(par->wavelet_tend));
-    }
-
+    // if input by source file
     if (subitem = cJSON_GetObjectItem(item, "in_source_file"))
     {
         par->source_input_itype = PAR_SOURCE_FILE;
@@ -398,8 +562,8 @@ par_read_from_str(const char *str, struct par_t *par)
   if (item = cJSON_GetObjectItem(root, "receiver_line"))
   {
     par->number_of_receiver_line = cJSON_GetArraySize(item);
-    par->receiver_line_index_start  = (int *)malloc(par->number_of_receiver_line*sizeof(int)*FD_NDIM);
-    par->receiver_line_index_incre  = (int *)malloc(par->number_of_receiver_line*sizeof(int)*FD_NDIM);
+    par->receiver_line_index_start  = (int *)malloc(par->number_of_receiver_line*sizeof(int)*CONST_NDIM);
+    par->receiver_line_index_incre  = (int *)malloc(par->number_of_receiver_line*sizeof(int)*CONST_NDIM);
     par->receiver_line_count  = (int *)malloc(par->number_of_receiver_line*sizeof(int));
     //par->receiver_line_time_interval  = (int *)malloc(par->number_of_receiver_line*sizeof(int));
     par->receiver_line_name = (char **)malloc(par->number_of_receiver_line*sizeof(char*));
@@ -418,15 +582,15 @@ par_read_from_str(const char *str, struct par_t *par)
 
       if (subitem = cJSON_GetObjectItem(lineitem, "grid_index_start"))
       {
-        for (int j = 0; j < FD_NDIM; j++) {
-          par->receiver_line_index_start[i*FD_NDIM+j] = cJSON_GetArrayItem(subitem, j)->valueint;
+        for (int j = 0; j < CONST_NDIM; j++) {
+          par->receiver_line_index_start[i*CONST_NDIM+j] = cJSON_GetArrayItem(subitem, j)->valueint;
         }
       }
 
       if (subitem = cJSON_GetObjectItem(lineitem, "grid_index_incre"))
       {
-        for (int j = 0; j < FD_NDIM; j++) {
-          par->receiver_line_index_incre[i*FD_NDIM+j] = cJSON_GetArrayItem(subitem, j)->valueint;
+        for (int j = 0; j < CONST_NDIM; j++) {
+          par->receiver_line_index_incre[i*CONST_NDIM+j] = cJSON_GetArrayItem(subitem, j)->valueint;
         }
       }
 
@@ -478,15 +642,15 @@ par_read_from_str(const char *str, struct par_t *par)
   if (item = cJSON_GetObjectItem(root, "snapshot"))
   {
     par->number_of_snapshot = cJSON_GetArraySize(item);
-    //fprintf(stdout,"size=%d, %d, %d\n", par->number_of_snapshot, sizeof(int), FD_NDIM);
+    //fprintf(stdout,"size=%d, %d, %d\n", par->number_of_snapshot, sizeof(int), CONST_NDIM);
     //fflush(stdout);
-    par->snapshot_index_start  = (int *)malloc(par->number_of_snapshot*sizeof(int)*FD_NDIM);
+    par->snapshot_index_start  = (int *)malloc(par->number_of_snapshot*sizeof(int)*CONST_NDIM);
     //if (par->snapshot_index_start == NULL) {
     //  fprintf(stdout,"eror\n");
     //  fflush(stdout);
     //}
-    par->snapshot_index_count  = (int *)malloc(par->number_of_snapshot*sizeof(int)*FD_NDIM);
-    par->snapshot_index_incre = (int *)malloc(par->number_of_snapshot*sizeof(int)*FD_NDIM);
+    par->snapshot_index_count  = (int *)malloc(par->number_of_snapshot*sizeof(int)*CONST_NDIM);
+    par->snapshot_index_incre = (int *)malloc(par->number_of_snapshot*sizeof(int)*CONST_NDIM);
     par->snapshot_time_start  = (int *)malloc(par->number_of_snapshot*sizeof(int));
     par->snapshot_time_incre = (int *)malloc(par->number_of_snapshot*sizeof(int));
     par->snapshot_save_velocity = (int *)malloc(par->number_of_snapshot*sizeof(int));
@@ -510,22 +674,22 @@ par_read_from_str(const char *str, struct par_t *par)
 
       if (subitem = cJSON_GetObjectItem(snapitem, "grid_index_start"))
       {
-        for (int j = 0; j < FD_NDIM; j++) {
-          par->snapshot_index_start[i*FD_NDIM+j] = cJSON_GetArrayItem(subitem, j)->valueint;
+        for (int j = 0; j < CONST_NDIM; j++) {
+          par->snapshot_index_start[i*CONST_NDIM+j] = cJSON_GetArrayItem(subitem, j)->valueint;
         }
       }
 
       if (subitem = cJSON_GetObjectItem(snapitem, "grid_index_count"))
       {
-        for (int j = 0; j < FD_NDIM; j++) {
-          par->snapshot_index_count[i*FD_NDIM+j] = cJSON_GetArrayItem(subitem, j)->valueint;
+        for (int j = 0; j < CONST_NDIM; j++) {
+          par->snapshot_index_count[i*CONST_NDIM+j] = cJSON_GetArrayItem(subitem, j)->valueint;
         }
       }
 
       if (subitem = cJSON_GetObjectItem(snapitem, "grid_index_incre"))
       {
-        for (int j = 0; j < FD_NDIM; j++) {
-          par->snapshot_index_incre[i*FD_NDIM+j] = cJSON_GetArrayItem(subitem, j)->valueint;
+        for (int j = 0; j < CONST_NDIM; j++) {
+          par->snapshot_index_incre[i*CONST_NDIM+j] = cJSON_GetArrayItem(subitem, j)->valueint;
         }
       }
 
@@ -563,7 +727,17 @@ par_read_from_str(const char *str, struct par_t *par)
 
   // set values to default ones if no input
 
-  return;
+  //-- check conditions
+
+  // not implement dt estimation for general anisotropic media yet
+  if (par->media_itype == CONST_MEDIUM_ELASTIC_ANISO &&
+      par->size_of_time_step < 0.0)
+  {
+    fprintf(stderr, "ERROR: have not implemented dt estimation for anisotropic media\n");
+    MPI_Abort(MPI_COMM_WORLD,1);
+  }
+
+  return ierr;
 }
 
 /*
@@ -597,29 +771,39 @@ par_read_json_cfspml(cJSON *item,
  * funcs to read index/wavelet para from json str
  */
 void 
-par_read_json_source(cJSON *item, char *wavelet_type_name,
-      char *src_name, float *src_coord, int *grid_index,
+par_read_json_source(cJSON *item,
+      float *src_coord, int *grid_index, float *grid_inc,
+      float *force_vector,  int *force_actived,
+      float *moment_tensor, int *moment_actived,
       char *wavelet_name, float *wavelet_coefs, float *t_start, float *t_end)
 {
   cJSON *subitem;
 
-  // event name
-  if (subitem = cJSON_GetObjectItem(item, "name"))
-  {
-    sprintf(src_name,"%s",subitem->valuestring);
+  // default values
+  for (int idim=0; idim < CONST_NDIM; idim++) {
+    grid_index[idim] = -1; // compare -1 if coord input
+    grid_inc[idim]   = 0.0;
+    src_coord[idim]  = 0.0;
+    force_vector[idim]  = 0.0;
+    moment_tensor[2*idim  ]  = 0.0;
+    moment_tensor[2*idim+1]  = 0.0;
   }
+  *force_actived = 0;
+  *moment_actived = 0;
 
   // if coordinate
-  if (subitem = cJSON_GetObjectItem(item, "location_by_coords")) {
-    for (int i = 0; i < FD_NDIM; i++) {
+  if (subitem = cJSON_GetObjectItem(item, "coord")) {
+    for (int i = 0; i < CONST_NDIM; i++) {
       src_coord[i] = cJSON_GetArrayItem(subitem, i)->valuedouble;
     }
   }
 
   // if grid index
-  if (subitem = cJSON_GetObjectItem(item, "location_by_grid_index")) {
-    for (int i = 0; i < FD_NDIM; i++) {
-      grid_index[i] = cJSON_GetArrayItem(subitem, i)->valueint;
+  if (subitem = cJSON_GetObjectItem(item, "index")) {
+    for (int i = 0; i < CONST_NDIM; i++) {
+      float indx_w_inc = cJSON_GetArrayItem(subitem, i)->valuedouble;
+      grid_index[i] = (int) (indx_w_inc + 0.5);
+      grid_inc  [i] = indx_w_inc - grid_index[i];
     }
   }
 
@@ -632,8 +816,24 @@ par_read_json_source(cJSON *item, char *wavelet_type_name,
      *t_end = subitem->valuedouble;
   }
 
+  // if force vector
+  if (subitem = cJSON_GetObjectItem(item, "force_vector")) {
+    *force_actived = 1;
+    for (int i = 0; i < CONST_NDIM; i++) {
+      force_vector[i] = cJSON_GetArrayItem(subitem, i)->valuedouble;
+    }
+  }
+
+  // if moment vector
+  if (subitem = cJSON_GetObjectItem(item, "moment_tensor")) {
+    *moment_actived = 1;
+    for (int i = 0; i < CONST_NDIM_2; i++) {
+      moment_tensor[i] = cJSON_GetArrayItem(subitem, i)->valuedouble;
+    }
+  }
+
   // wavelet name
-  if (subitem = cJSON_GetObjectItem(item, wavelet_type_name))
+  if (subitem = cJSON_GetObjectItem(item, "wavelet_name"))
   {
     sprintf(wavelet_name,"%s",subitem->valuestring);
   }
@@ -641,7 +841,7 @@ par_read_json_source(cJSON *item, char *wavelet_type_name,
   // coefs
 
   // ricker
-  if (strcmp(wavelet_name, "ricker")==0) {
+  if (strcmp(wavelet_name, "ricker")==0 || strcmp(wavelet_name, "ricker_deriv")==0) {
     if (subitem = cJSON_GetObjectItem(item, "ricker_center_frequency")) {
       wavelet_coefs[0] = subitem->valuedouble;
     }
@@ -651,7 +851,7 @@ par_read_json_source(cJSON *item, char *wavelet_type_name,
   }
 
   // gaussian
-  if (strcmp(wavelet_name, "gaussian")==0) {
+  if (strcmp(wavelet_name, "gaussian")==0 || strcmp(wavelet_name, "gaussian_deriv")==0) {
     if (subitem = cJSON_GetObjectItem(item, "gaussian_rms_width")) {
       wavelet_coefs[0] = subitem->valuedouble;
     }
@@ -660,13 +860,17 @@ par_read_json_source(cJSON *item, char *wavelet_type_name,
       wavelet_coefs[1] = subitem->valuedouble;
     }
   }
+
+  return;
 }
 
-void
-par_print(struct par_t *par)
+int
+par_print(par_t *par)
 {    
+  int ierr = 0;
+
   fprintf(stdout, "-------------------------------------------------------\n");
-  //fprintf(stdout, "--> ESTIMATE MEMORY INFO.\n");
+  //fprintf(stdout, "--> ESTIMATE MEMORY information.\n");
   //fprintf(stdout, "-------------------------------------------------------\n");
   //fprintf(stdout, "total memory size Byte: %20.5f  B\n", PSV->total_memory_size_Byte);
   //fprintf(stdout, "total memory size KB  : %20.5f KB\n", PSV->total_memory_size_KB  );
@@ -674,7 +878,7 @@ par_print(struct par_t *par)
   //fprintf(stdout, "total memory size GB  : %20.5f GB\n", PSV->total_memory_size_GB  );
   //fprintf(stdout, "\n");
   //fprintf(stdout, "-------------------------------------------------------\n");
-  //fprintf(stdout, "--> FOLDER AND FILE INFO.\n");
+  //fprintf(stdout, "--> FOLDER AND FILE information.\n");
   //fprintf(stdout, "-------------------------------------------------------\n");
   //fprintf(stdout, "   OutFolderName: %s\n", OutFolderName);
   //fprintf(stdout, "       EventName: %s\n", OutPrefix);
@@ -685,13 +889,13 @@ par_print(struct par_t *par)
   //fprintf(stdout, "\n");
 
   fprintf(stdout, "-------------------------------------------------------\n");
-  fprintf(stdout, "--> MPI INFO:\n");
+  fprintf(stdout, "--> MPI information:\n");
   fprintf(stdout, "-------------------------------------------------------\n");
   fprintf(stdout, " number_of_mpiprocs_x = %-10d\n", par->number_of_mpiprocs_x);
   fprintf(stdout, " number_of_mpiprocs_y = %-10d\n", par->number_of_mpiprocs_y);
 
   fprintf(stdout, "-------------------------------------------------------\n");
-  fprintf(stdout, "--> Time Integration INFO:\n");
+  fprintf(stdout, "--> Time Integration information:\n");
   fprintf(stdout, "-------------------------------------------------------\n");
   fprintf(stdout, " size_of_time_step = %10.4e\n", par->size_of_time_step);
   fprintf(stdout, " number_of_time_steps = %-10d\n", par->number_of_time_steps);
@@ -706,43 +910,36 @@ par_print(struct par_t *par)
           par->boundary_type_name[3],
           par->boundary_type_name[4],
           par->boundary_type_name[5]);
-  fprintf(stdout, " abs_num_of_layers = %10d%10d%10d%10d%10d%10d\n", 
-          par->abs_num_of_layers[0],
-          par->abs_num_of_layers[1],
-          par->abs_num_of_layers[2],
-          par->abs_num_of_layers[3],
-          par->abs_num_of_layers[4],
-          par->abs_num_of_layers[5]);
-  fprintf(stdout, " cfspml_velocity = %10.2f%10.2f%10.2f%10.2f%10.2f%10.2f\n", 
-          par->cfspml_velocity[0],
-          par->cfspml_velocity[1],
-          par->cfspml_velocity[2],
-          par->cfspml_velocity[3],
-          par->cfspml_velocity[4],
-          par->cfspml_velocity[5]);
-  fprintf(stdout, " cfspml_alpha_max = %10.2f%10.2f%10.2f%10.2f%10.2f%10.2f\n", 
-          par->cfspml_alpha_max[0],
-          par->cfspml_alpha_max[1],
-          par->cfspml_alpha_max[2],
-          par->cfspml_alpha_max[3],
-          par->cfspml_alpha_max[4],
-          par->cfspml_alpha_max[5]);
-  fprintf(stdout, " cfspml_beta_max = %10.2f%10.2f%10.2f%10.2f%10.2f%10.2f\n", 
-          par->cfspml_beta_max[0],
-          par->cfspml_beta_max[1],
-          par->cfspml_beta_max[2],
-          par->cfspml_beta_max[3],
-          par->cfspml_beta_max[4],
-          par->cfspml_beta_max[5]);
+  fprintf(stdout, " cfspml:\n");
+  for (int idim=0; idim < CONST_NDIM; idim++)
+  {
+    for (int iside=0; iside < 2; iside++)
+    {
+      fprintf(stdout, "   idim=%d,iside=%d: nlay = %d,"
+              " vel=%f, alpha_max=%f, beta_max=%f\n",
+              idim, iside, 
+              par->abs_num_of_layers[idim][iside],
+              par->cfspml_velocity[idim][iside],
+              par->cfspml_alpha_max[idim][iside],
+              par->cfspml_beta_max[idim][iside]
+              );
+    }
+  }
   fprintf(stdout, "\n");
 
   fprintf(stdout, "-------------------------------------------------------\n");
-  fprintf(stdout, "--> GRID INFO:\n");
+  fprintf(stdout, "--> GRID information:\n");
   fprintf(stdout, "-------------------------------------------------------\n");
   fprintf(stdout, " grid_export_dir = %s\n", par->grid_export_dir);
   fprintf(stdout, " number_of_total_grid_points_x = %-10d\n", par->number_of_total_grid_points_x);
   fprintf(stdout, " number_of_total_grid_points_y = %-10d\n", par->number_of_total_grid_points_y);
   fprintf(stdout, " number_of_total_grid_points_z = %-10d\n", par->number_of_total_grid_points_z);
+
+  fprintf(stdout, " disg_num_level = %-10d\n", par->disg_num_level);
+  for (int n; n < par->disg_num_level; n++) {
+    fprintf(stdout, "    #%d: at %d, factor=%d\n",
+          n, par->disg_at_zindx[n], par->disg_factor[n]);
+  }
 
   fprintf(stdout, " grid_generation_itype = %d\n", par->grid_generation_itype);
   if (par->grid_generation_itype==PAR_GRID_CARTESIAN) {
@@ -759,13 +956,31 @@ par_print(struct par_t *par)
   fprintf(stdout, "-------------------------------------------------------\n");
   fprintf(stdout, "--> media info.\n");
   fprintf(stdout, "-------------------------------------------------------\n");
+  fprintf(stdout, " media_type = %s\n", par->media_type);
   fprintf(stdout, " media_export_dir = %s\n", par->media_export_dir);
-  fprintf(stdout, " media_input_itype = %d\n", par->media_input_itype);
 
-  //fprintf(stdout, "\n --> the media filename is:\n");
-  //fprintf(stdout, " velp_file  = %s\n", PSV->fnm_velp);
-  //fprintf(stdout, " vels_file  = %s\n", PSV->fnm_vels);
-  //fprintf(stdout, " rho_file   = %s\n", PSV->fnm_rho);
+  if (par->media_input_itype == PAR_MEDIA_CODE) {
+    fprintf(stdout, "\n --> use internal media funcs\n");
+  } else if (par->media_input_itype == PAR_MEDIA_IMPORT) {
+    fprintf(stdout, "\n --> import from dir = %s\n", par->media_import_dir);
+  } else if (par->media_input_itype == PAR_MEDIA_3LAY) {
+    fprintf(stdout, "\n --> input layer file = %s\n", par->media_input_file);
+  } else if (par->media_input_itype == PAR_MEDIA_3GRD) {
+    fprintf(stdout, "\n --> input grid file = %s\n", par->media_input_file);
+  }
+
+  //fprintf(stdout, " media_input_type = %s\n", par->media_input_type);
+  //fprintf(stdout, " media_input_itype = %d\n", par->media_input_itype);
+
+  if (par->visco_itype == CONST_VISCO_GRAVES_QS) {
+    fprintf(stdout, "-------------------------------------------------------\n");
+    fprintf(stdout, "--> visco info.\n");
+    fprintf(stdout, "-------------------------------------------------------\n");
+    fprintf(stdout, " visco_type = %s\n", par->visco_type);
+    fprintf(stdout, " visco_Qs_freq = %f\n", par->visco_Qs_freq);
+  } else {
+    fprintf(stdout, "--> no visco\n");
+  }
 
   fprintf(stdout, "-------------------------------------------------------\n");
   fprintf(stdout, "--> source info.\n");
@@ -773,44 +988,42 @@ par_print(struct par_t *par)
   fprintf(stdout, " source_input_itype = %d\n", par->source_input_itype);
   switch (par->source_input_itype)
   {
-    case PAR_SOURCE_SINGLE_FORCE :
-      fprintf(stdout, " source_input_type = %s\n", "single_force");
+    case PAR_SOURCE_JSON :
+      fprintf(stdout, " source_input_type = %s\n", "in_par");
       fprintf(stdout, " source_name = %s\n", par->source_name);
-      // grid index negative means to use coord
-      if (par->source_gridindex[0] < 0) {
-        fprintf(stdout, " source location = [%f, %f, %f]\n", 
-            par->source_coords[0], par->source_coords[1], par->source_coords[2]);
-      } else {
-        fprintf(stdout, " source index = [%d, %d, %d]\n", 
-            par->source_gridindex[0], par->source_gridindex[1], par->source_gridindex[2]);
+      fprintf(stdout, " number_of_source = %d\n", par->source_number);
+      for (int is=0; is < par->source_number; is++)
+      {
+        fprintf(stdout, "  #%d:\n", is);
+        // grid index negative means to use coord
+        if (par->source_index[is][0] < 0) {
+          fprintf(stdout, " source location = [%f, %f, %f]\n", 
+              par->source_coords[is][0], par->source_coords[is][1], par->source_coords[is][2]);
+        } else {
+          fprintf(stdout, " source index = [%d, %d, %d]\n", 
+              par->source_index[is][0], par->source_index[is][1], par->source_index[is][2]);
+          fprintf(stdout, " source shift = [%g, %g, %g]\n", 
+              par->source_inc[is][0], par->source_inc[is][1], par->source_inc[is][2]);
+        }
+        fprintf(stdout, " wavelet name= %s\n", par->wavelet_name[is]);
+        fprintf(stdout, " first two coefs = %g, %g\n",
+                      par->wavelet_coefs[is][0], par->wavelet_coefs[is][1]);
+        fprintf(stdout, " start and end time = %f, %f\n",
+                          par->wavelet_tstart[is],par->wavelet_tend[is]);
+        if (par->source_force_actived[is] == 1) {
+           fprintf(stdout, " force vector = [%g, %g, %g]\n", par->source_force_vector[is][0],
+               par->source_force_vector[is][1], par->source_force_vector[is][2]);
+        }
+        if (par->source_moment_actived[is] == 1) {
+           fprintf(stdout, " moment tensor = [%g, %g, %g, %g, %g, %g]\n",
+               par->source_moment_tensor[is][0],
+               par->source_moment_tensor[is][1],
+               par->source_moment_tensor[is][2],
+               par->source_moment_tensor[is][3],
+               par->source_moment_tensor[is][4],
+               par->source_moment_tensor[is][5]);
+        }
       }
-      fprintf(stdout, " source_time_functon = %s\n", par->wavelet_name);
-      fprintf(stdout, " first two coefs = %f, %f\n", par->wavelet_coefs[0], par->wavelet_coefs[1]);
-      fprintf(stdout, " start and end time = %f, %f\n", par->wavelet_tstart,par->wavelet_tend);
-      fprintf(stdout, " force vector = [%f, %f, %f]\n", par->source_force_vector[0],
-          par->source_force_vector[1], par->source_force_vector[2]);
-      break;
-
-    case PAR_SOURCE_SINGLE_MOMENT :
-      fprintf(stdout, " source_input_type = %s\n", "single_moment");
-      fprintf(stdout, " source_name = %s\n", par->source_name);
-      if (par->source_gridindex[0] < 0) {
-        fprintf(stdout, " source location = [%f, %f, %f]\n", 
-            par->source_coords[0], par->source_coords[1], par->source_coords[2]);
-      } else {
-        fprintf(stdout, " source index = [%d, %d, %d]\n", 
-            par->source_gridindex[0], par->source_gridindex[1], par->source_gridindex[2]);
-      }
-      fprintf(stdout, " moment_rate_functon = %s\n", par->wavelet_name);
-      fprintf(stdout, " first two coefs = %f, %f\n", par->wavelet_coefs[0], par->wavelet_coefs[1]);
-      fprintf(stdout, " start and end time = %f, %f\n", par->wavelet_tstart,par->wavelet_tend);
-      fprintf(stdout, " moment tensor = [%f, %f, %f, %f, %f, %f]\n",
-          par->source_moment_tensor[0],
-          par->source_moment_tensor[1],
-          par->source_moment_tensor[2],
-          par->source_moment_tensor[3],
-          par->source_moment_tensor[4],
-          par->source_moment_tensor[5]);
       break;
 
     case PAR_SOURCE_FILE :
@@ -894,5 +1107,5 @@ par_print(struct par_t *par)
   fprintf(stdout, "check_nan_every_nummber_of_steps=%d\n", par->check_nan_every_nummber_of_steps);
   fprintf(stdout, "output_all=%d\n", par->output_all);
 
-  return;
+  return ierr;
 }

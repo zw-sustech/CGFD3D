@@ -1,0 +1,157 @@
+\chapter{Source}\label{chapter-source}
+
+\begin{lstlisting}[language=python, title=run\_test.sh, frame=tb]
+    "source_input" : {
+        "in_par" : {
+            "name" : "evt_by_par"
+            "source" : [
+                {
+                    "#index" : [40, 50, 30],
+                    "coord" : [4000, 5000, -2900],
+                    "wavelet_name" : "ricker",
+                    "ricker_center_frequency" : 0.5,
+                    "ricker_peak_time" : 2.0,
+                    "#wavelet_name" : "gaussian",
+                    "#gaussian_rms_width" : 2.0,
+                    "#gaussian_peak_time" : 0.5,
+                    "start_time" : 0.0,
+                    "end_time" : 4.0,
+                    "force_vector" : [1.0e13, 1.0e10, 1.0e11],
+                    "moment_tensor" : [1.2e13, 1.0e10, 1.0e14, 1.0e12, 1.0e11, 1.0e12]
+                },
+                {
+                    "#index" : [30, 20, 30],
+                    "coord" : [3000, 3000, -2900],
+                    "wavelet_name" : "ricker",
+                    "ricker_center_frequency" : 0.5,
+                    "ricker_peak_time" : 2.0,
+                    "#wavelet_name" : "gaussian",
+                    "#gaussian_rms_width" : 2.0,
+                    "#gaussian_peak_time" : 0.5,
+                    "start_time" : 0.0,
+                    "end_time" : 4.0,
+                    "force_vector" : [1.0e13, 1.0e10, 1.0e11],
+                    "moment_tensor" : [1.2e13, 1.0e10, 1.0e14, 1.0e12, 1.0e11, 1.0e12]
+                }
+            ]
+        },
+        "#in_source_file" : "$INPUTDIR/source.anasrc"   #could choose source.valsrc
+  },
+  "is_export_source" : 1,                         # if export source                   
+  "source_export_dir"  : "$SOURCE_DIR",                   
+\end{lstlisting}
+
+%=============================================================
+\section{JSON read source format} \label{JSON read source format}
+
+In the configuration of source, if \texttt{in\_par} is selected, that means the source information is read by JSON. \texttt{index} is source grid index location and \texttt{coord} is source distance location, Input order is x, y, z. Select one of the two representations to determine the location of the source. \texttt{wavelet\_name} include ricker, ricker\_deriv, gaussian, gaussain\_deriv. if wavelet\_name choose ricker or ricker\_deriv, should give \texttt{ricker\_center\_frequency} and \texttt{ricker\_peak\_time}. if wavelet\_name choose gaussian or gaussian\_deriv, should give \texttt{gaussian\_rms\_width} and \texttt{gaussian\_peak\_time}. \texttt{start\_time} is source function start time, and \texttt{end\_time} is source function end time. \texttt{force\_vector} is single force source component, the input order is Fx, Fy, Fz. \texttt{moment\_tentor} is double couple source component, the input order is Mxx, Myy, Mzz, Myz, Mxz, Mxy. \texttt{force\_vector} and \texttt{moment\_tentor} could choose together.
+if \texttt{in\_source\_file} is selected, there need to be a .anasrc file or .valsrc file, and the .anasrc file format is shown in Section \ref{analytic source format}. The .valsrc file format is shown in Section \ref{value source format}.
+
+%===================================================================
+\section{analytic source format} \label{analytic source format}
+
+A .anasrc file can be given as:
+
+\begin{lstlisting}[language=python, title=source.anasrc, frame=tb]
+test_event_1
+3 2
+4.0 
+3000.0 2000.0 -3000.0
+1.0e15 1.0e13 1.0e14
+ricker
+2.0 0.5
+0.0
+1000.0 2000.0 -3000.0
+1.0e15 1.0e13 1.0e14
+gaussian
+2.0 0.5
+1.0
+1000.0 2000.0 -3000.0
+1.0e15 1.0e13 1.0e14
+gaussian_deriv
+1.0 5.0
+1.0
+5000.0 2000.0 -2000.0
+moment_tensor
+1.0e15 1.0e13 1.0e14 1.0e15 1.0e13 1.0e14
+gaussian_deriv
+1.0 5.0
+0.0
+1500.0 2200.0 -1300.0
+mechanism_angle
+80.0 70.0 30.0 1.1e10 1.1 1.0e8 
+ricker_deriv
+2.0 0.5
+2.0
+\end{lstlisting}
+
+first line \texttt{test\_event\_1} is source name. second line \texttt{3 2} is force source number 3 and moment source number 2. third line \texttt{4.0} is source function time length, be equal to end\_time subtract start\_time. All source functions have the same time length. Next lines, the information of each source is given in order. 
+
+A force source, first line give coordinates \texttt{3000.0 2000.0 -3000.0}, input order is x, y, z. Second line give force\_vector \texttt{1.0e15 1.0e13 1.0e14}, input order is Fx, Fy, Fz. Third line is wavelet name, include ricker, ricker\_deriv, gaussian, gaussian\_deriv. The first force source wavelet name is ricker. Fourth line is ricker\_center\_frequency and ricker\_peak\_time, respectively, if wavelet name is ricker or ricker\_deriv. Fourth line is gaussian\_rms\_width and gaussian\_peak\_time, respectively, if wavelet name is gaussian or gaussian\_deriv. The first force source ricker\_center\_frequency is 2.0, ricker\_peak\_time is 0.5. The fifth line is source function start time, The first force source start time is 0.
+
+A moment source, first line give coordinates. The first moment source coordinate is \texttt{5000.0 2000.0 -2000.0}, input order is x, y, z. Second line give moment source representation type, include moment\_tensor and mechanism\_angle. The first moment source representation is \texttt{moment\_tensor}, so third line give monmen\_tensor component, input order is Mxx, Myy, Mzz, Myz, Mxz, Mxy. Mxx = 1.01e15, Myy = 1.0e13, Mzz = 1.0e14, Myz = 1.0e15, Mxz = 1.0e13, Mxy = 1.0e14. The fourth line is wavelet name, include ricker\_deriv, gaussian\_deriv. The first moment source wavelet name is gaussian\_deriv. The fith line is gaussian\_rms\_width 1.0 and gaussian\_peak\_time 5.0. The sixth line is start time 0.0.
+
+The second moment source representation type is \texttt{mechanism\_angle}, so next line input strike dip rake u D A. u is shear modulus, D is slip distance, unit is m, A is area. Strike = 80.0,  dip = 70.0, rake = 30.0, u = 1.1e10, D = 1.1, A = 1.0e8.   
+
+%=============================================================
+\section{value source format} \label{value source format}
+
+A .valsrc file can be given as:
+
+\begin{lstlisting}[language=python, title=source.valsrc, frame=tb]
+test_event_1
+1 1
+0.02 20 
+3000.0 2000.0 -3000.0
+2000.0 3000.0 -2000.0
+1.0
+1407.403198 14074.032227 140740.312500
+5305.979492 53059.796875 530597.937500
+19359.816406 193598.187500 1935981.750000
+68359.867188 683598.687500 6835986.500000
+233580.953125 2335809.750000 23358096.000000
+772291.812500 7722918.500000 77229184.000000
+2470593.750000 24705938.000000 247059376.000000
+7646484.000000 76464848.000000 764648448.000000
+22894096.000000 228940960.000000 2289409536.000000
+66305560.000000 663055616.000000 6630556160.000000
+185734304.000000 1857343104.000000 18573430784.000000
+503157920.000000 5031579648.000000 50315792384.000000
+1318030848.000000 13180308480.000000 131803086848.000000
+3338105344.000000 33381054464.000000 333810532352.000000
+8172575744.000000 81725759488.000000 817257578496.000000
+19338747904.000000 193387479040.000000 1933874692096.000000
+44220518400.000000 442205208576.000000 4422052085760.000000
+97689878528.000000 976898818048.000000 9768988049408.000000
+208449208320.000000 2084492148736.000000 20844921225216.000000
+429488177152.000000 4294882099200.000000 42948817321984.000000
+1.5
+moment_tensor
+15145.9 15145.9 15145.9 15145.9 15145.9 15145.9
+28607.7 28607.7 28607.7 28607.7 28607.7 28607.7
+51960.8 51960.8 51960.8 51960.8 51960.8 51960.8
+90666.5 90666.5 90666.5 90666.5 90666.5 90666.5
+151799.5 151799.5 151799.5 151799.5 151799.5 151799.5
+243494.3 243494.3 243494.3 243494.3 243494.3 243494.3
+373476.1 373476.1 373476.1 373476.1 373476.1 373476.1
+546371.6 546371.6 546371.6 546371.6 546371.6 546371.6
+759746.0 759746.0 759746.0 759746.0 759746.0 759746.0
+999278.3 999278.3 999278.3 999278.3 999278.3 999278.3
+1234194.8 1234194.8 1234194.8 1234194.8 1234194.8 1234194.8
+1414798.1 1414798.1 1414798.1 1414798.1 1414798.1 1414798.1
+1474371.2 1474371.2 1474371.2 1474371.2 1474371.2 1474371.2
+1337506.4 1337506.4 1337506.4 1337506.4 1337506.4 1337506.4
+935643.3 935643.3 935643.3 935643.3 935643.3 935643.3
+228314.9 228314.9 228314.9 228314.9 228314.9 228314.9
+-774273.6 -774273.6 -774273.6 -774273.6 -774273.6 -774273.6
+-1994150.0 -1994150.0 -1994150.0 -1994150.0 -1994150.0 -1994150.0
+-3281599.0 -3281599.0 -3281599.0 -3281599.0 -3281599.0 -3281599.0
+-4430085.0 -4430085.0 -4430085.0 -4430085.0 -4430085.0 -4430085.0
+\end{lstlisting}
+
+first line \texttt{test\_event\_1} is source name. second line \texttt{1 1} is force source number 1 and moment source number 1. Third line \texttt{0.02 20} is input value source time step interval 0.02 and time steps 20. Fourth line is force source coordinate \texttt{3000.0 2000.0 -3000.0}, Fifth line is moment source coordinate \texttt{2000.0 3000.0 -2000.0}. Next lines, the values of each source is given in order.
+
+A force source, first give start time. The first force start time is \texttt{1.0}. Then give each time step force vector, each line input order is Fx, Fy, Fz.
+
+A moment source, first give start time. The first moment start time is \texttt{1.5}. The second line give moment source representation type, include moment\_tensor and mechanism\_angle. If moment source representation is \texttt{moment\_tensor}, next each line give moment\_tensor component, input order is Mxx, Myy, Mzz, Myz, Mxz, Mxy. If moment source representation is \texttt{mechanism\_angle}, next each line give mechanism\_angle component, input order is strike, dip, rake, u, D, A. 
+

@@ -2,19 +2,32 @@
 % Author:       Yuanhang Huo
 % Email:        yhhuo@mail.ustc.edu.cn
 % Affiliation:  University of Science and Technology of China
-% Date:         2021.05.31
+% Date:         2021.06.06
 
+clear all;
+
+% -------------------------- parameters input -------------------------- %
 % file and path name
-parfnm='./project/test.json';
-output_dir='./project/output';
+%media_type = 'ac_iso';
+%parfnm='/home/zhangw/work/cgfd3d-wave-ac/02/test.json'
+%output_dir='/home/zhangw/work/cgfd3d-wave-ac/02/output'
+media_type = 'el_iso';
+parfnm='/home/zhangw/work/cgfd3d-wave-el/04/test.json'
+output_dir='/home/zhangw/work/cgfd3d-wave-el/04/output'
 
-% which snapshot to plot
-id=1;
-subs=[1,1,50];
-subc=[-1,-1,1];
+%media_type = 'el_vti';
+
+% which media profile to plot
+subs=[1,50,1];      % start from index '1'
+subc=[-1,1,-1];     % '-1' to plot all points in this dimension
 subt=[1,1,1];
 
-% variable and time to plot
+%subs=[50,1,1];      % start from index '1'
+%subc=[1,-1,-1];     % '-1' to plot all points in this dimension
+%subt=[1,1,1];
+
+% variable to plot
+% 'Vp', 'Vs', 'rho', 'lambda', 'mu'
 varnm='Vp';
 
 % figure control parameters
@@ -22,13 +35,17 @@ flag_km     = 1;
 flag_emlast = 1;
 flag_print  = 0;
 flag_clb    = 1;
-scl_daspect =[1 1 1];
+flag_title  = 1;
+scl_daspect = [1 1 1];
 clrmp       = 'parula';
+% ---------------------------------------------------------------------- %
 
-% load snapshot data
-snapinfo=locate_media(parfnm,'start',subs,'count',subc,'stride',subt,'outdir',output_dir);
+
+
+% load media data
+mediainfo=locate_media(parfnm,'start',subs,'count',subc,'stride',subt,'mediadir',output_dir);
 % get coordinate data
-[x,y,z]=gather_coord(snapinfo,'coorddir',output_dir);
+[x,y,z]=gather_coord(mediainfo,'coorddir',output_dir);
 nx=size(x,1);
 ny=size(x,2);
 nz=size(x,3);
@@ -43,33 +60,35 @@ end
 
 % load media data
 switch varnm
-case 'Vp'
-   rho=gather_media(snapinfo,'rho','mediadir',dir_media);
-   mu=gather_media(snapinfo,'mu','mediadir',dir_media);
-   lambda=gather_media(snapinfo,'lambda','mediadir',dir_media);
-   v=( (lambda+2*mu)./rho ).^0.5;
-   v=v/1e3;
-case 'Vs'
-   rho=gather_media(snapinfo,'rho','mediadir',dir_media);
-   mu=gather_media(snapinfo,'mu','mediadir',dir_media);
-   v=( mu./rho ).^0.5;
-   v=v/1e3;
-case 'rho'
-   v=gather_media(snapinfo,varnm,'mediadir',dir_media);
-   v=v/1e3;
-otherwise
-   v=gather_media(snapinfo,varnm,'mediadir',dir_media);
+    case 'Vp'
+        rho=gather_media(mediainfo,'rho',output_dir);
+        if strcmp(media_type,'ac_iso') == 1
+          kappa=gather_media(mediainfo,'kappa',output_dir);
+          v=( (kappa)./rho ).^0.5;
+        elseif strcmp(media_type,'el_iso') == 1
+          mu=gather_media(mediainfo,'mu',output_dir);
+          lambda=gather_media(mediainfo,'lambda',output_dir);
+          v=( (lambda+2*mu)./rho ).^0.5;
+        end
+        v=v/1e3;
+    case 'Vs'
+        rho=gather_media(mediainfo,'rho',output_dir);
+        mu=gather_media(mediainfo,'mu',output_dir);
+        v=( mu./rho ).^0.5;
+        v=v/1e3;
+    case 'rho'
+        v=gather_media(mediainfo,varnm,output_dir);
+        v=v/1e3;
+    otherwise
+        v=gather_media(mediainfo,varnm,output_dir);
 end
 
 
 % figure plot
 hid=figure;
 set(hid,'BackingStore','on');
-set(hid,'renderer','painters');
-set(gcf, 'PaperPositionMode', 'manual');
-set(gcf,'PaperUnits','points');
-set(gcf,'PaperPosition',[0 0 800 800]);
 
+% media show
 if nx==1
    if flag_emlast
       sid=pcolor((flipud(permute(squeeze(y),[2 1]))), ...
@@ -85,7 +104,6 @@ if nx==1
    
 elseif ny==1
    if flag_emlast
-      %v(:,:,1)=0; v(:,:,end)=0;
       sid=pcolor(flipud(permute(squeeze(x),[2 1])), ...
                  flipud(permute(squeeze(z),[2 1])), ...
                  flipud(permute(squeeze(v),[2 1])));
@@ -96,7 +114,6 @@ elseif ny==1
    end
    xlabel(['X axis (' str_unit ')']);
    ylabel(['Z axis (' str_unit ')']);
-   %set(gca,'ydir','reverse');
    
 else
    if flag_emlast
@@ -112,44 +129,49 @@ else
    ylabel(['Y axis (' str_unit ')']);
 end
 
+set(gca,'layer','top');
+set(gcf,'color','white','renderer','painters');
+
+% shading
+% shading interp;
+shading flat;
+% colorbar range/scale
+if exist('scl_caxis','var')
+    caxis(scl_caxis);
+end
 % axis daspect
 if exist('scl_daspect')
     daspect(scl_daspect);
 end
 axis tight
-
 % colormap and colorbar
 if exist('clrmp')
-    colormap(jetwr);
-end
-if exist('scl_caxis','var')
-    caxis(scl_caxis);
+    colormap(clrmp);
 end
 if flag_clb
     cid=colorbar;
+    if strcmp(varnm,'Vp') || strcmp(varnm,'Vs')
+        cid.Label.String='(km/s)';
+    end
+    if strcmp(varnm,'rho')
+        cid.Label.String='g/cm^3';
+    end
 end
-
-% shading
-%shading interp;
-shading flat;
 
 % title
 if flag_title
     title(varnm);
 end
 
-% save figure
-if flag_print==1
-   print(gcf,[varnm '.png'],'-dpng');
+% save and print figure
+if flag_print
+    width= 500;
+    height=500;
+    set(gcf,'paperpositionmode','manual');
+    set(gcf,'paperunits','points');
+    set(gcf,'papersize',[width,height]);
+    set(gcf,'paperposition',[0,0,width,height]);
+    print(gcf,[varnm '.png'],'-dpng');
 end
-
-
-
-
-
-
-
-
-
 
 
