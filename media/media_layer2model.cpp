@@ -20,7 +20,8 @@
 #include "media_read_file.hpp"
 #include "media_utility.hpp"
 
-//using namespace std;
+// for reporting error, media_type int -> string
+std::map<int, std::string> md_map = create_md2str_map();
 
 /*============================= for C call =================================*/
 //---- 0. one component
@@ -41,9 +42,10 @@ int media_layer2model_onecmp(float *var3d,
     read_interface_file(in_var_file, &interfaces);
   
     if (interfaces.media_type != ONE_COMPONENT) {
-        fprintf(stderr, "ERROR: The media_layer2model_onecmp function only supports "\
-                "one_component, please check the media_type %s in %s! \n", 
-                interfaces.media_type, in_var_file);        
+        fprintf(stderr, "Error: media_type=%s is not supported,\n"\
+                        "       media_layer2model_onecmp() only supports one_component,\n"\
+                        "       please check the media_type in %s! \n", 
+                md_map[interfaces.media_type].c_str(), in_var_file);   
         fflush(stderr);
         exit(1);
     }
@@ -55,7 +57,7 @@ int media_layer2model_onecmp(float *var3d,
     } else if (strcmp(average_method, "ari") == 0) {      //arithemtic
         parametrization_layer_onecmp_ari(nx, ny, nz, x3d, y3d, z3d, grid_type, interfaces, var3d);
     } else {                                                        // default = loc
-        fprintf(stderr, "ERROR: Wrong average method %s for one_component. \n", average_method);        
+        fprintf(stderr, "Error: Wrong average method %s for one_component. \n", average_method);        
         fflush(stderr);
         exit(1);
     }
@@ -85,8 +87,10 @@ int media_layer2model_ac_iso(
     read_interface_file(in_3lay_file, &interfaces);
 
     if (interfaces.media_type != ACOUSTIC_ISOTROPIC) {
-        fprintf(stderr, "ERROR: The media_layer2model_ac_iso function only supports "\
-                "acoustic_isotropic, please check the media_type of %s! \n", in_3lay_file);        
+        fprintf(stderr, "Error: media_type=%s is not supported,\n"\
+                        "       media_layer2model_ac_iso() only supports acoustic_isotropic,\n"\
+                        "       please check the media_type in %s! \n", 
+                md_map[interfaces.media_type].c_str(), in_3lay_file);         
         fflush(stderr);
         exit(1);
     }
@@ -101,7 +105,8 @@ int media_layer2model_ac_iso(
         parametrization_layer_ac_iso_har(nx, ny, nz, x3d, y3d, z3d, grid_type, 
             interfaces, kappa3d, rho3d);
     } else { 
-        fprintf(stderr, "ERROR: Wrong average method %s for acoustic_isotropic media \n", equivalent_medium_method);        
+        fprintf(stderr, "Error: Wrong average method %s for acoustic_isotropic media. \n",
+                 equivalent_medium_method);        
         fflush(stderr);
         exit(1);
     }
@@ -132,8 +137,10 @@ int media_layer2model_el_iso(
     read_interface_file(in_3lay_file, &interfaces);   
 
     if (interfaces.media_type != ELASTIC_ISOTROPIC) {
-        fprintf(stderr, "ERROR: The media_layer2model_el_iso function only supports "\
-                "elastic_isotropic, please check the media_type of %s! \n", in_3lay_file);        
+        fprintf(stderr, "Error: media_type=%s is not supported,\n"\
+                        "       media_layer2model_el_iso() only supports elastic_isotropic,\n"\
+                        "       please check the media_type in %s! \n", 
+                md_map[interfaces.media_type].c_str(), in_3lay_file);        
         fflush(stderr);
         exit(1);
     }
@@ -148,9 +155,10 @@ int media_layer2model_el_iso(
         parametrization_layer_el_iso_ari(nx, ny, nz, x3d, y3d, z3d, grid_type, 
             interfaces, lam3d, mu3d, rho3d);
     } else { //default
-        fprintf(stderr, "ERROR: Wrong parameterization method %s in media_layer2model_el_iso function, "\
-                "if you want to use tti method, please call the media_layer2model_el_aniso function. \n", 
-                equivalent_medium_method);        
+        fprintf(stderr,"Error: Wrong parametrization method %s in media_layer2model_el_iso(), " \
+                       "       if you want to use tti equivalent medium method, " \
+                       "       please call the media_layer2model_el_aniso().\n", 
+                       equivalent_medium_method);        
         fflush(stderr);
         exit(1);
     }
@@ -185,9 +193,10 @@ int media_layer2model_el_vti(
     int md_type = interfaces.media_type;
 
     if (md_type != ELASTIC_VTI_PREM && md_type != ELASTIC_VTI_THOMSEN && md_type != ELASTIC_VTI_CIJ) {
-        fprintf(stderr, "ERROR: media_type: %d. The media_layer2model_el_vti function only supports "\
-                "elastic_vti_prem, elastic_vti_thomsen, elastic_vti_cij, "\
-                "please check the media_type of %s! \n", md_type, in_3lay_file);        
+        fprintf(stderr, "Error: media_type=%s is not supported in media_layer2model_el_vti(),\n"\
+                        "       it only supports elastic_vti_prem, elastic_vti_thomsen, elastic_vti_cij,\n"\
+                        "       please check the media_type in %s! \n", 
+                md_map[interfaces.media_type].c_str(), in_3lay_file);      
         fflush(stderr);
         exit(1);
     }
@@ -202,9 +211,10 @@ int media_layer2model_el_vti(
         parametrization_layer_el_vti_ari(nx, ny, nz, x3d, y3d, z3d, grid_type, 
             interfaces, c11, c33, c55, c66, c13, rho);
     } else { //default
-        fprintf(stderr, "ERROR: Wrong parameterization method %s in media_layer2model_el_vti function, "\
-                "if you want to use tti method, please call the media_layer2model_el_aniso function. \n", 
-                equivalent_medium_method);        
+        fprintf(stderr,"Error: Wrong parametrization method %s in media_layer2model_el_vti(), " \
+                       "       if you want to use tti equivalent medium method, " \
+                       "       please call the media_layer2model_el_aniso().\n", 
+                       equivalent_medium_method);        
         fflush(stderr);
         exit(1);
     }
@@ -244,13 +254,13 @@ int media_layer2model_el_aniso(
     // the function does not support one component and acoustic wave
     // if the 
     if (md_type == ONE_COMPONENT){
-        fprintf(stderr, "ERROR: The media_layer2model_el_aniso function dose not"\
-                "supports one_component, please check the media_type of %s! \n", in_3lay_file);        
+        fprintf(stderr, "Error: media_type=one_component is not supported in media_layer2model_el_aniso(),\n"\
+                        "       please check the media_type of %s! \n", in_3lay_file);        
         fflush(stderr);
         exit(1);
     } else if (md_type == ACOUSTIC_ISOTROPIC){
-        fprintf(stderr, "ERROR: The media_layer2model_el_aniso function dose not"\
-                "supports acoustic_isotropic, please check the media_type of %s! \n", in_3lay_file);        
+        fprintf(stderr, "Error: media_type=acoustic_isotropic is not supported in media_layer2model_el_aniso(),\n"\
+                        "       please check the media_type of %s! \n", in_3lay_file);        
         fflush(stderr);
         exit(1);
     }
@@ -299,7 +309,7 @@ int media_layer2model_el_aniso(
         } else if(strcmp(equivalent_medium_method,"tti") == 0) {
 // TODO: tti equivalent medium method for iso
         } else {
-            fprintf(stderr, "ERROR: no such equivalent_medium_method: %s!\n", equivalent_medium_method);        
+            fprintf(stderr, "Error: no such equivalent_medium_method: %s!\n", equivalent_medium_method);        
             fflush(stderr);
             exit(1);        
         }
@@ -352,7 +362,7 @@ int media_layer2model_el_aniso(
         } else if(strcmp(equivalent_medium_method,"tti") == 0) {
 // TODO: tti equivalent medium for vti
         } else {
-            fprintf(stderr, "ERROR: no such equivalent_medium_method: %s! \n", equivalent_medium_method);        
+            fprintf(stderr, "Error: no such equivalent_medium_method: %s! \n", equivalent_medium_method);        
             fflush(stderr);
             exit(1);        
         }
@@ -372,7 +382,7 @@ int media_layer2model_el_aniso(
         } else if(strcmp(equivalent_medium_method,"tti") == 0) {
 // TODO: tti equivalent medium for tti
         } else { //default
-            fprintf(stderr, "ERROR: no such equivalent_medium_method: %s! \n", equivalent_medium_method);        
+            fprintf(stderr, "Error: no such equivalent_medium_method: %s! \n", equivalent_medium_method);        
             fflush(stderr);
             exit(1);        
         }
@@ -384,7 +394,7 @@ int media_layer2model_el_aniso(
 /*=================================================================================*/
 
 int AssignLayerMediaPara2Point(
-    size_t ix, size_t iy, size_t iz,         /* To print error messages */ 
+    size_t ix, size_t iy, size_t iz,         /* To print Error messages */ 
     Point3 A,  
     inter_t &interfaces,
     int media_type,                /* the type can be found in media_utility.hpp */ 
@@ -828,7 +838,7 @@ void CalPointValue_layer(int media_type,
     break;
 
     default: // for self-check
-        fprintf(stderr,"Error: Unknow meida, please check the code! (for code check, please contact Luqian Jiang)\n");
+        fprintf(stderr,"Error: Unknow media (for code check, please contact Luqian Jiang)\n");
         fflush(stderr);
         exit(1);
 

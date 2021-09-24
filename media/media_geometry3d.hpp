@@ -1,5 +1,5 @@
-#ifndef __MEDIA_GEOMETRY3D_H__
-#define __MEDIA_GEOMETRY3D_H__
+#ifndef _MEDIA_GEOMETRY3D_H_
+#define _MEDIA_GEOMETRY3D_H_
 
 #include <iostream>
 #include <vector>

@@ -1,5 +1,5 @@
-#ifndef __MEDIA_GRID2MODEL__
-#define __MEDIA_GRID2MODEL__
+#ifndef _MEDIA_GRID2MODEL_
+#define _MEDIA_GRID2MODEL_
 
 #include "media_geometry3d.hpp"
 #include "media_read_file.hpp"

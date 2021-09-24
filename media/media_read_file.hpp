@@ -1,5 +1,5 @@
-#ifndef __MEDIA_READ_INTERFACE_FILE__
-#define __MEDIA_READ_INTERFACE_FILE__
+#ifndef _MEDIA_READ_INTERFACE_FILE_
+#define _MEDIA_READ_INTERFACE_FILE_
 #define MAX_BUF_LEN 1024
 
 #include <iostream>

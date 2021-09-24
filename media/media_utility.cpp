@@ -6,6 +6,23 @@
 //#include <Eigen>
 #include "media_utility.hpp"
 
+
+// for report error: int -> string
+std::map<int, std::string> create_md2str_map() 
+{
+    std::map<int, std::string> m;
+    m[ONE_COMPONENT] = "one_componet";
+    m[ACOUSTIC_ISOTROPIC] = "acoustic_isotropic";
+    m[ELASTIC_ISOTROPIC] = "elastic_isotropic"; 
+    m[ELASTIC_VTI_PREM] = "elastic_vti_prem";
+    m[ELASTIC_VTI_THOMSEN] = "elastic_vti_thomsen"; 
+    m[ELASTIC_VTI_CIJ] = "elastic_vti_cij";
+    m[ELASTIC_TTI_THOMSEN] = "elastic_tti_thomsen"; 
+    m[ELASTIC_TTI_BOND] = "elastic_tti_bond";
+    m[ELASTIC_ANISO_CIJ] = "elastic_aniso_cij";
+    return m;
+}
+
 bool isEqual(float a, float b) {
     return abs(a-b) < FLT_EPSILON;
 }

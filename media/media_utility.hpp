@@ -1,7 +1,8 @@
-#ifndef __MEDIA_UTILITY__
-#define __MEDIA_UTILITY__
-#include "media_geometry3d.hpp"
+#ifndef _MEDIA_UTILITY_
+#define _MEDIA_UTILITY_
 
+#include "media_geometry3d.hpp"
+#include <map>
 // for equivalent medium parametrization
 #define NG 8
 
@@ -19,6 +20,9 @@
 #define GRID_CART 1
 #define GRID_VMAP 2
 #define GRID_CURV 3
+
+// for report error: int -> string
+std::map<int, std::string> create_md2str_map(); 
 
 /* 
  * number used for divided the mesh, 
