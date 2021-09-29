@@ -25,4 +25,10 @@ void read_grid_file(
     std::vector<int> &NGz, // how many z-grid in each layer
     inter_t *interfaces);
 
+// check whether the elevation[ng[i]-1] == elevation[ng[i]] 
+int checkGridData(int NL, 
+    std::vector <int> &NGz,
+    inter_t &interfaces, 
+    const char *grid_file); 
+
 #endif

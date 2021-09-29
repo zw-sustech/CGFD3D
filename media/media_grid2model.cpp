@@ -21,7 +21,6 @@
 #include "media_read_file.hpp"
 
 // TODO: 
-//       2. the elevation of specified layers are not same, print err
 //       3. treatment for zero-thick layers
 
 std::map<int, std::string> md2str = create_md2str_map();
@@ -493,7 +492,7 @@ void CalPointValue_grid(int media_type,
             var[0] = BilinearInterpolation(xvec, yvec, interfaces.var + mi*slice, A.x, A.y); 
         } else if (mi == NI-1) {
             var[0] = BilinearInterpolation(xvec, yvec, interfaces.var + mi*slice, A.x, A.y); 
-        }else {
+        }else { 
             float var0 = BilinearInterpolation(xvec, yvec, interfaces.var + mi*slice, A.x, A.y);
             float var1 = BilinearInterpolation(xvec, yvec, interfaces.var + (mi+1)*slice, A.x, A.y);
             var[0]  = var0  + (var1-var0) * dis_r;
@@ -511,6 +510,7 @@ void CalPointValue_grid(int media_type,
             var[1] = BilinearInterpolation(xvec, yvec, interfaces.vp  + mi*slice, A.x, A.y);
             var[2] = BilinearInterpolation(xvec, yvec, interfaces.vs  + mi*slice, A.x, A.y);
         } else {
+            // special treatment: point is on the media grid, average of upper and lower media
             float vp0  = BilinearInterpolation(xvec, yvec, interfaces.vp  + mi*slice, A.x, A.y);
             float vs0  = BilinearInterpolation(xvec, yvec, interfaces.vs  + mi*slice, A.x, A.y);
             float rho0 = BilinearInterpolation(xvec, yvec, interfaces.rho + mi*slice, A.x, A.y);
@@ -897,7 +897,7 @@ void parametrization_grid_onecmp_loc(
     size_t siz_volume = nx * ny * nz;
 
     float slow_k = 1.0/(nz-1); // for print progress
-    std::cout << "Discrete model \n\n";
+    std::cout << "- discrete model by local values:\n\n";
     for (size_t k = 0; k < nz; ++k) {
         printProgress(slow_k*k);
         for (size_t j = 0; j < ny; ++j) {
@@ -945,7 +945,7 @@ void parametrization_grid_ac_iso_loc(
     size_t siz_volume = nx * ny * nz;
 
     float slow_k = 1.0/(nz-1); // for print progress
-    std::cout << "Discrete model \n\n";
+    std::cout << "- discrete model by local values:\n\n";
     for (size_t k = 0; k < nz; ++k) {
         printProgress(slow_k*k);
         for (size_t j = 0; j < ny; ++j) {
@@ -999,7 +999,7 @@ void parametrization_grid_el_iso_loc(
     size_t siz_volume = nx * ny * nz;
 
     float slow_k = 1.0/(nz-1); // for print progress
-    std::cout << "Discrete model \n\n";
+    std::cout << "- discrete model by local values:\n\n";
     for (size_t k = 0; k < nz; ++k) {
         printProgress(slow_k*k);
         for (size_t j = 0; j < ny; ++j) {
@@ -1058,7 +1058,7 @@ void parametrization_grid_el_vti_loc(
     int media_type = interfaces.media_type;
 
     float slow_k = 1.0/(nz-1); // for print progress
-    std::cout << "Discrete model \n\n";
+    std::cout << "- discrete model by local values:\n\n";
     for (size_t k = 0; k < nz; ++k) {
         printProgress(slow_k*k);
         for (size_t j = 0; j < ny; ++j) {
@@ -1128,7 +1128,7 @@ void parametrization_grid_el_aniso_loc(
     int media_type = interfaces.media_type;
 
     float slow_k = 1.0/(nz-1); // for print progress
-    std::cout << "Discrete model \n\n";
+    std::cout << "- discrete model by local values:\n\n";
     for (size_t k = 0; k < nz; ++k) {
         printProgress(slow_k*k);
         for (size_t j = 0; j < ny; ++j) {
@@ -1203,7 +1203,7 @@ int LayerNumberAtPoint(
     }
 
     /* Mark the layer number */
-    int mi = findNearestGreaterIndex(A.z, elevation);
+    int mi = findLastGreaterEqualIndex(A.z, elevation);
 
     /* If the elevation is above the surface, it is assigned by the first layer para. */
     if (mi == -1) 
@@ -1298,7 +1298,7 @@ int parametrization_grid_onecmp_har(
 
     /* Loop integer-grid points */ 
     float slow_k = 1.0/(ny-2);
-    std::cout << "Equivalent medium parametrization:\n\n";
+    std::cout << "- equivalent medium parametrization:\n\n";
     for (size_t j = 1; j < ny-1; j++) {
         printProgress(slow_k*j);
         for (size_t k = 1; k < nz-1; k++) {
@@ -1403,7 +1403,7 @@ int parametrization_grid_onecmp_ari(
 
     /* Loop integer-grid points */ 
     float slow_k = 1.0/(ny-2);
-    std::cout << "Equivalent medium parametrization:\n\n";
+    std::cout << "- equivalent medium parametrization:\n\n";
     for (size_t j = 1; j < ny-1; j++) {
         printProgress(slow_k*j);
         for (size_t k = 1; k < nz-1; k++) {
@@ -1511,7 +1511,7 @@ int parametrization_grid_ac_iso_har(
 
     /* Loop integer-grid points */ 
     float slow_k = 1.0/(ny-2);
-    std::cout << "Equivalent medium parametrization:\n\n";
+    std::cout << "- equivalent medium parametrization:\n\n";
     for (size_t j = 1; j < ny-1; j++) {
         printProgress(slow_k*j);
         for (size_t k = 1; k < nz-1; k++) {
@@ -1623,7 +1623,7 @@ int parametrization_grid_ac_iso_ari(
 
     /* Loop integer-grid points */ 
     float slow_k = 1.0/(ny-2);
-    std::cout << "Equivalent medium parametrization:\n\n";
+    std::cout << "- equivalent medium parametrization:\n\n";
     for (size_t j = 1; j < ny-1; j++) {
         printProgress(slow_k*j);
         for (size_t k = 1; k < nz-1; k++) {
@@ -1739,7 +1739,7 @@ int parametrization_grid_el_iso_har(
 
     /* Loop integer-grid points */ 
     float slow_k = 1.0/(ny-2);
-    std::cout << "Equivalent medium parametrization:\n\n";
+    std::cout << "- equivalent medium parametrization:\n\n";
     for (size_t j = 1; j < ny-1; j++) {
         printProgress(slow_k*j);
         for (size_t k = 1; k < nz-1; k++) {
@@ -1861,7 +1861,7 @@ int parametrization_grid_el_iso_ari(
     
     /* Loop integer-grid points */ 
     float slow_k = 1.0/(ny-2);
-    std::cout << "Equivalent medium parametrization:\n\n";
+    std::cout << "- equivalent medium parametrization:\n\n";
     for (size_t j = 1; j < ny-1; j++) {
         printProgress(slow_k*j);
         for (size_t k = 1; k < nz-1; k++) {
@@ -1985,7 +1985,7 @@ int parametrization_grid_el_vti_har(
 
     /* Loop integer-grid points */ 
     float slow_k = 1.0/(ny-2);
-    std::cout << "Equivalent medium parametrization:\n\n";
+    std::cout << "- equivalent medium parametrization:\n\n";
     for (size_t j = 1; j < ny-1; j++) {
         printProgress(slow_k*j);
         for (size_t k = 1; k < nz-1; k++) {
@@ -2120,7 +2120,7 @@ int parametrization_grid_el_vti_ari(
 
     /* Loop integer-grid points */ 
     float slow_k = 1.0/(ny-2);
-    std::cout << "Equivalent medium parametrization:\n\n";
+    std::cout << "- equivalent medium parametrization:\n\n";
     for (size_t j = 1; j < ny-1; j++) {
         printProgress(slow_k*j);
         for (size_t k = 1; k < nz-1; k++) {
@@ -2270,7 +2270,7 @@ int parametrization_grid_el_aniso_har(
 
     /* Loop integer-grid points */ 
     float slow_k = 1.0/(ny-2);
-    std::cout << "Equivalent medium parametrization:\n\n";
+    std::cout << "- equivalent medium parametrization:\n\n";
     for (size_t j = 1; j < ny-1; j++) {
         printProgress(slow_k*j);
         for (size_t k = 1; k < nz-1; k++) {
@@ -2480,7 +2480,7 @@ int parametrization_grid_el_aniso_ari(
 
     /* Loop integer-grid points */ 
     float slow_k = 1.0/(ny-2);
-    std::cout << "Equivalent medium parametrization:\n\n";
+    std::cout << "- equivalent medium parametrization:\n\n";
     for (size_t j = 1; j < ny-1; j++) {
         printProgress(slow_k*j);
         for (size_t k = 1; k < nz-1; k++) {
@@ -2620,4 +2620,5 @@ int parametrization_grid_el_aniso_ari(
     if (MaterNum != nullptr) delete[] MaterNum;
     return 0;
 }
+
 

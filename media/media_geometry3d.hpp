@@ -76,8 +76,4 @@ bool isPointInHexahedron(float px, float py, float pz,
 #endif /* extern C */
 
 
-// For media discretize used
-Point3 *MeshSubdivide(Mesh3 M);
-
-
 #endif /*media_geometry*/
