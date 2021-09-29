@@ -296,7 +296,8 @@ int media_grid2model_el_aniso(
             parametrization_grid_el_iso_loc(nx, ny, nz, x3d, y3d, z3d, grid_type, 
                 NL, NGz, interfaces, c13, c44, rho);
             for (size_t i = 0; i < siz_volume; ++i) {
-                c11[i] = c13[i] + 2.0*c44[i]; 
+                c44[i] *= 2.0;
+                c11[i] = c13[i] + c44[i]; 
                 c22[i] = c11[i]; c33[i] = c11[i]; 
                 c12[i] = c13[i]; c23[i] = c13[i];
                 c55[i] = c44[i]; c66[i] = c44[i];
@@ -309,7 +310,8 @@ int media_grid2model_el_aniso(
             parametrization_grid_el_iso_har(nx, ny, nz, x3d, y3d, z3d, grid_type, 
                 NL, NGz, interfaces, c13, c44, rho);
             for (size_t i = 0; i < siz_volume; ++i) {
-                c11[i] = c13[i] + 2.0*c44[i]; 
+                c44[i] *= 2.0;
+                c11[i] = c13[i] + c44[i]; 
                 c22[i] = c11[i]; c33[i] = c11[i]; 
                 c12[i] = c13[i]; c23[i] = c13[i];
                 c55[i] = c44[i]; c66[i] = c44[i];
@@ -322,7 +324,8 @@ int media_grid2model_el_aniso(
             parametrization_grid_el_iso_ari(nx, ny, nz, x3d, y3d, z3d, grid_type, 
                 NL, NGz, interfaces, c13, c44, rho);
             for (size_t i = 0; i < siz_volume; ++i) {
-                c11[i] = c13[i] + 2.0*c44[i]; 
+                c44[i] *= 2.0;
+                c11[i] = c13[i] + c44[i]; 
                 c22[i] = c11[i]; c33[i] = c11[i]; 
                 c12[i] = c13[i]; c23[i] = c13[i];
                 c55[i] = c44[i]; c66[i] = c44[i];
