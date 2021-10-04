@@ -1,5 +1,5 @@
-#ifndef __MEDIA_READ_INTERFACE_FILE__
-#define __MEDIA_READ_INTERFACE_FILE__
+#ifndef _MEDIA_READ_INTERFACE_FILE_
+#define _MEDIA_READ_INTERFACE_FILE_
 #define MAX_BUF_LEN 1024
 
 #include <iostream>
@@ -24,5 +24,11 @@ void read_grid_file(
     int &NL,
     std::vector<int> &NGz, // how many z-grid in each layer
     inter_t *interfaces);
+
+// check whether the elevation[ng[i]-1] == elevation[ng[i]] 
+int checkGridData(int NL, 
+    std::vector <int> &NGz,
+    inter_t &interfaces, 
+    const char *grid_file); 
 
 #endif

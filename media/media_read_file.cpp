@@ -8,7 +8,7 @@ FILE *gfopen(const char *filename, const char *mode)
 {
     FILE *fp;
     if ((fp = fopen(filename,mode)) == NULL) {
-        fprintf(stderr, "ERROR: Cannot open %s, " \
+        fprintf(stderr, "Error: Cannot open %s, " \
             "please check your file path and run-directory.\n",filename);
         exit(1);
     }
@@ -42,7 +42,7 @@ void read_interface_file(
     while(feof(tmp_file) != EOF)
     {
         if (fscanf(tmp_file, "%s", media_type) < 1) {
-            fprintf(stderr,"ERROR: The INTERFACES FILE is wrong, please give a media_type!\n");
+            fprintf(stderr,"Error: Please give a media_type in %s!\n", interface_file);
             fflush(stderr);
             exit(1);
         } 
@@ -66,33 +66,32 @@ void read_interface_file(
         } else if (strcmp(media_type, "elastic_aniso_cij") == 0) {
             interfaces->media_type = ELASTIC_ANISO_CIJ; 
         } else {
-            fprintf(stderr,"ERROR: The media_type %s is not supported, "\
-                    "please check %s!\n", media_type, interface_file);
+            fprintf(stderr,"Error: media_type=%s is not supported, \n"\
+                           "       please check %s!\n", media_type, interface_file);
             fflush(stderr);
             exit(1);
         }
 
         if (fscanf(tmp_file, "%d", &NI) < 1) {
-            fprintf(stderr,"ERROR: The INTERFACES FILE is wrong, please give a number of layers!\n");
+            fprintf(stderr,"Error: please give a number of layers in %s!\n", interface_file);
             fflush(stderr);
             exit(1);
         }
 
         if (NI < 1) {
-            fprintf(stderr, "ERROR: No enough interfaes (minimum is 1), please check file %s!\n", interface_file);
+            fprintf(stderr, "Error: No enough interfaes (minimum is 1), please check file %s!\n", interface_file);
             fflush(stderr);
             exit(1);
         }
 
         if (fscanf(tmp_file, "%d %d %f %f %f %f", &NX, &NY, &MINX, &MINY, &DX, &DY) < 6) {
-            fprintf(stderr,"ERROR: The INTERFACES FILE is wrong, " \
-                "please check the given interfaces mesh!\n");
+            fprintf(stderr,"Error: please check the given interfaces mesh in %s!\n", interface_file);
             fflush(stderr);
             exit(1);
         }
 
         if (NX < 2 || NY < 2) {
-            fprintf(stderr, "ERROR: No enough point (NX >= 2, NY >= 2)!");
+            fprintf(stderr, "Error: No enough point (NX >= 2, NY >= 2), please check file %s!\n", interface_file);
             fflush(stderr);   
             exit(1);         
         }
@@ -130,8 +129,7 @@ void read_interface_file(
                                            &(interfaces->var_grad[indx] ),
                                            &(interfaces->var_pow[indx]  ) );
                         if (num_read < 4) {
-                            fprintf(stderr, "ERROR: The INTERFACES FILE is wrong, " \
-                                "please check the interfaces data of #%li layer!\n", ni);
+                            fprintf(stderr, "Error: Insufficient data in %s.\n", interface_file);
                             fflush(stderr);
                             exit(1);
                         }
@@ -163,8 +161,7 @@ void read_interface_file(
                                           &(interfaces->vp_grad[indx]  ),
                                           &(interfaces->vp_pow[indx]   ) );
                         if (num_read < 7) {
-                            fprintf(stderr, "ERROR: The INTERFACES FILE is wrong, " \
-                                "please check the interfaces data of #%li layer!\n", ni);
+                            fprintf(stderr, "Error: Insufficient data in %s.\n", interface_file);
                             fflush(stderr);
                             exit(1);
                         }
@@ -202,8 +199,7 @@ void read_interface_file(
                                           &(interfaces->vs_grad[indx]  ),
                                           &(interfaces->vs_pow[indx]   ) );
                         if (num_read < 10) {
-                            fprintf(stderr, "ERROR: The INTERFACES FILE is wrong, " \
-                                "please check the interfaces data of #%li layer!\n", ni);
+                            fprintf(stderr, "Error: Insufficient data in %s.\n", interface_file);
                             fflush(stderr);
                             exit(1);
                         }
@@ -266,8 +262,7 @@ void read_interface_file(
                             &(interfaces->eta_pow[indx]  ) );
 
                         if (num_read < 19) {
-                            fprintf(stderr, "ERROR: The INTERFACES FILE is wrong, " \
-                                "please check the interfaces data of #%li layer!\n", ni);
+                            fprintf(stderr, "Error: Insufficient data in %s.\n", interface_file);
                             fflush(stderr);
                             exit(1);
                         }
@@ -330,8 +325,7 @@ void read_interface_file(
                             &(interfaces->gamma_pow[indx]  ) );
 
                         if (num_read < 19) {
-                            fprintf(stderr, "ERROR: The INTERFACES FILE is wrong, " \
-                                "please check the interfaces data of #%li layer!\n", ni);
+                            fprintf(stderr, "Error: Insufficient data in %s.\n", interface_file);
                             fflush(stderr);
                             exit(1);
                         }
@@ -394,8 +388,7 @@ void read_interface_file(
                              &(interfaces->c13_pow[indx]  ) );
 
                         if (num_read < 19) {
-                            fprintf(stderr, "ERROR: The INTERFACES FILE is wrong, " \
-                                "please check the interfaces data of #%li layer!\n", ni);
+                            fprintf(stderr, "Error: Insufficient data in %s.\n", interface_file);
                             fflush(stderr);
                             exit(1);
                         }
@@ -472,8 +465,7 @@ void read_interface_file(
                             &(interfaces->dip_pow[indx]  ) );
 
                         if (num_read < 25) {
-                            fprintf(stderr, "ERROR: The INTERFACES FILE is wrong, " \
-                                "please check the interfaces data of #%li layer!\n", ni);
+                            fprintf(stderr, "Error: Insufficient data in %s.\n", interface_file);
                             fflush(stderr);
                             exit(1);
                         }
@@ -550,8 +542,7 @@ void read_interface_file(
                             &(interfaces->dip_pow[indx]  ));
 
                         if (num_read < 25) {
-                            fprintf(stderr, "ERROR: The INTERFACES FILE is wrong, " \
-                                "please check the interfaces data of #%li layer!\n", ni);
+                            fprintf(stderr, "Error: Insufficient data in %s.\n", interface_file);
                             fflush(stderr);
                             exit(1);
                         }
@@ -644,8 +635,7 @@ void read_interface_file(
                             &(interfaces->c66[indx]), &(interfaces->c66_grad[indx]), &(interfaces->c66_pow[indx]) );
 
                         if (num_read < 67) {
-                            fprintf(stderr, "ERROR: The INTERFACES FILE is wrong, " \
-                                "please check the interfaces data of #%li layer!\n", ni);
+                            fprintf(stderr, "Error: Insufficient data in %s.\n", interface_file);
                             fflush(stderr);
                             exit(1);
                         }
@@ -655,12 +645,11 @@ void read_interface_file(
             }
         break;
         default: // for self-check
-            fprintf(stderr,"ERROR: Unknow media (for self code check, please contact Luqian Jiang)");
+            fprintf(stderr,"Error: Unknow media #%d (code check, please contact Luqian Jiang).\n", interfaces->media_type);
             fflush(stderr);
             exit(1);
 
         }
-
 
         // end of the info
         break;
@@ -709,7 +698,7 @@ void read_grid_file(
     {
 
         if (fscanf(tmp_file, "%s", media_type) < 1) {
-            fprintf(stderr,"ERROR: The GRID MEIDA FILE is wrong, please give a media_type!\n");
+            fprintf(stderr,"Error: The GRID MEIDA FILE is wrong, please give a media_type!\n");
             fflush(stderr);
             exit(1);
         } 
@@ -733,21 +722,22 @@ void read_grid_file(
         } else if (strcmp(media_type, "elastic_aniso_cij") == 0) {
             interfaces->media_type = ELASTIC_ANISO_CIJ; 
         } else {
-            fprintf(stderr,"ERROR: The media_type %s is not supported, "\
-                    "please check %s!\n", media_type, grid_file);
+            fprintf(stderr,"Error: media_type = %s is not supported, \n"\
+                           "       please check %s!\n", 
+                           media_type, grid_file);
             fflush(stderr);
             exit(1);
         }
 
         if (fscanf(tmp_file, "%d", &NL) < 1) {
-            fprintf(stderr,"ERROR: The GRID MEIDA FILE is wrong, " \
+            fprintf(stderr,"Error: The GRID MEIDA FILE is wrong, " \
                 "please give a number of layers! \n");
             fflush(stderr);
             exit(1);
         }
 
         if (NL < 1) {
-            fprintf(stderr, "ERROR: No enough layers (minimum is 1)!\n");
+            fprintf(stderr, "Error: No enough layers (minimum is 1)!\n");
             fflush(stderr);
             exit(1);
         }
@@ -755,7 +745,7 @@ void read_grid_file(
         for (int i = 0; i < NL; i++) {
             int ng_i = 0;
             if (fscanf(tmp_file, "%d",&ng_i) < 1) {
-                fprintf(stderr,"ERROR: The GRID MEIDA FILE is wrong, " \
+                fprintf(stderr,"Error: The GRID MEIDA FILE is wrong, " \
                     "please give the number of grids in the %d-th layer! \n", i);
                 fflush(stderr);
                 exit(1);
@@ -765,14 +755,14 @@ void read_grid_file(
         }
 
         if (fscanf(tmp_file, "%d %d %f %f %f %f", &NX, &NY, &MINX, &MINY, &DX, &DY) < 6) {
-            fprintf(stderr,"ERROR: The GRID MEIDA FILE is wrong, " \
+            fprintf(stderr,"Error: The GRID MEIDA FILE is wrong, " \
                 "please check the given interfaces mesh! \n");
             fflush(stderr);
             exit(1);
         }
 
         if (NX < 2 || NY < 2) {
-            fprintf(stderr,"ERROR: No enough point (NX >= 2, NY >= 2)! \n");
+            fprintf(stderr,"Error: No enough point (NX >= 2, NY >= 2)! \n");
             fflush(stderr); 
             exit(1);           
         }
@@ -790,13 +780,13 @@ void read_grid_file(
 
         /* The given media domain must bigger than the calculation domain */
         if (ix0 < 0 || ix1 > NX ) {
-            fprintf(stderr,"ERROR: The given media range is smaller than "\
+            fprintf(stderr,"Error: The given media range is smaller than "\
                 "the calculation grid range in x-direction! \n");
             fflush(stderr); 
             exit(1); 
         }
         if (iy0 < 0 || iy0 > NY) {
-            fprintf(stderr, "ERROR: The given media range is smaller than "\
+            fprintf(stderr, "Error: The given media range is smaller than "\
                 "the calculation grid range in y-direction! \n");
             fflush(stderr); 
             exit(1);             
@@ -835,8 +825,7 @@ void read_grid_file(
                                                &(interfaces->elevation[indx]), 
                                                &(interfaces->var[indx]      ));
                             if (num_read < 2) {
-                                fprintf(stderr, "ERROR: The GRID MEIDA FILE is wrong, " \
-                                    "please check the grid data of #%li!\n", ni);
+                                fprintf(stderr, "Error: Insufficient data in %s.\n", grid_file);
                                 fflush(stderr);
                                 exit(1);
                             } 
@@ -844,8 +833,7 @@ void read_grid_file(
                             float tmp[2];
                             int u = fscanf(tmp_file, "%f %f", tmp, tmp+1);
                             if (u < 2) {
-                                fprintf(stderr,"ERROR: The GRID MEIDA FILE is wrong, " \
-                                    "please check the grid data of #%li z-grid! \n", ni);
+                                fprintf(stderr,"Error: Insufficient data in %s.\n", grid_file);
                                 fflush(stderr);
                                 exit(1);
                             }
@@ -872,8 +860,7 @@ void read_grid_file(
                                               &(interfaces->rho[indx]      ),
                                               &(interfaces->vp[indx]       ));
                             if (num_read < 3) {
-                                fprintf(stderr, "ERROR: The GRID MEIDA FILE is wrong, " \
-                                    "please check the interfaces data of #%li layer!\n", ni);
+                                fprintf(stderr, "Error: Insufficient data in %s.\n", grid_file);
                                 fflush(stderr);
                                 exit(1);
                             } 
@@ -881,8 +868,7 @@ void read_grid_file(
                             float tmp[3];
                             int u = fscanf(tmp_file, "%f %f %f", tmp, tmp+1, tmp+2);
                             if (u < 3) {
-                                fprintf(stderr,"ERROR: The GRID MEIDA FILE is wrong, " \
-                                    "please check the grid data of #%li z-grid! \n", ni);
+                                fprintf(stderr,"Error: Insufficient data in %s.\n", grid_file);
                                 fflush(stderr);
                                 exit(1);
                             }
@@ -904,29 +890,26 @@ void read_grid_file(
                         if (ix >= ix0 && ix <= ix1 && iy >= iy0 && iy <= iy1) {
                             size_t indx = (ix-ix0) + (iy-iy0) * inter_line + ni*inter_slice;
                             int num_read = 0;
-                            num_read = fscanf( tmp_file, "%f %f %f %f",
+                            num_read = fscanf( tmp_file, "%f %f %f %f\n",
                                               &(interfaces->elevation[indx]), 
                                               &(interfaces->rho[indx]      ),
                                               &(interfaces->vp[indx]       ),
                                               &(interfaces->vs[indx]       ));
                             if (num_read < 4) {
-                                fprintf(stderr, "ERROR: The GRID MEIDA FILE is wrong, " \
-                                    "please check the interfaces data of #%li layer!\n", ni);
+                                fprintf(stderr, "Error: Insufficient data in %s.\n", grid_file);
                                 fflush(stderr);
                                 exit(1);
                             } 
                         } else { // read the data no used.
                             float tmp[4];
-                            int u = fscanf(tmp_file, "%f %f %f %f", tmp, tmp+1, tmp+2, tmp+3);
+                            int u = fscanf(tmp_file, "%f %f %f %f\n", tmp, tmp+1, tmp+2, tmp+3);
                             if (u < 4) {
-                                fprintf(stderr,"ERROR: The GRID MEIDA FILE is wrong, " \
-                                    "please check the grid data of #%li z-grid! \n", ni);
+                                fprintf(stderr,"Error: Insufficient data in %s.\n", grid_file);
                                 fflush(stderr);
                                 exit(1);
                             }
                                 
                         }
-                        
                     }
                 }
             }
@@ -956,8 +939,7 @@ void read_grid_file(
                                               &(interfaces->vsv[indx]      ),
                                               &(interfaces->eta[indx]      ) );
                             if (num_read < 7) {
-                                fprintf(stderr, "ERROR: The GRID MEIDA FILE is wrong, " \
-                                    "please check the interfaces data of #%li layer!\n", ni);
+                                fprintf(stderr, "Error: Insufficient data in %s.\n", grid_file);
                                 fflush(stderr);
                                 exit(1);
                             } 
@@ -967,8 +949,7 @@ void read_grid_file(
                             int u = fscanf(tmp_file, "%f %f %f %f %f %f %f", 
                                 tmp, tmp+1, tmp+2, tmp+3, tmp+4, tmp+5, tmp+6);
                             if (u < 7) {
-                                fprintf(stderr,"ERROR: The GRID MEIDA FILE is wrong, " \
-                                    "please check the grid data of #%li z-grid! \n", ni);
+                                fprintf(stderr, "Error: Insufficient data in %s.\n", grid_file);
                                 fflush(stderr);
                                 exit(1);
                             }
@@ -1002,8 +983,7 @@ void read_grid_file(
                                               &(interfaces->delta[indx]    ),
                                               &(interfaces->gamma[indx]    ) );
                             if (num_read < 7) {
-                                fprintf(stderr, "ERROR: The GRID MEIDA FILE is wrong, " \
-                                    "please check the interfaces data of #%li layer!\n", ni);
+                                fprintf(stderr, "Error: Insufficient data in %s.\n", grid_file);
                                 fflush(stderr);
                                 exit(1);
                             }
@@ -1012,8 +992,7 @@ void read_grid_file(
                             int u = fscanf(tmp_file, "%f %f %f %f %f %f %f", 
                                 tmp, tmp+1, tmp+2, tmp+3, tmp+4, tmp+5, tmp+6);
                             if (u < 7) {
-                                fprintf(stderr,"ERROR: The GRID MEIDA FILE is wrong, " \
-                                    "please check the grid data of #%li z-grid! \n", ni);
+                                fprintf(stderr,"Error: Insufficient data in %s.\n", grid_file);
                                 fflush(stderr);
                                 exit(1);
                             }
@@ -1047,8 +1026,7 @@ void read_grid_file(
                                               &(interfaces->c66[indx]      ),
                                               &(interfaces->c13[indx]      ) );
                             if (num_read < 7) {
-                                fprintf(stderr, "ERROR: The GRID MEIDA FILE is wrong, " \
-                                    "please check the interfaces data of #%li layer!\n", ni);
+                                fprintf(stderr, "Error: Insufficient data in %s.\n", grid_file);
                                 fflush(stderr);
                                 exit(1);
                             }
@@ -1058,8 +1036,7 @@ void read_grid_file(
                             int u = fscanf(tmp_file, "%f %f %f %f %f %f %f", 
                                 tmp, tmp+1, tmp+2, tmp+3, tmp+4, tmp+5, tmp+6);
                             if (u < 7) {
-                                fprintf(stderr,"ERROR: The GRID MEIDA FILE is wrong, " \
-                                    "please check the grid data of #%li z-grid! \n", ni);
+                                fprintf(stderr, "Error: Insufficient data in %s.\n", grid_file);
                                 fflush(stderr);
                                 exit(1);
                             }
@@ -1096,8 +1073,7 @@ void read_grid_file(
                                               &(interfaces->azimuth[indx]  ),
                                               &(interfaces->dip[indx]      ) );
                             if (num_read < 9) {
-                                fprintf(stderr, "ERROR: The GRID MEIDA FILE is wrong, " \
-                                    "please check the interfaces data of #%li layer!\n", ni);
+                                fprintf(stderr, "Error: Insufficient data in %s.\n", grid_file);
                                 fflush(stderr);
                                 exit(1);
                             } 
@@ -1106,8 +1082,7 @@ void read_grid_file(
                             int u = fscanf(tmp_file, "%f %f %f %f %f %f %f %f %f", 
                                 tmp, tmp+1, tmp+2, tmp+3, tmp+4, tmp+5, tmp+6, tmp+7, tmp+8);
                             if (u < 9) {
-                                fprintf(stderr,"ERROR: The GRID MEIDA FILE is wrong, " \
-                                    "please check the grid data of #%li z-grid! \n", ni);
+                                fprintf(stderr,"Error: Insufficient data in %s.\n", grid_file);
                                 fflush(stderr);
                                 exit(1);
                             }
@@ -1144,8 +1119,7 @@ void read_grid_file(
                                               &(interfaces->azimuth[indx]  ),
                                               &(interfaces->dip[indx]      ) );
                             if (num_read < 9) {
-                                fprintf(stderr, "ERROR: The GRID MEIDA FILE is wrong, " \
-                                    "please check the interfaces data of #%li layer!\n", ni);
+                                fprintf(stderr, "Error: Insufficient data in %s.\n", grid_file);
                                 fflush(stderr);
                                 exit(1);
                             } 
@@ -1155,8 +1129,7 @@ void read_grid_file(
                             int u = fscanf(tmp_file, "%f %f %f %f %f %f %f %f %f", 
                                 tmp, tmp+1, tmp+2, tmp+3, tmp+4, tmp+5, tmp+6, tmp+7, tmp+8);
                             if (u < 9) {
-                                fprintf(stderr,"ERROR: The GRID MEIDA FILE is wrong, " \
-                                    "please check the grid data of #%li z-grid! \n", ni);
+                                fprintf(stderr,"Error: Insufficient data in %s.\n", grid_file);
                                 fflush(stderr);
                                 exit(1);
                             }
@@ -1225,8 +1198,7 @@ void read_grid_file(
                                                 &(interfaces->c56[indx]),
                                                 &(interfaces->c66[indx]) );
                             if (num_read < 23) {
-                                fprintf(stderr, "ERROR: The GRID MEIDA FILE is wrong, " \
-                                    "please check the interfaces data of #%li layer!\n", ni);
+                                fprintf(stderr, "Error: Insufficient data in %s.\n", grid_file);
                                 fflush(stderr);
                                 exit(1);
                             } 
@@ -1239,8 +1211,7 @@ void read_grid_file(
                                             tmp+8, tmp+9, tmp+10, tmp+11, tmp+12, tmp+13, tmp+14,
                                             tmp+15, tmp+16, tmp+17, tmp+18, tmp+19, tmp+20, tmp+21, tmp+22);
                             if (u < 23) {
-                                fprintf(stderr,"ERROR: The GRID MEIDA FILE is wrong, " \
-                                    "please check the grid data of #%li z-grid! \n", ni);
+                                fprintf(stderr,"Error: Insufficient data in %s.\n", grid_file);
                                 fflush(stderr);
                                 exit(1);
                             }
@@ -1251,14 +1222,42 @@ void read_grid_file(
         break;
 
         default:
-            fprintf(stderr, "ERROR: Unknow media_type %s (for code check)\n", media_type);
+            fprintf(stderr, "Error: Unknow media_type %s (for code check)\n", media_type);
             fflush(stderr);
             exit(1);
         }
         break;
     }
 
+    checkGridData(NL, NGz, *interfaces, grid_file);
+
     fclose(file);   
     fclose(tmp_file);    
 }
 
+// check whether the elevation[ng[i]-1] == elevation[ng[i]] 
+int checkGridData(int NL, 
+    std::vector <int> &NGz,
+    inter_t &interfaces, 
+    const char *grid_file) 
+{   
+    if (NL < 2) return 0;
+
+    int inter_slice = interfaces.NX*interfaces.NY;
+    int ipoint = 0;
+    for (int i = 0; i < NL-1; i++) {
+        ipoint += (NGz[i]); 
+        for (int indx = 0; indx < inter_slice; indx++) {
+            int indx_top = indx + (ipoint-1)*inter_slice;
+            int indx_bot = indx + ipoint*inter_slice;
+            if (interfaces.elevation[indx_top] != interfaces.elevation[indx_bot]) {
+                fprintf(stderr, "Error: The last elevations of #%d layer should equal to the first "\
+                                "elevations of #%d layer!, please check %s!", i, i+1, grid_file);        
+                fflush(stderr);
+                exit(1);
+            }
+        }      
+    }
+
+    return 0;
+}

@@ -14,8 +14,9 @@ close all;
 media_type = 'elastic_isotropic'
 if_write = 1;
 
-NL = 1;
-NG(1) = 4;
+NL = 4;
+NG = ones(1, 4)*2;
+NG(NL) = 1;
 
 H(1) =     0;
 H(2) = - 173*3;
@@ -26,11 +27,8 @@ H(4) = -1156*3;
 rho(1) = 1000;
 vp(1)  = 1500;
 vs(1)  = 1000;
-par_grad = 0.0;
-par_pow  = 1; 
 
-
-for ni = 2:NG(1)
+for ni = 2:NL
     rho(ni) = rho(ni-1) * 1.5;
     vp(ni)  =  vp(ni-1) * 1.5;
     vs(ni)  =  vs(ni-1) * 1.5;
@@ -46,21 +44,21 @@ yvec = [0:NY-1]*DY + MINY;
 
 % calculate elevation 
 
-    for ni = 1:NG
-        for j =1:NY
-            for i = 1:NX
-                elevation(j,i,ni) = H(ni) * min(1, (2500-xvec(i))/1500);
-                if (xvec(i) > 2500)
-                    elevation(j,i,ni) = 0;
-                end
+for ni = 1:NL
+    for j =1:NY
+        for i = 1:NX
+            elevation(j,i,ni) = H(ni) * min(1, (2500-xvec(i))/1500);
+            if (xvec(i) > 2500)
+                elevation(j,i,ni) = 0;
             end
-        end
-    end
+         end
+     end
+end
 
-
+if 0
 % plot
 figure;
-for ni = 1:NG
+for ni = 1:NL
     mesh(X, Y, elevation(:,:,ni));
     hold on;
     xlabel('x','fontsize', 12);
@@ -68,7 +66,7 @@ for ni = 1:NG
     axis image;
     title('The build model');
 end
-
+end
 %%%% 
 %figure;
 %drawmodel(501,501,300,-2500,0,-3000,10,10,10,'rho.dat',[],0,[]);
@@ -81,11 +79,15 @@ if if_write
        	fprintf(fid, '%d\n', NG(nl)); 
     end
 	fprintf(fid, '%d %d %f %f %f %f\n', NX, NY, MINX, MINY, DX, DY);
+    ni = 0;
     for nl = 1:NL
-        for ni = 1:NG(nl)
+        for ip = 1:NG(nl)
+            ni = ni+1;
+            ielev = fix(ni/2)+1;
+            ipara = fix((ni+1)/2);
             for j = 1:NY
                 for i = 1:NX
-                    fprintf(fid, '%f %f %f %f\n', elevation(j,i,ni), rho(ni), vp(ni), vs(ni));
+                    fprintf(fid, '%f %f %f %f\n', elevation(j,i,ielev), rho(ipara), vp(ipara), vs(ipara));
                 end
             end
         end

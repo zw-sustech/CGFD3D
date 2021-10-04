@@ -1,9 +1,14 @@
-#ifndef __MEDIA_UTILITY__
-#define __MEDIA_UTILITY__
-#include "media_geometry3d.hpp"
+#ifndef _MEDIA_UTILITY_
+#define _MEDIA_UTILITY_
 
+#include "media_geometry3d.hpp"
+#include <map>
+#include <cmath>
 // for equivalent medium parametrization
 #define NG 8
+
+// pi
+#define PI acos(-1)
 
 // for media type
 #define ONE_COMPONENT       0  /* var */
@@ -19,6 +24,9 @@
 #define GRID_CART 1
 #define GRID_VMAP 2
 #define GRID_CURV 3
+
+// for report error: int -> string
+std::map<int, std::string> create_md2str_map(); 
 
 /* 
  * number used for divided the mesh, 
@@ -307,10 +315,11 @@ int findLastGreaterEqualIndex(
     float value, 
     std::vector<float> &x);
 
-int findNearestNeighborIndex(
-    float value, std::vector<float> &x);
+int findFirstGreaterEuqalIndex(
+    float value, 
+    std::vector<float> &x);
 
-int findNearestGreaterIndex(
+int findNearestNeighborIndex(
     float value, std::vector<float> &x);
 
 float BilinearInterpolation(

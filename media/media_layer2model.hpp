@@ -1,5 +1,5 @@
-#ifndef __MEDIA_LAYER2MODEL__
-#define __MEDIA_LAYER2MODEL__
+#ifndef _MEDIA_LAYER2MODEL_
+#define _MEDIA_LAYER2MODEL_
 
 #include "media_geometry3d.hpp"
 #include "media_utility.hpp"

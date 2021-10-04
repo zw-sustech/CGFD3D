@@ -1,5 +1,5 @@
-#ifndef __MEDIA_GEOMETRY3D_H__
-#define __MEDIA_GEOMETRY3D_H__
+#ifndef _MEDIA_GEOMETRY3D_H_
+#define _MEDIA_GEOMETRY3D_H_
 
 #include <iostream>
 #include <vector>
@@ -74,10 +74,6 @@ bool isPointInHexahedron(float px, float py, float pz,
 #ifdef __cplusplus
 }
 #endif /* extern C */
-
-
-// For media discretize used
-Point3 *MeshSubdivide(Mesh3 M);
 
 
 #endif /*media_geometry*/
