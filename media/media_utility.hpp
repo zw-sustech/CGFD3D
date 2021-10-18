@@ -3,8 +3,12 @@
 
 #include "media_geometry3d.hpp"
 #include <map>
+#include <cmath>
 // for equivalent medium parametrization
 #define NG 8
+
+// pi
+#define PI acos(-1)
 
 // for media type
 #define ONE_COMPONENT       0  /* var */
@@ -311,10 +315,11 @@ int findLastGreaterEqualIndex(
     float value, 
     std::vector<float> &x);
 
-int findNearestNeighborIndex(
-    float value, std::vector<float> &x);
+int findFirstGreaterEqualIndex(
+    float value, 
+    std::vector<float> &x);
 
-int findNearestGreaterIndex(
+int findNearestNeighborIndex(
     float value, std::vector<float> &x);
 
 float BilinearInterpolation(

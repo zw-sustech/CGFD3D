@@ -15,14 +15,12 @@
 #include <vector>
 #include <string.h>
 #include <math.h>  
-//#include "media_geometry3d.hpp"
+#include <set>
+#include "media_geometry3d.hpp"
 #include "media_utility.hpp"
 #include "media_grid2model.hpp"
 #include "media_read_file.hpp"
 
-// TODO: 
-//       2. the elevation of specified layers are not same, print err
-//       3. treatment for zero-thick layers
 
 std::map<int, std::string> md2str = create_md2str_map();
 
@@ -295,7 +293,7 @@ int media_grid2model_el_aniso(
     if (md_type == ELASTIC_ISOTROPIC) {
         if (strcmp(equivalent_medium_method, "loc") == 0) {
             parametrization_grid_el_iso_loc(nx, ny, nz, x3d, y3d, z3d, grid_type, 
-                NL, NGz, interfaces, c13, c44, rho);
+                NL, NGz, interfaces, rho, c13, c44);
             for (size_t i = 0; i < siz_volume; ++i) {
                 c11[i] = c13[i] + 2.0*c44[i]; 
                 c22[i] = c11[i]; c33[i] = c11[i]; 
@@ -308,7 +306,7 @@ int media_grid2model_el_aniso(
             }
         } else if (strcmp(equivalent_medium_method, "har") == 0) {
             parametrization_grid_el_iso_har(nx, ny, nz, x3d, y3d, z3d, grid_type, 
-                NL, NGz, interfaces, c13, c44, rho);
+                NL, NGz, interfaces, rho, c13, c44);
             for (size_t i = 0; i < siz_volume; ++i) {
                 c11[i] = c13[i] + 2.0*c44[i]; 
                 c22[i] = c11[i]; c33[i] = c11[i]; 
@@ -321,7 +319,7 @@ int media_grid2model_el_aniso(
             }
         } else if (strcmp(equivalent_medium_method, "ari") == 0) {
             parametrization_grid_el_iso_ari(nx, ny, nz, x3d, y3d, z3d, grid_type, 
-                NL, NGz, interfaces, c13, c44, rho);
+                NL, NGz, interfaces, rho, c13, c44);
             for (size_t i = 0; i < siz_volume; ++i) {
                 c11[i] = c13[i] + 2.0*c44[i]; 
                 c22[i] = c11[i]; c33[i] = c11[i]; 
@@ -423,7 +421,8 @@ int AssignGridMediaPara2Point(
     Point3 A, 
     inter_t &interfaces,
     int media_type,
-    std::vector<float> &var)
+    std::vector<float> &var, 
+    std::vector<int> &NGz, int NL)
 {
     /* All the given grid mesh is the same */
     size_t  NI = interfaces.NI;
@@ -435,9 +434,17 @@ int AssignGridMediaPara2Point(
     float   DY = interfaces.DY;
     float MAXX = MINX + (NX-1)*DX;  
     float MAXY = MINY + (NY-1)*DY;
+    int isPointOnInter = 0;
 
     // if out of the MEDIA GRID MESH area, exit !
     PrintIsPointOutOfInterfaceRange(A, ix, iy, iz, MINX, MAXX, MINY, MAXY);
+
+    std::set<int> layer_indx;
+    int indx = 0;
+    for (int i = 0; i < NL-1; i++) {
+        indx += NGz[i];
+        layer_indx.insert(indx);
+    }
 
     std::vector<float> XVEC(NX), YVEC(NY);
     for (size_t i = 0; i < NX; i++)
@@ -460,9 +467,12 @@ int AssignGridMediaPara2Point(
     //int mi = findNearestGreaterIndex(A.z, elevation);
     int mi = findLastGreaterEqualIndex(A.z, elevation);
 
-    CalPointValue_grid(media_type, interfaces, inter_slice, XVEC, YVEC, NI, A, elevation, mi, var);
+    if (layer_indx.count(mi) && isEqual(A.z, elevation[mi])) 
+        isPointOnInter = 1;
 
-    return 0;
+    CalPointValue_grid(media_type, interfaces, inter_slice, XVEC, YVEC, NI, layer_indx, A, elevation, mi, var);
+
+    return isPointOnInter;
 }
 
 
@@ -473,7 +483,8 @@ void CalPointValue_grid(int media_type,
                    size_t slice, 
                    std::vector<float> &xvec,  /* interface mesh */
                    std::vector<float> &yvec,
-                   int NI, 
+                   int NI,
+                   std::set<int> &layer_indx, 
                    Point3 &A,
                    std::vector<float> &elevation, /*the elevation of point A at the projection position of the interface mesh. */
                    int mi,
@@ -493,7 +504,12 @@ void CalPointValue_grid(int media_type,
             var[0] = BilinearInterpolation(xvec, yvec, interfaces.var + mi*slice, A.x, A.y); 
         } else if (mi == NI-1) {
             var[0] = BilinearInterpolation(xvec, yvec, interfaces.var + mi*slice, A.x, A.y); 
-        }else {
+        } else { 
+            // special treatment: point is on the media grid, average of upper and lower media
+            if (mi > 0 && isEqual(elevation[mi], A.z) && layer_indx.count(mi)) {
+                mi--;
+                dis_r = 1.0/2.0;
+            }
             float var0 = BilinearInterpolation(xvec, yvec, interfaces.var + mi*slice, A.x, A.y);
             float var1 = BilinearInterpolation(xvec, yvec, interfaces.var + (mi+1)*slice, A.x, A.y);
             var[0]  = var0  + (var1-var0) * dis_r;
@@ -511,6 +527,12 @@ void CalPointValue_grid(int media_type,
             var[1] = BilinearInterpolation(xvec, yvec, interfaces.vp  + mi*slice, A.x, A.y);
             var[2] = BilinearInterpolation(xvec, yvec, interfaces.vs  + mi*slice, A.x, A.y);
         } else {
+            // special treatment: point is on the media grid, average of upper and lower media
+            if (mi > 0 && isEqual(elevation[mi], A.z) && layer_indx.count(mi)) {
+                mi--;
+                dis_r = 1.0/2.0;
+            }
+            // special treatment: point is on the media grid, average of upper and lower media
             float vp0  = BilinearInterpolation(xvec, yvec, interfaces.vp  + mi*slice, A.x, A.y);
             float vs0  = BilinearInterpolation(xvec, yvec, interfaces.vs  + mi*slice, A.x, A.y);
             float rho0 = BilinearInterpolation(xvec, yvec, interfaces.rho + mi*slice, A.x, A.y);
@@ -542,6 +564,11 @@ void CalPointValue_grid(int media_type,
             var[5] = BilinearInterpolation(xvec, yvec, interfaces.eta + mi*slice, A.x, A.y);
         }
         else {
+            // special treatment: point is on the media grid, average of upper and lower media
+            if (mi > 0 && isEqual(elevation[mi], A.z) && layer_indx.count(mi)) {
+                mi--;
+                dis_r = 1.0/2.0;
+            }
             float vph0 = BilinearInterpolation(xvec, yvec, interfaces.vph + mi*slice, A.x, A.y);
             float vpv0 = BilinearInterpolation(xvec, yvec, interfaces.vpv + mi*slice, A.x, A.y);
             float vsh0 = BilinearInterpolation(xvec, yvec, interfaces.vsh + mi*slice, A.x, A.y);
@@ -581,6 +608,11 @@ void CalPointValue_grid(int media_type,
             var[4] = BilinearInterpolation(xvec, yvec, interfaces.delta  + mi*slice , A.x, A.y);
             var[5] = BilinearInterpolation(xvec, yvec, interfaces.gamma  + mi*slice , A.x, A.y);    
         } else {
+            // special treatment: point is on the media grid, average of upper and lower media
+            if (mi > 0 && isEqual(elevation[mi], A.z) && layer_indx.count(mi)) {
+                mi--;
+                dis_r = 1.0/2.0;
+            }
             float rho0     = BilinearInterpolation(xvec, yvec, interfaces.rho     + mi*slice, A.x, A.y);
             float vp00     = BilinearInterpolation(xvec, yvec, interfaces.vp0     + mi*slice, A.x, A.y);
             float vs00     = BilinearInterpolation(xvec, yvec, interfaces.vs0     + mi*slice, A.x, A.y);
@@ -620,6 +652,11 @@ void CalPointValue_grid(int media_type,
             var[4] = BilinearInterpolation(xvec, yvec, interfaces.c66 + mi*slice, A.x, A.y);
             var[5] = BilinearInterpolation(xvec, yvec, interfaces.c13 + mi*slice, A.x, A.y);   
         } else {
+            // special treatment: point is on the media grid, average of upper and lower media
+            if (mi > 0 && isEqual(elevation[mi], A.z) && layer_indx.count(mi)) {
+                mi--;
+                dis_r = 1.0/2.0;
+            }
             float rho_0 = BilinearInterpolation(xvec, yvec, interfaces.rho + mi*slice, A.x, A.y);
             float c11_0 = BilinearInterpolation(xvec, yvec, interfaces.c11 + mi*slice, A.x, A.y);
             float c33_0 = BilinearInterpolation(xvec, yvec, interfaces.c33 + mi*slice, A.x, A.y);
@@ -653,7 +690,21 @@ void CalPointValue_grid(int media_type,
             var[5] = BilinearInterpolation(xvec, yvec, interfaces.gamma   + mi*slice , A.x, A.y);
             var[6] = BilinearInterpolation(xvec, yvec, interfaces.azimuth + mi*slice , A.x, A.y);
             var[7] = BilinearInterpolation(xvec, yvec, interfaces.dip     + mi*slice , A.x, A.y);
+        } else if (mi == NI-1) {
+            var[0] = BilinearInterpolation(xvec, yvec, interfaces.rho     + mi*slice , A.x, A.y);
+            var[1] = BilinearInterpolation(xvec, yvec, interfaces.vp0     + mi*slice , A.x, A.y);
+            var[2] = BilinearInterpolation(xvec, yvec, interfaces.vs0     + mi*slice , A.x, A.y);
+            var[3] = BilinearInterpolation(xvec, yvec, interfaces.epsilon + mi*slice , A.x, A.y);
+            var[4] = BilinearInterpolation(xvec, yvec, interfaces.delta   + mi*slice , A.x, A.y);
+            var[5] = BilinearInterpolation(xvec, yvec, interfaces.gamma   + mi*slice , A.x, A.y);
+            var[6] = BilinearInterpolation(xvec, yvec, interfaces.azimuth + mi*slice , A.x, A.y);
+            var[7] = BilinearInterpolation(xvec, yvec, interfaces.dip     + mi*slice , A.x, A.y);
         } else {
+            // special treatment: point is on the media grid, average of upper and lower media
+            if (mi > 0 && isEqual(elevation[mi], A.z) && layer_indx.count(mi)) {
+                mi--;
+                dis_r = 1.0/2.0;
+            }
             float rho_0     = BilinearInterpolation(xvec, yvec, interfaces.rho     + mi*slice, A.x, A.y);
             float vp0_0     = BilinearInterpolation(xvec, yvec, interfaces.vp0     + mi*slice, A.x, A.y);
             float vs0_0     = BilinearInterpolation(xvec, yvec, interfaces.vs0     + mi*slice, A.x, A.y);
@@ -732,6 +783,11 @@ void CalPointValue_grid(int media_type,
             var[20] = BilinearInterpolation(xvec, yvec, interfaces.c56 + mi*slice, A.x, A.y);
             var[21] = BilinearInterpolation(xvec, yvec, interfaces.c66 + mi*slice, A.x, A.y);
         } else {
+            // special treatment: point is on the media grid, average of upper and lower media
+            if (mi > 0 && isEqual(elevation[mi], A.z) && layer_indx.count(mi)) {
+                mi--;
+                dis_r = 1.0/2.0;
+            }
             float c11_0 = BilinearInterpolation(xvec, yvec, interfaces.c11 + mi*slice, A.x, A.y);
             float c12_0 = BilinearInterpolation(xvec, yvec, interfaces.c12 + mi*slice, A.x, A.y);
             float c13_0 = BilinearInterpolation(xvec, yvec, interfaces.c13 + mi*slice, A.x, A.y);
@@ -824,6 +880,11 @@ void CalPointValue_grid(int media_type,
             var[7] = BilinearInterpolation(xvec, yvec, interfaces.dip     + mi*slice, A.x, A.y);
         }
         else {
+            // special treatment: point is on the media grid, average of upper and lower media
+            if (mi > 0 && isEqual(elevation[mi], A.z) && layer_indx.count(mi)) {
+                mi--;
+                dis_r = 1.0/2.0;
+            }
             float c11_0 = BilinearInterpolation(xvec, yvec, interfaces.c11 + mi*slice, A.x, A.y);
             float c33_0 = BilinearInterpolation(xvec, yvec, interfaces.c33 + mi*slice, A.x, A.y);
             float c55_0 = BilinearInterpolation(xvec, yvec, interfaces.c55 + mi*slice, A.x, A.y);
@@ -861,6 +922,11 @@ void CalPointValue_grid(int media_type,
             var[0] = BilinearInterpolation(xvec, yvec, interfaces.rho + mi*slice, A.x, A.y);
             var[1] = BilinearInterpolation(xvec, yvec, interfaces.vp  + mi*slice, A.x, A.y);
         } else {
+            // special treatment: point is on the media grid, average of upper and lower media
+            if (mi > 0 && isEqual(elevation[mi], A.z) && layer_indx.count(mi)) {
+                mi--;
+                dis_r = 1.0/2.0;
+            }
             float vp0  = BilinearInterpolation(xvec, yvec, interfaces.vp  + mi*slice, A.x, A.y);
             float rho0 = BilinearInterpolation(xvec, yvec, interfaces.rho + mi*slice, A.x, A.y);
             mi+=1;
@@ -897,7 +963,7 @@ void parametrization_grid_onecmp_loc(
     size_t siz_volume = nx * ny * nz;
 
     float slow_k = 1.0/(nz-1); // for print progress
-    std::cout << "Discrete model \n\n";
+    std::cout << "- discrete model by local values:\n\n";
     for (size_t k = 0; k < nz; ++k) {
         printProgress(slow_k*k);
         for (size_t j = 0; j < ny; ++j) {
@@ -917,7 +983,7 @@ void parametrization_grid_onecmp_loc(
                 
                 AssignGridMediaPara2Point(i, j, k,
                         Point3(Gridx[indx_x], Gridy[indx_y], Gridz[indx_z]), 
-                        interfaces, ONE_COMPONENT, var);
+                        interfaces, ONE_COMPONENT, var, NGz, NL);
     
                 var3d[indx] = var[0];     
             }
@@ -945,7 +1011,7 @@ void parametrization_grid_ac_iso_loc(
     size_t siz_volume = nx * ny * nz;
 
     float slow_k = 1.0/(nz-1); // for print progress
-    std::cout << "Discrete model \n\n";
+    std::cout << "- discrete model by local values:\n\n";
     for (size_t k = 0; k < nz; ++k) {
         printProgress(slow_k*k);
         for (size_t j = 0; j < ny; ++j) {
@@ -967,7 +1033,7 @@ void parametrization_grid_ac_iso_loc(
 
                 AssignGridMediaPara2Point(i, j, k,
                         Point3(Gridx[indx_x], Gridy[indx_y], Gridz[indx_z]), 
-                        interfaces, ACOUSTIC_ISOTROPIC, var);
+                        interfaces, ACOUSTIC_ISOTROPIC, var, NGz, NL);
 
                 /*calculate output kappa */
                 float vp = var[1], rho = var[0];
@@ -999,7 +1065,7 @@ void parametrization_grid_el_iso_loc(
     size_t siz_volume = nx * ny * nz;
 
     float slow_k = 1.0/(nz-1); // for print progress
-    std::cout << "Discrete model \n\n";
+    std::cout << "- discrete model by local values:\n\n";
     for (size_t k = 0; k < nz; ++k) {
         printProgress(slow_k*k);
         for (size_t j = 0; j < ny; ++j) {
@@ -1020,7 +1086,7 @@ void parametrization_grid_el_iso_loc(
 
                 AssignGridMediaPara2Point(i, j, k,
                         Point3(Gridx[indx_x], Gridy[indx_y], Gridz[indx_z]), 
-                        interfaces, ELASTIC_ISOTROPIC, var);
+                        interfaces, ELASTIC_ISOTROPIC, var, NGz, NL);
 
                 /*calculate output lambda and mu */
                 float vp = var[1], vs = var[2], rho = var[0];
@@ -1058,7 +1124,7 @@ void parametrization_grid_el_vti_loc(
     int media_type = interfaces.media_type;
 
     float slow_k = 1.0/(nz-1); // for print progress
-    std::cout << "Discrete model \n\n";
+    std::cout << "- discrete model by local values:\n\n";
     for (size_t k = 0; k < nz; ++k) {
         printProgress(slow_k*k);
         for (size_t j = 0; j < ny; ++j) {
@@ -1078,7 +1144,7 @@ void parametrization_grid_el_vti_loc(
                 std::vector<float> var(6, 0.0); 
                 AssignGridMediaPara2Point(i, j, k,
                         Point3(Gridx[indx_x], Gridy[indx_y], Gridz[indx_z]), 
-                        interfaces, media_type, var);
+                        interfaces, media_type, var, NGz, NL);
                 
                 para2vti(var, media_type, 
                     c11[indx], c33[indx], c55[indx], c66[indx], c13[indx], rho[indx]);
@@ -1128,7 +1194,7 @@ void parametrization_grid_el_aniso_loc(
     int media_type = interfaces.media_type;
 
     float slow_k = 1.0/(nz-1); // for print progress
-    std::cout << "Discrete model \n\n";
+    std::cout << "- discrete model by local values:\n\n";
     for (size_t k = 0; k < nz; ++k) {
         printProgress(slow_k*k);
         for (size_t j = 0; j < ny; ++j) {
@@ -1150,7 +1216,7 @@ void parametrization_grid_el_aniso_loc(
 
                 AssignGridMediaPara2Point(i, j, k,
                             Point3(Gridx[indx_x], Gridy[indx_y], Gridz[indx_z]), 
-                            interfaces, media_type, var);
+                            interfaces, media_type, var, NGz, NL);
 
                 para2tti(var, media_type, // return cij
                     c11[indx], c12[indx], c13[indx], c14[indx], c15[indx], c16[indx],
@@ -1203,7 +1269,7 @@ int LayerNumberAtPoint(
     }
 
     /* Mark the layer number */
-    int mi = findNearestGreaterIndex(A.z, elevation);
+    int mi = findLastGreaterEqualIndex(A.z, elevation);
 
     /* If the elevation is above the surface, it is assigned by the first layer para. */
     if (mi == -1) 
@@ -1298,7 +1364,7 @@ int parametrization_grid_onecmp_har(
 
     /* Loop integer-grid points */ 
     float slow_k = 1.0/(ny-2);
-    std::cout << "Equivalent medium parametrization:\n\n";
+    std::cout << "- equivalent medium parametrization:\n\n";
     for (size_t j = 1; j < ny-1; j++) {
         printProgress(slow_k*j);
         for (size_t k = 1; k < nz-1; k++) {
@@ -1332,18 +1398,21 @@ int parametrization_grid_onecmp_har(
 
                     Point3 *SubGrid = MeshSubdivide(M);
                     int nsg = (NG+1)*(NG+1)*(NG+1);
-
+                    int num_dis = nsg; 
                     for (int isg = 0; isg < nsg; isg++) {
 
                         std::vector<float> var(1, 0);
 
-                        AssignGridMediaPara2Point(i, j, k, SubGrid[isg],
-                            interfaces, ONE_COMPONENT, var);
-
-                        har_var += (1.0/var[0]);
+                        int isPointOnInter = AssignGridMediaPara2Point(i, j, k, 
+                            SubGrid[isg], interfaces, ONE_COMPONENT, var, NGz, NL);
+                        if (isPointOnInter == 1) {
+                            num_dis--;
+                        } else{
+                            har_var += (1.0/var[0]);
+                        }
                     }
 
-                    var3d[indx] = nsg*1.0/har_var;
+                    var3d[indx] = num_dis*1.0/har_var;
  
                     if (SubGrid != nullptr) delete[] SubGrid;
                 }
@@ -1403,7 +1472,7 @@ int parametrization_grid_onecmp_ari(
 
     /* Loop integer-grid points */ 
     float slow_k = 1.0/(ny-2);
-    std::cout << "Equivalent medium parametrization:\n\n";
+    std::cout << "- equivalent medium parametrization:\n\n";
     for (size_t j = 1; j < ny-1; j++) {
         printProgress(slow_k*j);
         for (size_t k = 1; k < nz-1; k++) {
@@ -1437,18 +1506,21 @@ int parametrization_grid_onecmp_ari(
 
                     Point3 *SubGrid = MeshSubdivide(M);
                     int nsg = (NG+1)*(NG+1)*(NG+1);
-
+                    int num_dis = nsg;
                     for (int isg = 0; isg < nsg; isg++) {
 
                         std::vector<float> var(1, 0);
 
-                        AssignGridMediaPara2Point(i, j, k, SubGrid[isg],
-                            interfaces, ONE_COMPONENT, var);
-
-                        ari_var += (var[0]);
+                        int isPointOnInter = AssignGridMediaPara2Point(i, j, k, 
+                            SubGrid[isg], interfaces, ONE_COMPONENT, var, NGz, NL);
+                        if (isPointOnInter == 1) {
+                            num_dis--;
+                        } else{
+                            ari_var += (var[0]);
+                        }
                     }
 
-                    var3d[indx] = ari_var/nsg;
+                    var3d[indx] = ari_var/num_dis;
  
                     if (SubGrid != nullptr) delete[] SubGrid;
                 }
@@ -1511,7 +1583,7 @@ int parametrization_grid_ac_iso_har(
 
     /* Loop integer-grid points */ 
     float slow_k = 1.0/(ny-2);
-    std::cout << "Equivalent medium parametrization:\n\n";
+    std::cout << "- equivalent medium parametrization:\n\n";
     for (size_t j = 1; j < ny-1; j++) {
         printProgress(slow_k*j);
         for (size_t k = 1; k < nz-1; k++) {
@@ -1546,21 +1618,25 @@ int parametrization_grid_ac_iso_har(
                     Point3 *SubGrid = MeshSubdivide(M);
 
                     int nsg = (NG+1)*(NG+1)*(NG+1);
+                    int num_dis = nsg;
                     for (int isg = 0; isg < nsg; isg++) {
 
                         std::vector<float> var(3, 0);
 
-                        AssignGridMediaPara2Point(i, j, k, SubGrid[isg],
-                            interfaces, ACOUSTIC_ISOTROPIC, var);
+                        int isPointOnInter = AssignGridMediaPara2Point(i, j, k, 
+                            SubGrid[isg], interfaces, ACOUSTIC_ISOTROPIC, var, NGz, NL);
+                        if (isPointOnInter == 1) {
+                            num_dis--;
+                        } else{
+                            float rho = var[0], vp = var[1];
 
-                        float rho = var[0], vp = var[1];
-
-                        ari_rho   += rho;
-                        har_kappa += (1.0/(vp*vp*rho));
+                            ari_rho   += rho;
+                            har_kappa += (1.0/(vp*vp*rho));
+                        }
                     }
 
-                    rho3d[indx] = ari_rho/nsg;
-                    kappa[indx] = 1.0*nsg/har_kappa;
+                    rho3d[indx] = ari_rho/num_dis;
+                    kappa[indx] = 1.0*num_dis/har_kappa;
  
                     if (SubGrid != nullptr) delete[] SubGrid;
                 }
@@ -1623,7 +1699,7 @@ int parametrization_grid_ac_iso_ari(
 
     /* Loop integer-grid points */ 
     float slow_k = 1.0/(ny-2);
-    std::cout << "Equivalent medium parametrization:\n\n";
+    std::cout << "- equivalent medium parametrization:\n\n";
     for (size_t j = 1; j < ny-1; j++) {
         printProgress(slow_k*j);
         for (size_t k = 1; k < nz-1; k++) {
@@ -1658,21 +1734,24 @@ int parametrization_grid_ac_iso_ari(
                     Point3 *SubGrid = MeshSubdivide(M);
 
                     int nsg = (NG+1)*(NG+1)*(NG+1);
+                    int num_dis = nsg;
                     for (int isg = 0; isg < nsg; isg++) {
 
                         std::vector<float> var(3, 0);
 
-                        AssignGridMediaPara2Point(i, j, k, SubGrid[isg],
-                            interfaces, ACOUSTIC_ISOTROPIC, var);
-
-                        float rho = var[0], vp = var[1];
-
-                        ari_rho   += rho;
-                        ari_kappa += (vp*vp*rho);
+                        int isPointOnInter = AssignGridMediaPara2Point(i, j, k, 
+                            SubGrid[isg], interfaces, ACOUSTIC_ISOTROPIC, var, NGz, NL);
+                        if (isPointOnInter == 1) {
+                            num_dis--;
+                        } else{
+                            float rho = var[0], vp = var[1];
+                            ari_rho   += rho;
+                            ari_kappa += (vp*vp*rho);
+                        }
                     }
 
-                    rho3d[indx] = ari_rho/nsg;
-                    kappa[indx] = ari_kappa/nsg;
+                    rho3d[indx] = ari_rho/num_dis;
+                    kappa[indx] = ari_kappa/num_dis;
  
                     if (SubGrid != nullptr) delete[] SubGrid;
                 }
@@ -1739,7 +1818,7 @@ int parametrization_grid_el_iso_har(
 
     /* Loop integer-grid points */ 
     float slow_k = 1.0/(ny-2);
-    std::cout << "Equivalent medium parametrization:\n\n";
+    std::cout << "- equivalent medium parametrization:\n\n";
     for (size_t j = 1; j < ny-1; j++) {
         printProgress(slow_k*j);
         for (size_t k = 1; k < nz-1; k++) {
@@ -1775,25 +1854,30 @@ int parametrization_grid_el_iso_har(
                     Point3 *SubGrid = MeshSubdivide(M);
 
                     int nsg = (NG+1)*(NG+1)*(NG+1);
+                    int num_dis = nsg;
                     for (int isg = 0; isg < nsg; isg++) {
 
                         std::vector<float> var(3, 0);
 
-                        AssignGridMediaPara2Point(i, j, k, SubGrid[isg],
-                            interfaces, ELASTIC_ISOTROPIC, var);
+                        int isPointOnInter = AssignGridMediaPara2Point(i, j, k, 
+                            SubGrid[isg], interfaces, ELASTIC_ISOTROPIC, var, NGz, NL);
 
-                        float rho = var[0], vp = var[1], vs = var[2];
-                        float mu =  vs*vs*rho;
-                        float lambda = vp*vp*rho - 2.0*mu;
-
-                        ari_rho   += rho;
-                        har_kappa += (1.0/(lambda + 2.0/3.0*mu));
-                        har_mu    += (1.0/mu);
+                        if (isPointOnInter == 1) {
+                            num_dis--;
+                        } else{
+                            float rho = var[0], vp = var[1], vs = var[2];
+                            float mu =  vs*vs*rho;
+                            float lambda = vp*vp*rho - 2.0*mu;
+    
+                            ari_rho   += rho;
+                            har_kappa += (1.0/(lambda + 2.0/3.0*mu));
+                            har_mu    += (1.0/mu);
+                        }
                     }
 
-                    har_mu    = nsg*1.0/har_mu;
-                    har_kappa = nsg*1.0/har_kappa;
-                    ari_rho   = ari_rho/nsg; 
+                    har_mu    = num_dis*1.0/har_mu;
+                    har_kappa = num_dis*1.0/har_kappa;
+                    ari_rho   = ari_rho/num_dis; 
 
                     lam3d[indx] = har_kappa - 2.0/3.0*har_mu;
                     mu3d[indx]  = har_mu;
@@ -1861,7 +1945,7 @@ int parametrization_grid_el_iso_ari(
     
     /* Loop integer-grid points */ 
     float slow_k = 1.0/(ny-2);
-    std::cout << "Equivalent medium parametrization:\n\n";
+    std::cout << "- equivalent medium parametrization:\n\n";
     for (size_t j = 1; j < ny-1; j++) {
         printProgress(slow_k*j);
         for (size_t k = 1; k < nz-1; k++) {
@@ -1897,25 +1981,30 @@ int parametrization_grid_el_iso_ari(
                     Point3 *SubGrid = MeshSubdivide(M);
 
                     int nsg = (NG+1)*(NG+1)*(NG+1);
+                    int num_dis = nsg;
                     for (int isg = 0; isg < nsg; isg++) {
 
                         std::vector<float> var(3, 0.0);
 
-                        AssignGridMediaPara2Point(i, j, k, SubGrid[isg],
-                            interfaces, ELASTIC_ISOTROPIC, var);
+                        int isPointOnInter = AssignGridMediaPara2Point(i, j, k, SubGrid[isg],
+                            interfaces, ELASTIC_ISOTROPIC, var, NGz, NL);
 
-                        float vp = var[1], vs = var[2], rho = var[0];
-                        float mu = vs*vs*rho;
-                        float lambda = vp*vp*rho - 2.0*mu;
-
-                        ari_rho += rho;
-                        ari_lam += lambda;
-                        ari_mu  += mu;
+                        if (isPointOnInter == 1) {
+                            num_dis--;
+                        } else{
+                            float vp = var[1], vs = var[2], rho = var[0];
+                            float mu = vs*vs*rho;
+                            float lambda = vp*vp*rho - 2.0*mu;
+    
+                            ari_rho += rho;
+                            ari_lam += lambda;
+                            ari_mu  += mu;
+                        }
                     }
 
-                    lam3d[indx] = ari_lam/(nsg*1.0);
-                    mu3d[indx]  = ari_mu /(nsg*1.0);
-                    rho3d[indx] = ari_rho/(nsg*1.0);
+                    lam3d[indx] = ari_lam/(num_dis*1.0);
+                    mu3d[indx]  = ari_mu /(num_dis*1.0);
+                    rho3d[indx] = ari_rho/(num_dis*1.0);
 
                     if(SubGrid != nullptr) delete []SubGrid;
 
@@ -1985,7 +2074,7 @@ int parametrization_grid_el_vti_har(
 
     /* Loop integer-grid points */ 
     float slow_k = 1.0/(ny-2);
-    std::cout << "Equivalent medium parametrization:\n\n";
+    std::cout << "- equivalent medium parametrization:\n\n";
     for (size_t j = 1; j < ny-1; j++) {
         printProgress(slow_k*j);
         for (size_t k = 1; k < nz-1; k++) {
@@ -2023,35 +2112,39 @@ int parametrization_grid_el_vti_har(
 
                     Point3 *SubGrid = MeshSubdivide(M);
                     int nsg = (NG+1)*(NG+1)*(NG+1);
-
+                    int num_dis = nsg;
                     for (int isg = 0; isg < nsg; isg++) {
 
                         std::vector<float> var(6, 0);
 
-                        AssignGridMediaPara2Point(i, j, k, SubGrid[isg],
-                            interfaces, media_type, var);
+                        int isPointOnInter = AssignGridMediaPara2Point(i, j, k, SubGrid[isg],
+                            interfaces, media_type, var, NGz, NL);
 
-                        // for every sub-point, transfer para to cij
-                        float c11_p = 0.0, c33_p = 0.0;
-                        float c55_p = 0.0, c66_p = 0.0;
-                        float c13_p = 0.0, rho_p = 0.0;
-                        para2vti(var, media_type, 
-                            c11_p, c33_p, c55_p, c66_p, c13_p, rho_p);
-
-                        har_c11 += (1.0/c11_p);
-                        har_c13 += (1.0/c13_p);
-                        har_c33 += (1.0/c33_p);
-                        har_c55 += (1.0/c55_p);
-                        har_c66 += (1.0/c66_p);
-                        ari_rho += rho_p;
+                        if (isPointOnInter == 1) {
+                            num_dis--;
+                        } else{
+                            // for every sub-point, transfer para to cij
+                            float c11_p = 0.0, c33_p = 0.0;
+                            float c55_p = 0.0, c66_p = 0.0;
+                            float c13_p = 0.0, rho_p = 0.0;
+                            para2vti(var, media_type, 
+                                c11_p, c33_p, c55_p, c66_p, c13_p, rho_p);
+    
+                            har_c11 += (1.0/c11_p);
+                            har_c13 += (1.0/c13_p);
+                            har_c33 += (1.0/c33_p);
+                            har_c55 += (1.0/c55_p);
+                            har_c66 += (1.0/c66_p);
+                            ari_rho += rho_p;
+                        }
                     }
 
-                    c11[indx] = 1.0*nsg/har_c11;
-                    c13[indx] = 1.0*nsg/har_c13;
-                    c33[indx] = 1.0*nsg/har_c33;
-                    c55[indx] = 1.0*nsg/har_c55;
-                    c66[indx] = 1.0*nsg/har_c66;
-                    rho[indx] = ari_rho/nsg;
+                    c11[indx] = 1.0*num_dis/har_c11;
+                    c13[indx] = 1.0*num_dis/har_c13;
+                    c33[indx] = 1.0*num_dis/har_c33;
+                    c55[indx] = 1.0*num_dis/har_c55;
+                    c66[indx] = 1.0*num_dis/har_c66;
+                    rho[indx] = ari_rho/num_dis;
  
                     if (SubGrid != nullptr) delete[] SubGrid;
                 }
@@ -2120,7 +2213,7 @@ int parametrization_grid_el_vti_ari(
 
     /* Loop integer-grid points */ 
     float slow_k = 1.0/(ny-2);
-    std::cout << "Equivalent medium parametrization:\n\n";
+    std::cout << "- equivalent medium parametrization:\n\n";
     for (size_t j = 1; j < ny-1; j++) {
         printProgress(slow_k*j);
         for (size_t k = 1; k < nz-1; k++) {
@@ -2158,35 +2251,38 @@ int parametrization_grid_el_vti_ari(
 
                     Point3 *SubGrid = MeshSubdivide(M);
                     int nsg = (NG+1)*(NG+1)*(NG+1);
-
+                    int num_dis = nsg;
                     for (int isg = 0; isg < nsg; isg++) {
 
                         std::vector<float> var(6, 0);
 
-                        AssignGridMediaPara2Point(i, j, k, SubGrid[isg],
-                            interfaces, media_type, var);
-
-                        // for every sub-point, transfer para to cij
-                        float c11_p = 0.0, c33_p = 0.0;
-                        float c55_p = 0.0, c66_p = 0.0;
-                        float c13_p = 0.0, rho_p = 0.0;
-                        para2vti(var, media_type, 
-                            c11_p, c33_p, c55_p, c66_p, c13_p, rho_p);
-
-                        ari_c11 += c11_p;
-                        ari_c13 += c13_p;
-                        ari_c33 += c33_p;
-                        ari_c55 += c55_p;
-                        ari_c66 += c66_p;
-                        ari_rho += rho_p;
+                        int isPointOnInter = AssignGridMediaPara2Point(i, j, k, 
+                            SubGrid[isg], interfaces, media_type, var, NGz, NL);
+                        if (isPointOnInter == 1) {
+                            num_dis--;
+                        } else{
+                            // for every sub-point, transfer para to cij
+                            float c11_p = 0.0, c33_p = 0.0;
+                            float c55_p = 0.0, c66_p = 0.0;
+                            float c13_p = 0.0, rho_p = 0.0;
+                            para2vti(var, media_type, 
+                                c11_p, c33_p, c55_p, c66_p, c13_p, rho_p);
+    
+                            ari_c11 += c11_p;
+                            ari_c13 += c13_p;
+                            ari_c33 += c33_p;
+                            ari_c55 += c55_p;
+                            ari_c66 += c66_p;
+                            ari_rho += rho_p;
+                        }
                     }
 
-                    c11[indx] = ari_c11/nsg;
-                    c13[indx] = ari_c13/nsg;
-                    c33[indx] = ari_c33/nsg;
-                    c55[indx] = ari_c55/nsg;
-                    c66[indx] = ari_c66/nsg;
-                    rho[indx] = ari_rho/nsg;
+                    c11[indx] = ari_c11/num_dis;
+                    c13[indx] = ari_c13/num_dis;
+                    c33[indx] = ari_c33/num_dis;
+                    c55[indx] = ari_c55/num_dis;
+                    c66[indx] = ari_c66/num_dis;
+                    rho[indx] = ari_rho/num_dis;
  
                     if (SubGrid != nullptr) delete[] SubGrid;
                 }
@@ -2270,7 +2366,7 @@ int parametrization_grid_el_aniso_har(
 
     /* Loop integer-grid points */ 
     float slow_k = 1.0/(ny-2);
-    std::cout << "Equivalent medium parametrization:\n\n";
+    std::cout << "- equivalent medium parametrization:\n\n";
     for (size_t j = 1; j < ny-1; j++) {
         printProgress(slow_k*j);
         for (size_t k = 1; k < nz-1; k++) {
@@ -2324,77 +2420,81 @@ int parametrization_grid_el_aniso_har(
 
                     Point3 *SubGrid = MeshSubdivide(M);
                     int nsg = (NG+1)*(NG+1)*(NG+1);
-
+                    int num_dis = nsg;
                     for (int isg = 0; isg < nsg; isg++) {
 
                         std::vector<float> var(22, 0.0);
 
-                        AssignGridMediaPara2Point(i, j, k, SubGrid[isg],
-                            interfaces, media_type, var);
+                        int isPointOnInter = AssignGridMediaPara2Point(i, j, k, 
+                            SubGrid[isg], interfaces, media_type, var, NGz, NL);
 
-                        // for every sub-point, transfer para to cij
-                        float c11_p = 0.0, c12_p = 0.0, c13_p = 0.0;
-                        float c14_p = 0.0, c15_p = 0.0, c16_p = 0.0;
-                        float c22_p = 0.0, c23_p = 0.0, c24_p = 0.0;
-                        float c25_p = 0.0, c26_p = 0.0, c33_p = 0.0;
-                        float c34_p = 0.0, c35_p = 0.0, c36_p = 0.0;
-                        float c44_p = 0.0, c45_p = 0.0, c46_p = 0.0;
-                        float c55_p = 0.0, c56_p = 0.0, c66_p = 0.0;
-                        float rho_p = 0.0;
-                        para2tti(var, media_type, 
-                            c11_p, c12_p, c13_p, c14_p, c15_p, c16_p,
-                            c22_p, c23_p, c24_p, c25_p, c26_p,
-                            c33_p, c34_p, c35_p, c36_p,
-                            c44_p, c45_p, c46_p, 
-                            c55_p, c56_p, c66_p, rho_p);
-
-                        har_c11 += (1.0/c11_p);
-                        har_c12 += (1.0/c12_p);
-                        har_c13 += (1.0/c13_p);
-                        har_c14 += (1.0/c14_p);
-                        har_c15 += (1.0/c15_p);
-                        har_c16 += (1.0/c16_p);
-                        har_c22 += (1.0/c22_p);
-                        har_c23 += (1.0/c23_p);
-                        har_c24 += (1.0/c24_p);
-                        har_c25 += (1.0/c25_p);
-                        har_c26 += (1.0/c26_p);
-                        har_c33 += (1.0/c33_p);
-                        har_c34 += (1.0/c34_p);
-                        har_c35 += (1.0/c35_p);
-                        har_c36 += (1.0/c36_p);
-                        har_c44 += (1.0/c44_p);
-                        har_c45 += (1.0/c45_p);
-                        har_c46 += (1.0/c46_p);
-                        har_c55 += (1.0/c55_p);
-                        har_c56 += (1.0/c56_p);
-                        har_c66 += (1.0/c66_p);
-                        ari_rho += rho_p;
+                        if (isPointOnInter == 1) {
+                            num_dis--;
+                        } else{
+                            // for every sub-point, transfer para to cij
+                            float c11_p = 0.0, c12_p = 0.0, c13_p = 0.0;
+                            float c14_p = 0.0, c15_p = 0.0, c16_p = 0.0;
+                            float c22_p = 0.0, c23_p = 0.0, c24_p = 0.0;
+                            float c25_p = 0.0, c26_p = 0.0, c33_p = 0.0;
+                            float c34_p = 0.0, c35_p = 0.0, c36_p = 0.0;
+                            float c44_p = 0.0, c45_p = 0.0, c46_p = 0.0;
+                            float c55_p = 0.0, c56_p = 0.0, c66_p = 0.0;
+                            float rho_p = 0.0;
+                            para2tti(var, media_type, 
+                                c11_p, c12_p, c13_p, c14_p, c15_p, c16_p,
+                                c22_p, c23_p, c24_p, c25_p, c26_p,
+                                c33_p, c34_p, c35_p, c36_p,
+                                c44_p, c45_p, c46_p, 
+                                c55_p, c56_p, c66_p, rho_p);
+    
+                            har_c11 += (1.0/c11_p);
+                            har_c12 += (1.0/c12_p);
+                            har_c13 += (1.0/c13_p);
+                            har_c14 += (1.0/c14_p);
+                            har_c15 += (1.0/c15_p);
+                            har_c16 += (1.0/c16_p);
+                            har_c22 += (1.0/c22_p);
+                            har_c23 += (1.0/c23_p);
+                            har_c24 += (1.0/c24_p);
+                            har_c25 += (1.0/c25_p);
+                            har_c26 += (1.0/c26_p);
+                            har_c33 += (1.0/c33_p);
+                            har_c34 += (1.0/c34_p);
+                            har_c35 += (1.0/c35_p);
+                            har_c36 += (1.0/c36_p);
+                            har_c44 += (1.0/c44_p);
+                            har_c45 += (1.0/c45_p);
+                            har_c46 += (1.0/c46_p);
+                            har_c55 += (1.0/c55_p);
+                            har_c56 += (1.0/c56_p);
+                            har_c66 += (1.0/c66_p);
+                            ari_rho += rho_p;
+                        }
                     }
 
-                    c11[indx] = (1.0*nsg)/har_c11;
-                    c12[indx] = (1.0*nsg)/har_c12;
-                    c13[indx] = (1.0*nsg)/har_c13;
-                    c14[indx] = (1.0*nsg)/har_c14;
-                    c15[indx] = (1.0*nsg)/har_c15;
-                    c16[indx] = (1.0*nsg)/har_c16;
-                    c22[indx] = (1.0*nsg)/har_c22;
-                    c23[indx] = (1.0*nsg)/har_c23;
-                    c24[indx] = (1.0*nsg)/har_c24;
-                    c25[indx] = (1.0*nsg)/har_c25;
-                    c26[indx] = (1.0*nsg)/har_c26;
-                    c33[indx] = (1.0*nsg)/har_c33;
-                    c34[indx] = (1.0*nsg)/har_c34;
-                    c35[indx] = (1.0*nsg)/har_c35;
-                    c36[indx] = (1.0*nsg)/har_c36;
-                    c44[indx] = (1.0*nsg)/har_c44;
-                    c45[indx] = (1.0*nsg)/har_c45;
-                    c46[indx] = (1.0*nsg)/har_c46;
-                    c55[indx] = (1.0*nsg)/har_c55;
-                    c56[indx] = (1.0*nsg)/har_c56;
-                    c66[indx] = (1.0*nsg)/har_c66;
+                    c11[indx] = (1.0*num_dis)/har_c11;
+                    c12[indx] = (1.0*num_dis)/har_c12;
+                    c13[indx] = (1.0*num_dis)/har_c13;
+                    c14[indx] = (1.0*num_dis)/har_c14;
+                    c15[indx] = (1.0*num_dis)/har_c15;
+                    c16[indx] = (1.0*num_dis)/har_c16;
+                    c22[indx] = (1.0*num_dis)/har_c22;
+                    c23[indx] = (1.0*num_dis)/har_c23;
+                    c24[indx] = (1.0*num_dis)/har_c24;
+                    c25[indx] = (1.0*num_dis)/har_c25;
+                    c26[indx] = (1.0*num_dis)/har_c26;
+                    c33[indx] = (1.0*num_dis)/har_c33;
+                    c34[indx] = (1.0*num_dis)/har_c34;
+                    c35[indx] = (1.0*num_dis)/har_c35;
+                    c36[indx] = (1.0*num_dis)/har_c36;
+                    c44[indx] = (1.0*num_dis)/har_c44;
+                    c45[indx] = (1.0*num_dis)/har_c45;
+                    c46[indx] = (1.0*num_dis)/har_c46;
+                    c55[indx] = (1.0*num_dis)/har_c55;
+                    c56[indx] = (1.0*num_dis)/har_c56;
+                    c66[indx] = (1.0*num_dis)/har_c66;
                     
-                    rho[indx] = ari_rho/nsg;
+                    rho[indx] = ari_rho/num_dis;
  
                     if (SubGrid != nullptr) delete[] SubGrid;
                 }
@@ -2480,7 +2580,7 @@ int parametrization_grid_el_aniso_ari(
 
     /* Loop integer-grid points */ 
     float slow_k = 1.0/(ny-2);
-    std::cout << "Equivalent medium parametrization:\n\n";
+    std::cout << "- equivalent medium parametrization:\n\n";
     for (size_t j = 1; j < ny-1; j++) {
         printProgress(slow_k*j);
         for (size_t k = 1; k < nz-1; k++) {
@@ -2534,77 +2634,81 @@ int parametrization_grid_el_aniso_ari(
 
                     Point3 *SubGrid = MeshSubdivide(M);
                     int nsg = (NG+1)*(NG+1)*(NG+1);
-
+                    int num_dis = nsg;
                     for (int isg = 0; isg < nsg; isg++) {
 
                         std::vector<float> var(22, 0.0);
 
-                        AssignGridMediaPara2Point(i, j, k, SubGrid[isg],
-                            interfaces, media_type, var);
+                        int isPointOnInter = AssignGridMediaPara2Point(i, j, k,
+                            SubGrid[isg], interfaces, media_type, var, NGz, NL);
 
-                        // for every sub-point, transfer para to cij
-                        float c11_p = 0.0, c12_p = 0.0, c13_p = 0.0;
-                        float c14_p = 0.0, c15_p = 0.0, c16_p = 0.0;
-                        float c22_p = 0.0, c23_p = 0.0, c24_p = 0.0;
-                        float c25_p = 0.0, c26_p = 0.0, c33_p = 0.0;
-                        float c34_p = 0.0, c35_p = 0.0, c36_p = 0.0;
-                        float c44_p = 0.0, c45_p = 0.0, c46_p = 0.0;
-                        float c55_p = 0.0, c56_p = 0.0, c66_p = 0.0;
-                        float rho_p = 0.0;
-                        para2tti(var, media_type, 
-                            c11_p, c12_p, c13_p, c14_p, c15_p, c16_p,
-                            c22_p, c23_p, c24_p, c25_p, c26_p,
-                            c33_p, c34_p, c35_p, c36_p,
-                            c44_p, c45_p, c46_p, 
-                            c55_p, c56_p, c66_p, rho_p);
-
-                        ari_c11 += c11_p;
-                        ari_c12 += c12_p;
-                        ari_c13 += c13_p;
-                        ari_c14 += c14_p;
-                        ari_c15 += c15_p;
-                        ari_c16 += c16_p;
-                        ari_c22 += c22_p;
-                        ari_c23 += c23_p;
-                        ari_c24 += c24_p;
-                        ari_c25 += c25_p;
-                        ari_c26 += c26_p;
-                        ari_c33 += c33_p;
-                        ari_c34 += c34_p;
-                        ari_c35 += c35_p;
-                        ari_c36 += c36_p;
-                        ari_c44 += c44_p;
-                        ari_c45 += c45_p;
-                        ari_c46 += c46_p;
-                        ari_c55 += c55_p;
-                        ari_c56 += c56_p;
-                        ari_c66 += c66_p;
-                        ari_rho += rho_p;
+                        if (isPointOnInter == 1) {
+                            num_dis--;
+                        } else{
+                            // for every sub-point, transfer para to cij
+                            float c11_p = 0.0, c12_p = 0.0, c13_p = 0.0;
+                            float c14_p = 0.0, c15_p = 0.0, c16_p = 0.0;
+                            float c22_p = 0.0, c23_p = 0.0, c24_p = 0.0;
+                            float c25_p = 0.0, c26_p = 0.0, c33_p = 0.0;
+                            float c34_p = 0.0, c35_p = 0.0, c36_p = 0.0;
+                            float c44_p = 0.0, c45_p = 0.0, c46_p = 0.0;
+                            float c55_p = 0.0, c56_p = 0.0, c66_p = 0.0;
+                            float rho_p = 0.0;
+                            para2tti(var, media_type, 
+                                c11_p, c12_p, c13_p, c14_p, c15_p, c16_p,
+                                c22_p, c23_p, c24_p, c25_p, c26_p,
+                                c33_p, c34_p, c35_p, c36_p,
+                                c44_p, c45_p, c46_p, 
+                                c55_p, c56_p, c66_p, rho_p);
+    
+                            ari_c11 += c11_p;
+                            ari_c12 += c12_p;
+                            ari_c13 += c13_p;
+                            ari_c14 += c14_p;
+                            ari_c15 += c15_p;
+                            ari_c16 += c16_p;
+                            ari_c22 += c22_p;
+                            ari_c23 += c23_p;
+                            ari_c24 += c24_p;
+                            ari_c25 += c25_p;
+                            ari_c26 += c26_p;
+                            ari_c33 += c33_p;
+                            ari_c34 += c34_p;
+                            ari_c35 += c35_p;
+                            ari_c36 += c36_p;
+                            ari_c44 += c44_p;
+                            ari_c45 += c45_p;
+                            ari_c46 += c46_p;
+                            ari_c55 += c55_p;
+                            ari_c56 += c56_p;
+                            ari_c66 += c66_p;
+                            ari_rho += rho_p;
+                        }
                     }
 
-                    c11[indx] = ari_c11/nsg;
-                    c12[indx] = ari_c12/nsg;
-                    c13[indx] = ari_c13/nsg;
-                    c14[indx] = ari_c14/nsg;
-                    c15[indx] = ari_c15/nsg;
-                    c16[indx] = ari_c16/nsg;
-                    c22[indx] = ari_c22/nsg;
-                    c23[indx] = ari_c23/nsg;
-                    c24[indx] = ari_c24/nsg;
-                    c25[indx] = ari_c25/nsg;
-                    c26[indx] = ari_c26/nsg;
-                    c33[indx] = ari_c33/nsg;
-                    c34[indx] = ari_c34/nsg;
-                    c35[indx] = ari_c35/nsg;
-                    c36[indx] = ari_c36/nsg;
-                    c44[indx] = ari_c44/nsg;
-                    c45[indx] = ari_c45/nsg;
-                    c46[indx] = ari_c46/nsg;
-                    c55[indx] = ari_c55/nsg;
-                    c56[indx] = ari_c56/nsg;
-                    c66[indx] = ari_c66/nsg;
+                    c11[indx] = ari_c11/num_dis;
+                    c12[indx] = ari_c12/num_dis;
+                    c13[indx] = ari_c13/num_dis;
+                    c14[indx] = ari_c14/num_dis;
+                    c15[indx] = ari_c15/num_dis;
+                    c16[indx] = ari_c16/num_dis;
+                    c22[indx] = ari_c22/num_dis;
+                    c23[indx] = ari_c23/num_dis;
+                    c24[indx] = ari_c24/num_dis;
+                    c25[indx] = ari_c25/num_dis;
+                    c26[indx] = ari_c26/num_dis;
+                    c33[indx] = ari_c33/num_dis;
+                    c34[indx] = ari_c34/num_dis;
+                    c35[indx] = ari_c35/num_dis;
+                    c36[indx] = ari_c36/num_dis;
+                    c44[indx] = ari_c44/num_dis;
+                    c45[indx] = ari_c45/num_dis;
+                    c46[indx] = ari_c46/num_dis;
+                    c55[indx] = ari_c55/num_dis;
+                    c56[indx] = ari_c56/num_dis;
+                    c66[indx] = ari_c66/num_dis;
                     
-                    rho[indx] = ari_rho/nsg;
+                    rho[indx] = ari_rho/num_dis;
  
                     if (SubGrid != nullptr) delete[] SubGrid;
                 }
@@ -2620,4 +2724,5 @@ int parametrization_grid_el_aniso_ari(
     if (MaterNum != nullptr) delete[] MaterNum;
     return 0;
 }
+
 

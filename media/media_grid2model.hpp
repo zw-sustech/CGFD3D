@@ -106,7 +106,8 @@ int AssignGridMediaPara2Point(
     Point3 A, 
     inter_t &interfaces,
     int media_type,
-    std::vector<float> &var);
+    std::vector<float> &var, 
+    std::vector<int> &NGz, int NL);
 
 //- Calculate the value of the point for different media type (to avoid multiple geometric calculations) 
 //   for grid2model
@@ -115,7 +116,8 @@ void CalPointValue_grid(int media_type,
                    size_t slice, 
                    std::vector<float> &xvec,  /* interface mesh */
                    std::vector<float> &yvec,
-                   int NI, 
+                   int NI,
+                   std::set<int> &layer_indx, 
                    Point3 &A,
                    std::vector<float> &elevation, /*the elevation of point A at the projection position of the interface mesh. */
                    int mi,

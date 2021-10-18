@@ -15,22 +15,24 @@ struct Point3{
 
 typedef Point3 Vector3;
 
-Vector3 operator + (Vector3 A, Vector3 B);
-Vector3 operator - (Vector3 A, Vector3 B);
-Vector3 operator * (Vector3 A, double p);
-Vector3 operator / (Vector3 A, double p); 
+Vector3 operator + (const Vector3 &A, const Vector3 &B);
+Vector3 operator - (const Vector3 &A, const Vector3 &B);
+Vector3 operator * (const Vector3 &A, double p);
+Vector3 operator / (const Vector3 &A, double p); 
 
-double Dot(Vector3 A, Vector3 B);
-double Length(Vector3 A);
-double Angle(Vector3 A, Vector3 B);
-double DistanceP2P(Point3 A, Point3 B);
+double Dot(const Vector3 &A, const Vector3 &B);
+double Length(const Vector3 &A);
+double Angle(const Vector3 &A, const Vector3 &B);
+double DistanceP2P(const Point3 &A, const Point3 &B);
 double DistanceToPlane(const Point3 &p, const Point3 &p0, const Vector3 &n);
 Point3 GetplaneProjection(const Point3 &p, const Point3 &p0, const Vector3 &n);
-Point3 LinePlaneIntersection(Point3 p1, Point3 p2, Point3 p0, Vector3 n);
-Vector3 Cross(Vector3 A, Vector3 B);
-double Area2 (Point3 A, Point3 B, Point3 C);
-bool PointInTri(Point3 P, Point3 P0, Point3 P1, Point3 P2);
-double Volume6(Point3 A, Point3 B, Point3 C, Point3 D);
+Point3 LinePlaneIntersection(
+    const Point3 &p1, const Point3 &p2, const Point3 &p0, 
+    const Vector3 &n);
+Vector3 Cross(const Vector3 &A, const Vector3 &B);
+double Area2 (const Point3 &A, const Point3 &B, const Point3 &C);
+//bool PointInTri(conPoint3 P, Point3 P0, Point3 P1, Point3 P2);
+//double Volume6(Point3 A, Point3 B, Point3 C, Point3 D);
 
 /* 
  * If the number of points is 3, calculate the normal directly;
@@ -74,10 +76,6 @@ bool isPointInHexahedron(float px, float py, float pz,
 #ifdef __cplusplus
 }
 #endif /* extern C */
-
-
-// For media discretize used
-Point3 *MeshSubdivide(Mesh3 M);
 
 
 #endif /*media_geometry*/

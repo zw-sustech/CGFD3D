@@ -6,7 +6,6 @@
 //#include <Eigen>
 #include "media_utility.hpp"
 
-
 // for report error: int -> string
 std::map<int, std::string> create_md2str_map() 
 {
@@ -28,10 +27,13 @@ bool isEqual(float a, float b) {
 }
 
 void printProgress(float slowk) {
-    std::cout << "\33[1A";
+
     if (slowk > 1) slowk = 1;
     int p = slowk * 50;
+
+    std::cout << "\33[1A";
     std::cout << "  [" + std::string(p, '=') + ">" + std::string(50-p, ' ') << "]" << std::endl;
+
     fflush(stdout);
 }
 
@@ -62,15 +64,13 @@ int findLastGreaterEqualIndex(
 
     if (value > x[0]) return -1;
 
-    float dist, newDist;
+    float dist = FLT_MAX, newDist;
     int indx = -1, n = x.size();
-    dist = FLT_MAX;
 
     for (int i = 0; i < n; i++) {
         if (x[i] == -FLT_MAX) continue;
 
         newDist = x[i]-value;
-        
         if (newDist < 0) break; 
         if (newDist >= 0 && newDist <= dist) {
             dist = newDist;
@@ -82,28 +82,25 @@ int findLastGreaterEqualIndex(
 }
 
 
-/* 
- * Find the index of the nearest value and no less than the value (value <= x[i]), 
- *    Just for the ordered array x is from largest to smallest.
+ /* 
+ * Find the first index of the x-vector greater than or equal to value, (x[i] >= value)
+ *  Just for the ordered array x is from largest to smallest.
+ *  Once there is x[i] = value, return.
+ *  If value > x[all], return -1.
  */
-int findNearestGreaterIndex(
+int findFirstGreaterEqualIndex(
     float value, 
     std::vector<float> &x)
 {
-    float dist, newDist;
-    int idx;
+    float dist = FLT_MAX, newDist;
+    int idx = -1, n = x.size();
 
-    idx = -1;    // expolation: INF(idx = -1) or
-    dist = FLT_MAX;
-    for(size_t i = 0; i < x.size(); i++) {
+    for(size_t i = 0; i < n; i++) {
         if (x[i] == -FLT_MAX) continue;
-
-        /* 
-         * If the value is equal to the value in x, return the first index of the value,
-         * If the value is not in the array x, return the last index which x[index] > value.
-         */ 
+         
         newDist = x[i] - value;   
         if (newDist >= 0 && newDist <= dist) {
+            // If the value is equal to the value in x, return the first index of the value,
             if (newDist <= 1e-6) 
                 return i;
             dist = newDist;
@@ -113,6 +110,7 @@ int findNearestGreaterIndex(
 
     return idx;
 }
+
 
 /* 
  * Find the index of the nearest value (x[i] <= value), 
@@ -589,6 +587,8 @@ void BondTransform(float c11, float c12, float c13, float c14, float c15, float 
                    float &c34_tti, float &c35_tti, float &c36_tti, float &c44_tti, float &c45_tti, float &c46_tti,
                    float &c55_tti, float &c56_tti, float &c66_tti) 
 {
+    theta *= (PI/180);
+    phi   *= (PI/180);
     float a11 =  cos(theta)*sin(phi), a12 = cos(phi), a13 =  sin(theta)*sin(phi);
     float a21 = -cos(theta)*cos(phi), a22 = sin(phi), a23 = -sin(theta)*cos(phi);
     float a31 = -sin(theta),          a32 = 0,        a33 =  cos(theta);   

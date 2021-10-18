@@ -1,8 +1,11 @@
 #include <iostream>
 #include <string.h>
 #include <math.h>
+#include <map>
 #include "media_read_file.hpp"
 #include "media_utility.hpp"
+
+
 
 FILE *gfopen(const char *filename, const char *mode)
 {
@@ -1229,7 +1232,35 @@ void read_grid_file(
         break;
     }
 
+    checkGridData(NL, NGz, *interfaces, grid_file);
+
     fclose(file);   
     fclose(tmp_file);    
 }
 
+// check whether the elevation[ng[i]-1] == elevation[ng[i]] 
+int checkGridData(int NL, 
+    std::vector <int> &NGz,
+    inter_t &interfaces, 
+    const char *grid_file) 
+{   
+    if (NL < 2) return 0;
+
+    int inter_slice = interfaces.NX*interfaces.NY;
+    int ipoint = 0;
+    for (int i = 0; i < NL-1; i++) {
+        ipoint += (NGz[i]); 
+        for (int indx = 0; indx < inter_slice; indx++) {
+            int indx_top = indx + (ipoint-1)*inter_slice;
+            int indx_bot = indx + ipoint*inter_slice;
+            if (interfaces.elevation[indx_top] != interfaces.elevation[indx_bot]) {
+                fprintf(stderr, "Error: The last elevations of #%d layer should equal to the first "\
+                                "elevations of #%d layer!, please check %s!", i, i+1, grid_file);        
+                fflush(stderr);
+                exit(1);
+            }
+        }      
+    }
+
+    return 0;
+}

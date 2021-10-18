@@ -12,37 +12,36 @@ int dcmp(double x) {
 		return x < 0?-1:1;
 }
 
-Vector3 operator + (Vector3 A, Vector3 B) {
+Vector3 operator + (const Vector3 &A, const Vector3 &B) {
 	return Vector3(A.x+B.x, A.y+B.y, A.z+B.z);
 }
 
-Vector3 operator - (Vector3 A, Vector3 B) {
+Vector3 operator - (const Vector3 &A, const Vector3 &B) {
 	return Vector3(A.x-B.x, A.y-B.y, A.z-B.z);
 }
 
-Vector3 operator * (Vector3 A, double p) {
+Vector3 operator * (const Vector3 &A, double p) {
 	return Vector3(A.x*p, A.y*p, A.z*p);
 }
 
-Vector3 operator / (Vector3 A, double p) {
+Vector3 operator / (const Vector3 &A, double p) {
 	return Vector3(A.x/p, A.y/p, A.z/p);
 }
 
-double Dot(Vector3 A, Vector3 B) {
+double Dot(const Vector3 &A, const Vector3 &B) {
 	return A.x*B.x + A.y*B.y + A.z*B.z;
 }
 
 
-double Length(Vector3 A) {
+double Length(const Vector3 &A) {
 	return sqrt(Dot(A, A));
 }
 
-double DistanceP2P(Point3 A, Point3 B) {
+double DistanceP2P(const Point3 &A, const Point3 &B) {
 	return Length(B-A);	
 }
 
-
-double Angle(Vector3 A, Vector3 B) {
+double Angle(const Vector3 &A, const Vector3 &B) {
 	return acos(Dot(A, B)/Length(A)/Length(B));
 }
 
@@ -55,20 +54,24 @@ Point3 GetPlaneProjection(const Point3 &p, const Point3 &p0, const Vector3 &n) {
 	return p - n*Dot(p-p0, n);
 }
 
-Point3 LinePlaneIntersection(Point3 p1, Point3 p2, Point3 p0, Vector3 n){
+Point3 LinePlaneIntersection(
+	const Point3 &p1, const Point3 &p2, const Point3 &p0, 
+    const Vector3 &n)
+{
 	Vector3 v = p2 - p1;
 	double t = (Dot(n, p0-p1) / Dot(n, p2-p1)); // denominator = 0?
 	return p1 + v*t;
 }
 
-Vector3 Cross(Vector3 A, Vector3 B) {
+Vector3 Cross(const Vector3 &A, const Vector3 &B) {
 	return Vector3(A.y*B.z - A.z*B.y, A.z*B.x - A.x*B.z, A.x*B.y - A.y*B.x);
 }
 
-double Area2(Point3 A, Point3 B, Point3 C) {
+double Area2(const Point3 &A, const Point3 &B, const Point3 &C) {
 	return Length(Cross(B-A, C-A));
 }
 
+/*
 bool PointInTri(Point3 P, Point3 P0, Point3 P1, Point3 P2) {
 	double area1 = Area2(P, P0, P1);
 	double area2 = Area2(P, P1, P2);
@@ -79,7 +82,7 @@ bool PointInTri(Point3 P, Point3 P0, Point3 P1, Point3 P2) {
 double Volume6(Point3 A, Point3 B, Point3 C, Point3 D) {
 	return Dot(D-A, Cross(B-A, C-A));
 }
-
+*/
 
 /* 
  * Check whether the point is in the polyhedron.
