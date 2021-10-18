@@ -22,7 +22,7 @@ echo "EXEC_WAVE=$EXEC_WAVE"
 INPUTDIR=`pwd`
 
 #-- output and conf
-PROJDIR=~/work/cgfd3d-wave-el/04
+PROJDIR=~/work/cgfd3d-wave-el/05grd
 PAR_FILE=${PROJDIR}/test.json
 GRID_DIR=${PROJDIR}/output
 MEDIA_DIR=${PROJDIR}/output
@@ -130,8 +130,9 @@ cat << ieof > $PAR_FILE
       "type" : "elastic_iso",
       "#type" : "elastic_vti",
       "#code" : "func_name_here",
-      "import" : "$MEDIA_DIR",
-      "infile_layer" : "$INPUTDIR/prep_medium/basin_el_iso.md3lay",
+      "#import" : "$MEDIA_DIR",
+      "#infile_layer" : "$INPUTDIR/prep_medium/basin_el_iso.md3lay",
+      "infile_grid" : "$INPUTDIR/prep_medium/topolay_el_iso.md3grd",
       "equivalent_medium_method" : "har"
   },
   "is_export_media" : 1,
