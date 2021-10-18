@@ -315,7 +315,7 @@ int findLastGreaterEqualIndex(
     float value, 
     std::vector<float> &x);
 
-int findFirstGreaterEuqalIndex(
+int findFirstGreaterEqualIndex(
     float value, 
     std::vector<float> &x);
 

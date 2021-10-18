@@ -1,8 +1,11 @@
 #include <iostream>
 #include <string.h>
 #include <math.h>
+#include <map>
 #include "media_read_file.hpp"
 #include "media_utility.hpp"
+
+
 
 FILE *gfopen(const char *filename, const char *mode)
 {

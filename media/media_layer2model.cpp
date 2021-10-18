@@ -271,8 +271,7 @@ int media_layer2model_el_aniso(
             parametrization_layer_el_iso_loc(nx, ny, nz, x3d, y3d, z3d, grid_type, 
                 interfaces, c13, c44, rho);
             for (size_t i = 0; i < siz_volume; ++i) {
-                c44[i] *= 2.0;
-                c11[i] = c13[i] + c44[i]; 
+                c11[i] = c13[i] + 2.0*c44[i]; 
                 c22[i] = c11[i]; c33[i] = c11[i]; 
                 c12[i] = c13[i]; c23[i] = c13[i];
                 c55[i] = c44[i]; c66[i] = c44[i];
@@ -285,8 +284,7 @@ int media_layer2model_el_aniso(
             parametrization_layer_el_iso_har(nx, ny, nz, x3d, y3d, z3d, grid_type, 
                 interfaces, c13, c44, rho);
             for (size_t i = 0; i < siz_volume; ++i) {
-                c44[i] *= 2.0;
-                c11[i] = c13[i] + c44[i]; 
+                c11[i] = c13[i] + 2.0*c44[i]; 
                 c22[i] = c11[i]; c33[i] = c11[i]; 
                 c12[i] = c13[i]; c23[i] = c13[i];
                 c55[i] = c44[i]; c66[i] = c44[i];
@@ -299,8 +297,7 @@ int media_layer2model_el_aniso(
             parametrization_layer_el_iso_ari(nx, ny, nz, x3d, y3d, z3d, grid_type, 
                 interfaces, c13, c44, rho);
             for (size_t i = 0; i < siz_volume; ++i) {
-                c44[i] *= 2.0;
-                c11[i] = c13[i] + c44[i]; 
+                c11[i] = c13[i] + 2.0*c44[i]; 
                 c22[i] = c11[i]; c33[i] = c11[i]; 
                 c12[i] = c13[i]; c23[i] = c13[i];
                 c55[i] = c44[i]; c66[i] = c44[i];
@@ -412,6 +409,7 @@ int AssignLayerMediaPara2Point(
     float MINY = interfaces.MINY;
     float MAXX = MINX + (NX-1)*DX;  
     float MAXY = MINY + (NY-1)*DY;
+    int isPointOnInter = 0; 
 
     size_t interface_slice = NX*NY;
 
@@ -438,15 +436,12 @@ int AssignLayerMediaPara2Point(
     /* Find which material_index to use */
     int mi = findLastGreaterEqualIndex(A.z, elevation);
 
-//    if (mi == -1) {
-//        fprintf(stderr,"Warning: z-location of Grid(%li, %li, %li) = (%f, %f, %f) is higher than the given elevation in " \
-//            "the interfaces file, it assigned by the top medium! \n", ix, iy, iz, A.x, A.y, A.z);
-//        fflush(stderr);
-//    }
+    if (mi > -1 && isEqual(A.z, elevation[mi])) 
+        isPointOnInter = 1;
     
     CalPointValue_layer(media_type, interfaces, interface_slice, XVEC, YVEC, A, elevation, mi, var);
 
-    return 0;
+    return isPointOnInter;
 }
 
 //- Calculate the value of the point for different media type (to avoid multiple geometric calculations) 
@@ -475,6 +470,17 @@ void CalPointValue_layer(int media_type,
             float var_grad  = BilinearInterpolation(xvec, yvec, interfaces.var_grad + mi*slice , A.x, A.y);
             float var_pow   = BilinearInterpolation(xvec, yvec, interfaces.var_pow  + mi*slice , A.x, A.y);
             var[0]  = var0  + pow(dz, var_pow)* var_grad;
+            if (isEqual(dz, 0.0)) {
+                mi = findFirstGreaterEqualIndex(A.z, elevation)-1;
+                if (mi >= 0) {
+                    var0      = BilinearInterpolation(xvec, yvec, interfaces.var      + mi*slice , A.x, A.y);
+                    var_grad  = BilinearInterpolation(xvec, yvec, interfaces.var_grad + mi*slice , A.x, A.y);
+                    var_pow   = BilinearInterpolation(xvec, yvec, interfaces.var_pow  + mi*slice , A.x, A.y);
+                    dz = elevation[mi] - A.z;
+                    float var_top = var0  + pow(dz, var_pow)* var_grad;
+                    var[0] = (var[0] + var_top)/2.0;                    
+                }
+            }
         }
     break;
 
@@ -497,6 +503,27 @@ void CalPointValue_layer(int media_type,
             var[1] = vp  + pow(dz, vp_pow)* vp_grad;
             var[2] = vs  + pow(dz, vs_pow)* vs_grad;
             var[0] = rho + pow(dz,rho_pow)*rho_grad;
+            if (isEqual(dz, 0.0)) {
+                mi = findFirstGreaterEqualIndex(A.z, elevation)-1;
+                if (mi >= 0) {
+                    vp       = BilinearInterpolation(xvec, yvec, interfaces.vp      + mi*slice, A.x, A.y);
+                    vp_grad  = BilinearInterpolation(xvec, yvec, interfaces.vp_grad + mi*slice, A.x, A.y);
+                    vp_pow   = BilinearInterpolation(xvec, yvec, interfaces.vp_pow  + mi*slice, A.x, A.y);
+                    vs       = BilinearInterpolation(xvec, yvec, interfaces.vs      + mi*slice, A.x, A.y);
+                    vs_grad  = BilinearInterpolation(xvec, yvec, interfaces.vs_grad + mi*slice, A.x, A.y);
+                    vs_pow   = BilinearInterpolation(xvec, yvec, interfaces.vs_pow  + mi*slice, A.x, A.y);
+                    rho      = BilinearInterpolation(xvec, yvec, interfaces.rho     + mi*slice, A.x, A.y);
+                    rho_grad = BilinearInterpolation(xvec, yvec, interfaces.rho_grad+ mi*slice, A.x, A.y);
+                    rho_pow  = BilinearInterpolation(xvec, yvec, interfaces.rho_pow + mi*slice, A.x, A.y);
+                    dz = elevation[mi] - A.z;
+                    float vp_top  = vp  + pow(dz,  vp_pow)* vp_grad;
+                    float vs_top  = vs  + pow(dz,  vs_pow)* vs_grad;
+                    float rho_top = rho + pow(dz, rho_pow)* rho_grad;
+                    var[0] = (var[0] + rho_top)/2.0;
+                    var[1] = (var[1] +  vp_top)/2.0;
+                    var[2] = (var[2] +  vs_top)/2.0;
+                }
+            }
         }
     break;
 
@@ -534,6 +561,43 @@ void CalPointValue_layer(int media_type,
             var[3] = vsh + pow(dz, vsh_pow)* vsh_grad;
             var[4] = vsv + pow(dz, vsv_pow)* vsv_grad;
             var[5] = eta + pow(dz, eta_pow)* eta_grad;
+            if (isEqual(dz, 0.0)) {
+                mi = findFirstGreaterEqualIndex(A.z, elevation)-1;
+                if (mi >= 0) {
+                    vph = BilinearInterpolation(xvec, yvec, interfaces.vph + mi*slice, A.x, A.y);
+                    vpv = BilinearInterpolation(xvec, yvec, interfaces.vpv + mi*slice, A.x, A.y);
+                    vsh = BilinearInterpolation(xvec, yvec, interfaces.vsh + mi*slice, A.x, A.y);
+                    vsv = BilinearInterpolation(xvec, yvec, interfaces.vsv + mi*slice, A.x, A.y);
+                    rho = BilinearInterpolation(xvec, yvec, interfaces.rho + mi*slice, A.x, A.y);
+                    eta = BilinearInterpolation(xvec, yvec, interfaces.eta + mi*slice, A.x, A.y);
+                    vph_grad = BilinearInterpolation(xvec, yvec, interfaces.vph_grad + mi*slice, A.x, A.y);
+                    vpv_grad = BilinearInterpolation(xvec, yvec, interfaces.vpv_grad + mi*slice, A.x, A.y);
+                    vsh_grad = BilinearInterpolation(xvec, yvec, interfaces.vsh_grad + mi*slice, A.x, A.y);
+                    vsv_grad = BilinearInterpolation(xvec, yvec, interfaces.vsv_grad + mi*slice, A.x, A.y);
+                    rho_grad = BilinearInterpolation(xvec, yvec, interfaces.rho_grad + mi*slice, A.x, A.y);
+                    eta_grad = BilinearInterpolation(xvec, yvec, interfaces.eta_grad + mi*slice, A.x, A.y);
+                    vph_pow  = BilinearInterpolation(xvec, yvec, interfaces.vph_pow  + mi*slice, A.x, A.y);
+                    vpv_pow  = BilinearInterpolation(xvec, yvec, interfaces.vpv_pow  + mi*slice, A.x, A.y);
+                    vsh_pow  = BilinearInterpolation(xvec, yvec, interfaces.vsh_pow  + mi*slice, A.x, A.y);
+                    vsv_pow  = BilinearInterpolation(xvec, yvec, interfaces.vsv_pow  + mi*slice, A.x, A.y);
+                    rho_pow  = BilinearInterpolation(xvec, yvec, interfaces.rho_pow  + mi*slice, A.x, A.y);
+                    eta_pow  = BilinearInterpolation(xvec, yvec, interfaces.eta_pow  + mi*slice, A.x, A.y);
+           
+                    dz = elevation[mi] - A.z;
+                    float rho_top = rho + pow(dz, rho_pow)* rho_grad;
+                    float vph_top = vph + pow(dz, vph_pow)* vph_grad;
+                    float vpv_top = vpv + pow(dz, vpv_pow)* vpv_grad;
+                    float vsv_top = vsv + pow(dz, vsv_pow)* vsv_grad;
+                    float vsh_top = vsh + pow(dz, vsh_pow)* vsh_grad;
+                    float eta_top = eta + pow(dz, eta_pow)* eta_grad;
+                    var[0] = (rho_top + var[0])/2.0;
+                    var[1] = (vph_top + var[1])/2.0;
+                    var[2] = (vpv_top + var[2])/2.0;
+                    var[3] = (vsh_top + var[3])/2.0;
+                    var[4] = (vsv_top + var[4])/2.0;
+                    var[5] = (eta_top + var[5])/2.0;
+                }
+            }
         }   
     break;
 
@@ -571,6 +635,42 @@ void CalPointValue_layer(int media_type,
             var[3] = epsil   + pow(dz, epsilon_pow)* epsilon_grad;
             var[4] = delta   + pow(dz, delta_pow)  * delta_grad;
             var[5] = gamma   + pow(dz, gamma_pow)  * gamma_grad;
+            if (isEqual(dz, 0.0)) {
+                mi = findFirstGreaterEqualIndex(A.z, elevation)-1;
+                if (mi >= 0) {
+                    rho     = BilinearInterpolation(xvec, yvec, interfaces.rho     + mi*slice, A.x, A.y);
+                    vp0     = BilinearInterpolation(xvec, yvec, interfaces.vp0     + mi*slice, A.x, A.y);
+                    vs0     = BilinearInterpolation(xvec, yvec, interfaces.vs0     + mi*slice, A.x, A.y);
+                    epsil   = BilinearInterpolation(xvec, yvec, interfaces.epsilon + mi*slice, A.x, A.y);  // epsilon
+                    delta   = BilinearInterpolation(xvec, yvec, interfaces.delta   + mi*slice, A.x, A.y);
+                    gamma   = BilinearInterpolation(xvec, yvec, interfaces.gamma   + mi*slice, A.x, A.y);
+                    rho_grad     = BilinearInterpolation(xvec, yvec, interfaces.rho_grad     + mi*slice, A.x, A.y);
+                    vp0_grad     = BilinearInterpolation(xvec, yvec, interfaces.vp0_grad     + mi*slice, A.x, A.y);
+                    vs0_grad     = BilinearInterpolation(xvec, yvec, interfaces.vs0_grad     + mi*slice, A.x, A.y);
+                    epsilon_grad = BilinearInterpolation(xvec, yvec, interfaces.epsilon_grad + mi*slice, A.x, A.y);
+                    delta_grad   = BilinearInterpolation(xvec, yvec, interfaces.delta_grad   + mi*slice, A.x, A.y);
+                    gamma_grad   = BilinearInterpolation(xvec, yvec, interfaces.gamma_grad   + mi*slice, A.x, A.y);
+                    rho_pow      = BilinearInterpolation(xvec, yvec, interfaces.rho_pow      + mi*slice, A.x, A.y);
+                    vp0_pow      = BilinearInterpolation(xvec, yvec, interfaces.vp0_pow      + mi*slice, A.x, A.y);
+                    vs0_pow      = BilinearInterpolation(xvec, yvec, interfaces.vs0_pow      + mi*slice, A.x, A.y);
+                    epsilon_pow  = BilinearInterpolation(xvec, yvec, interfaces.epsilon_pow  + mi*slice, A.x, A.y);
+                    delta_pow    = BilinearInterpolation(xvec, yvec, interfaces.delta_pow    + mi*slice, A.x, A.y);
+                    gamma_pow    = BilinearInterpolation(xvec, yvec, interfaces.gamma_pow    + mi*slice, A.x, A.y);
+                    dz = elevation[mi] - A.z;
+                    float var0_top = rho     + pow(dz, rho_pow)    * rho_grad;
+                    float var1_top = vp0     + pow(dz, vp0_pow)    * vp0_grad;
+                    float var2_top = vs0     + pow(dz, vs0_pow)    * vs0_grad;
+                    float var3_top = epsil   + pow(dz, epsilon_pow)* epsilon_grad;
+                    float var4_top = delta   + pow(dz, delta_pow)  * delta_grad;
+                    float var5_top = gamma   + pow(dz, gamma_pow)  * gamma_grad;
+                    var[0] = (var[0] + var0_top) / 2.0;
+                    var[1] = (var[1] + var1_top) / 2.0;
+                    var[2] = (var[2] + var2_top) / 2.0;
+                    var[3] = (var[3] + var3_top) / 2.0;
+                    var[4] = (var[4] + var4_top) / 2.0;
+                    var[5] = (var[5] + var5_top) / 2.0;
+                }
+            }
         }   
     break;
 
@@ -608,6 +708,42 @@ void CalPointValue_layer(int media_type,
             var[3] = c55 + pow(dz, c55_pow)* c55_grad;
             var[4] = c66 + pow(dz, c66_pow)* c66_grad;
             var[5] = c13 + pow(dz, c13_pow)* c13_grad;
+            if (isEqual(dz, 0.0)) {
+                mi = findFirstGreaterEqualIndex(A.z, elevation)-1;
+                if (mi >= 0) {
+                    rho = BilinearInterpolation(xvec, yvec, interfaces.rho + mi*slice, A.x, A.y);
+                    c11 = BilinearInterpolation(xvec, yvec, interfaces.c11 + mi*slice, A.x, A.y);
+                    c33 = BilinearInterpolation(xvec, yvec, interfaces.c33 + mi*slice, A.x, A.y);
+                    c55 = BilinearInterpolation(xvec, yvec, interfaces.c55 + mi*slice, A.x, A.y);
+                    c66 = BilinearInterpolation(xvec, yvec, interfaces.c66 + mi*slice, A.x, A.y);
+                    c13 = BilinearInterpolation(xvec, yvec, interfaces.c13 + mi*slice, A.x, A.y);
+                    c11_grad = BilinearInterpolation(xvec, yvec, interfaces.c11_grad + mi*slice, A.x, A.y);
+                    c33_grad = BilinearInterpolation(xvec, yvec, interfaces.c33_grad + mi*slice, A.x, A.y);
+                    c55_grad = BilinearInterpolation(xvec, yvec, interfaces.c55_grad + mi*slice, A.x, A.y);
+                    c66_grad = BilinearInterpolation(xvec, yvec, interfaces.c66_grad + mi*slice, A.x, A.y);
+                    c13_grad = BilinearInterpolation(xvec, yvec, interfaces.c13_grad + mi*slice, A.x, A.y);
+                    rho_grad = BilinearInterpolation(xvec, yvec, interfaces.rho_grad + mi*slice, A.x, A.y);
+                    c11_pow  = BilinearInterpolation(xvec, yvec, interfaces.c11_pow  + mi*slice, A.x, A.y);
+                    c33_pow  = BilinearInterpolation(xvec, yvec, interfaces.c33_pow  + mi*slice, A.x, A.y);
+                    c55_pow  = BilinearInterpolation(xvec, yvec, interfaces.c55_pow  + mi*slice, A.x, A.y);
+                    c66_pow  = BilinearInterpolation(xvec, yvec, interfaces.c66_pow  + mi*slice, A.x, A.y);
+                    c13_pow  = BilinearInterpolation(xvec, yvec, interfaces.c13_pow  + mi*slice, A.x, A.y);
+                    rho_pow  = BilinearInterpolation(xvec, yvec, interfaces.rho_pow  + mi*slice, A.x, A.y);
+                    float var0_top = rho + pow(dz, rho_pow)* rho_grad;
+                    float var1_top = c11 + pow(dz, c11_pow)* c11_grad;
+                    float var2_top = c33 + pow(dz, c33_pow)* c33_grad;
+                    float var3_top = c55 + pow(dz, c55_pow)* c55_grad;
+                    float var4_top = c66 + pow(dz, c66_pow)* c66_grad;
+                    float var5_top = c13 + pow(dz, c13_pow)* c13_grad;
+                    var[0] = (var[0] + var0_top) / 2.0;
+                    var[1] = (var[1] + var1_top) / 2.0;
+                    var[2] = (var[2] + var2_top) / 2.0;
+                    var[3] = (var[3] + var3_top) / 2.0;
+                    var[4] = (var[4] + var4_top) / 2.0;
+                    var[5] = (var[5] + var5_top) / 2.0;
+
+                }
+            }
         }   
     break;
 
@@ -656,6 +792,51 @@ void CalPointValue_layer(int media_type,
             var[5] = gamma   + pow(dz, gamma_pow)  * gamma_grad;
             var[6] = azimuth + pow(dz, azimuth_pow)* azimuth_grad;
             var[7] = dip     + pow(dz, dip_pow)    * dip_grad;
+            if (isEqual(dz, 0.0)) {
+                mi = findFirstGreaterEqualIndex(A.z, elevation)-1;
+                if (mi >= 0) {
+                    vp0     = BilinearInterpolation(xvec, yvec, interfaces.vp0     + mi*slice, A.x, A.y);
+                    vs0     = BilinearInterpolation(xvec, yvec, interfaces.vs0     + mi*slice, A.x, A.y);
+                    epsil   = BilinearInterpolation(xvec, yvec, interfaces.epsilon + mi*slice, A.x, A.y);
+                    delta   = BilinearInterpolation(xvec, yvec, interfaces.delta   + mi*slice, A.x, A.y);
+                    gamma   = BilinearInterpolation(xvec, yvec, interfaces.gamma   + mi*slice, A.x, A.y);
+                    rho     = BilinearInterpolation(xvec, yvec, interfaces.rho     + mi*slice, A.x, A.y);
+                    azimuth = BilinearInterpolation(xvec, yvec, interfaces.azimuth + mi*slice, A.x, A.y);
+                    dip     = BilinearInterpolation(xvec, yvec, interfaces.dip     + mi*slice, A.x, A.y);
+                    vp0_grad     = BilinearInterpolation(xvec, yvec, interfaces.vp0_grad     + mi*slice, A.x, A.y);
+                    vs0_grad     = BilinearInterpolation(xvec, yvec, interfaces.vs0_grad     + mi*slice, A.x, A.y);
+                    epsilon_grad = BilinearInterpolation(xvec, yvec, interfaces.epsilon_grad + mi*slice, A.x, A.y);
+                    delta_grad   = BilinearInterpolation(xvec, yvec, interfaces.delta_grad   + mi*slice, A.x, A.y);
+                    gamma_grad   = BilinearInterpolation(xvec, yvec, interfaces.gamma_grad   + mi*slice, A.x, A.y);
+                    rho_grad     = BilinearInterpolation(xvec, yvec, interfaces.rho_grad     + mi*slice, A.x, A.y);
+                    azimuth_grad = BilinearInterpolation(xvec, yvec, interfaces.azimuth_grad + mi*slice, A.x, A.y);
+                    dip_grad     = BilinearInterpolation(xvec, yvec, interfaces.dip_grad     + mi*slice, A.x, A.y);
+                    vp0_pow      = BilinearInterpolation(xvec, yvec, interfaces.vp0_pow      + mi*slice, A.x, A.y);
+                    vs0_pow      = BilinearInterpolation(xvec, yvec, interfaces.vs0_pow      + mi*slice, A.x, A.y);
+                    epsilon_pow  = BilinearInterpolation(xvec, yvec, interfaces.epsilon_pow  + mi*slice, A.x, A.y);
+                    delta_pow    = BilinearInterpolation(xvec, yvec, interfaces.delta_pow    + mi*slice, A.x, A.y);
+                    gamma_pow    = BilinearInterpolation(xvec, yvec, interfaces.gamma_pow    + mi*slice, A.x, A.y);
+                    rho_pow      = BilinearInterpolation(xvec, yvec, interfaces.rho_pow      + mi*slice, A.x, A.y);
+                    azimuth_pow  = BilinearInterpolation(xvec, yvec, interfaces.azimuth_pow  + mi*slice, A.x, A.y);
+                    dip_pow      = BilinearInterpolation(xvec, yvec, interfaces.dip_pow      + mi*slice, A.x, A.y);
+                    float var0_top = rho     + pow(dz, rho_pow)    * rho_grad;
+                    float var1_top = vp0     + pow(dz, vp0_pow)    * vp0_grad;
+                    float var2_top = vs0     + pow(dz, vs0_pow)    * vs0_grad;
+                    float var3_top = epsil   + pow(dz, epsilon_pow)* epsilon_grad;
+                    float var4_top = delta   + pow(dz, delta_pow)  * delta_grad;
+                    float var5_top = gamma   + pow(dz, gamma_pow)  * gamma_grad;
+                    float var6_top = azimuth + pow(dz, azimuth_pow)* azimuth_grad;
+                    float var7_top = dip     + pow(dz, dip_pow)    * dip_grad;
+                    var[0] = (var[0] + var0_top)/2.0; 
+                    var[1] = (var[1] + var1_top)/2.0; 
+                    var[2] = (var[2] + var2_top)/2.0; 
+                    var[3] = (var[3] + var3_top)/2.0; 
+                    var[4] = (var[4] + var4_top)/2.0; 
+                    var[5] = (var[5] + var5_top)/2.0; 
+                    var[6] = (var[6] + var6_top)/2.0; 
+                    var[7] = (var[7] + var7_top)/2.0; 
+                }
+            }
         }   
     break;
 
@@ -773,6 +954,121 @@ void CalPointValue_layer(int media_type,
             var[19] = c55 + pow(dz, c55_pow) * c55_grad;
             var[20] = c56 + pow(dz, c56_pow) * c56_grad;
             var[21] = c66 + pow(dz, c66_pow) * c66_grad;
+            if (isEqual(dz, 0.0)) {
+                mi = findFirstGreaterEqualIndex(A.z, elevation)-1;
+                if (mi >= 0) {
+                    c11 = BilinearInterpolation(xvec, yvec, interfaces.c11 + mi*slice, A.x, A.y);
+                    c12 = BilinearInterpolation(xvec, yvec, interfaces.c12 + mi*slice, A.x, A.y);
+                    c13 = BilinearInterpolation(xvec, yvec, interfaces.c13 + mi*slice, A.x, A.y);
+                    c14 = BilinearInterpolation(xvec, yvec, interfaces.c14 + mi*slice, A.x, A.y);
+                    c15 = BilinearInterpolation(xvec, yvec, interfaces.c15 + mi*slice, A.x, A.y);
+                    c16 = BilinearInterpolation(xvec, yvec, interfaces.c16 + mi*slice, A.x, A.y);
+                    c22 = BilinearInterpolation(xvec, yvec, interfaces.c22 + mi*slice, A.x, A.y);
+                    c23 = BilinearInterpolation(xvec, yvec, interfaces.c23 + mi*slice, A.x, A.y);
+                    c24 = BilinearInterpolation(xvec, yvec, interfaces.c24 + mi*slice, A.x, A.y);
+                    c25 = BilinearInterpolation(xvec, yvec, interfaces.c25 + mi*slice, A.x, A.y);
+                    c26 = BilinearInterpolation(xvec, yvec, interfaces.c26 + mi*slice, A.x, A.y);
+                    c33 = BilinearInterpolation(xvec, yvec, interfaces.c33 + mi*slice, A.x, A.y);
+                    c34 = BilinearInterpolation(xvec, yvec, interfaces.c34 + mi*slice, A.x, A.y);
+                    c35 = BilinearInterpolation(xvec, yvec, interfaces.c35 + mi*slice, A.x, A.y);
+                    c36 = BilinearInterpolation(xvec, yvec, interfaces.c36 + mi*slice, A.x, A.y);
+                    c44 = BilinearInterpolation(xvec, yvec, interfaces.c44 + mi*slice, A.x, A.y);
+                    c45 = BilinearInterpolation(xvec, yvec, interfaces.c45 + mi*slice, A.x, A.y);
+                    c46 = BilinearInterpolation(xvec, yvec, interfaces.c46 + mi*slice, A.x, A.y);
+                    c55 = BilinearInterpolation(xvec, yvec, interfaces.c55 + mi*slice, A.x, A.y);
+                    c56 = BilinearInterpolation(xvec, yvec, interfaces.c56 + mi*slice, A.x, A.y);
+                    c66 = BilinearInterpolation(xvec, yvec, interfaces.c66 + mi*slice, A.x, A.y);
+                    rho = BilinearInterpolation(xvec, yvec, interfaces.rho + mi*slice, A.x, A.y);
+                    c11_pow = BilinearInterpolation(xvec, yvec, interfaces.c11_pow + mi*slice , A.x, A.y);
+                    c12_pow = BilinearInterpolation(xvec, yvec, interfaces.c12_pow + mi*slice , A.x, A.y);
+                    c13_pow = BilinearInterpolation(xvec, yvec, interfaces.c13_pow + mi*slice , A.x, A.y);
+                    c14_pow = BilinearInterpolation(xvec, yvec, interfaces.c14_pow + mi*slice , A.x, A.y);
+                    c15_pow = BilinearInterpolation(xvec, yvec, interfaces.c15_pow + mi*slice , A.x, A.y);
+                    c16_pow = BilinearInterpolation(xvec, yvec, interfaces.c16_pow + mi*slice , A.x, A.y);
+                    c22_pow = BilinearInterpolation(xvec, yvec, interfaces.c22_pow + mi*slice , A.x, A.y);
+                    c23_pow = BilinearInterpolation(xvec, yvec, interfaces.c23_pow + mi*slice , A.x, A.y);
+                    c24_pow = BilinearInterpolation(xvec, yvec, interfaces.c24_pow + mi*slice , A.x, A.y);
+                    c25_pow = BilinearInterpolation(xvec, yvec, interfaces.c25_pow + mi*slice , A.x, A.y);
+                    c26_pow = BilinearInterpolation(xvec, yvec, interfaces.c26_pow + mi*slice , A.x, A.y);
+                    c33_pow = BilinearInterpolation(xvec, yvec, interfaces.c33_pow + mi*slice , A.x, A.y);
+                    c34_pow = BilinearInterpolation(xvec, yvec, interfaces.c34_pow + mi*slice , A.x, A.y);
+                    c35_pow = BilinearInterpolation(xvec, yvec, interfaces.c35_pow + mi*slice , A.x, A.y);
+                    c36_pow = BilinearInterpolation(xvec, yvec, interfaces.c36_pow + mi*slice , A.x, A.y);
+                    c44_pow = BilinearInterpolation(xvec, yvec, interfaces.c44_pow + mi*slice , A.x, A.y);
+                    c45_pow = BilinearInterpolation(xvec, yvec, interfaces.c45_pow + mi*slice , A.x, A.y);
+                    c46_pow = BilinearInterpolation(xvec, yvec, interfaces.c46_pow + mi*slice , A.x, A.y);
+                    c55_pow = BilinearInterpolation(xvec, yvec, interfaces.c55_pow + mi*slice , A.x, A.y);
+                    c56_pow = BilinearInterpolation(xvec, yvec, interfaces.c56_pow + mi*slice , A.x, A.y);
+                    c66_pow = BilinearInterpolation(xvec, yvec, interfaces.c66_pow + mi*slice , A.x, A.y);
+                    rho_pow = BilinearInterpolation(xvec, yvec, interfaces.rho_pow + mi*slice , A.x, A.y);
+                    c11_grad = BilinearInterpolation(xvec, yvec, interfaces.c11_grad + mi*slice , A.x, A.y);
+                    c12_grad = BilinearInterpolation(xvec, yvec, interfaces.c12_grad + mi*slice , A.x, A.y);
+                    c13_grad = BilinearInterpolation(xvec, yvec, interfaces.c13_grad + mi*slice , A.x, A.y);
+                    c14_grad = BilinearInterpolation(xvec, yvec, interfaces.c14_grad + mi*slice , A.x, A.y);
+                    c15_grad = BilinearInterpolation(xvec, yvec, interfaces.c15_grad + mi*slice , A.x, A.y);
+                    c16_grad = BilinearInterpolation(xvec, yvec, interfaces.c16_grad + mi*slice , A.x, A.y);
+                    c22_grad = BilinearInterpolation(xvec, yvec, interfaces.c22_grad + mi*slice , A.x, A.y);
+                    c23_grad = BilinearInterpolation(xvec, yvec, interfaces.c23_grad + mi*slice , A.x, A.y);
+                    c24_grad = BilinearInterpolation(xvec, yvec, interfaces.c24_grad + mi*slice , A.x, A.y);
+                    c25_grad = BilinearInterpolation(xvec, yvec, interfaces.c25_grad + mi*slice , A.x, A.y);
+                    c26_grad = BilinearInterpolation(xvec, yvec, interfaces.c26_grad + mi*slice , A.x, A.y);
+                    c33_grad = BilinearInterpolation(xvec, yvec, interfaces.c33_grad + mi*slice , A.x, A.y);
+                    c34_grad = BilinearInterpolation(xvec, yvec, interfaces.c34_grad + mi*slice , A.x, A.y);
+                    c35_grad = BilinearInterpolation(xvec, yvec, interfaces.c35_grad + mi*slice , A.x, A.y);
+                    c36_grad = BilinearInterpolation(xvec, yvec, interfaces.c36_grad + mi*slice , A.x, A.y);
+                    c44_grad = BilinearInterpolation(xvec, yvec, interfaces.c44_grad + mi*slice , A.x, A.y);
+                    c45_grad = BilinearInterpolation(xvec, yvec, interfaces.c45_grad + mi*slice , A.x, A.y);
+                    c46_grad = BilinearInterpolation(xvec, yvec, interfaces.c46_grad + mi*slice , A.x, A.y);
+                    c55_grad = BilinearInterpolation(xvec, yvec, interfaces.c55_grad + mi*slice , A.x, A.y);
+                    c56_grad = BilinearInterpolation(xvec, yvec, interfaces.c56_grad + mi*slice , A.x, A.y);
+                    c66_grad = BilinearInterpolation(xvec, yvec, interfaces.c66_grad + mi*slice , A.x, A.y);
+                    rho_grad = BilinearInterpolation(xvec, yvec, interfaces.rho_grad + mi*slice , A.x, A.y);
+                    float var0_top = rho + pow(dz, rho_pow) * rho_grad;
+                    float var1_top = c11 + pow(dz, c11_pow) * c11_grad; 
+                    float var2_top = c12 + pow(dz, c12_pow) * c12_grad;
+                    float var3_top = c13 + pow(dz, c13_pow) * c13_grad;
+                    float var4_top = c14 + pow(dz, c14_pow) * c14_grad;
+                    float var5_top = c15 + pow(dz, c15_pow) * c15_grad;
+                    float var6_top = c16 + pow(dz, c16_pow) * c16_grad;
+                    float var7_top = c22 + pow(dz, c22_pow) * c22_grad;
+                    float var8_top = c23 + pow(dz, c23_pow) * c23_grad;
+                    float var9_top = c24 + pow(dz, c24_pow) * c24_grad;
+                    float var10_top = c25 + pow(dz, c25_pow) * c25_grad;
+                    float var11_top = c26 + pow(dz, c26_pow) * c26_grad;
+                    float var12_top = c33 + pow(dz, c33_pow) * c33_grad;
+                    float var13_top = c34 + pow(dz, c34_pow) * c34_grad;
+                    float var14_top = c35 + pow(dz, c35_pow) * c35_grad;
+                    float var15_top = c36 + pow(dz, c36_pow) * c36_grad;
+                    float var16_top = c44 + pow(dz, c44_pow) * c44_grad;
+                    float var17_top = c45 + pow(dz, c45_pow) * c45_grad;
+                    float var18_top = c46 + pow(dz, c46_pow) * c46_grad;
+                    float var19_top = c55 + pow(dz, c55_pow) * c55_grad;
+                    float var20_top = c56 + pow(dz, c56_pow) * c56_grad;
+                    float var21_top = c66 + pow(dz, c66_pow) * c66_grad;
+                    var[0]  = (var[0]  + var0_top ) / 2.0;
+                    var[1]  = (var[1]  + var1_top ) / 2.0;
+                    var[2]  = (var[2]  + var2_top ) / 2.0;
+                    var[3]  = (var[3]  + var3_top ) / 2.0;
+                    var[4]  = (var[4]  + var4_top ) / 2.0;
+                    var[5]  = (var[5]  + var5_top ) / 2.0;
+                    var[6]  = (var[6]  + var6_top ) / 2.0;
+                    var[7]  = (var[7]  + var7_top ) / 2.0;
+                    var[8]  = (var[8]  + var8_top ) / 2.0;
+                    var[9]  = (var[9]  + var9_top ) / 2.0;
+                    var[10] = (var[10] + var10_top) / 2.0;
+                    var[11] = (var[11] + var11_top) / 2.0;
+                    var[12] = (var[12] + var12_top) / 2.0;
+                    var[13] = (var[13] + var13_top) / 2.0;
+                    var[14] = (var[14] + var14_top) / 2.0;
+                    var[15] = (var[15] + var15_top) / 2.0;
+                    var[16] = (var[16] + var16_top) / 2.0;
+                    var[17] = (var[17] + var17_top) / 2.0;
+                    var[18] = (var[18] + var18_top) / 2.0;
+                    var[19] = (var[19] + var19_top) / 2.0;
+                    var[20] = (var[20] + var20_top) / 2.0;
+                    var[21] = (var[21] + var21_top) / 2.0;
+                }
+            }
         }     
     break;
 
@@ -820,6 +1116,51 @@ void CalPointValue_layer(int media_type,
             var[5] = c13 + pow(dz, c13_pow)* c13_grad;
             var[6] = azimuth + pow(dz, azimuth_pow)* azimuth_grad;
             var[7] = dip     + pow(dz, dip_pow)    * dip_grad;
+            if (isEqual(dz, 0.0)) {
+                mi = findFirstGreaterEqualIndex(A.z, elevation)-1;
+                if (mi >= 0) {
+                    c11 = BilinearInterpolation(xvec, yvec, interfaces.c11 + mi*slice, A.x, A.y);
+                    c33 = BilinearInterpolation(xvec, yvec, interfaces.c33 + mi*slice, A.x, A.y);
+                    c55 = BilinearInterpolation(xvec, yvec, interfaces.c55 + mi*slice, A.x, A.y);
+                    c66 = BilinearInterpolation(xvec, yvec, interfaces.c66 + mi*slice, A.x, A.y);
+                    c13 = BilinearInterpolation(xvec, yvec, interfaces.c13 + mi*slice, A.x, A.y);
+                    rho = BilinearInterpolation(xvec, yvec, interfaces.rho + mi*slice, A.x, A.y);
+                    c11_grad = BilinearInterpolation(xvec, yvec, interfaces.c11_grad + mi*slice, A.x, A.y);
+                    c33_grad = BilinearInterpolation(xvec, yvec, interfaces.c33_grad + mi*slice, A.x, A.y);
+                    c55_grad = BilinearInterpolation(xvec, yvec, interfaces.c55_grad + mi*slice, A.x, A.y);
+                    c66_grad = BilinearInterpolation(xvec, yvec, interfaces.c66_grad + mi*slice, A.x, A.y);
+                    c13_grad = BilinearInterpolation(xvec, yvec, interfaces.c13_grad + mi*slice, A.x, A.y);
+                    rho_grad = BilinearInterpolation(xvec, yvec, interfaces.rho_grad + mi*slice, A.x, A.y);
+                    c11_pow  = BilinearInterpolation(xvec, yvec, interfaces.c11_pow  + mi*slice, A.x, A.y);
+                    c33_pow  = BilinearInterpolation(xvec, yvec, interfaces.c33_pow  + mi*slice, A.x, A.y);
+                    c55_pow  = BilinearInterpolation(xvec, yvec, interfaces.c55_pow  + mi*slice, A.x, A.y);
+                    c66_pow  = BilinearInterpolation(xvec, yvec, interfaces.c66_pow  + mi*slice, A.x, A.y);
+                    c13_pow  = BilinearInterpolation(xvec, yvec, interfaces.c13_pow  + mi*slice, A.x, A.y);
+                    rho_pow  = BilinearInterpolation(xvec, yvec, interfaces.rho_pow  + mi*slice, A.x, A.y);
+                    azimuth      = BilinearInterpolation(xvec, yvec, interfaces.azimuth      + mi*slice, A.x, A.y);
+                    dip          = BilinearInterpolation(xvec, yvec, interfaces.dip          + mi*slice, A.x, A.y);
+                    azimuth_grad = BilinearInterpolation(xvec, yvec, interfaces.azimuth_grad + mi*slice, A.x, A.y);
+                    dip_grad     = BilinearInterpolation(xvec, yvec, interfaces.dip_grad     + mi*slice, A.x, A.y);
+                    azimuth_pow  = BilinearInterpolation(xvec, yvec, interfaces.azimuth_pow  + mi*slice, A.x, A.y);
+                    dip_pow      = BilinearInterpolation(xvec, yvec, interfaces.dip_pow      + mi*slice, A.x, A.y); 
+                    float var0_top = rho + pow(dz, rho_pow)* rho_grad;
+                    float var1_top = c11 + pow(dz, c11_pow)* c11_grad;
+                    float var2_top = c33 + pow(dz, c33_pow)* c33_grad;
+                    float var3_top = c55 + pow(dz, c55_pow)* c55_grad;
+                    float var4_top = c66 + pow(dz, c66_pow)* c66_grad;
+                    float var5_top = c13 + pow(dz, c13_pow)* c13_grad;
+                    float var6_top = azimuth + pow(dz, azimuth_pow)* azimuth_grad;
+                    float var7_top = dip     + pow(dz, dip_pow)    * dip_grad; 
+                    var[0] = (var[0] + var0_top)/2.0;
+                    var[1] = (var[1] + var1_top)/2.0;
+                    var[2] = (var[2] + var2_top)/2.0;
+                    var[3] = (var[3] + var3_top)/2.0;
+                    var[4] = (var[4] + var4_top)/2.0;
+                    var[5] = (var[5] + var5_top)/2.0;
+                    var[6] = (var[6] + var6_top)/2.0;
+                    var[7] = (var[7] + var7_top)/2.0;             
+                }
+            }
         }   
     break;
 
@@ -837,6 +1178,21 @@ void CalPointValue_layer(int media_type,
             float rho_pow  = BilinearInterpolation(xvec, yvec, interfaces.rho_pow + mi*slice, A.x, A.y);
             var[0] = rho + pow(dz,rho_pow)*rho_grad;
             var[1] = vp  + pow(dz, vp_pow)* vp_grad;
+            if (isEqual(dz, 0.0)) {
+                mi = findFirstGreaterEqualIndex(A.z, elevation)-1;
+                if (mi >= 0) {
+                    vp_grad  = BilinearInterpolation(xvec, yvec, interfaces.vp_grad + mi*slice, A.x, A.y);
+                    vp       = BilinearInterpolation(xvec, yvec, interfaces.vp      + mi*slice, A.x, A.y);
+                    vp_pow   = BilinearInterpolation(xvec, yvec, interfaces.vp_pow  + mi*slice, A.x, A.y);
+                    rho      = BilinearInterpolation(xvec, yvec, interfaces.rho     + mi*slice, A.x, A.y);
+                    rho_grad = BilinearInterpolation(xvec, yvec, interfaces.rho_grad+ mi*slice, A.x, A.y);
+                    rho_pow  = BilinearInterpolation(xvec, yvec, interfaces.rho_pow + mi*slice, A.x, A.y);
+                    float var0_top = rho + pow(dz,rho_pow)*rho_grad;
+                    float var1_top = vp  + pow(dz, vp_pow)* vp_grad;
+                    var[0] = (var[0] + var0_top)/2.0;
+                    var[1] = (var[1] + var1_top)/2.0;
+                }
+            }
         }
     break;
 

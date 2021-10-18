@@ -6,7 +6,6 @@
 //#include <Eigen>
 #include "media_utility.hpp"
 
-
 // for report error: int -> string
 std::map<int, std::string> create_md2str_map() 
 {
@@ -89,7 +88,7 @@ int findLastGreaterEqualIndex(
  *  Once there is x[i] = value, return.
  *  If value > x[all], return -1.
  */
-int findFirstGreaterEuqalIndex(
+int findFirstGreaterEqualIndex(
     float value, 
     std::vector<float> &x)
 {
