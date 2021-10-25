@@ -1,155 +1,213 @@
-\chapter{Media}\label{chapter-media}
 
-\begin{lstlisting}[language=python, title=run\_test.sh, frame=tb]
+\chapter{How to give media parameters and run wave simulations for different media types}\label{chapter-media}
+
+\markright{CHAPTER \ref{chapter-media} MEDIA}
+
+\begin{lstlisting}[language=json, title=run\_test.sh, frame=tb]
   "media_input" : {
-      "#import" : "$MEDIA_DIR", 
-      "#code_generate" : 1,   
-      "#in_3lay_file" : "${IN_MEDIA_3LAY_FILE}", # *.md3lay
-      "in_3grd_file" : "${IN_MEDIA_3GRD_FILE}",  # *.md3grd
-      "equivalent_medium_method" : "har",       # default: "loc"
+      "type" : "el_iso",
+      "#import" : "$MEDIA_DIR",
+      "code_generate" : 1,
+      "#in_3lay_file" : "${IN_MEDIA_3LAY_FILE}",
+      "#equivalent_medium_method" : "har",
+      "#in_3grd_file" : "$IN_MEDIA_GRID_FILE"
   },
-  "is_export_media" : 1,                         # if export media                   
-  "media_export_dir"  : "$MEDIA_DIR",                   
+  "is_export_media" : 1,
+  "media_export_dir"  : "$MEDIA_DIR",
+
+  "#visco_config" : {
+      "type" : "graves_Qs",
+      "Qs_freq" : 1.0
+  }
 \end{lstlisting}
 
-In the configuration of media, if \texttt{in\_3lay\_file} is selected, there need to be a .md3lay file, and the file format is shown in Section \ref{media-layer2model}. If \texttt{in\_3grd\_file} is selected, there need to be a .md3grd file, and the file format is shown in Section \ref{media-grid2model}.
+The media can be given in four ways:
+\begin{itemize}
+  \item \texttt{import}: The media are imported from a given MEDIA\_DIR, which is related to the grid. This selection is mostly used in inversion and imaging.  
+  \item \texttt{code\_generate}: Choose this flag if you want to give the media by code. You should edit forward/md\_t.c file and recompile the code.
+  \item \texttt{in\_3lay\_file}: The media parameters are given by the \textbf{mdlay} file, the file format is shown in Section \ref{mdlay} 
+  \item \texttt{in\_3grd\_file}: The media parameters are given by the \textbf{mdgrd} file, the file format is shown in Section \ref{mdgrd}.
+\end{itemize}
+
+% TODO: waveform eqn. should be given and analyzed before
+\texttt{type} is the flag of the solver, that is, what wave equation to use, and four options are supported in this code:
+\begin{itemize}
+  \item \texttt{acoustic\_iso}: choose this to call the solver of acoustic wave equation of isotropic media.  
+  \item \texttt{elastic\_iso}: choose this to call the solver of the elastic wave equation of isotropic media.
+  \item \texttt{elastic\_vti}: choose this to call the solver of the elastic wave equation of vertical transversely isotropic media. 
+  \item \texttt{elastic\_aniso}: choose this to call the solver of the elastic wave equation of anisotropic media (21 non-zero coefficients in the elasticity matrix). 
+\end{itemize}
+Note that the \texttt{type} here is about the wave equation. If you want to change the type of media, you can modified the code in forward/md\_t.c if \texttt{code\_generate} is chosen; or you can give a different header in \textbf{mdlay} file or \textbf{mdgrd} file if \texttt{in\_3lay\_file} or \texttt{in\_3grd\_file} is chosen, see \ref{mdlay} and \ref{mdgrd} for detail.
+
+\texttt{is\_export\_media} should be \textbf{1} if you want to export the media, and a \textbf{media\_export\_dir} should be given. 
+
+The \texttt{visco\_config} is selected if the media is viscoelastic, the visco\_type and Qs frequency are needed.
 
 %===================================================================
-\section{Layer to Model} \label{media-layer2model}
-The \textbf{media\_el\_iso\_layer2model} function is used to discretize the given layer model to the grid model. It provides two medium parameterization method: using the local point values (\texttt{loc}), and volume arithmetic and harmonic averaging method (\texttt{har}) \citep{moczo_3d_2002,moczo_finite-difference_2014}.
+\section{Note about mdgrd format} \label{mdgrd}
+If \texttt{in\_3grd\_file} is selected, the media should be given by a mdgrd file. The file format is:
 
-\subsection{File Format (.md3lay)}
-
-\paragraph{3D Layer Velocity Model File (\texttt{.md3lay})\\}~
-
-The following description ignores comment lines and blank lines.
 \begin{itemize}
- \item The first line is the number of interface (\texttt{NI}).
- \item {The second line is the information of the given interface mesh:
+ \item The first line is the media type, it can be \\
+ \texttt{one\_component}, \\ 
+ \texttt{acoustic\_isotropic}, \\
+ \texttt{elastic\_isotropic}, \\
+ \texttt{elastic\_vti\_prem}, \\
+ \texttt{elastic\_vti\_thomsen}, \\ 
+ \texttt{elastic\_vti\_cij}, \\
+ \texttt{elastic\_tti\_thomsen}, \\ 
+ \texttt{elastic\_tti\_bond}, \\
+ \texttt{elastic\_aniso\_cij}.
+
+ \item The second line is the number of layer (\texttt{NL}), if \texttt{NL} > 1, there is a designated interface, and the equivalent medium parameterization methods can be applied across the interfaces.
+
+ \item The next \texttt{NL} lines are the number of grids in the z-direction of each layer.
   
-  \texttt{NX} ~~ \texttt{NY} ~~ \texttt{MIN\_X} ~~ \texttt{MIN\_Y} ~~ \texttt{SPACING\_X} ~~ \texttt{SPACING\_Y}
-
-  \texttt{NX} and \texttt{NY} are the number of points along $x$ and $y$ direction;
-
-  \texttt{MIN\_X} and \texttt{MIN\_Y} are the minimal $x$ and $y$ coordinates;
-
+ \item {Next, the information of the interface mesh is given:
+  \texttt{NX} ~~ \texttt{NY} ~~ \texttt{MIN\_X} ~~ \texttt{MIN\_Y} ~~ \texttt{SPACING\_X} ~~ \texttt{SPACING\_Y}\\
+  \texttt{NX} and \texttt{NY} are the number of points along $x$ and $y$ direction;\\
+  \texttt{MIN\_X} and \texttt{MIN\_Y} are the minimal $x$ and $y$ coordinates;\\
   \texttt{SPACING\_X} and \texttt{SPACING\_Y} are spacing between points along $x$ and $y$.
  }
+
  \item {
-  After then, the elevation, velocity and density are given as:
+  After then, the elevation, media parameters are given in every grid points. Take the \texttt{elastic\_isotropic} media for example, the media parameters are read as:
   \begin{lstlisting}[language = C]
-  for (ni=0; ni<NI; ni++)
-    for (iy=0; iy<NY; iy++) {
-      for (ix=0; ix<NX; ix++) { 
-        fscanf(layer_file, "%f %f %f %f %f %f %f", 
-               &elevation[ni][iy][ix],
-               &vp[ni][iy][ix], &vp_grad[ni][iy][ix],
-               &vs[ni][iy][ix], &vs_grad[ni][iy][ix],
-               &rho[ni][iy][ix], &rho_grad[ni][iy][ix]);
-      }
-    }
-  }
-  \end{lstlisting}
- }
- For each interface (from the free surface to bottom), a set of elevation values (elevation),
- $v_p$ (vp), the gradient of $v_p$ (vp\_grad), $v_s$ (vs), the gradient of $v_s$ (vs\_grad), $\rho$ (rho) and the gradient of $\rho$ (rho\_grad) on the regular 2D grid is required. 
-
- The velocities and density below interface(x, y, elevation) are calculated by
- \begin{equation*}
-    v_p^{grid~point} = vp + (elevation-z^{grid~point}) * vp\_grad.
- \end{equation*} 
-\end{itemize}
-
-\subsection{Example}
-
-A model with a horizontal interface can be given as:
-
-\begin{lstlisting}[language=python, title=test.md3lay, frame=tb]
-# NI
-  2
-# NX   NY   MIN_X  MIN_Y  SPACING_X  SPACING_Y 
-  2    2    0.0    0.0    2000.0     2000.0
-# elevation  vp  vp_grad  vs  vs_grad  rho  rho_grad
-# interface #1 free surface
-    0.0    2500.0  0.0  1500.0  0.0  1500.0  0.0   
-    0.0    2500.0  0.0  1500.0  0.0  1500.0  0.0
-    0.0    2500.0  0.0  1500.0  0.0  1500.0  0.0
-    0.0    2500.0  0.0  1500.0  0.0  1500.0  0.0
-# interface #2 
- -1000.0   4000.0  0.0  2400.0  0.0  2400.0  0.0   
- -1000.0   4000.0  0.0  2400.0  0.0  2400.0  0.0
- -1000.0   4000.0  0.0  2400.0  0.0  2400.0  0.0
- -1000.0   4000.0  0.0  2400.0  0.0  2400.0  0.0 
-\end{lstlisting}
-We provide a more complex model in the \texttt{test/} directory.
-
-%=============================================================
-\section{Grid to Model} \label{media-grid2model}
-The \textbf{media\_el\_iso\_grid2model} function is used to discretize the given grid model to the grid model. It also provides two medium parameterization method: using the local point values (\texttt{loc}), and volume arithmetic and harmonic averaging method (\texttt{har} in ) \citep{moczo_3d_2002,moczo_finite-difference_2014}.
-
-\subsection{File Format (.md3grd)}
-The following description ignores comment lines and blank lines.
-\begin{itemize}
- \item The first line is the number of layer (\texttt{NL}), if \texttt{NL} > 1, there is a designated interface.
- \item the next \texttt{NL} lines are the number of grids in the z-direction of each layer 
- \item {The third line is the information of the given interface mesh:
-  
-  \texttt{NX} ~~ \texttt{NY} ~~ \texttt{MIN\_X} ~~ \texttt{MIN\_Y} ~~ \texttt{SPACING\_X} ~~ \texttt{SPACING\_Y}
-
-  \texttt{NX} and \texttt{NY} are the number of points along $x$ and $y$ direction;
-
-  \texttt{MIN\_X} and \texttt{MIN\_Y} are the minimal $x$ and $y$ coordinates;
-
-  \texttt{SPACING\_X} and \texttt{SPACING\_Y} are spacing between points along $x$ and $y$.
- }
- \item {
-  After then, the elevation, velocity and density are given in every grid points:
-  \begin{lstlisting}[language = C]
-  for (ig=0; ig<ng_z; ig++)
-    for (iy=0; iy<NY; iy++) {
-      for (ix=0; ix<NX; ix++) { 
-        fscanf(grid_file, "%f %f %f %f", &elevation[ig][iy][ix], 
-              &vp[ig][iy][ix], &vs[ig][iy][ix], &rho[ig][iy][ix]);
-      }
-    }
-  }
+  for (nl=0; nl< NL; nl++)
+    for (ip=0; ip<np[nl]; np++)
+      for(iy=0; iy<NY; iy++)
+        for (ix=0; ix<NX;ix++)
+          fscanf(in_3grd_file, "%f %f %f %f", 
+              &elevation, &rho, &vp, &vs);
   \end{lstlisting}
  } 
+
+The media parameters are calculated by interpolation of the values at the given grid points.
+
+For the points higher than the interface, assigned by the uppermost medium. 
+
+For different media type, different media parameters are given,
+
+\texttt{one\_component}: var.
+
+\texttt{acoustic\_isotropic}: $\rho$, vp.
+
+\texttt{elastic\_isotropic}: $\rho$, vp, vs.
+
+\texttt{elastic\_vti\_prem}: $\rho$, vph, vpv, vsh, vsv, $\eta$. Please see \citep{dziewonski1981preliminary} for detail.
+
+\texttt{elastic\_vti\_thomsen}: $\rho$, $\alpha_0$, $\beta_0$, $\epsilon$, $\delta$, $\gamma$. Please see \citep{thomsen1986weak} for detail.
+
+\texttt{elastic\_vti\_cij}: $\rho$, $c_{11}$, $c_{33}$, $c_{55}$, $c_{66}$, $c_{13}$. 
+
+\texttt{elastic\_tti\_thomsen}: $\rho$, $\alpha_0$, $\beta_0$, $\epsilon$, $\delta$, $\gamma$, $\Phi$, $\theta$. Please see \citep{thomsen1986weak} for detail.
+
+\texttt{elastic\_tti\_bond}: $\rho$, $c_{11}$, $c_{33}$, $c_{55}$, $c_{66}$, $c_{13}$, $\Phi$, $\theta$. $\Phi$ is azimuth angle, $\theta$ is the dip angle.
+
+\texttt{elastic\_aniso\_cij}: $\rho$, $c_{11}$, $c_{12}$, $c_{13}$, $c_{14}$, $c_{15}$, $c_{16}$,  
+                                      $c_{22}$, $c_{23}$, $c_{24}$, $c_{25}$, $c_{26}$, 
+                                      $c_{33}$, $c_{34}$, $c_{35}$, $c_{36}$, $c_{44}$,
+                                      $c_{45}$, $c_{46}$, $c_{55}$, $c_{56}$, $c_{66}$.
 \end{itemize}
-The velocities and density are calculated by interpolation of the values at the given grid points.
+if \texttt{NL} > 1, there is a designated interface; and the elevation of ng[il]+1 needs to be the same as ng[il]. The equivalent medium parameterization method can be applied on the points cutting by this interface.
 
-\subsection{Example}
-A model with a horizontal interface can be given as:
-\begin{lstlisting}[language=python, title=test.md3lay, frame=tb]
-# NL
-  2
-# How many z-grids are in each layer
-  2
-  2
+If you want to get the model from the given gird model, \texttt{in\_3grd\_file} should be appropriate.
+You can also find the example in the \textbf{example/prep\_medium} directory.
 
-# NX   NY   MIN_X  MIN_Y  SPACING_X  SPACING_Y 
-  2    2    0.0    0.0    2000.0     2000.0
-# elevation   vp     vs     rho  
-# z-grid #1: Top - free surface
-    0.0    2500.0  1500.0  1500.0 
-    0.0    2500.0  1500.0  1500.0 
-    0.0    2500.0  1500.0  1500.0 
-    0.0    2500.0  1500.0  1500.0 
-# z-grid #2 
- -1000.0   2500.0  1500.0  2400.0   
- -1000.0   2500.0  1500.0  2400.0
- -1000.0   2500.0  1500.0  2400.0
- -1000.0   2500.0  1500.0  2400.0 
-# z-grid #3 (the elevation needs to be the same as #2)
- -1000.0   4000.0  2400.0  2400.0   
- -1000.0   4000.0  2400.0  2400.0
- -1000.0   4000.0  2400.0  2400.0
- -1000.0   4000.0  2400.0  2400.0 
-# z-grid #4 
- -2000.0   4000.0  2400.0  2400.0   
- -2000.0   4000.0  2400.0  2400.0
- -2000.0   4000.0  2400.0  2400.0
- -2000.0   4000.0  2400.0  2400.0  
-\end{lstlisting}
-if \texttt{NL} > 1, there is a designated interface; and the elevation of the ng[il]+1 needs to be the same as ng[il]. The equivalent medium parameterization method can be applied on this interface.
-We provide a more complex model in the \texttt{test/} directory.
+%===================================================================
+\section{Note about mdlay format} \label{mdlay}
+
+If \texttt{in\_3lay\_file} is selected, the media should be given by a mdlay file. The file format is:
+\begin{itemize}
+  \item The first line is the media type, it can be \\
+  \texttt{one\_component}, \\ 
+  \texttt{acoustic\_isotropic}, \\
+  \texttt{elastic\_isotropic}, \\
+  \texttt{elastic\_vti\_prem}, \\
+  \texttt{elastic\_vti\_thomsen}, \\ 
+  \texttt{elastic\_vti\_cij}, \\
+  \texttt{elastic\_tti\_thomsen}, \\ 
+  \texttt{elastic\_tti\_bond}, \\
+  \texttt{elastic\_aniso\_cij}.  
+
+  \item The second line is the number of interface (\texttt{NI}).
+
+  \item {The third line is the information of the given interface mesh:
+  \texttt{NX} ~~ \texttt{NY} ~~ \texttt{MIN\_X} ~~ \texttt{MIN\_Y} ~~ \texttt{SPACING\_X} ~~ \texttt{SPACING\_Y} \\
+  \texttt{NX} and \texttt{NY} are the number of points along $x$ and $y$ direction;\\
+  \texttt{MIN\_X} and \texttt{MIN\_Y} are the minimal $x$ and $y$ coordinates;\\
+  \texttt{SPACING\_X} and \texttt{SPACING\_Y} are spacing between points along $x$ and $y$.
+ }
+
+ \item {
+  After then, the elevation, media parameters are given in every interface points. Take the \texttt{elastic\_isotropic} media for example, the media parameters are read as:
+  \begin{lstlisting}[language = C]
+  for (ni=0; ni<NI; ni++)
+    for (iy=0; iy<NY; iy++) 
+      for (ix=0; ix<NX; ix++) 
+        fscanf(in_3lay_file, "%f %f %f %f %f %f %f", 
+               &elevation,
+               &rho, &rho_grad, &rho_pow,
+               &vp, &vp_grad, &vp_pow,
+               &vs, &vs_grad, &vs_pow);
+  \end{lstlisting}
+ }
+
+ The media parameters below interface (x, y, elevation) are calculated by
+ \begin{equation*}
+        var^{grid~point} = var + (z\text{\_interface}-z^{grid~point})^{var\_pow} * var\_grad.
+ \end{equation*} 
+\end{itemize}
+For the points higher than the interface, assigned by the uppermost medium. 
+
+For different media type, different media parameters and the corresponding \texttt{\_grad} and \texttt{\_pow} are given, the media parameters for different media can be found in Section \ref{mdgrd}
+
+If you want to get the model from the interface line, \texttt{in\_3lay\_file} should be helpful.
+You can also find the example in the \textbf{example/prep\_medium} directory.
+
+%===================== equivalent medium para method ===========================
+\section{Note about equivalent medium parameterization methods} \label{equivalent_method} 
+When there are strong interfaces in the model, using grid points to discrete models directly may cause interface error and the generation of artificial diffraction from stair step interfaces. In this code, we provide some equivalent medium parametrization methods to reduce this interface error.
+
+If you give the model by \texttt{in\_3grd\_file} or \texttt{in\_3lay\_file}, you can apply different equivalent medium parametrization methods by give different \texttt{equivalent\_medium\_method}. 
+
+If the media type in the \textbf{mdgrd} or \textbf{mdlay} file is \texttt{one\_component}, \texttt{equivalent\_medium\_method} can be
+\begin{itemize}
+ \item \texttt{loc}: using local value to discrete model. 
+ \item \texttt{har}: volume integral harmonic average, 
+  \begin{align}
+    \left<var\right> = \frac{1}{\Delta V} \int_{k-1/2}^{k+1/2} \int_{j-1/2}^{j+1/2} \int_{i-1/2}^{i+1/2} var~dx dy dz 
+  \end{align}
+ \item \texttt{ari}: volume integral arithmetic average. 
+  \begin{align}
+    \left<var\right>^H = \frac{\Delta V}{\int_{k-1/2}^{k+1/2} \int_{j-1/2}^{j+1/2} \int_{i-1/2}^{i+1/2} \frac{1}{var} dx dy dz}
+  \end{align}
+\end{itemize}
+
+If the media type is \texttt{acoustic\_isotropic}, \texttt{equivalent\_medium\_method} can be
+\begin{itemize}
+ \item \texttt{loc}: using local media parameters to discrete model. 
+ \item \texttt{har}: applying harmonic average to $\kappa$, and applying arithmetic average to density $\rho$. 
+ \item \texttt{ari}: applying arithmetic average to $\kappa$ and $\rho$. 
+\end{itemize}
+
+If the media type is \texttt{elastic\_isotropic}, \texttt{equivalent\_medium\_method} can be
+\begin{itemize}
+ \item \texttt{loc}: using local media parameters to discrete model. 
+ \item \texttt{har}: applying harmonic average to elastic modulus, and applying arithmetic average to density $\rho$. Please see \citet{moczo_3d_2002} and \citep{moczo_finite-difference_2014} for detail.
+ \item \texttt{ari}: applying arithmetic average to elastic modulus and density. 
+\end{itemize}
+
+If the media type is \texttt{elastic\_vti\_*}, \texttt{equivalent\_medium\_method} can be
+\begin{itemize}
+ \item \texttt{loc}: using local media parameters to discrete model. 
+ \item \texttt{har}: applying harmonic average to elastic modulus $c_{ij}$, and applying arithmetic average to density $\rho$.
+ \item \texttt{ari}: applying arithmetic average to elastic modulus $c_{ij}$ and density. 
+\end{itemize}
+
+If the media type is \texttt{elastic\_aniso\_cij} or \texttt{elastic\_tti\_*}, \texttt{equivalent\_medium\_method} can be
+\begin{itemize}
+ \item \texttt{loc}: using local media parameters to discrete model. 
+ \item \texttt{har}: applying harmonic average to elastic modulus $c_{ij}$, and applying arithmetic average to density $\rho$.
+ \item \texttt{ari}: applying arithmetic average to elastic modulus $c_{ij}$ and density. 
+\end{itemize}
