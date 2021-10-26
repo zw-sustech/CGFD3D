@@ -3,17 +3,17 @@
 
 \markright{CHAPTER \ref{chapter-media} MEDIA}
 
-\begin{lstlisting}[language=json, title=run\_test.sh, frame=tb]
-  "media_input" : {
-      "type" : "el_iso",
-      "#import" : "$MEDIA_DIR",
-      "code_generate" : 1,
-      "#in_3lay_file" : "${IN_MEDIA_3LAY_FILE}",
+\begin{lstlisting}[language=json, title=par.json, frame=tb]
+  "medium" : {
+      "type" : "elastic_iso",
+      "#code" : 1,
+      "infile_layer" : "/home/usr1/testCGFD3D/prep_medium/basin.md3lay",
+      "#infile_grid" : "/home/usr1/testCGFD3D/prep_medium/basin.md3grd",
       "#equivalent_medium_method" : "har",
-      "#in_3grd_file" : "$IN_MEDIA_GRID_FILE"
+      "#import" : "/home/usr1/testCGFD3D/output/media"
   },
   "is_export_media" : 1,
-  "media_export_dir"  : "$MEDIA_DIR",
+  "media_export_dir"  : "/home/usr1/testCGFD3D/output/media",
 
   "#visco_config" : {
       "type" : "graves_Qs",
@@ -21,32 +21,38 @@
   }
 \end{lstlisting}
 
-The media can be given in four ways:
 \begin{itemize}
-  \item \texttt{import}: The media are imported from a given MEDIA\_DIR, which is related to the grid. This selection is mostly used in inversion and imaging.  
-  \item \texttt{code\_generate}: Choose this flag if you want to give the media by code. You should edit forward/md\_t.c file and recompile the code.
-  \item \texttt{in\_3lay\_file}: The media parameters are given by the \textbf{mdlay} file, the file format is shown in Section \ref{mdlay} 
-  \item \texttt{in\_3grd\_file}: The media parameters are given by the \textbf{mdgrd} file, the file format is shown in Section \ref{mdgrd}.
+ % TODO: waveform eqn. should be given and analyzed before
+  \item \texttt{type} is the flag of the solver, that is, what media do you want to simulate, and four options are supported in this code:
+  \begin{itemize}
+    \item \texttt{acoustic\_iso}: choose this to call the solver of acoustic wave equation of isotropic media.  
+    \item \texttt{elastic\_iso}: choose this to call the solver of the elastic wave equation of isotropic media.
+    \item \texttt{elastic\_vti}: choose this to call the solver of the elastic wave equation of vertical transversely isotropic media. 
+    \item \texttt{elastic\_aniso}: choose this to call the solver of the elastic wave equation of anisotropic media. 
+  \end{itemize}
+  The media type is given in \texttt{import}, \texttt{code}, \texttt{infile\_layer} or \texttt{infile\_grid}.
+
+  \item The media can be given in four ways:
+  \begin{itemize}  
+    \item \texttt{code}: Choose this flag if you want to give the media by code. You should edit \textbf{forward/md\_t.c} file and recompile the code.
+    \item \texttt{infile\_layer}: If you want to give media by the intereface line, this option should be helpful. The media parameters are given by the \textbf{md3lay} file, and the file format is shown in Section \ref{md3lay} 
+    \item \texttt{infile\_grid}: If you want to give media by a given grid media, this option should be helpful. The media parameters are given by the \textbf{md3grd} file, the file format is shown in Section \ref{md3grd}.
+    \item \texttt{import}: If you already generated media from the above three options, and do not want to re-generate media, select this option and give the folder of the exported media. 
+  \end{itemize}
+
+  \item \texttt{equivalent\_medium\_method}: If you give media by \texttt{infile\_layer} or \texttt{infile\_grid}, equivalent medium parameterization methods can be applied. For different media, we provide different equivalent medium parameterization methods, please see Section \ref{equivalent_method} for detail.
+   
+  \item \texttt{is\_export\_media} should be \textbf{1} if you want to export the media, and a \textbf{media\_export\_dir} should be given. 
+  
+  \item The \texttt{visco\_config} is selected if the media is viscoelastic, the visco\_type and Qs frequency are needed.
+
 \end{itemize}
-
-% TODO: waveform eqn. should be given and analyzed before
-\texttt{type} is the flag of the solver, that is, what wave equation to use, and four options are supported in this code:
-\begin{itemize}
-  \item \texttt{acoustic\_iso}: choose this to call the solver of acoustic wave equation of isotropic media.  
-  \item \texttt{elastic\_iso}: choose this to call the solver of the elastic wave equation of isotropic media.
-  \item \texttt{elastic\_vti}: choose this to call the solver of the elastic wave equation of vertical transversely isotropic media. 
-  \item \texttt{elastic\_aniso}: choose this to call the solver of the elastic wave equation of anisotropic media (21 non-zero coefficients in the elasticity matrix). 
-\end{itemize}
-Note that the \texttt{type} here is about the wave equation. If you want to change the type of media, you can modified the code in forward/md\_t.c if \texttt{code\_generate} is chosen; or you can give a different header in \textbf{mdlay} file or \textbf{mdgrd} file if \texttt{in\_3lay\_file} or \texttt{in\_3grd\_file} is chosen, see \ref{mdlay} and \ref{mdgrd} for detail.
-
-\texttt{is\_export\_media} should be \textbf{1} if you want to export the media, and a \textbf{media\_export\_dir} should be given. 
-
-The \texttt{visco\_config} is selected if the media is viscoelastic, the visco\_type and Qs frequency are needed.
 
 %===================================================================
-\section{Note about mdgrd format} \label{mdgrd}
-If \texttt{in\_3grd\_file} is selected, the media should be given by a mdgrd file. The file format is:
+\section{Format of .md3grd} \label{md3grd}
 
+If you want to get the model from the interface line, you can select the option \texttt{infile\_layer}.
+And the media are given by a \textbf{md3lay} file. The file format is:
 \begin{itemize}
  \item The first line is the media type, it can be \\
  \texttt{one\_component}, \\ 
@@ -82,42 +88,46 @@ If \texttt{in\_3grd\_file} is selected, the media should be given by a mdgrd fil
   \end{lstlisting}
  } 
 
-The media parameters are calculated by interpolation of the values at the given grid points.
+The media parameters are calculated by linear interpolation of the values at the given grid points.
 
 For the points higher than the interface, assigned by the uppermost medium. 
 
 For different media type, different media parameters are given,
 
-\texttt{one\_component}: var.
+\begin{itemize}
+  \item \texttt{one\_component}: var.
+  
+  \item \texttt{acoustic\_isotropic}: $\rho$, vp.
+  
+  \item \texttt{elastic\_isotropic}: $\rho$, vp, vs.
+  
+  \item \texttt{elastic\_vti\_prem}: $\rho$, vph, vpv, vsh, vsv, $\eta$. Please see \citep{dziewonski1981preliminary} for detail.
+  
+  \item \texttt{elastic\_vti\_thomsen}: $\rho$, $\alpha_0$, $\beta_0$, $\epsilon$, $\delta$, $\gamma$. Please see \citep{ thomsen1986weak} for detail.
+  
+  \item \texttt{elastic\_vti\_cij}: $\rho$, $c_{11}$, $c_{33}$, $c_{55}$, $c_{66}$, $c_{13}$. 
+  
+  \item \texttt{elastic\_tti\_thomsen}: $\rho$, $\alpha_0$, $\beta_0$, $\epsilon$, $\delta$, $\gamma$, $\Phi$, $\theta$. Please see \citep{thomsen1986weak} for detail.
 
-\texttt{acoustic\_isotropic}: $\rho$, vp.
+  \item \texttt{elastic\_tti\_bond}: $\rho$, $c_{11}$, $c_{33}$, $c_{55}$, $c_{66}$, $c_{13}$, $\Phi$, $\theta$. $\Phi$ is azimuth angle, $\theta$ is the dip angle.
 
-\texttt{elastic\_isotropic}: $\rho$, vp, vs.
-
-\texttt{elastic\_vti\_prem}: $\rho$, vph, vpv, vsh, vsv, $\eta$. Please see \citep{dziewonski1981preliminary} for detail.
-
-\texttt{elastic\_vti\_thomsen}: $\rho$, $\alpha_0$, $\beta_0$, $\epsilon$, $\delta$, $\gamma$. Please see \citep{thomsen1986weak} for detail.
-
-\texttt{elastic\_vti\_cij}: $\rho$, $c_{11}$, $c_{33}$, $c_{55}$, $c_{66}$, $c_{13}$. 
-
-\texttt{elastic\_tti\_thomsen}: $\rho$, $\alpha_0$, $\beta_0$, $\epsilon$, $\delta$, $\gamma$, $\Phi$, $\theta$. Please see \citep{thomsen1986weak} for detail.
-
-\texttt{elastic\_tti\_bond}: $\rho$, $c_{11}$, $c_{33}$, $c_{55}$, $c_{66}$, $c_{13}$, $\Phi$, $\theta$. $\Phi$ is azimuth angle, $\theta$ is the dip angle.
-
-\texttt{elastic\_aniso\_cij}: $\rho$, $c_{11}$, $c_{12}$, $c_{13}$, $c_{14}$, $c_{15}$, $c_{16}$,  
+  \item \texttt{elastic\_aniso\_cij}: $\rho$, $c_{11}$, $c_{12}$, $c_{13}$, $c_{14}$, $c_{15}$, $c_{16}$,  
                                       $c_{22}$, $c_{23}$, $c_{24}$, $c_{25}$, $c_{26}$, 
                                       $c_{33}$, $c_{34}$, $c_{35}$, $c_{36}$, $c_{44}$,
                                       $c_{45}$, $c_{46}$, $c_{55}$, $c_{56}$, $c_{66}$.
 \end{itemize}
+
+\end{itemize}
 if \texttt{NL} > 1, there is a designated interface; and the elevation of ng[il]+1 needs to be the same as ng[il]. The equivalent medium parameterization method can be applied on the points cutting by this interface.
 
-If you want to get the model from the given gird model, \texttt{in\_3grd\_file} should be appropriate.
 You can also find the example in the \textbf{example/prep\_medium} directory.
 
 %===================================================================
-\section{Note about mdlay format} \label{mdlay}
+\section{Format of .md3lay} \label{md3lay}
 
-If \texttt{in\_3lay\_file} is selected, the media should be given by a mdlay file. The file format is:
+If you want to get the model from the interface line, you can select the option \texttt{infile\_layer}.
+And the media are given by a \textbf{md3lay} file. The file format is:
+
 \begin{itemize}
   \item The first line is the media type, it can be \\
   \texttt{one\_component}, \\ 
@@ -153,32 +163,32 @@ If \texttt{in\_3lay\_file} is selected, the media should be given by a mdlay fil
   \end{lstlisting}
  }
 
- The media parameters below interface (x, y, elevation) are calculated by
+ \texttt{*\_grad} and \texttt{*\_pow} is the gradient and power of the media parameters in z-direction. The media parameters below interface are calculated by
  \begin{equation*}
         var^{grid~point} = var + (z\text{\_interface}-z^{grid~point})^{var\_pow} * var\_grad.
- \end{equation*} 
+ \end{equation*}
+
 \end{itemize}
 For the points higher than the interface, assigned by the uppermost medium. 
 
-For different media type, different media parameters and the corresponding \texttt{\_grad} and \texttt{\_pow} are given, the media parameters for different media can be found in Section \ref{mdgrd}
+For different media type, different media parameters and the corresponding \texttt{*\_grad} and \texttt{*\_pow} are given, the media parameters for different media can be found in Section \ref{md3grd}
 
-If you want to get the model from the interface line, \texttt{in\_3lay\_file} should be helpful.
-You can also find the example in the \textbf{example/prep\_medium} directory.
+You can also find examples in the \textbf{example/prep\_medium} directory.
 
 %===================== equivalent medium para method ===========================
 \section{Note about equivalent medium parameterization methods} \label{equivalent_method} 
 When there are strong interfaces in the model, using grid points to discrete models directly may cause interface error and the generation of artificial diffraction from stair step interfaces. In this code, we provide some equivalent medium parametrization methods to reduce this interface error.
 
-If you give the model by \texttt{in\_3grd\_file} or \texttt{in\_3lay\_file}, you can apply different equivalent medium parametrization methods by give different \texttt{equivalent\_medium\_method}. 
+If you give the model by \texttt{infile\_layer} or \texttt{infile\_grid}, you can apply different equivalent medium parametrization methods by give different \texttt{equivalent\_medium\_method}.
 
-If the media type in the \textbf{mdgrd} or \textbf{mdlay} file is \texttt{one\_component}, \texttt{equivalent\_medium\_method} can be
+If the media type in the \textbf{md3grd} or \textbf{md3lay} file is \texttt{one\_component}, \texttt{equivalent\_medium\_method} can be
 \begin{itemize}
  \item \texttt{loc}: using local value to discrete model. 
- \item \texttt{har}: volume integral harmonic average, 
+ \item \texttt{ari}: volume integral arithmetic average. 
   \begin{align}
     \left<var\right> = \frac{1}{\Delta V} \int_{k-1/2}^{k+1/2} \int_{j-1/2}^{j+1/2} \int_{i-1/2}^{i+1/2} var~dx dy dz 
   \end{align}
- \item \texttt{ari}: volume integral arithmetic average. 
+ \item \texttt{har}: volume integral harmonic average, 
   \begin{align}
     \left<var\right>^H = \frac{\Delta V}{\int_{k-1/2}^{k+1/2} \int_{j-1/2}^{j+1/2} \int_{i-1/2}^{i+1/2} \frac{1}{var} dx dy dz}
   \end{align}
