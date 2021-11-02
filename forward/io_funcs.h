@@ -332,4 +332,7 @@ iosnap_print(iosnap_t *iosnap);
 int
 iorecv_print(iorecv_t *iorecv);
 
+int
+PG_slice_output(float *PG,  gdinfo_t *gdinfo, char *output_dir, char *frame_coords, int* topoid);
+
 #endif

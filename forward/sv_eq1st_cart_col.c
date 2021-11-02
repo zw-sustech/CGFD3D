@@ -11,6 +11,7 @@
 #include "fdlib_mem.h"
 #include "fdlib_math.h"
 #include "blk_t.h"
+#include "wav_t.h"
 #include "sv_eq1st_cart_col.h"
 #include "sv_eq1st_cart_col_el_iso.h"
 //#include "sv_eq1st_cart_col_el_aniso.h"
@@ -114,6 +115,12 @@ sv_eq1st_cart_col_allstep(
     }
   }
 
+  // alloc free surface PGV and PGA
+  float *PG = NULL;
+  if (bdryfree->is_at_sides[CONST_NDIM-1][1] == 1)
+  {
+    PG = (float *) fdlib_mem_calloc_1d_float(6*gdinfo->ny*gdinfo->nx,0.0,"PG malloc");
+  }
   // calculate conversion matrix for free surface
   if (bdryfree->is_at_sides[CONST_NDIM-1][1] == 1)
   {
@@ -347,6 +354,7 @@ sv_eq1st_cart_col_allstep(
         blk_colcent_unpack_mesg(rbuff, w_end,  wav->ncmp, gdinfo,
                          fdx_max_half_len, fdy_max_half_len);
      }
+
     } // RK stages
 
     //--------------------------------------------
@@ -362,6 +370,11 @@ sv_eq1st_cart_col_allstep(
     // save results
     //--------------------------------------------
 
+    // calculate PGV and PGA for each surface at each stage
+    if (bdryfree->is_at_sides[CONST_NDIM-1][1] == 1)
+    {
+        PG_calcu(w_end, w_pre, gdinfo, PG, dt);
+    }
     //-- recv by interp
     io_recv_keep(iorecv, w_end, it, wav->ncmp, wav->siz_icmp);
 
@@ -409,6 +422,7 @@ sv_eq1st_cart_col_allstep(
 
   // postproc
 
+  PG_slice_output(PG,gdinfo,output_dir, output_fname_part,topoid);
   // close nc
   io_slice_nc_close(&ioslice_nc);
   io_snap_nc_close(&iosnap_nc);
@@ -445,3 +459,4 @@ sv_eq1st_cart_graves_Qs(float *w, int ncmp, float dt, gdinfo_t *gdinfo, md_t *md
 
   return ierr;
 }
+

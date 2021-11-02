@@ -1573,7 +1573,7 @@ iosnap_print(iosnap_t *iosnap)
   fprintf(stdout, "#   i0 j0 k0 ni nj nk di dj dk it0 dit vel stress strain gi1 gj1 gk1\n");
   for (int n=0; n < iosnap->num_of_snap; n++)
   {
-    fprintf(stdout, " %d %d %d %d %d %d %d %d %d %d %d %d %d %d %d %d %d\n",
+    fprintf(stdout, "%d %d %d %d %d %d %d %d %d %d %d %d %d %d %d %d %d %d\n",
               n,
               iosnap->i1[n], iosnap->j1[n], iosnap->k1[n],
               iosnap->ni[n], iosnap->nj[n], iosnap->nk[n],
@@ -1617,4 +1617,64 @@ iorecv_print(iorecv_t *iorecv)
   //fprintf(stdout, "\n");
 
   return(0);
+}
+
+int
+PG_slice_output(float *PG, gdinfo_t *gdinfo, char *output_dir, char *frame_coords, int *topoid)
+{
+  // output one time z slice
+  // used for PGV PGA and more
+  // cmp is V and A component x, y, z
+  int nx = gdinfo->nx; 
+  int ny = gdinfo->ny;
+  int ni = gdinfo->ni; 
+  int nj = gdinfo->nj;
+  int gni1 = gdinfo->gni1; 
+  int gnj1 = gdinfo->gnj1; 
+  char PG_cmp[6][CONST_MAX_STRLEN] = {"PGVx","PGVy","PGVz","PGAx","PGAy","PGAz"}; 
+  char out_file[CONST_MAX_STRLEN];
+  sprintf(out_file,"%s/%s_%s.nc",output_dir,"PG_V_A",frame_coords);
+
+  // create PGV output file
+  int dimid[2];
+  int varid[6], ncid;
+  int i,ierr;
+  ierr = nc_create(out_file, NC_CLOBBER, &ncid);
+  if (ierr != NC_NOERR){
+      fprintf(stderr,"creat PGV nc error: %s\n", nc_strerror(ierr));
+      exit(-1);
+     }
+
+  if(nc_def_dim(ncid, "j", ny, &dimid[0])) M_NCERR;
+  if(nc_def_dim(ncid, "i", nx, &dimid[1])) M_NCERR;
+
+  // define vars
+  for(int i=0; i<6; i++)
+  {
+    if(nc_def_var(ncid, PG_cmp[i], NC_FLOAT,2,dimid, &varid[i])) M_NCERR;
+  }
+  int g_start[2] = {gni1,gnj1}; 
+  int phy_size[2] = {ni,nj}; 
+  if(nc_put_att_int(ncid,NC_GLOBAL,"global_index_of_first_physical_points",
+                    NC_INT,2,g_start)) M_NCERR;
+  if(nc_put_att_int(ncid,NC_GLOBAL,"count_index_of_physical_points",
+                    NC_INT,2,phy_size)) M_NCERR;
+  if(nc_put_att_int(ncid,NC_GLOBAL,"coords_of_mpi_topo",
+                    NC_INT,2,topoid)) M_NCERR;
+
+  if(nc_enddef(ncid)) M_NCERR;
+
+  // add vars
+  for(int i=0; i<6; i++)
+  {
+  float *ptr = PG + i*nx*ny; 
+  ierr = nc_put_var_float(ncid,varid[i],ptr);
+  }
+  // close file
+  ierr = nc_close(ncid);
+  if(ierr != NC_NOERR){
+    fprintf(stderr,"nc error: %s\n", nc_strerror(ierr));
+    exit(-1);
+    }
+  return 0;
 }
