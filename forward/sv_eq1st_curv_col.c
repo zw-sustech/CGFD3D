@@ -11,7 +11,6 @@
 #include "fdlib_mem.h"
 #include "fdlib_math.h"
 #include "blk_t.h"
-#include "wav_t.h"
 #include "sv_eq1st_curv_col.h"
 #include "sv_eq1st_curv_col_ac_iso.h"
 #include "sv_eq1st_curv_col_el_iso.h"

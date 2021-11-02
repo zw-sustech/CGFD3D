@@ -1,0 +1,9 @@
+function S=stf_linear_exp(T,t0)
+
+nt=length(T);
+S=zeros(nt,1);
+
+%indx=find(T>=0.0 & T<=t0);
+%S(indx)=(1-cos(2*pi*T(indx)/t0))/t0;
+S = T.*exp(-T/t0)/t0^2;
+

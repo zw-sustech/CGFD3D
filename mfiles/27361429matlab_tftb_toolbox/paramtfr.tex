@@ -1,0 +1,155 @@
+\documentclass[12pt,a4paper]{report}
+\usepackage{times}
+
+\newcommand{\ty}{\ttfamily}
+\newcommand{\esp}[1]{I\!\!E\left[{#1}\right]}
+\newcommand{\un}{1\!\!{\rm I}}
+
+%%%%%%%%%%%%%%%%%%%%%%% headline routines %%%%%%%%%%%%%%%%%%%%%%%%%%%% 
+%
+%  \pagestyle{STYLE}     : sets the page style of the current and succeeding
+%                          pages to STYLE
+%
+%  \thispagestyle{STYLE} : sets the page style of the current page only
+%                          to STYLE
+%
+%  To define a page style STYLE, you must define \ps@STYLE to set the page 
+%  style parameters.  
+%  
+%  HOW A PAGE STYLE MAKES RUNNING HEADS AND FEET:
+%  
+% The \ps@... command defines the macros \@oddhead, \@oddfoot,
+% \@evenhead, and \@evenfoot to define the running heads and feet.  
+% (See output routine.)  To make headings determined by the sectioning
+% commands, the page style defines the commands \chaptermark,
+% \sectionmark, etc., where \chaptermark{TEXT} is called by \chapter to
+% set a mark.  The \...mark commands and the \...head macros are defined
+% with the help of the following macros.  (All the \...mark commands
+% should be initialized to no-ops.)
+
+\newlength{\pagewidth}
+\setlength{\pagewidth}{\textwidth}
+%\addtolength\pagewidth\marginparwidth
+%\addtolength\pagewidth\marginparsep
+
+\makeatletter
+
+\def\ps@myheadings{
+\def\@oddfoot{$\overline{\hfill\hbox{\it Time-Frequency Toolbox 
+Tutorial : parametric representations, \today}}$}
+\def\@oddhead{}
+%\makebox[\textwidth][l]{\underline{\hbox to \pagewidth{\bf
+%\firstmark\hfill\thepage}}}}%
+\def\@evenfoot{$\overline{\hbox{
+\thepage\quad F. Auger, P. Flandrin, P. Gon\c{c}alv\`es, 
+O. Lemoine\hfill}}$} %
+\def\@evenhead{}
+%\makebox[\textwidth][r]
+%{\underline{\hbox to \pagewidth{\bf\hfill\@lhead}}}}%
+\def\chaptermark##1{
+%\let\protect\noexpand
+\mark{}\def\@lhead{##1}}%
+\def\sectionmark##1{{\let\protect\noexpand\mark{\thesection 
+    \hskip 1em##1}}}}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% 
+
+\title{Time-Frequency toolbox for M\textsc{atlab}\\[0.5 cm]
+User's guide and Reference guide\\
+for the parametric representations}
+\author{F. Auger}
+\date{\today}
+
+\begin{document}
+\pagestyle{empty}
+\maketitle
+\chapter{A short tutorial on parametric representations}
+\section{Introduction}
+Parametric time-frequency representations are sometimes an interesting alternative 
+to the Fourier-based time-frequency analysis tools. They have been preferred in some 
+specific applications, for example in acoustics and in hydrodynamics.
+These time-frequency representations are extensions of classical parametric
+power spectral density estimators, which are applied on a sliding finite length
+record of the signal. However, this approach requires the validity of a local stationary 
+hypothesis on the signal, and therefore leads to a rtade-off between local stationarity and 
+frequency resolution. For a detailed review of power spectrum estimators for
+stationary signals, see X. For an easily accessible reference on their use 
+for non-stationary signals, see \cite{martin95}.
+
+All the parametric representations proposed in the toolbox
+require an estimation of the ``instantaneous autocorrelation function''
+$R_x[n,\tau]=\esp{x[n]\,x[n-\tau]^*}$, and compute a time-frequency representation
+$P[n,\lambda)$ using different approaches~:
+\begin{itemize}
+\item\textbf{The periodogram}
+The periodogram is nearly equivalent to the spectrogram. Its definition is
+$$
+P[n,\lambda)={1\over(p+1)^2}\,Z(\lambda)^H\,R_x[n]\,Z(\lambda),
+$$
+where $Z(\lambda)^T=\left[{1\quad e^{\jmath2\pi\lambda}\quad\ldots\quad e^{\jmath2\pi\lambda p}}\right]$
+is a vector of size $p+1$, and $R_x[n]$ is the estimated autocorrelation matrix of size $p+1$.
+At row $i$ and column $j$, the element of this matrix is $R_x[n,i-j]$.
+
+\item\textbf{The Capon estimator} 
+$$
+P[n,\lambda)={1\over Z(\lambda)^H\,R_x[n]^{-1}\,Z(\lambda)},
+$$
+
+\item\textbf{The estimator deduced from an AR model}
+\begin{eqnarray*}
+P[n,\lambda)&=&{P_e[n]\over \left|{Z(\lambda)^H\,A}\right|^2},\\
+\quad{\rm with}\quad
+A&=&P_e[n]\,R[n]^{-1}\,\un
+\quad{\rm and}\quad
+P_e[n]={1\over \un^T\,R[n]^{-1}\,\un}
+\end{eqnarray*}
+
+\item\textbf{The Lagunas estimator}
+$$
+P[n,\lambda)={Z(\lambda)^H\,R_x[n]^{-1}\,Z(\lambda)\over 
+              Z(\lambda)^H\,R_x[n]^{-2}\,Z(\lambda)},
+$$
+
+\item\textbf{The generalized Lagunas estimator}
+$$
+P[n,\lambda)={Z(\lambda)^H\,R_x[n]^{-2q+1}\,Z(\lambda)\over 
+              Z(\lambda)^H\,R_x[n]^{-2q}\,Z(\lambda)},
+$$
+
+\end{itemize}
+\section{Experimental comparison}
+So as to compare these representations, we considered a synthetic signal
+\chapter{Reference guide}
+
+This section contains detailed descriptions of the M\textsc{atlab} functions 
+needed for computing parametric time-frequency reppresentations. It is therefore 
+a complement to the reference guide of the time-frequency toolbox. As usual,
+these descriptions are also available through the online help facility.
+
+\vspace{2 cm}
+
+\begin{tabular}{|p{2 cm} p{10cm}|}
+\hline
+\multicolumn{2}{|c|}{\bf Non-Fourier based time-frequency representations}\\
+\hline
+ {\ty correlmx} &  autocorrelation matrix of a stationary signal\\
+ {\ty parafrep} &  parametric frequency representation of a stationary signal\\
+ {\ty tfrparam} &  parametric time-frequency representation \\\hline
+\end{tabular}
+
+\newpage\input correlmx.tex
+\newpage\input parafrep.tex
+\begin{thebibliography}{99}
+\bibitem{martin95} N. Martin, J. Mars, J. Martin, C. Chorier,
+``A Capon's time-octave representation application in room acoustics,''
+\emph{IEEE Trans. Sig. Proc.}, Vol 43, No 8, pp 1842-1854, Aug 1995.
+\bibitem{padovese96} L.R. Padovese, N. Martin, J-M. Terriez,
+``Temps-fr\'equence pour l'iden-tification des caract\'eristiques dynamiques
+d'uin pyl\^one de t\'el\'eph\'erique,'' \emph{Traitement du Signal}, Vol 13, No 3,
+pp 209-223, 1996.
+\bibitem{leprettre96} B. Leprettre, ``Reconnaissance de signaux sismiques 
+d'avalanches par fusion de donn\'ees estim\'ees dans les domaines temps,
+temps-fr\'equence et polarisation,'' th\`ese de doctorat de l'universit\'e 
+Grenoble I, 2 octobre 1996.
+\end{thebibliography}
+\end{document}
