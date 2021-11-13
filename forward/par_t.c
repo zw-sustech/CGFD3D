@@ -936,7 +936,7 @@ par_print(par_t *par)
   fprintf(stdout, " number_of_total_grid_points_z = %-10d\n", par->number_of_total_grid_points_z);
 
   fprintf(stdout, " disg_num_level = %-10d\n", par->disg_num_level);
-  for (int n; n < par->disg_num_level; n++) {
+  for (int n = 0; n < par->disg_num_level; n++) {
     fprintf(stdout, "    #%d: at %d, factor=%d\n",
           n, par->disg_at_zindx[n], par->disg_factor[n]);
   }

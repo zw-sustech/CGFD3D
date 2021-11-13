@@ -733,7 +733,6 @@ src_read_locate_valsrc(gdinfo_t *gdinfo,
   if(in_num_source > 0)
   {
     free(wrk3d);
-    free(in_source_name);
     free(source_in_thread);
     free(wavelet_tstart);
     fdlib_mem_free_2l_float(source_coords, in_num_source, "free_source_coords");
@@ -749,6 +748,7 @@ src_read_locate_valsrc(gdinfo_t *gdinfo,
   {
     fdlib_mem_free_2l_char(moment_wavelet_mechism,in_num_moment,"free_wavelet_name");
   }
+  free(in_source_name);
   return ierr;
 }
 
