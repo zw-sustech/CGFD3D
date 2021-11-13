@@ -1,0 +1,102 @@
+\markright{correlmx}
+\hspace*{-1.6cm}{\Large \bf correlmx}
+
+\vspace*{-.4cm}
+\hspace*{-1.6cm}\rule[0in]{16.5cm}{.02cm}
+\vspace*{.2cm}
+
+{\bf \large \fontfamily{cmss}\selectfont Purpose}\\
+\hspace*{1.5cm}
+\begin{minipage}[t]{13.5cm}
+computes an estimation of the autocorrelation matrix of a signal.
+\end{minipage}
+\vspace*{.2cm}
+
+{\bf \large \fontfamily{cmss}\selectfont Synopsis}\\
+\hspace*{1.5cm}
+\begin{minipage}[t]{13.5cm}
+\begin{verbatim}
+Rx=correlmx(x,p,Rxtype)
+Rx=correlmx(x,p)
+\end{verbatim}
+\end{minipage}
+\vspace*{.2cm}
+
+{\bf \large \fontfamily{cmss}\selectfont Description}\\
+\hspace*{1.5cm}
+\begin{minipage}[t]{13.5cm}
+{\ty correlmx} computes a correlation matrix of a signal. 
+
+\begin{tabular*}{14cm}{p{1.5cm} p{8.5cm} c}
+Name & Description & Default value\\\hline
+{\ty x}      & analyzed signal &  \\ 
+{\ty p}      & highest autocorrelation lag. For a given $p$, 
+               the size of the autocorrelation matrix will be 
+               $(p+1)\times(p+1)$ & \\
+{\ty Rxtype} & computation algorithm. 
+               Possible values for 
+               \texttt{Rxtype} are \texttt{'burg'}, 
+               \texttt{'hermitian'} and \texttt{'fbhermitian'}
+             & {\ty 'fbhermitian'}\\\hline 
+{\ty Rx}     & computed correlation matrix, of size \hbox{$(p+1)\times(p+1)$} & \\\hline 
+\end{tabular*}
+
+For a given signal $x[n]$, $n\,\in\,[0,N-1]$, this function
+computes \texttt{Rx} by different approaches~:
+
+If \texttt{Rxtype} equals \texttt{'burg'}, then \texttt{correlmx}
+first computes the autocorrelation function
+$$
+R_x[\tau]=
+\left\{{
+\begin{array}{lcl}
+{1\over N-\tau}\,\sum_{n=\tau}^{N-1}x[n]\,x[n-\tau]^*
+&\quad{\rm if}\quad& \tau\geq 0\\[0.2 cm]
+{1\over N+\tau}\,\sum_{n=0}^{N+\tau-1}x[n]\,x[n-\tau]^*
+&\quad{\rm if}\quad& \tau< 0
+\end{array}
+}\right.
+$$
+for $\tau\,\in\,[-p,p]$, and then builds a toeplitz matrix
+\texttt{Rx} such that $(R_x)_{ij}=R_x[i-j]$.
+
+If \texttt{Rxtype} equals \texttt{'hermitian'} or 
+\texttt{'fbhermitian'}, then \texttt{correlmx} computes
+$$
+R_x^h={1\over N-p}\,\sum_{n=p}^{N-1}X[n]^*\,X[n]^T
+$$
+with $X[n]^T=\left[{x[n]\ x[n-1]\ \ldots\ x[n-p]}\right]$.
+If \texttt{Rxtype} equals \texttt{'hermitian'}, then 
+\texttt{Rxtype} returns $R_x^h$, and if \texttt{Rxtype} equals 
+\texttt{'fbhermitian'}, then \texttt{Rxtype} returns 
+$0.5\,(R_x^h+{R_x^h}^H)$.
+\end{minipage}
+
+\newpage
+\vspace*{1cm}
+{\bf \large \fontfamily{cmss}\selectfont Example}\\
+\hspace*{1.5cm}
+\begin{minipage}[t]{13.5cm}
+
+\begin{verbatim}
+N=100; sig=real(fmconst(N,0.1))+0.4*randn(N,1); 
+Rx=correlmx(sig,2,'burg'); [v,d] = eig(Rx)
+acos(-0.5*v(2,1)/v(1,1))/(2*pi)
+Rx=correlmx(sig,2,'hermitian'); [v,d] = eig(Rx)
+acos(-0.5*v(2,1)/v(1,1))/(2*pi)
+\end{verbatim}
+computes an estimation of the frequency of a sinusoid using the Pisarenko
+approach, with a correlation matrix computed by the Burg or the hermitian
+algorithm.
+
+\end{minipage}
+\vspace*{.5cm}
+
+
+{\bf \large \fontfamily{cmss}\selectfont See Also}\\
+\hspace*{1.5cm}
+\begin{minipage}[t]{13.5cm}
+\begin{verbatim}
+parafrep, tfrparam
+\end{verbatim}
+\end{minipage}

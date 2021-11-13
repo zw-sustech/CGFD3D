@@ -1,0 +1,71 @@
+\markright{correlmx}
+\hspace*{-1.6cm}{\Large \bf parafrep}
+
+\vspace*{-.4cm}
+\hspace*{-1.6cm}\rule[0in]{16.5cm}{.02cm}
+\vspace*{.2cm}
+
+
+
+{\bf \large \fontfamily{cmss}\selectfont Purpose}\\
+\hspace*{1.5cm}
+\begin{minipage}[t]{13.5cm}
+computes a parametric frequency representation of a signal.
+\end{minipage}
+\vspace*{.5cm}
+
+
+{\bf \large \fontfamily{cmss}\selectfont Synopsis}\\
+\hspace*{1.5cm}
+\begin{minipage}[t]{13.5cm}
+\begin{verbatim}
+[spec,freqs,A]=parafrep(Rx,N,method)
+[spec,freqs,A]=parafrep(Rx,N,'genlag',q)
+\end{verbatim}
+\end{minipage}
+\vspace*{.5cm}
+
+
+{\bf \large \fontfamily{cmss}\selectfont Description}\\
+\hspace*{1.5cm}
+\begin{minipage}[t]{13.5cm}
+{\ty correlmx} computes a correlation matrix of a signal.\\
+
+\hspace*{-.5cm}
+\begin{tabular*}{14cm}{p{1.5cm} p{8.5cm} c}
+Name & Description & Default value\\\hline
+{\ty x}      & analyzed signal &  \\ 
+{\ty p}      & highest autocorrelation lag. For a given $p$, 
+               the size of the autocorrelation matrix will be 
+               $(p+1)\times(p+1)$ & \\
+{\ty Rxtype} & computation algorithm (default : 'fbhermitian')   & {\ty 'fbhermitian'}\\\hline 
+{\ty Rx}     & computed correlation matrix, of size \hbox{$(p+1)\times(p+1)$} & \\\hline 
+\end{tabular*}
+
+\end{minipage}
+\vspace*{1cm}
+
+
+{\bf \large \fontfamily{cmss}\selectfont Example}\\
+\hspace*{1.5cm}
+\begin{minipage}[t]{13.5cm}
+\begin{verbatim}
+N=100; sig=real(fmconst(N,0.1))+0.4*randn(N,1); 
+Rx=correlmx(sig,2,'burg'); [v,d] = eig(Rx), acos(-0.5*v(2,1)/v(1,1))/(2*pi)
+Rx=correlmx(sig,2,'hermitian'); [v,d] = eig(Rx), acos(-0.5*v(2,1)/v(1,1))/(2*pi)
+\end{verbatim}
+computes an estimation of the frequency of a sinusoid using the Pisarenko
+approach, with a correlation matrix computed by the Burg or the hermitian
+algorithm.
+
+\end{minipage}
+\vspace*{.5cm}
+
+
+{\bf \large \fontfamily{cmss}\selectfont See Also}\\
+\hspace*{1.5cm}
+\begin{minipage}[t]{13.5cm}
+\begin{verbatim}
+parafrep, tfrparam
+\end{verbatim}
+\end{minipage}

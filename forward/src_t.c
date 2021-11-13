@@ -370,7 +370,7 @@ src_set_by_par(gdinfo_t *gdinfo,
 
 int
 src_read_locate_valsrc(gdinfo_t *gdinfo,
-                       gd_t *gdcurv,
+                       gd_t *gd,
                        src_t    *src,
                        char *pfilepath,
                        float t0,
@@ -473,11 +473,20 @@ src_read_locate_valsrc(gdinfo_t *gdinfo,
       float sx = source_coords[is][0];
       float sy = source_coords[is][1];
       float sz = source_coords[is][2];
+      if(myid == 0){
       fprintf(stdout,"locate source by coord (%f,%f,%f) ...\n",sx,sy,sz);
-      fflush(stdout);
-      gd_curv_coord_to_glob_indx(gdinfo,gdcurv,sx,sy,sz,comm,myid,
-                             &si_glob,&sj_glob,&sk_glob,&sx_inc,&sy_inc,&sz_inc,
-                             wrk3d);
+      fflush(stdout);}
+      if (gd->type == GD_TYPE_CURV)
+      {
+        gd_curv_coord_to_glob_indx(gdinfo,gd,sx,sy,sz,comm,myid,
+                               &si_glob,&sj_glob,&sk_glob,&sx_inc,&sy_inc,&sz_inc,
+                               wrk3d);
+      }
+      else if (gd->type == GD_TYPE_CART)
+      {
+        gd_cart_coord_to_glob_indx(gdinfo,gd,sx,sy,sz,comm,myid,
+                               &si_glob,&sj_glob,&sk_glob,&sx_inc,&sy_inc,&sz_inc);
+      }
       // keep index to avoid duplicat run
       source_index[is][0] = si_glob;
       source_index[is][1] = sj_glob;
@@ -518,8 +527,10 @@ src_read_locate_valsrc(gdinfo_t *gdinfo,
     {	
       fgets(str,500,fp);
       sscanf(str,"%f",&wavelet_tstart[is]);
+      //fprintf(stdout,"is %d, tstart is %f\n",is,wavelet_tstart[is]);
       if (source_in_thread[is] == 1)
       {  
+        fprintf(stdout,"is %d, tstart is %f\n",is,wavelet_tstart[is]);
         for(int k=0; k<nt_in; k++)
         {
           fgets(str,500,fp);
@@ -543,10 +554,12 @@ src_read_locate_valsrc(gdinfo_t *gdinfo,
       int index = is - in_num_force;
       fgets(str,500,fp);
       sscanf(str,"%f",&wavelet_tstart[is]);
+      //fprintf(stdout,"is %d, tstart is %f\n",is,wavelet_tstart[is]);
       fgets(str,500,fp);
       sscanf(str,"%s",moment_wavelet_mechism[index]);
       if (source_in_thread[is] == 1)   //moment source is in this thread
       {
+        fprintf(stdout,"is %d, tstart is %f\n",is,wavelet_tstart[is]);
         //moment_tensor: 0->Mxx 1>Myy 2->Mzz 3->Myz 4->Mxz 5->Mxy
         if (strcmp("mechanism_angle",moment_wavelet_mechism[index]) == 0)
         {
@@ -582,8 +595,6 @@ src_read_locate_valsrc(gdinfo_t *gdinfo,
 
       if (source_in_thread[is] == -1)
       {
-        fgets(str,500,fp);
-        fgets(str,500,fp);
         for (int k=0;k<nt_in;k++)
         {
           fgets(str,500,fp);
@@ -756,7 +767,7 @@ src_read_locate_valsrc(gdinfo_t *gdinfo,
 
 int
 src_read_locate_anasrc(gdinfo_t *gdinfo,
-                       gd_t *gdcurv,
+                       gd_t *gd,
                        src_t    *src,
                        char *pfilepath,
                        float t0,
@@ -931,9 +942,17 @@ src_read_locate_anasrc(gdinfo_t *gdinfo,
       float sz = source_coords[is][2];
       fprintf(stdout,"locate source by coord (%f,%f,%f) ...\n",sx,sy,sz);
       fflush(stdout);
-      gd_curv_coord_to_glob_indx(gdinfo,gdcurv,sx,sy,sz,comm,myid,
-                             &si_glob,&sj_glob,&sk_glob,&sx_inc,&sy_inc,&sz_inc,
-                             wrk3d);
+      if (gd->type == GD_TYPE_CURV)
+      {
+        gd_curv_coord_to_glob_indx(gdinfo,gd,sx,sy,sz,comm,myid,
+                               &si_glob,&sj_glob,&sk_glob,&sx_inc,&sy_inc,&sz_inc,
+                               wrk3d);
+      }
+      else if (gd->type == GD_TYPE_CART)
+      {
+        gd_cart_coord_to_glob_indx(gdinfo,gd,sx,sy,sz,comm,myid,
+                               &si_glob,&sj_glob,&sk_glob,&sx_inc,&sy_inc,&sz_inc);
+      }
       // keep index to avoid duplicat run
       source_index[is][0] = si_glob;
       source_index[is][1] = sj_glob;

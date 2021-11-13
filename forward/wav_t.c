@@ -5,6 +5,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#include <math.h>
 
 #include "constants.h"
 #include "fdlib_mem.h"
@@ -302,4 +303,53 @@ wav_zero_edge(gdinfo_t *gdinfo, wav_t *wav,
   } // icmp
 
   return ierr;
+}
+int
+PG_calcu(float *w_end, float *w_pre, gdinfo_t *gdinfo, float *PG, float dt)
+{
+  int nx = gdinfo->nx;
+  int ny = gdinfo->ny;
+  int nz = gdinfo->nz;
+  //ni1=nj1=nk1=3, is equal fd_nghosts
+  int ni1 = gdinfo->ni1;
+  int nj1 = gdinfo->nj1;
+  int nk1 = gdinfo->nk1;
+  int ni2 = gdinfo->ni2;
+  int nj2 = gdinfo->nj2;
+  int nk2 = gdinfo->nk2;
+  int siz_line = nx;
+  int siz_slice  = nx * ny;
+  int siz_icmp = nx * ny * nz;
+  // 0-2 Vx1,Vy1,Vz1  it+1 moment  V
+  // 0-2 Vx0,Vy0,Vz0  it moment V
+  float *Vx1 = w_end + 0*siz_icmp;
+  float *Vy1 = w_end + 1*siz_icmp;
+  float *Vz1 = w_end + 2*siz_icmp;
+  float *Vx0 = w_pre + 0*siz_icmp;
+  float *Vy0 = w_pre + 1*siz_icmp;
+  float *Vz0 = w_pre + 2*siz_icmp;
+  float *PGVx = PG + 0*siz_slice;
+  float *PGVy = PG + 1*siz_slice;
+  float *PGVz = PG + 2*siz_slice;
+  float *PGAx = PG + 3*siz_slice;
+  float *PGAy = PG + 4*siz_slice;
+  float *PGAz = PG + 5*siz_slice;
+  int iptr,iptr1;
+  for( int j = nj1; j<=nj2; j++){
+    for( int i = ni1; i<=ni2; i++){
+      iptr = i + j * siz_line + nk2 * siz_slice;
+      iptr1 = i + j * siz_line;
+      float Ax, Ay, Az;
+      Ax = fabs((Vx1[iptr]-Vx0[iptr])/dt);
+      Ay = fabs((Vy1[iptr]-Vy0[iptr])/dt);
+      Az = fabs((Vz1[iptr]-Vz0[iptr])/dt);
+      if(fabs(PGVx[iptr1])<fabs(Vx1[iptr])) PGVx[iptr1]=fabs(Vx1[iptr]);
+      if(fabs(PGVy[iptr1])<fabs(Vy1[iptr])) PGVy[iptr1]=fabs(Vy1[iptr]);
+      if(fabs(PGVz[iptr1])<fabs(Vz1[iptr])) PGVz[iptr1]=fabs(Vz1[iptr]);
+      if(fabs(PGAx[iptr1])<Ax) PGAx[iptr1]=Ax;
+      if(fabs(PGAy[iptr1])<Ay) PGAy[iptr1]=Ay;
+      if(fabs(PGAz[iptr1])<Az) PGAz[iptr1]=Az;
+      }
+    }
+return 0;
 }

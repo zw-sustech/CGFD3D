@@ -100,4 +100,7 @@ wav_ac_init(gdinfo_t *gdinfo,
                wav_t *V,
                int number_of_levels);
 
+int
+PG_calcu(float *w_end, float *w_pre, gdinfo_t *gdinfo, float *PG, float dt);
+
 #endif

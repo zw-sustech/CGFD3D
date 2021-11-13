@@ -1,0 +1,53 @@
+The Short And Sweet Of It...
+===========================================================================
+Add this directory to your MATLAB path, and you are now setup to use
+mexnc.  Check the READMEs for SNCTOOLS for further instructions.  
+
+Please note that mexnc is NOT the same as the "NetCDF Toolbox",
+which is something that I did not write and therefore cannot support.
+
+
+
+R2008a and Earlier
+===========================================================================
+Mexnc is only supported on versions R14 and later.  R13 will not pass
+all of the mexnc test suite, but that is due more to the way the 
+test suite is written than the code itself.  If you want to use mexnc
+on R13 or below, you are welcome to do so, but you are on your own.
+
+If you have MATLAB versions R2008a or earlier, then you need to 
+realize that you still need the mex-file "mexnc".  This is not included
+in this download.  You need to either retrieve it from another download
+at sourceforge or compile it yourself (the source code IS still 
+included).  You can find the source code in the src subdirectory.
+
+If you are using windows, then you also need to place the netcdf.dll 
+file somewhere on your SYSTEM path (not your matlab path, but your
+system path).  Something like either 
+
+    [matlabroot '/bin'] or [matlabroot '/bin/win32']
+
+would be good choices.  You might have to reboot.
+
+
+
+SUPPORT
+===========================================================================
+Please note, mexnc is NOT supported by The MathWorks, so please do
+not ask them questions about it.  If you encounter problems with
+mexnc, you should continue to use the same contact email address
+that is listed on the sourceforge web site.
+
+
+
+OPeNDAP
+===========================================================================
+I recommend that you use SNCTOOLS with the java backend if you need 
+OPeNDAP access.  Using OPeNDAP via an opendap-enabled mex-file is no 
+longer supported.
+
+
+Problems?  
+===========================================================================
+I don't have a lot of time for mexnc anymore, but you can still email me
+at johne.g.evans.ne@gmail.com
