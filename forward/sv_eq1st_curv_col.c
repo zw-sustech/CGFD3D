@@ -453,6 +453,7 @@ sv_eq1st_curv_col_allstep(
     io_slice_nc_put(ioslice,&ioslice_nc,gdinfo,w_end,w_rhs,it,t_end,0,wav->ncmp-1);
 
     // snapshot
+
     if (md->medium_type == CONST_MEDIUM_ACOUSTIC_ISO) {
       io_snap_nc_put_ac(iosnap, &iosnap_nc, gdinfo, wav, 
                      w_end, w_rhs, nt_total, it, t_end, 1,1,1);
@@ -494,7 +495,10 @@ sv_eq1st_curv_col_allstep(
   } // time loop
 
   // postproc
-  PG_slice_output(PG,gdinfo,output_dir, output_fname_part,topoid);
+  if (bdryfree->is_at_sides[CONST_NDIM-1][1] == 1)
+  {
+    PG_slice_output(PG,gdinfo,output_dir, output_fname_part,topoid);
+  }
   // close nc
   io_slice_nc_close(&ioslice_nc);
   io_snap_nc_close(&iosnap_nc);

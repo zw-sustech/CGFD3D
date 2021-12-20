@@ -420,8 +420,10 @@ sv_eq1st_cart_col_allstep(
   } // time loop
 
   // postproc
-
-  PG_slice_output(PG,gdinfo,output_dir, output_fname_part,topoid);
+  if (bdryfree->is_at_sides[CONST_NDIM-1][1] == 1)
+  {
+    PG_slice_output(PG,gdinfo,output_dir, output_fname_part,topoid);
+  }
   // close nc
   io_slice_nc_close(&ioslice_nc);
   io_snap_nc_close(&iosnap_nc);
