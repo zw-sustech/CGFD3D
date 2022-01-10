@@ -4,17 +4,17 @@
 % Date:     2021.06.04
 
 clear all;
-
+addmypath;
 % -------------------------- parameters input -------------------------- %
 % file and path name
-parfnm='./project/test.json';
-output_dir='./project/output';
+parfnm='../project/test1.json';
+output_dir='../project/output1';
 
 % which line to plot (start from index '1')
 lineid=1;
 
 % which receiver of the line to plot (start from index '0')
-recid=0;
+recid=1;
 
 % which variable to plot
 varnm='Vz';
@@ -27,14 +27,14 @@ flag_print=1;
 % read parameter file
 par=loadjson(parfnm);
 
-% judge source type
-if isfield(par.source_input,'single_force')
-    lineprefix=par.source_input.single_force.name;
-elseif isfield(par.source_input,'single_moment')
-    lineprefix=par.source_input.single_moment.name;
-else
-    lineprefix='user_input_src';
+%judge source type
+if isfield(par.source_input,'in_par')
+    lineprefix=par.source_input.in_par.name;
+elseif isfield(par.source_input,'in_source_file')
+    fileID = fopen(par.source_input.in_source_file);
+    lineprefix = fgetl(fileID);
 end
+
 
 % line name and receiver number
 linenm=par.receiver_line{lineid}.name;
