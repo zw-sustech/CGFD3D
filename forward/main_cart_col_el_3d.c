@@ -330,7 +330,7 @@ int main(int argc, char** argv)
   
   if (par->source_input_itype == PAR_SOURCE_FILE)
   {
-    char fnm_suffix[6];
+    char fnm_suffix[250] = { 0 };
     int  n = strlen(par->source_input_file);
     strncpy(fnm_suffix,par->source_input_file+n-6,6);
     if(strcmp(fnm_suffix,"anasrc")==0)
