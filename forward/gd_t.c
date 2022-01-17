@@ -1949,7 +1949,7 @@ gd_curv_coord_to_local_indx(gdinfo_t *gdinfo,
           }
         }
 
-        if (isPointInHexahedron_c(sx,sy,sz,points_x,points_y,points_z) == true)
+        if (isPointInHexahedron(sx,sy,sz,points_x,points_y,points_z) == true)
         {
           float si_curv, sj_curv, sk_curv;
           //gd_curv_coord2index_rdinterp(sx,sy,sz,
