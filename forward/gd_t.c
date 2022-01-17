@@ -677,7 +677,7 @@ gd_curv_coord_export(
   int varid[gdcurv->ncmp];
   int dimid[CONST_NDIM];
 
-  int ierr = nc_create(ou_file, NC_CLOBBER, &ncid);
+  int ierr = nc_create(ou_file, NC_CLOBBER | NC_64BIT_OFFSET, &ncid);
   if (ierr != NC_NOERR){
     fprintf(stderr,"creat coord nc error: %s\n", nc_strerror(ierr));
     exit(-1);
@@ -799,7 +799,7 @@ gd_cart_coord_export(
   int varid[CONST_NDIM];
   int dimid[CONST_NDIM];
 
-  int ierr = nc_create(ou_file, NC_CLOBBER, &ncid);
+  int ierr = nc_create(ou_file, NC_CLOBBER | NC_64BIT_OFFSET, &ncid);
   if (ierr != NC_NOERR){
     fprintf(stderr,"creat coord nc error: %s\n", nc_strerror(ierr));
     exit(-1);
@@ -877,7 +877,7 @@ gd_curv_metric_export(gdinfo_t        *gdinfo,
   int varid[number_of_vars];
   int dimid[CONST_NDIM];
 
-  int ierr = nc_create(ou_file, NC_CLOBBER, &ncid);
+  int ierr = nc_create(ou_file, NC_CLOBBER | NC_64BIT_OFFSET, &ncid);
   if (ierr != NC_NOERR){
     fprintf(stderr,"creat coord nc error: %s\n", nc_strerror(ierr));
     exit(-1);
@@ -1949,7 +1949,7 @@ gd_curv_coord_to_local_indx(gdinfo_t *gdinfo,
           }
         }
 
-        if (isPointInHexahedron(sx,sy,sz,points_x,points_y,points_z) == true)
+        if (isPointInHexahedron_c(sx,sy,sz,points_x,points_y,points_z) == true)
         {
           float si_curv, sj_curv, sk_curv;
           //gd_curv_coord2index_rdinterp(sx,sy,sz,
@@ -2194,4 +2194,87 @@ gd_coord_get_z(gd_t *gd, int i, int j, int k)
   }
 
   return var;
+}
+
+/*
+ * Input: vx, vy, vz are the EIGHT vertexes of the hexahedron 
+ *
+ *    ↑ +z       4----6
+ *    |         /|   /|
+ *             / 0--/-2
+ *            5----7 /
+ *            |/   |/
+ *            1----3
+ *
+ *
+ */
+// c++ version is coding by jiangluqian
+// c cersion is coding by lihualin
+int isPointInHexahedron_c(float px,  float py,  float pz,
+                          float *vx, float *vy, float *vz)
+{
+  float point[3] = {px, py, pz};
+	/* 
+	 * Just for cgfd3D, in which the grid mesh maybe not a hexahedron,
+	 */
+  // order is back front left right top bottom 
+  float hexa[6][3][3] = {
+  {{vx[0], vy[0], vz[0]},{vx[4], vy[4], vz[4]},{vx[6], vy[6], vz[6]}},
+  {{vx[7], vy[7], vz[7]},{vx[5], vy[5], vz[5]},{vx[1], vy[1], vz[1]}},
+  {{vx[5], vy[5], vz[5]},{vx[4], vy[4], vz[4]},{vx[0], vy[0], vz[0]}},
+  {{vx[2], vy[2], vz[2]},{vx[6], vy[6], vz[6]},{vx[7], vy[7], vz[7]}},
+  {{vx[4], vy[4], vz[4]},{vx[5], vy[5], vz[5]},{vx[7], vy[7], vz[7]}},
+  {{vx[3], vy[3], vz[3]},{vx[1], vy[1], vz[1]},{vx[0], vy[0], vz[0]}},
+  };
+
+/* 
+ * Check whether the point is in the polyhedron.
+ * Note: The hexahedron must be convex!
+ */
+  float sign;
+  float len_p2f;
+  float p2f[3] = {0};
+  float normal_unit[3] = {0};
+  for(int i=0; i<6; i++)
+  {
+    point2face(hexa[i][0],point,p2f); 
+    face_normal(hexa[i],normal_unit);
+    sign = fdlib_math_dot_product(p2f,normal_unit);
+    len_p2f=sqrt(fdlib_math_dot_product(p2f,p2f));
+    sign /= len_p2f;
+    if(sign < 0.0) return 0;
+  }
+  return 1;
+}
+
+int point2face(float *hexa1d,float *point, float *p2f)
+{
+  for(int i=0; i<3; i++)
+  {
+    p2f[i] = hexa1d[i] - point[i];
+  }
+  return 0;
+}
+
+int face_normal(float (*hexa2d)[3], float *normal_unit)
+{
+  float A[3];
+  float B[3];
+  float normal[3]; // normal vector
+  float length;
+  for(int i=0;i<3;i++)
+  {
+    A[i] = hexa2d[1][i] - hexa2d[0][i];
+    B[i] = hexa2d[2][i] - hexa2d[0][i];
+  }
+  // calculate normal vector
+  fdlib_math_cross_product(A, B, normal);
+  // Normalized the normal vector
+  length = sqrt(fdlib_math_dot_product(normal, normal));
+  for(int i=0; i<3; i++)
+  {
+    normal_unit[i] = normal[i] / length;
+  }
+
+  return 0;
 }

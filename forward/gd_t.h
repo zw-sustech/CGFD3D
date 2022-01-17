@@ -272,4 +272,11 @@ gd_coord_get_y(gd_t *gd, int i, int j, int k);
 float
 gd_coord_get_z(gd_t *gd, int i, int j, int k);
 
+int isPointInHexahedron_c(float px,  float py,  float pz,
+                        float *vx, float *vy, float *vz);
+
+int point2face(float *hexa1d,float *point, float *p2f);
+
+int face_normal(float (*hexa2d)[3], float *normal_unit);
+
 #endif
