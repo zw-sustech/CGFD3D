@@ -9,30 +9,30 @@
 #define EPS 1e-10
 
 struct Point3{
-	double x, y, z;
-	Point3(double x = 0, double y = 0, double z = 0):x(x), y(y), z(z) {}
+	float x, y, z;
+	Point3(float x = 0, float y = 0, float z = 0):x(x), y(y), z(z) {}
 };
 
 typedef Point3 Vector3;
 
 Vector3 operator + (const Vector3 &A, const Vector3 &B);
 Vector3 operator - (const Vector3 &A, const Vector3 &B);
-Vector3 operator * (const Vector3 &A, double p);
-Vector3 operator / (const Vector3 &A, double p); 
+Vector3 operator * (const Vector3 &A, float p);
+Vector3 operator / (const Vector3 &A, float p); 
 
-double Dot(const Vector3 &A, const Vector3 &B);
-double Length(const Vector3 &A);
-double Angle(const Vector3 &A, const Vector3 &B);
-double DistanceP2P(const Point3 &A, const Point3 &B);
-double DistanceToPlane(const Point3 &p, const Point3 &p0, const Vector3 &n);
+float Dot(const Vector3 &A, const Vector3 &B);
+float Length(const Vector3 &A);
+float Angle(const Vector3 &A, const Vector3 &B);
+float DistanceP2P(const Point3 &A, const Point3 &B);
+float DistanceToPlane(const Point3 &p, const Point3 &p0, const Vector3 &n);
 Point3 GetplaneProjection(const Point3 &p, const Point3 &p0, const Vector3 &n);
 Point3 LinePlaneIntersection(
     const Point3 &p1, const Point3 &p2, const Point3 &p0, 
     const Vector3 &n);
 Vector3 Cross(const Vector3 &A, const Vector3 &B);
-double Area2 (const Point3 &A, const Point3 &B, const Point3 &C);
+float Area2 (const Point3 &A, const Point3 &B, const Point3 &C);
 //bool PointInTri(conPoint3 P, Point3 P0, Point3 P1, Point3 P2);
-//double Volume6(Point3 A, Point3 B, Point3 C, Point3 D);
+//float Volume6(Point3 A, Point3 B, Point3 C, Point3 D);
 
 /* 
  * If the number of points is 3, calculate the normal directly;
@@ -44,7 +44,7 @@ struct Face {
         assert(v.size() > 2);
         Vector3 n = Cross(v[1]-v[0], v[2]-v[0]);
         /* Normalized the normal vector */
-        double d = Length(n);
+        float d = Length(n);
         n = n/d;
         return n;
     }
