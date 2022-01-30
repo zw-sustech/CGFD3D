@@ -194,7 +194,7 @@ int main(int argc, char** argv)
   }
 
   // cal min/max of this thread
-  gd_curv_set_minmax(gdcurv);
+  gd_curv_set_minmax(gdinfo,gdcurv);
 
   // generate topo over all the domain
   //ierr = gd_curv_topoall_generate();

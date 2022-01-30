@@ -6,6 +6,10 @@
 #include "constants.h"
 #include "gd_info.h"
 
+#define GD_TILE_NX 4
+#define GD_TILE_NY 4
+#define GD_TILE_NZ 4
+
 /*************************************************
  * structure
  *************************************************/
@@ -49,6 +53,32 @@ typedef struct {
   float xmin, xmax;
   float ymin, ymax;
   float zmin, zmax;
+
+  // min/max of this thread for points in physical region
+  float xmin_phy, xmax_phy;
+  float ymin_phy, ymax_phy;
+  float zmin_phy, zmax_phy;
+
+  // boundary of each cell for AABB algorithm
+  float *cell_xmin;
+  float *cell_xmax;
+  float *cell_ymin;
+  float *cell_ymax;
+  float *cell_zmin;
+  float *cell_zmax;
+  // boundary of tiles by 4x4x4 partition for AABB algorithm
+  int   tile_istart[GD_TILE_NX];
+  int   tile_iend  [GD_TILE_NX];
+  int   tile_jstart[GD_TILE_NY];
+  int   tile_jend  [GD_TILE_NY];
+  int   tile_kstart[GD_TILE_NZ];
+  int   tile_kend  [GD_TILE_NZ];
+  float tile_xmin[GD_TILE_NZ][GD_TILE_NY][GD_TILE_NX];
+  float tile_xmax[GD_TILE_NZ][GD_TILE_NY][GD_TILE_NX];
+  float tile_ymin[GD_TILE_NZ][GD_TILE_NY][GD_TILE_NX];
+  float tile_ymax[GD_TILE_NZ][GD_TILE_NY][GD_TILE_NX];
+  float tile_zmin[GD_TILE_NZ][GD_TILE_NY][GD_TILE_NX];
+  float tile_zmax[GD_TILE_NZ][GD_TILE_NY][GD_TILE_NX];
 
   size_t siz_iy;
   size_t siz_iz;
@@ -194,7 +224,7 @@ int gd_SPLine( int n, int end1, int end2,
 void gd_SPL(int n, float *x, float *y, int ni, float *xi, float *yi);
 
 void
-gd_curv_set_minmax(gd_t *gdcurv);
+gd_curv_set_minmax(gdinfo_t *gdinfo, gd_t *gdcurv);
 
 void 
 gd_cart_init_set(gdinfo_t *gdinfo, gd_t *gdcart,
@@ -222,8 +252,7 @@ gd_curv_coord_to_glob_indx(gdinfo_t *gdinfo,
                            MPI_Comm comm,
                            int myid,
                            int   *ou_si, int *ou_sj, int *ou_sk,
-                           float *ou_sx_inc, float *ou_sy_inc, float *ou_sz_inc,
-                           float *restrict wrk3d);
+                           float *ou_sx_inc, float *ou_sy_inc, float *ou_sz_inc);
 
 
 int
@@ -231,8 +260,20 @@ gd_curv_coord_to_local_indx(gdinfo_t *gdinfo,
                         gd_t *gd,
                         float sx, float sy, float sz,
                         int *si, int *sj, int *sk,
-                        float *sx_inc, float *sy_inc, float *sz_inc,
-                        float *restrict wrk3d);
+                        float *sx_inc, float *sy_inc, float *sz_inc);
+
+int
+gd_curv_coord2shift_sample(float sx, float sy, float sz, 
+    int num_points,
+    float *points_x, // x coord of all points
+    float *points_y,
+    float *points_z,
+    int    nx_sample,
+    int    ny_sample,
+    int    nz_sample,
+    float *si_shift, // interped curv coord
+    float *sj_shift,
+    float *sk_shift);
 
   int
 gd_curv_coord2index_sample(float sx, float sy, float sz, 
@@ -278,5 +319,8 @@ int isPointInHexahedron_c(float px,  float py,  float pz,
 int point2face(float *hexa1d,float *point, float *p2f);
 
 int face_normal(float (*hexa2d)[3], float *normal_unit);
+
+int
+gd_print(gd_t *gd);
 
 #endif

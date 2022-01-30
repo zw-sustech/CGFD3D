@@ -75,6 +75,24 @@ gd_curv_init(gdinfo_t *gdinfo, gd_t *gdcurv)
   // set pointer
   gdcurv->cmp_pos  = cmp_pos;
   gdcurv->cmp_name = cmp_name;
+  
+  // alloc AABB vars
+  gdcurv->cell_xmin = (float *) fdlib_mem_calloc_1d_float(
+                  gdcurv->siz_icmp, 0.0, "gd_curv_init");
+  gdcurv->cell_xmax = (float *) fdlib_mem_calloc_1d_float(
+                  gdcurv->siz_icmp, 0.0, "gd_curv_init");
+  gdcurv->cell_ymin = (float *) fdlib_mem_calloc_1d_float(
+                  gdcurv->siz_icmp, 0.0, "gd_curv_init");
+  gdcurv->cell_ymax = (float *) fdlib_mem_calloc_1d_float(
+                  gdcurv->siz_icmp, 0.0, "gd_curv_init");
+  gdcurv->cell_zmin = (float *) fdlib_mem_calloc_1d_float(
+                  gdcurv->siz_icmp, 0.0, "gd_curv_init");
+  gdcurv->cell_zmax = (float *) fdlib_mem_calloc_1d_float(
+                  gdcurv->siz_icmp, 0.0, "gd_curv_init");
+  if (gdcurv->cell_zmax == NULL) {
+      fprintf(stderr,"Error: failed to alloc coord AABB vars\n");
+      fflush(stderr);
+  }
 
   return;
 }
@@ -1686,13 +1704,18 @@ void gd_SPL(int n, float *x, float *y, int ni, float *xi, float *yi)
   };
 }
 
+/*
+ * set min/max of grid for loc
+ */
+
 void
-gd_curv_set_minmax(gd_t *gdcurv)
+gd_curv_set_minmax(gdinfo_t *gdinfo, gd_t *gdcurv)
 {
+
+  // all points including ghosts
   float xmin = gdcurv->x3d[0], xmax = gdcurv->x3d[0];
   float ymin = gdcurv->y3d[0], ymax = gdcurv->y3d[0];
   float zmin = gdcurv->z3d[0], zmax = gdcurv->z3d[0];
-  
   for (size_t i = 0; i < gdcurv->siz_icmp; i++){
       xmin = xmin < gdcurv->x3d[i] ? xmin : gdcurv->x3d[i];
       xmax = xmax > gdcurv->x3d[i] ? xmax : gdcurv->x3d[i];
@@ -1701,13 +1724,158 @@ gd_curv_set_minmax(gd_t *gdcurv)
       zmin = zmin < gdcurv->z3d[i] ? zmin : gdcurv->z3d[i];
       zmax = zmax > gdcurv->z3d[i] ? zmax : gdcurv->z3d[i];
   }
-
   gdcurv->xmin = xmin;
   gdcurv->xmax = xmax;
   gdcurv->ymin = ymin;
   gdcurv->ymax = ymax;
   gdcurv->zmin = zmin;
   gdcurv->zmax = zmax;
+
+  // all physics points without ghosts
+  xmin = gdcurv->xmax;
+  xmax = gdcurv->xmin;
+  ymin = gdcurv->ymax;
+  ymax = gdcurv->ymin;
+  zmin = gdcurv->zmax;
+  zmax = gdcurv->zmin;
+  for (int k = gdinfo->nk1; k <= gdinfo->nk2; k++) {
+    for (int j = gdinfo->nj1; j <= gdinfo->nj2; j++) {
+      for (int i = gdinfo->ni1; i <= gdinfo->ni2; i++) {
+         size_t iptr = i + j * gdinfo->siz_line + k * gdinfo->siz_slice;
+         xmin = xmin < gdcurv->x3d[iptr] ? xmin : gdcurv->x3d[iptr];
+         xmax = xmax > gdcurv->x3d[iptr] ? xmax : gdcurv->x3d[iptr];
+         ymin = ymin < gdcurv->y3d[iptr] ? ymin : gdcurv->y3d[iptr];
+         ymax = ymax > gdcurv->y3d[iptr] ? ymax : gdcurv->y3d[iptr];
+         zmin = zmin < gdcurv->z3d[iptr] ? zmin : gdcurv->z3d[iptr];
+         zmax = zmax > gdcurv->z3d[iptr] ? zmax : gdcurv->z3d[iptr];
+      }
+    }
+  }
+  gdcurv->xmin_phy = xmin;
+  gdcurv->xmax_phy = xmax;
+  gdcurv->ymin_phy = ymin;
+  gdcurv->ymax_phy = ymax;
+  gdcurv->zmin_phy = zmin;
+  gdcurv->zmax_phy = zmax;
+
+  // set cell range, last cell along each dim unusage
+  for (int k = 0; k < gdcurv->nz-1; k++) {
+    for (int j = 0; j < gdcurv->ny-1; j++) {
+      for (int i = 0; i < gdcurv->nx-1; i++) {
+         size_t iptr = i + j * gdinfo->siz_line + k * gdinfo->siz_slice;
+         xmin = gdcurv->x3d[iptr];
+         ymin = gdcurv->y3d[iptr];
+         zmin = gdcurv->z3d[iptr];
+         xmax = xmin;
+         ymax = ymin;
+         zmax = zmin;
+         for (int n3=0; n3<2; n3++) {
+         for (int n2=0; n2<2; n2++) {
+         for (int n1=0; n1<2; n1++) {
+           size_t iptr_pt = iptr + n3 * gdinfo->siz_slice + n2 * gdinfo->siz_line + n1;
+           xmin = xmin < gdcurv->x3d[iptr_pt] ? xmin : gdcurv->x3d[iptr_pt];
+           xmax = xmax > gdcurv->x3d[iptr_pt] ? xmax : gdcurv->x3d[iptr_pt];
+           ymin = ymin < gdcurv->y3d[iptr_pt] ? ymin : gdcurv->y3d[iptr_pt];
+           ymax = ymax > gdcurv->y3d[iptr_pt] ? ymax : gdcurv->y3d[iptr_pt];
+           zmin = zmin < gdcurv->z3d[iptr_pt] ? zmin : gdcurv->z3d[iptr_pt];
+           zmax = zmax > gdcurv->z3d[iptr_pt] ? zmax : gdcurv->z3d[iptr_pt];
+         }
+         }
+         }
+         gdcurv->cell_xmin[iptr] = xmin;
+         gdcurv->cell_xmax[iptr] = xmax;
+         gdcurv->cell_ymin[iptr] = ymin;
+         gdcurv->cell_ymax[iptr] = ymax;
+         gdcurv->cell_zmin[iptr] = zmin;
+         gdcurv->cell_zmax[iptr] = zmax;
+      }
+    }
+  }
+
+  // set tile range 
+
+  // partition into average plus left at last
+  int nx_avg  = gdinfo->ni / GD_TILE_NX; // only for physcial points
+  int nx_left = gdinfo->ni % GD_TILE_NX;
+  int ny_avg  = gdinfo->nj / GD_TILE_NY;
+  int ny_left = gdinfo->nj % GD_TILE_NY;
+  int nz_avg  = gdinfo->nk / GD_TILE_NZ;
+  int nz_left = gdinfo->nk % GD_TILE_NZ;
+  for (int k_tile = 0; k_tile < GD_TILE_NZ; k_tile++)
+  {
+    if (k_tile == 0) {
+      gdcurv->tile_kstart[k_tile] = gdinfo->nk1;
+    } else {
+      gdcurv->tile_kstart[k_tile] = gdcurv->tile_kend[k_tile-1] + 1;
+    }
+
+    gdcurv->tile_kend  [k_tile] = gdcurv->tile_kstart[k_tile] + nz_avg -1;
+    if (k_tile < nz_left) {
+      gdcurv->tile_kend[k_tile] += 1;
+    }
+
+    for (int j_tile = 0; j_tile < GD_TILE_NY; j_tile++)
+    {
+      if (j_tile == 0) {
+        gdcurv->tile_jstart[j_tile] = gdinfo->nj1;
+      } else {
+        gdcurv->tile_jstart[j_tile] = gdcurv->tile_jend[j_tile-1] + 1;
+      }
+
+      gdcurv->tile_jend  [j_tile] = gdcurv->tile_jstart[j_tile] + ny_avg -1;
+      if (j_tile < ny_left) {
+        gdcurv->tile_jend[j_tile] += 1;
+      }
+
+      for (int i_tile = 0; i_tile < GD_TILE_NX; i_tile++)
+      {
+        if (i_tile == 0) {
+          gdcurv->tile_istart[i_tile] = gdinfo->ni1;
+        } else {
+          gdcurv->tile_istart[i_tile] = gdcurv->tile_iend[i_tile-1] + 1;
+        }
+
+        gdcurv->tile_iend  [i_tile] = gdcurv->tile_istart[i_tile] + nx_avg -1;
+        if (i_tile < nx_left) {
+          gdcurv->tile_iend[i_tile] += 1;
+        }
+
+        // use large value to init
+        xmin = 1.0e26;
+        ymin = 1.0e26;
+        zmin = 1.0e26;
+        xmax = -1.0e26;
+        ymax = -1.0e26;
+        zmax = -1.0e26;
+        // for cells in each tile
+        for (int k = gdcurv->tile_kstart[k_tile]; k <= gdcurv->tile_kend[k_tile]; k++)
+        {
+          size_t iptr_k = k * gdinfo->siz_slice;
+          for (int j = gdcurv->tile_jstart[j_tile]; j <= gdcurv->tile_jend[j_tile]; j++)
+          {
+            size_t iptr_j = iptr_k + j * gdinfo->siz_line;
+            for (int i = gdcurv->tile_istart[i_tile]; i <= gdcurv->tile_iend[i_tile]; i++)
+            {
+              size_t iptr = i + iptr_j;
+              xmin = xmin < gdcurv->cell_xmin[iptr] ? xmin : gdcurv->cell_xmin[iptr];
+              xmax = xmax > gdcurv->cell_xmax[iptr] ? xmax : gdcurv->cell_xmax[iptr];
+              ymin = ymin < gdcurv->cell_ymin[iptr] ? ymin : gdcurv->cell_ymin[iptr];
+              ymax = ymax > gdcurv->cell_ymax[iptr] ? ymax : gdcurv->cell_ymax[iptr];
+              zmin = zmin < gdcurv->cell_zmin[iptr] ? zmin : gdcurv->cell_zmin[iptr];
+              zmax = zmax > gdcurv->cell_zmax[iptr] ? zmax : gdcurv->cell_zmax[iptr];
+            }
+          }
+        }
+        gdcurv->tile_xmin[k_tile][j_tile][i_tile] = xmin;
+        gdcurv->tile_xmax[k_tile][j_tile][i_tile] = xmax;
+        gdcurv->tile_ymin[k_tile][j_tile][i_tile] = ymin;
+        gdcurv->tile_ymax[k_tile][j_tile][i_tile] = ymax;
+        gdcurv->tile_zmin[k_tile][j_tile][i_tile] = zmin;
+        gdcurv->tile_zmax[k_tile][j_tile][i_tile] = zmax;
+
+      }
+    }
+  } // k_tile
 
   return;
 }
@@ -1759,8 +1927,7 @@ gd_curv_coord_to_glob_indx(gdinfo_t *gdinfo,
                            MPI_Comm comm,
                            int myid,
                            int   *ou_si, int *ou_sj, int *ou_sk,
-                           float *ou_sx_inc, float *ou_sy_inc, float *ou_sz_inc,
-                           float *restrict wrk3d)
+                           float *ou_sx_inc, float *ou_sy_inc, float *ou_sz_inc)
 {
   int is_here = 0;
 
@@ -1776,8 +1943,7 @@ gd_curv_coord_to_glob_indx(gdinfo_t *gdinfo,
 
   // if located in this thread
   is_here = gd_curv_coord_to_local_indx(gdinfo,gdcurv,sx,sy,sz,
-                                    &si, &sj, &sk, &sx_inc, &sy_inc, &sz_inc,
-                                    wrk3d);
+                                    &si, &sj, &sk, &sx_inc, &sy_inc, &sz_inc);
 
   // if in this thread
   if ( is_here == 1)
@@ -1786,10 +1952,10 @@ gd_curv_coord_to_glob_indx(gdinfo_t *gdinfo,
     si_glob = gd_info_ind_lcext2glphy_i(si, gdinfo);
     sj_glob = gd_info_ind_lcext2glphy_j(sj, gdinfo);
     sk_glob = gd_info_ind_lcext2glphy_k(sk, gdinfo);
-    fprintf(stdout," -- located to local index = %d %d %d\n", si,sj,sk);
-    fprintf(stdout," -- located to global index = %d %d %d\n", 
-                          si_glob, sj_glob, sk_glob);
-    fprintf(stdout," --  with shift = %f %f %f\n", sx_inc,sy_inc,sz_inc);
+    //fprintf(stdout," -- located to local index = %d %d %d\n", si,sj,sk);
+    //fprintf(stdout," -- located to global index = %d %d %d\n", 
+    //                      si_glob, sj_glob, sk_glob);
+    //fprintf(stdout," --  with shift = %f %f %f\n", sx_inc,sy_inc,sz_inc);
   } else {
     //fprintf(stdout," -- not in this thread %d\n", myid);
   }
@@ -1813,8 +1979,8 @@ gd_curv_coord_to_glob_indx(gdinfo_t *gdinfo,
   sendbuf = sz_inc;
   MPI_Allreduce(&sendbuf, &sz_inc, 1, MPI_INT, MPI_SUM, comm);
 
-  fprintf(stdout," --myid=%d,index=%d %d %d,shift = %f %f %f\n",
-      myid,si_glob,sj_glob,sk_glob, sx_inc,sy_inc,sz_inc);
+  //fprintf(stdout," --myid=%d,index=%d %d %d,shift = %f %f %f\n",
+  //    myid,si_glob,sj_glob,sk_glob, sx_inc,sy_inc,sz_inc);
 
   *ou_si = si_glob;
   *ou_sj = sj_glob;
@@ -1838,10 +2004,26 @@ gd_curv_coord_to_local_indx(gdinfo_t *gdinfo,
                         gd_t *gd,
                         float sx, float sy, float sz,
                         int *si, int *sj, int *sk,
-                        float *sx_inc, float *sy_inc, float *sz_inc,
-                        float *restrict wrk3d)
+                        float *sx_inc, float *sy_inc, float *sz_inc)
 {
   int is_here = 0; // default outside
+
+  // not here if outside coord range
+  if ( sx < gd->xmin || sx > gd->xmax ||
+       sy < gd->ymin || sy > gd->ymax ||
+       sz < gd->zmin || sz > gd->zmax)
+  {
+    return is_here;
+  }
+
+  //fprintf(stdout,"--debug: sx=%g,sy=%g,sz=%g,range (%g,%g),(%g,%g),(%g,%g)\n",
+  //            sx,sy,sz,
+  //            gd->xmin, gd->xmax,
+  //            gd->ymin, gd->ymax,
+  //            gd->zmin, gd->zmax);
+  //fflush(stdout);
+
+  // otherwise loop all cells
 
   int nx = gdinfo->nx;
   int ny = gdinfo->ny;
@@ -1859,143 +2041,228 @@ gd_curv_coord_to_local_indx(gdinfo_t *gdinfo,
   float *restrict y3d = gd->y3d;
   float *restrict z3d = gd->z3d;
 
-  // outside coord range
-  if ( sx < gd->xmin || sx > gd->xmax ||
-       sy < gd->ymin || sy > gd->ymax ||
-       sz < gd->zmin || sz > gd->zmax)
+  // for isPointInHexahedron
+  float points_x[8];
+  float points_y[8];
+  float points_z[8];
+
+  size_t iptr_k, iptr_j, iptr;
+
+  // take upper-right cell, thus do not take last index
+  for (int k_tile = 0; k_tile < GD_TILE_NZ; k_tile++)
   {
-    is_here = 0;
-    return is_here;
-  }
+    for (int j_tile = 0; j_tile < GD_TILE_NY; j_tile++)
+    {
+      for (int i_tile = 0; i_tile < GD_TILE_NX; i_tile++)
+      {
+        //fprintf(stdout,"--debug0: sx=%g,sy=%g,sz=%g,tile %d,%d,%d,(%g,%g),(%g,%g),(%g,%g)\n",
+        //            sx,sy,sz,i_tile,j_tile,k_tile,
+        //            gd->tile_xmin[k_tile][j_tile][i_tile],
+        //            gd->tile_xmax[k_tile][j_tile][i_tile],
+        //            gd->tile_ymin[k_tile][j_tile][i_tile],
+        //            gd->tile_ymax[k_tile][j_tile][i_tile],
+        //            gd->tile_zmin[k_tile][j_tile][i_tile],
+        //            gd->tile_zmax[k_tile][j_tile][i_tile]);
+        //fflush(stdout);
+
+        if (  sx < gd->tile_xmin[k_tile][j_tile][i_tile] ||
+              sx > gd->tile_xmax[k_tile][j_tile][i_tile] ||
+              sy < gd->tile_ymin[k_tile][j_tile][i_tile] ||
+              sy > gd->tile_ymax[k_tile][j_tile][i_tile] ||
+              sz < gd->tile_zmin[k_tile][j_tile][i_tile] ||
+              sz > gd->tile_zmax[k_tile][j_tile][i_tile])
+        {
+          // loop next tile
+          continue;
+        }
+
+        //fprintf(stdout,"--debug: sx=%g,sy=%g,sz=%g,tile %d,%d,%d,(%g,%g),(%g,%g),(%g,%g)\n",
+        //            sx,sy,sz,i_tile,j_tile,k_tile,
+        //            gd->tile_xmin[k_tile][j_tile][i_tile],
+        //            gd->tile_xmax[k_tile][j_tile][i_tile],
+        //            gd->tile_ymin[k_tile][j_tile][i_tile],
+        //            gd->tile_ymax[k_tile][j_tile][i_tile],
+        //            gd->tile_zmin[k_tile][j_tile][i_tile],
+        //            gd->tile_zmax[k_tile][j_tile][i_tile]);
+        //fflush(stdout);
+
+        // otherwise may in this tile
+        for (int k = gd->tile_kstart[k_tile]; k <= gd->tile_kend[k_tile]; k++)
+        {
+          iptr_k = k * siz_slice;
+          for (int j = gd->tile_jstart[j_tile]; j <= gd->tile_jend[j_tile]; j++)
+          {
+            iptr_j = iptr_k + j * siz_line;
+            for (int i = gd->tile_istart[i_tile]; i <= gd->tile_iend[i_tile]; i++)
+            {
+              iptr = i + iptr_j;
+
+              // use AABB algorith
+              if (  sx < gd->cell_xmin[iptr] ||
+                    sx > gd->cell_xmax[iptr] ||
+                    sy < gd->cell_ymin[iptr] ||
+                    sy > gd->cell_ymax[iptr] ||
+                    sz < gd->cell_zmin[iptr] ||
+                    sz > gd->cell_zmax[iptr])
+              {
+                // loop next cell
+                continue;
+              }
+
+              //fprintf(stdout,"--debug: point %d,%d,%d,(%g,%g),(%g,%g),(%g,%g)\n",
+              //            i,j,k,
+              //            gd->cell_xmin[iptr],
+              //            gd->cell_xmax[iptr],
+              //            gd->cell_ymin[iptr],
+              //            gd->cell_ymax[iptr],
+              //            gd->cell_zmin[iptr],
+              //            gd->cell_zmax[iptr]);
+              //fflush(stdout);
+
+              // otherwise may in this cell, use inpolygon to check
+
+              // set cell points
+              for (int n3=0; n3<2; n3++) {
+                for (int n2=0; n2<2; n2++) {
+                  for (int n1=0; n1<2; n1++) {
+                    int iptr_cube = n1 + n2 * 2 + n3 * 4;
+                    int iptr_pt = (i+n1) + (j+n2) * siz_line + (k+n3) * siz_slice;
+                    points_x[iptr_cube] = x3d[iptr_pt];
+                    points_y[iptr_cube] = y3d[iptr_pt];
+                    points_z[iptr_cube] = z3d[iptr_pt];
+                  }
+                }
+              }
+
+              // is in this cell
+              if (isPointInHexahedron(sx,sy,sz,points_x,points_y,points_z) == true)
+              {
+                is_here = 1;
+
+                // get shift in cell
+                gd_curv_coord2shift_sample(sx,sy,sz,8,
+                    points_x,points_y,points_z,
+                    100,100,100,
+                    sx_inc, sy_inc, sz_inc);
+
+                // convert to return values
+                *si = i;
+                *sj = j;
+                *sk = k;
+
+                if (*sx_inc > 0.5) {
+                  *si += 1;
+                  *sx_inc -= 1.0;
+                }
+                if (*sy_inc > 0.5) {
+                  *sj += 1;
+                  *sy_inc -= 1.0;
+                }
+                if (*sz_inc > 0.5) {
+                  *sk += 1;
+                  *sz_inc -= 1.0;
+                }
+
+                return is_here;
+              }
+              
+            } // i
+          }
+        }
+      } // i_tile
+    } // j_tile
+  } // k_tile
+
+  // not here
+  return is_here;
+}
+
+/* 
+ * find relative coord shift in this cell using sampling
+ */
+
+int
+gd_curv_coord2shift_sample(float sx, float sy, float sz, 
+    int num_points,
+    float *points_x, // x coord of all points
+    float *points_y,
+    float *points_z,
+    int    nx_sample,
+    int    ny_sample,
+    int    nz_sample,
+    float *si_shift, // interped curv coord
+    float *sj_shift,
+    float *sk_shift)
+{
+  float Lx[2], Ly[2], Lz[2];
 
   // init closest point
-  float min_dist = sqrtf(  (sx - x3d[0]) * (sx - x3d[0])
-      + (sy - y3d[0]) * (sy - y3d[0])
-      + (sz - z3d[0]) * (sz - z3d[0]) );
+  float min_dist = sqrtf(  (sx - points_x[0]) * (sx - points_x[0])
+      + (sy - points_y[0]) * (sy - points_y[0])
+      + (sz - points_z[0]) * (sz - points_z[0]) );
   int min_dist_i = 0 ;
   int min_dist_j = 0 ;
   int min_dist_k = 0 ;
 
-  // compute distance to each point
-  for (int k=0; k<nz; k++) {
-    for (int j=0; j<ny; j++) {
-      for (int i=0; i<nx; i++)
+  // linear interp for all sample
+  for (int n3=0; n3<nz_sample+1; n3++)
+  {
+    Lz[1] = (float)(n3) / (float)(nz_sample);
+    Lz[0] = 1.0 - Lz[1];
+    for (int n2=0; n2<ny_sample+1; n2++)
+    {
+      Ly[1] = (float)(n2) / (float)(ny_sample);
+      Ly[0] = 1.0 - Ly[1];
+      for (int n1=0; n1<nx_sample+1; n1++)
       {
-        size_t iptr = i + j * siz_line + k * siz_slice;
+        Lx[1] = (float)(n1) / (float)(nx_sample);
+        Lx[0] = 1.0 - Lx[1];
 
-        float x = x3d[iptr];
-        float y = y3d[iptr];
-        float z = z3d[iptr];
+        // interp
+        float x_pt=0;
+        float y_pt=0;
+        float z_pt=0;
+        for (int kk=0; kk<2; kk++) {
+          for (int jj=0; jj<2; jj++) {
+            for (int ii=0; ii<2; ii++)
+            {
+              int iptr_cube = ii + jj * 2 + kk * 4;
+              x_pt += Lx[ii]*Ly[jj]*Lz[kk] * points_x[iptr_cube];
+              y_pt += Lx[ii]*Ly[jj]*Lz[kk] * points_y[iptr_cube];
+              z_pt += Lx[ii]*Ly[jj]*Lz[kk] * points_z[iptr_cube];
+            }
+          }
+        }
 
-        float DistInt = sqrtf(  (sx - x) * (sx - x)
-            + (sy - y) * (sy - y)
-            + (sz - z) * (sz - z) );
-        wrk3d[iptr] =  DistInt;
+        // find min dist
+        float DistInt = sqrtf(  (sx - x_pt) * (sx - x_pt)
+            + (sy - y_pt) * (sy - y_pt)
+            + (sz - z_pt) * (sz - z_pt) );
 
         // replace closest point
         if (min_dist > DistInt)
         {
           min_dist = DistInt;
-          min_dist_i = i;
-          min_dist_j = j;
-          min_dist_k = k;
+          min_dist_i = n1;
+          min_dist_j = n2;
+          min_dist_k = n3;
         }
-      }
-    }
-  }
+      } // n1
+    } // n2
+  } // n3
 
-  // if nearest index is outside phys region, not here
-  if ( min_dist_i < ni1 || min_dist_i > ni2 ||
-      min_dist_j < nj1 || min_dist_j > nj2 ||
-      min_dist_k < nk1 || min_dist_k > nk2 )
-  {
-    is_here = 0;
-    return is_here;
-  }
+  *si_shift = (float)min_dist_i / (float)nx_sample;
+  *sj_shift = (float)min_dist_j / (float)ny_sample;
+  *sk_shift = (float)min_dist_k / (float)nz_sample;
 
-  // in this thread
-  is_here = 1;
-
-  float points_x[8];
-  float points_y[8];
-  float points_z[8];
-  float points_i[8];
-  float points_j[8];
-  float points_k[8];
-
-  for (int kk=0; kk<2; kk++)
-  {
-    for (int jj=0; jj<2; jj++)
-    {
-      for (int ii=0; ii<2; ii++)
-      {
-        int cur_i = min_dist_i-1+ii;
-        int cur_j = min_dist_j-1+jj;
-        int cur_k = min_dist_k-1+kk;
-
-        for (int n3=0; n3<2; n3++) {
-          for (int n2=0; n2<2; n2++) {
-            for (int n1=0; n1<2; n1++) {
-              int iptr_cube = n1 + n2 * 2 + n3 * 4;
-              int iptr = (cur_i+n1) + (cur_j+n2) * siz_line +
-                (cur_k+n3) * siz_slice;
-              points_x[iptr_cube] = x3d[iptr];
-              points_y[iptr_cube] = y3d[iptr];
-              points_z[iptr_cube] = z3d[iptr];
-              points_i[iptr_cube] = cur_i+n1;
-              points_j[iptr_cube] = cur_j+n2;
-              points_k[iptr_cube] = cur_k+n3;
-            }
-          }
-        }
-
-        if (isPointInHexahedron(sx,sy,sz,points_x,points_y,points_z) == true)
-        {
-          float si_curv, sj_curv, sk_curv;
-          //gd_curv_coord2index_rdinterp(sx,sy,sz,
-          //              8,
-          //              points_x,points_y,points_z,
-          //              points_i,points_j,points_k,
-          //              &si_curv, &sj_curv, &sk_curv);
-
-          gd_curv_coord2index_sample(sx,sy,sz,
-              8,
-              points_x,points_y,points_z,
-              points_i,points_j,points_k,
-              100,100,100,
-              &si_curv, &sj_curv, &sk_curv);
-
-          // convert to return values
-          *si = min_dist_i;
-          *sj = min_dist_j;
-          *sk = min_dist_k;
-          *sx_inc = si_curv - min_dist_i;
-          *sy_inc = sj_curv - min_dist_j;
-          *sz_inc = sk_curv - min_dist_k;
-
-          return is_here;
-        }
-      }
-    }
-  }
-
-  // if not in any cube due to bug, set default value
-  //    if everything is right, should be return 10 line before
-  *si = min_dist_i;
-  *sj = min_dist_j;
-  *sk = min_dist_k;
-  *sx_inc = 0.0;
-  *sy_inc = 0.0;
-  *sz_inc = 0.0;
-
-  return is_here;
+  return 0;
 }
 
 /* 
- * find curv index using sampling
+ * find curv coord of cart coord using sampling
  */
 
-  int
+int
 gd_curv_coord2index_sample(float sx, float sy, float sz, 
     int num_points,
     float *points_x, // x coord of all points
@@ -2275,6 +2542,61 @@ int face_normal(float (*hexa2d)[3], float *normal_unit)
   {
     normal_unit[i] = normal[i] / length;
   }
+
+  return 0;
+}
+
+int
+gd_print(gd_t *gd)
+{
+  fprintf(stdout, "\n-------------------------------------------------------\n");
+  fprintf(stdout, "print grid structure info:\n");
+  fprintf(stdout, "-------------------------------------------------------\n\n");
+
+  if (gd->type == GD_TYPE_CART) {
+    fprintf(stdout, " grid type is cartesian\n");
+  } else if (gd->type == GD_TYPE_VMAP) {
+    fprintf(stdout, " grid type is vmap\n");
+  } else {
+    fprintf(stdout, " grid type is general curvilinear\n");
+  }
+
+  fprintf(stdout," xmin=%g, xmax=%g\n", gd->xmin,gd->xmax);
+  fprintf(stdout," ymin=%g, ymax=%g\n", gd->ymin,gd->ymax);
+  fprintf(stdout," zmin=%g, zmax=%g\n", gd->zmin,gd->zmax);
+  for (int k_tile = 0; k_tile < GD_TILE_NZ; k_tile++)
+  {
+    fprintf(stdout," tile k=%d, pt k in (%d,%d)\n",
+                k_tile, gd->tile_kstart[k_tile],gd->tile_kend[k_tile]);
+  }
+  for (int j_tile = 0; j_tile < GD_TILE_NY; j_tile++)
+  {
+    fprintf(stdout," tile j=%d, pt j in (%d,%d)\n",
+                  j_tile, gd->tile_jstart[j_tile],gd->tile_jend[j_tile]);
+  }
+  for (int i_tile = 0; i_tile < GD_TILE_NX; i_tile++)
+  {
+    fprintf(stdout," tile i=%d, pt i in (%d,%d)\n",
+                  i_tile, gd->tile_istart[i_tile],gd->tile_iend[i_tile]);
+  }
+  for (int k_tile = 0; k_tile < GD_TILE_NZ; k_tile++)
+  {
+    for (int j_tile = 0; j_tile < GD_TILE_NY; j_tile++)
+    {
+      for (int i_tile = 0; i_tile < GD_TILE_NX; i_tile++)
+      {
+        fprintf(stdout," tile %d,%d,%d, range (%g,%g,%g,%g,%g,%g)\n",
+          i_tile,j_tile,k_tile,
+          gd->tile_xmin[k_tile][j_tile][i_tile],
+          gd->tile_xmax[k_tile][j_tile][i_tile],
+          gd->tile_ymin[k_tile][j_tile][i_tile],
+          gd->tile_ymax[k_tile][j_tile][i_tile],
+          gd->tile_zmin[k_tile][j_tile][i_tile],
+          gd->tile_zmax[k_tile][j_tile][i_tile]);
+      }
+    }
+  }
+  fflush(stdout);
 
   return 0;
 }

@@ -211,8 +211,7 @@ src_set_by_par(gdinfo_t *gdinfo,
       if (gd->type == GD_TYPE_CURV)
       {
         gd_curv_coord_to_glob_indx(gdinfo,gd,sx,sy,sz,comm,myid,
-                               &si_glob,&sj_glob,&sk_glob,&sx_inc,&sy_inc,&sz_inc,
-                               wrk3d);
+                               &si_glob,&sj_glob,&sk_glob,&sx_inc,&sy_inc,&sz_inc);
       }
       else if (gd->type == GD_TYPE_CART)
       {
@@ -239,6 +238,19 @@ src_set_by_par(gdinfo_t *gdinfo,
     {
       num_of_src_here += 1;
     }
+  }
+
+  // print for QC
+  if (myid == 0 && verbose > 2) {
+    fprintf(stdout,"src located results:\n");
+    for (int is=0; is < in_num_of_src; is++)
+    {
+      fprintf(stdout,"-- %d: coord=(%f,%f,%f), indx=(%d,%d,%d), inc=(%f,%f,%f)\n",
+                    is,source_coords[is][0],source_coords[is][1],source_coords[is][2],
+                    source_index[is][0],source_index[is][1],source_index[is][2],
+                    source_inc[is][0],source_inc[is][1],source_inc[is][2]);
+    }
+    fflush(stdout);
   }
 
   // alloc src_t
@@ -473,14 +485,15 @@ src_read_locate_valsrc(gdinfo_t *gdinfo,
       float sx = source_coords[is][0];
       float sy = source_coords[is][1];
       float sz = source_coords[is][2];
-      if(myid == 0){
-      fprintf(stdout,"locate source by coord (%f,%f,%f) ...\n",sx,sy,sz);
-      fflush(stdout);}
+      //-- too many screen output when in_num_source is large
+      //if(myid == 0){
+      //  fprintf(stdout,"locate source by coord (%f,%f,%f) ...\n",sx,sy,sz);
+      //  fflush(stdout);
+      //}
       if (gd->type == GD_TYPE_CURV)
       {
         gd_curv_coord_to_glob_indx(gdinfo,gd,sx,sy,sz,comm,myid,
-                               &si_glob,&sj_glob,&sk_glob,&sx_inc,&sy_inc,&sz_inc,
-                               wrk3d);
+                               &si_glob,&sj_glob,&sk_glob,&sx_inc,&sy_inc,&sz_inc);
       }
       else if (gd->type == GD_TYPE_CART)
       {
@@ -500,6 +513,26 @@ src_read_locate_valsrc(gdinfo_t *gdinfo,
       num_of_src_here += 1;
       source_in_thread[is] = 1;
     }
+
+    //-- to notice user the progress by screen output
+    if (myid == 0 && (is % 1000 ==0) ) {
+      fprintf(stdout,"-- loc %d-th src index, finish %f\%\n",
+                  is, (float)(is+1)/in_num_source*100.0);
+      fflush(stdout);
+    }
+  }
+
+  // print for QC
+  if (myid == 0 && verbose > 2) {
+    fprintf(stdout,"src located results:\n");
+    for (int is=0; is < in_num_source; is++)
+    {
+      fprintf(stdout,"-- %d: coord=(%f,%f,%f), indx=(%d,%d,%d), inc=(%f,%f,%f)\n",
+                    is,source_coords[is][0],source_coords[is][1],source_coords[is][2],
+                    source_index[is][0],source_index[is][1],source_index[is][2],
+                    source_inc[is][0],source_inc[is][1],source_inc[is][2]);
+    }
+    fflush(stdout);
   }
 
   // check if force and moment used
@@ -945,8 +978,7 @@ src_read_locate_anasrc(gdinfo_t *gdinfo,
       if (gd->type == GD_TYPE_CURV)
       {
         gd_curv_coord_to_glob_indx(gdinfo,gd,sx,sy,sz,comm,myid,
-                               &si_glob,&sj_glob,&sk_glob,&sx_inc,&sy_inc,&sz_inc,
-                               wrk3d);
+                               &si_glob,&sj_glob,&sk_glob,&sx_inc,&sy_inc,&sz_inc);
       }
       else if (gd->type == GD_TYPE_CART)
       {
