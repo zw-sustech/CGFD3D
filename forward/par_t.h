@@ -141,7 +141,7 @@ typedef struct{
   float visco_Qs_freq;
 
   // source
-  int source_input_itype;
+  //int source_input_itype;
   char source_input_file[PAR_MAX_STRLEN];
   int is_export_source;
   char source_export_dir[PAR_MAX_STRLEN];
@@ -156,19 +156,19 @@ typedef struct{
   //float source_force_vector[CONST_NDIM];
   //float source_moment_tensor[CONST_NDIM_2];
 
-  char  source_name[PAR_MAX_STRLEN];
-  int   source_number;
-  float **source_coords;
-  int   **source_index;
-  float **source_inc; // for index with shift
-  char  **wavelet_name;
-  float **wavelet_coefs; // maximum 10 coefficients for wavelet
-  float *wavelet_tstart;
-  float *wavelet_tend;
-  float **source_force_vector;
-  float **source_moment_tensor;
-  int   *source_force_actived;
-  int   *source_moment_actived;
+  //char  source_name[PAR_MAX_STRLEN];
+  //int   source_number;
+  //float **source_coords;
+  //int   **source_index;
+  //float **source_inc; // for index with shift
+  //char  **wavelet_name;
+  //float **wavelet_coefs; // maximum 10 coefficients for wavelet
+  //float *wavelet_tstart;
+  //float *wavelet_tend;
+  //float **source_force_vector;
+  //float **source_moment_tensor;
+  //int   *source_force_actived;
+  //int   *source_moment_actived;
 
   // output
   // receiver

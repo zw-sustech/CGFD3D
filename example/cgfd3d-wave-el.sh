@@ -22,7 +22,7 @@ echo "EXEC_WAVE=$EXEC_WAVE"
 INPUTDIR=`pwd`
 
 #-- output and conf
-PROJDIR=~/work/cgfd3d-wave-el/05grd
+PROJDIR=~/work/cgfd3d-wave-el/08src
 PAR_FILE=${PROJDIR}/test.json
 GRID_DIR=${PROJDIR}/output
 MEDIA_DIR=${PROJDIR}/output
@@ -43,6 +43,42 @@ server1
 ieof
 
 #----------------------------------------------------------------------
+#-- create in soruce file
+#----------------------------------------------------------------------
+cat << ieof > $INPUTDIR/test.src
+# name of this input source
+event_1
+# number of source
+1
+# flag for stf
+#  1st value : 0 analytic stf or 1 discrete values
+#    for analytical, 2nd value is time length
+#    for discrete,  2nd value is dt and 3rd is nt
+#    e.g.,
+# 0 4.0 
+# 1 0.05 20
+0 1.0
+# flag for source component and mechanism format
+#  1st value: source components, 1(force), 2(momoment), 3(force+moment)
+#  2nd value: mechanism format for moment source: 0 moment, 1 angle + mu + D + A
+2 0
+# flag for location
+#   1st value: meaning of the location: 0 grid index, 1 coordinate
+#   2nd value: 0 axis or 1 depth of the third coordinate for coordinate
+1 0
+# location of each source
+#   sx sy sz
+#80 49 50
+#80 49 50
+8020 4930 -950
+# stf and cmp
+0.0 ricker 2.0 0.5   # t0  stf_name  ricker_fc ricker_t0
+1e16  1e16  1e16 0 0 0 
+ieof
+
+#cp -f $INPUTDIR/test_by_values.src $INPUTDIR/test.src
+
+#----------------------------------------------------------------------
 #-- create main conf
 #----------------------------------------------------------------------
 cat << ieof > $PAR_FILE
@@ -55,7 +91,7 @@ cat << ieof > $PAR_FILE
   "number_of_mpiprocs_y" : 1,
 
   "#size_of_time_step" : 0.008,
-  "#size_of_time_step" : 0.015,
+  "#size_of_time_step" : 0.020,
   "#number_of_time_steps" : 500,
   "time_window_length" : 4,
   "check_stability" : 1,
@@ -129,11 +165,12 @@ cat << ieof > $PAR_FILE
   "medium" : {
       "type" : "elastic_iso",
       "#type" : "elastic_vti",
-      "#code" : "func_name_here",
+      "code" : "func_name_here",
       "#import" : "$MEDIA_DIR",
       "#infile_layer" : "$INPUTDIR/prep_medium/basin_el_iso.md3lay",
-      "infile_grid" : "$INPUTDIR/prep_medium/topolay_el_iso.md3grd",
-      "equivalent_medium_method" : "har"
+      "#infile_grid" : "$INPUTDIR/prep_medium/topolay_el_iso.md3grd",
+      "equivalent_medium_method" : "loc",
+      "#equivalent_medium_method" : "har"
   },
   "is_export_media" : 1,
   "media_export_dir"  : "$MEDIA_DIR",
@@ -143,28 +180,7 @@ cat << ieof > $PAR_FILE
       "Qs_freq" : 1.0
   },
 
-  "source_input" : {
-      "in_par" : {
-         "name" : "evt_by_par",
-         "source" : [
-            {
-                "index" : [ 80, 49, 50 ],
-                "#coord" : [ 4000, 4000, -1000 ],
-                "wavelet_name" : "ricker",
-                "ricker_center_frequency" : 2.0,
-                "ricker_peak_time" : 0.5,
-                "#wavelet_name" : "gaussian",
-                "#gaussian_rms_width" : 2.0,
-                "#gaussian_peak_time" : 0.5,
-                "start_time" : 0.0,
-                "end_time"   : 1.0,
-                "#force_vector" : [ 0.0, 0.0, 1e16],
-                "moment_tensor" : [ 1e16, 1e16, 1e16, 0.0, 0.0, 0.0]
-            }
-         ]
-      },
-      "#in_source_file" : "$INPUTDIR/source.anasrc"
-  },
+  "in_source_file" : "$INPUTDIR/test.src",
   "is_export_source" : 1,
   "source_export_dir"  : "$SOURCE_DIR",
 
@@ -214,6 +230,7 @@ ieof
 
 echo "+ created $PAR_FILE"
 
+
 #-------------------------------------------------------------------------------
 #-- Performce simulation
 #-------------------------------------------------------------------------------
@@ -234,7 +251,7 @@ printf "\nUse $NUMPROCS CPUs on following nodes:\n"
 cat ${PROJDIR}/hostlist
 
 printf "\nStart simualtion ...\n";
-time $MPIDIR/bin/mpiexec -machinefile ${PROJDIR}/hostlist -np $NUMPROCS $EXEC_WAVE $PAR_FILE 100
+time $MPIDIR/bin/mpiexec -machinefile ${PROJDIR}/hostlist -np $NUMPROCS $EXEC_WAVE $PAR_FILE 11
 if [ $? -ne 0 ]; then
     printf "\nSimulation fail! stop!\n"
     exit 1

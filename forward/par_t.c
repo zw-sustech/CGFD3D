@@ -481,63 +481,10 @@ par_read_from_str(const char *str, par_t *par)
   //-- source
   //
 
-  // default: grid index to negative for determine grid or loc
-
-  par->source_input_itype = PAR_SOURCE_JSON;
-  if (item = cJSON_GetObjectItem(root, "source_input"))
+  // input source file
+  if (item = cJSON_GetObjectItem(root, "in_source_file"))
   {
-    // if input in json
-    if (subitem = cJSON_GetObjectItem(item, "in_par"))
-    {
-       par->source_input_itype = PAR_SOURCE_JSON;
-       // get name
-       if (thirditem = cJSON_GetObjectItem(subitem, "name")) {
-          sprintf(par->source_name,"%s",thirditem->valuestring);
-       }
-       // get number
-       if (thirditem = cJSON_GetObjectItem(subitem, "source")) {
-          par->source_number = cJSON_GetArraySize(thirditem);
-          // alloc source vars
-          par->source_coords  = (float **)malloc(par->source_number*sizeof(float*));
-          par->source_index   = (int   **)malloc(par->source_number*sizeof(int  *));
-          par->source_inc     = (float **)malloc(par->source_number*sizeof(float*));
-          par->wavelet_name   = (char **)malloc(par->source_number*sizeof(char*));
-          par->wavelet_coefs  = (float **)malloc(par->source_number*sizeof(float*));
-          par->wavelet_tstart = (float *)malloc(par->source_number*sizeof(float));
-          par->wavelet_tend   = (float *)malloc(par->source_number*sizeof(float));
-          par->source_force_vector  = (float **)malloc(par->source_number*sizeof(float*));
-          par->source_moment_tensor = (float **)malloc(par->source_number*sizeof(float*));
-          par->source_force_actived = (int *)malloc(par->source_number*sizeof(int));
-          par->source_moment_actived= (int *)malloc(par->source_number*sizeof(int));
-          for (int is=0; is < par->source_number; is++) 
-          {
-            par->source_coords[is]  = (float *)malloc(CONST_NDIM*sizeof(float));
-            par->source_index [is]  = (int   *)malloc(CONST_NDIM*sizeof(int  ));
-            par->source_inc   [is]  = (float *)malloc(CONST_NDIM*sizeof(float));
-            par->wavelet_name [is]  = (char  *)malloc(100*sizeof(char));
-            par->wavelet_coefs[is]  = (float *)malloc(10*sizeof(float));
-            par->source_force_vector [is] = (float *)malloc(CONST_NDIM*sizeof(float));
-            par->source_moment_tensor[is] = (float *)malloc(CONST_NDIM_2*sizeof(float));
-          }
-       }
-       // for each source
-       for (int is=0; is < par->source_number; is++)
-       {
-          par_read_json_source(cJSON_GetArrayItem(thirditem, is),
-                   par->source_coords[is], par->source_index[is], par->source_inc[is],
-                   par->source_force_vector[is] , &(par->source_force_actived[is]),
-                   par->source_moment_tensor[is], &(par->source_moment_actived[is]),
-                   par->wavelet_name[is], par->wavelet_coefs[is],
-                   &(par->wavelet_tstart[is]), &(par->wavelet_tend[is]));
-       }
-    }
-
-    // if input by source file
-    if (subitem = cJSON_GetObjectItem(item, "in_source_file"))
-    {
-        par->source_input_itype = PAR_SOURCE_FILE;
-        sprintf(par->source_input_file, "%s", subitem->valuestring);
-    }
+      sprintf(par->source_input_file, "%s", item->valuestring);
   }
 
   par->is_export_source = 1;
@@ -985,52 +932,7 @@ par_print(par_t *par)
   fprintf(stdout, "-------------------------------------------------------\n");
   fprintf(stdout, "--> source info.\n");
   fprintf(stdout, "-------------------------------------------------------\n");
-  fprintf(stdout, " source_input_itype = %d\n", par->source_input_itype);
-  switch (par->source_input_itype)
-  {
-    case PAR_SOURCE_JSON :
-      fprintf(stdout, " source_input_type = %s\n", "in_par");
-      fprintf(stdout, " source_name = %s\n", par->source_name);
-      fprintf(stdout, " number_of_source = %d\n", par->source_number);
-      for (int is=0; is < par->source_number; is++)
-      {
-        fprintf(stdout, "  #%d:\n", is);
-        // grid index negative means to use coord
-        if (par->source_index[is][0] < 0) {
-          fprintf(stdout, " source location = [%f, %f, %f]\n", 
-              par->source_coords[is][0], par->source_coords[is][1], par->source_coords[is][2]);
-        } else {
-          fprintf(stdout, " source index = [%d, %d, %d]\n", 
-              par->source_index[is][0], par->source_index[is][1], par->source_index[is][2]);
-          fprintf(stdout, " source shift = [%g, %g, %g]\n", 
-              par->source_inc[is][0], par->source_inc[is][1], par->source_inc[is][2]);
-        }
-        fprintf(stdout, " wavelet name= %s\n", par->wavelet_name[is]);
-        fprintf(stdout, " first two coefs = %g, %g\n",
-                      par->wavelet_coefs[is][0], par->wavelet_coefs[is][1]);
-        fprintf(stdout, " start and end time = %f, %f\n",
-                          par->wavelet_tstart[is],par->wavelet_tend[is]);
-        if (par->source_force_actived[is] == 1) {
-           fprintf(stdout, " force vector = [%g, %g, %g]\n", par->source_force_vector[is][0],
-               par->source_force_vector[is][1], par->source_force_vector[is][2]);
-        }
-        if (par->source_moment_actived[is] == 1) {
-           fprintf(stdout, " moment tensor = [%g, %g, %g, %g, %g, %g]\n",
-               par->source_moment_tensor[is][0],
-               par->source_moment_tensor[is][1],
-               par->source_moment_tensor[is][2],
-               par->source_moment_tensor[is][3],
-               par->source_moment_tensor[is][4],
-               par->source_moment_tensor[is][5]);
-        }
-      }
-      break;
-
-    case PAR_SOURCE_FILE :
-      fprintf(stdout, " source_input_type = %s\n", "in_source_file");
-      fprintf(stdout, " in_source_file = %s\n", par->source_input_file);
-      break;
-  }
+  fprintf(stdout, " in_source_file = %s\n", par->source_input_file);
 
   fprintf(stdout, "\n");
   fprintf(stdout, "-------------------------------------------------------\n");

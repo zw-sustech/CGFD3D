@@ -2547,7 +2547,7 @@ int face_normal(float (*hexa2d)[3], float *normal_unit)
 }
 
 int
-gd_print(gd_t *gd)
+gd_print(gd_t *gd, int verbose)
 {
   fprintf(stdout, "\n-------------------------------------------------------\n");
   fprintf(stdout, "print grid structure info:\n");
@@ -2564,35 +2564,43 @@ gd_print(gd_t *gd)
   fprintf(stdout," xmin=%g, xmax=%g\n", gd->xmin,gd->xmax);
   fprintf(stdout," ymin=%g, ymax=%g\n", gd->ymin,gd->ymax);
   fprintf(stdout," zmin=%g, zmax=%g\n", gd->zmin,gd->zmax);
-  for (int k_tile = 0; k_tile < GD_TILE_NZ; k_tile++)
+
+  if (verbose > 9)
   {
-    fprintf(stdout," tile k=%d, pt k in (%d,%d)\n",
-                k_tile, gd->tile_kstart[k_tile],gd->tile_kend[k_tile]);
-  }
-  for (int j_tile = 0; j_tile < GD_TILE_NY; j_tile++)
-  {
-    fprintf(stdout," tile j=%d, pt j in (%d,%d)\n",
-                  j_tile, gd->tile_jstart[j_tile],gd->tile_jend[j_tile]);
-  }
-  for (int i_tile = 0; i_tile < GD_TILE_NX; i_tile++)
-  {
-    fprintf(stdout," tile i=%d, pt i in (%d,%d)\n",
-                  i_tile, gd->tile_istart[i_tile],gd->tile_iend[i_tile]);
-  }
-  for (int k_tile = 0; k_tile < GD_TILE_NZ; k_tile++)
-  {
+    for (int k_tile = 0; k_tile < GD_TILE_NZ; k_tile++)
+    {
+      fprintf(stdout," tile k=%d, pt k in (%d,%d)\n",
+                  k_tile, gd->tile_kstart[k_tile],gd->tile_kend[k_tile]);
+    }
     for (int j_tile = 0; j_tile < GD_TILE_NY; j_tile++)
     {
-      for (int i_tile = 0; i_tile < GD_TILE_NX; i_tile++)
+      fprintf(stdout," tile j=%d, pt j in (%d,%d)\n",
+                    j_tile, gd->tile_jstart[j_tile],gd->tile_jend[j_tile]);
+    }
+    for (int i_tile = 0; i_tile < GD_TILE_NX; i_tile++)
+    {
+      fprintf(stdout," tile i=%d, pt i in (%d,%d)\n",
+                    i_tile, gd->tile_istart[i_tile],gd->tile_iend[i_tile]);
+    }
+  }
+
+  if (verbose > 99)
+  {
+    for (int k_tile = 0; k_tile < GD_TILE_NZ; k_tile++)
+    {
+      for (int j_tile = 0; j_tile < GD_TILE_NY; j_tile++)
       {
-        fprintf(stdout," tile %d,%d,%d, range (%g,%g,%g,%g,%g,%g)\n",
-          i_tile,j_tile,k_tile,
-          gd->tile_xmin[k_tile][j_tile][i_tile],
-          gd->tile_xmax[k_tile][j_tile][i_tile],
-          gd->tile_ymin[k_tile][j_tile][i_tile],
-          gd->tile_ymax[k_tile][j_tile][i_tile],
-          gd->tile_zmin[k_tile][j_tile][i_tile],
-          gd->tile_zmax[k_tile][j_tile][i_tile]);
+        for (int i_tile = 0; i_tile < GD_TILE_NX; i_tile++)
+        {
+          fprintf(stdout," tile %d,%d,%d, range (%g,%g,%g,%g,%g,%g)\n",
+            i_tile,j_tile,k_tile,
+            gd->tile_xmin[k_tile][j_tile][i_tile],
+            gd->tile_xmax[k_tile][j_tile][i_tile],
+            gd->tile_ymin[k_tile][j_tile][i_tile],
+            gd->tile_ymax[k_tile][j_tile][i_tile],
+            gd->tile_zmin[k_tile][j_tile][i_tile],
+            gd->tile_zmax[k_tile][j_tile][i_tile]);
+        }
       }
     }
   }

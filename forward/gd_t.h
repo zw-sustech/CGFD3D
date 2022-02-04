@@ -321,6 +321,6 @@ int point2face(float *hexa1d,float *point, float *p2f);
 int face_normal(float (*hexa2d)[3], float *normal_unit);
 
 int
-gd_print(gd_t *gd);
+gd_print(gd_t *gd, int verbose);
 
 #endif
