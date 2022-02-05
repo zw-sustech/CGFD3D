@@ -65,7 +65,8 @@ The cell spacing between the first interface and the second interface are equal;
 The number of interface grids in X is 100 and the number of interface grids in Y is 100. The number of interface grids in Z is 51 ( 4+(20-1)+(10-1)+(20-1) ). \\
 
 The given interface model size is \texttt{100*100*51} .
-In fact, the largest model area we can calculate is \texttt{(100-2\*fdx\_nghosts)*(100-2\*fdy\_nghosts)*(51-fdz\_nghosts)}. （In this program, these parameters \texttt{fdx\_nghosts, fdy\_nghosts, fdz\_nghosts} are colonization 3）. So the largest model area we can calculate is \texttt{94*94*48}.  \\
+In fact, the largest model area we can calculate is \texttt{(100-2\*fdx\_nghosts)*(100-2\*fdy\_nghosts)*(51-fdz\_nghosts)}. 
+(In this program, these parameters \texttt{fdx\_nghosts, fdy\_nghosts, fdz\_nghosts} are colonization 3). So the largest model area we can calculate is \texttt{94*94*48}.  \\
 
 (1) Example of the maximum area we can calculate without resampling: \\
 \texttt{number\_of\_total\_grid\_points\_x = 94}, \\
