@@ -171,6 +171,10 @@ void
 angle2moment(float strike, float dip, float rake, float* source_moment_tensor);
 
 int
+src_muDA_to_moment(float strike, float dip, float rake, float mu, float D, float A,
+          float *mxx, float *myy, float *mzz, float *myz, float *mxz, float *mxy);
+
+int
 src_coord2index(float sx, float sy, float sz,
                 int nx, int ny, int nz,
                 int ni1, int ni2, int nj1, int nj2, int nk1, int nk2,

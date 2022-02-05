@@ -239,10 +239,11 @@ src_read_locate_file(gdinfo_t *gdinfo,
     // read in and get src global index
     if (!io_get_nextline(fp, str,500))
     {
-      if (in_location_meaning == 1) // coord
-      {
-        sscanf(str,"%f %f %f", &sx, &sy, &sz);
+      // read in as float value
+      sscanf(str,"%f %f %f", &sx, &sy, &sz);
 
+      if (in_location_meaning == 1) // physical coord
+      {
         // convert to global index
         //    todo: check if out of computational region
         if (gd->type == GD_TYPE_CURV)
@@ -270,13 +271,23 @@ src_read_locate_file(gdinfo_t *gdinfo,
           fflush(stdout);
         }
       }
-      else // index
+      else // computational coordinate or grid index
       {
-        sscanf(str,"%d %d %d", &si_glob,&sj_glob,&sk_glob);
+        // nearest integer index
+        si_glob = (int) (sx + 0.5);
+        sj_glob = (int) (sy + 0.5);
+        sk_glob = (int) (sz + 0.5);
+        // relative shift
+        sx_inc = sx - si_glob;
+        sy_inc = sy - sj_glob;
+        sz_inc = sz - sk_glob;
+
         all_index[is][0] = si_glob;
         all_index[is][1] = sj_glob;
         all_index[is][2] = sk_glob;
-        // all_inc default 0.0
+        all_inc  [is][0] = sx_inc;
+        all_inc  [is][1] = sy_inc;
+        all_inc  [is][2] = sz_inc;
       }
     }
 
@@ -388,6 +399,13 @@ src_read_locate_file(gdinfo_t *gdinfo,
             sscanf(str,"%f %f %f %f %f %f %f %f %f",
                              &fx,&fy,&fz,&mxx,&myy,&mzz,&myz,&mxz,&mxy);
           }
+
+          // convert uDA input into moment tensor
+          if (moment_actived==1 && in_mechanism_type ==1)
+          {
+            src_muDA_to_moment(mxx,myy,mzz,myz,mxz,mxy,
+                      &mxx,&myy,&mzz,&myz,&mxz,&mxy);
+          }
         }
       }
     }
@@ -417,18 +435,8 @@ src_read_locate_file(gdinfo_t *gdinfo,
             // convert uDA input into moment tensor
             if (moment_actived==1 && in_mechanism_type ==1)
             {
-              float temp_moment[6];
-              float M0 = m13[it]*m23[it]*m12[it];  
-
-              // convert to moment tensor
-              angle2moment(m11[it],m22[it],m33[it],temp_moment);
-
-              m11[it] = M0*temp_moment[0];
-              m22[it] = M0*temp_moment[1];
-              m33[it] = M0*temp_moment[2];
-              m23[it] = M0*temp_moment[3];
-              m13[it] = M0*temp_moment[4];
-              m12[it] = M0*temp_moment[5];
+              src_muDA_to_moment(m11[it],m22[it],m33[it],m23[it],m13[it],m12[it],
+                                 m11+it ,m22+it ,m33+it ,m23+it ,m13+it ,m12+it);
             }
           } // in this thread
         } // get next line
@@ -754,6 +762,32 @@ angle2moment(float strike, float dip, float rake, float* source_moment_tensor)
   source_moment_tensor[5] =  M12 ;  // Mxy 
 
   return;
+}
+
+/*
+ *
+ */
+
+int
+src_muDA_to_moment(float strike, float dip, float rake, float mu, float D, float A,
+          float *mxx, float *myy, float *mzz, float *myz, float *mxz, float *mxy)
+{
+  int ierr = 0;
+
+  // convert to moment tensor
+  float temp_moment[6];
+  angle2moment(strike, dip, rake, temp_moment);
+
+  float M0 = mu * D * A;
+  
+  *mxx = M0*temp_moment[0];
+  *myy = M0*temp_moment[1];
+  *mzz = M0*temp_moment[2];
+  *myz = M0*temp_moment[3];
+  *mxz = M0*temp_moment[4];
+  *mxy = M0*temp_moment[5];
+
+  return ierr;
 }
 
 /*
