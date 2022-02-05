@@ -22,7 +22,7 @@ echo "EXEC_WAVE=$EXEC_WAVE"
 INPUTDIR=`pwd`
 
 #-- output and conf
-PROJDIR=~/work/cgfd3d-wave-el/08src
+PROJDIR=~/work/cgfd3d-wave-el/10src
 PAR_FILE=${PROJDIR}/test.json
 GRID_DIR=${PROJDIR}/output
 MEDIA_DIR=${PROJDIR}/output
@@ -63,14 +63,14 @@ event_1
 #  2nd value: mechanism format for moment source: 0 moment, 1 angle + mu + D + A
 2 0
 # flag for location
-#   1st value: meaning of the location: 0 grid index, 1 coordinate
-#   2nd value: 0 axis or 1 depth of the third coordinate for coordinate
-1 0
+#   1st value: 0 computational coordiate, 1 physical coordinate
+#   2nd value: third coordinate is 0 axis or 1 depth 
+0 0
 # location of each source
 #   sx sy sz
+80.2 49.3 50.5
 #80 49 50
-#80 49 50
-8020 4930 -950
+#8020 4930 -950
 # stf and cmp
 0.0 ricker 2.0 0.5   # t0  stf_name  ricker_fc ricker_t0
 1e16  1e16  1e16 0 0 0 
@@ -87,8 +87,8 @@ cat << ieof > $PAR_FILE
   "number_of_total_grid_points_y" : 100,
   "number_of_total_grid_points_z" : 60,
 
-  "number_of_mpiprocs_x" : 1,
-  "number_of_mpiprocs_y" : 1,
+  "number_of_mpiprocs_x" : 2,
+  "number_of_mpiprocs_y" : 2,
 
   "#size_of_time_step" : 0.008,
   "#size_of_time_step" : 0.020,
