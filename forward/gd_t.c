@@ -1971,13 +1971,13 @@ gd_curv_coord_to_glob_indx(gdinfo_t *gdinfo,
   MPI_Allreduce(&sendbufi, &sk_glob, 1, MPI_INT, MPI_MAX, comm);
 
   float sendbuf = sx_inc;
-  MPI_Allreduce(&sendbuf, &sx_inc, 1, MPI_INT, MPI_SUM, comm);
+  MPI_Allreduce(&sendbuf, &sx_inc, 1, MPI_FLOAT, MPI_SUM, comm);
 
   sendbuf = sy_inc;
-  MPI_Allreduce(&sendbuf, &sy_inc, 1, MPI_INT, MPI_SUM, comm);
+  MPI_Allreduce(&sendbuf, &sy_inc, 1, MPI_FLOAT, MPI_SUM, comm);
 
   sendbuf = sz_inc;
-  MPI_Allreduce(&sendbuf, &sz_inc, 1, MPI_INT, MPI_SUM, comm);
+  MPI_Allreduce(&sendbuf, &sz_inc, 1, MPI_FLOAT, MPI_SUM, comm);
 
   //fprintf(stdout," --myid=%d,index=%d %d %d,shift = %f %f %f\n",
   //    myid,si_glob,sj_glob,sk_glob, sx_inc,sy_inc,sz_inc);
