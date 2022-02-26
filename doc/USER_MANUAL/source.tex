@@ -1,4 +1,4 @@
-\chapter{Input Source into the Simulation}\label{chapter-source}
+\chapter{Input Point or Finite-fault Sources}\label{chapter-source}
 
 Seismic wave is actived by the seimisc source.
 In seismic wave equations, the seismic source is represented by the force term ($\mathbf{F}$)
@@ -46,18 +46,21 @@ In the following, we will describe the format of the source input file of the CG
 
 
 %=============================================================
-\section{Source related configurations in main JSON file} \label{src_json}
+\section{Set Parameters in Main Par File} \label{src_json}
 %=============================================================
 
-There are three paramters in the .json file for the source input:
+All the detailed specification of the source is written in a separate source file (.src).
+Throug the main input .json file, we need to tell the simulation code where is the source file,
+which is specified by \verb|in_source_file|.
+There are total three paramters in the .json file related to the source input:
 \begin{itemize}
   \item \verb|in_source_file|: set the input source file;
   \item \verb|is_export_source|: determine if export the internal discreted source for QC (not implemented yet);
   \item \verb|source_export_dir|: the path for source exporting.
 \end{itemize}
-Currently, only \verb|in_source_file| takes effect.
+Currently, only \verb|in_source_file| is implemented and the other two have no effect yet.
 
-\begin{lstlisting}[language=json, title=An example of source settings in .json, frame=tb]
+\begin{lstlisting}[language=json, title=Example of source settings in .json, frame=tb]
    "in_source_file" : "$INPUTDIR/test.src",
    "is_export_source" : 1,
    "source_export_dir" : "$SOURCE_DIR",
@@ -65,13 +68,13 @@ Currently, only \verb|in_source_file| takes effect.
 
 
 %===================================================================
-\section{Description of the source input file (.src)} \label{src_format}
+\section{Set Source Information by the Source Input File (.src)} \label{src_format}
 %=============================================================
 
 The .src file is designed to input all the required source information using different representations.
 Considering parallel computing using MPI on a multi-nodes cluster, we want to allocate
 large array holdding discrete STF values for only the source located at the node.
-Thus we divide the information in the .src into three regions (line numnber refer that in the example):
+Thus we divide the information in the .src into three regions (line number refer that in the example):
 \begin{enumerate}
     \item global information related to all the sources (line 1-20);
     \item location information of each source (line 21-25);
