@@ -7,11 +7,11 @@ clear all;
 addmypath;
 % -------------------------- parameters input -------------------------- %
 % file and path name
-parfnm='../project/test1.json';
-output_dir='../project/output1';
+parfnm='../project/test.json';
+output_dir='../project/output';
 
 % which line to plot (start from index '1')
-lineid=1;
+lineid=2;
 
 % which receiver of the line to plot (start from index '0')
 recid=1;

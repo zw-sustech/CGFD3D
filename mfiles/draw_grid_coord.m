@@ -5,11 +5,11 @@
 % Date:         2021.06.06
 
 clear all;
-
+addmypath
 % -------------------------- parameters input -------------------------- %
 % file and path name
-parfnm='./project/test.json';
-output_dir='./project/output';
+parfnm='../project/test.json';
+output_dir='../project/output';
 
 % which grid profile to plot
 subs=[5,5,1];     % start from index '1'

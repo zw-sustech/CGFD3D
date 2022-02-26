@@ -5,21 +5,17 @@
 % Date:         2021.05.31
 
 clear all;
-
+addmypath
 % -------------------------- parameters input -------------------------- %
 % file and path name
-%parfnm='./project/test.json';
-%output_dir='./project/output';
-%parfnm='/home/zhangw/work/cgfd_cart/13nc/test.json'
-%output_dir='/home/zhangw/work/cgfd_cart/13nc/output'
-parfnm='/home/zhangw/work/cgfd_ac/00/test.json'
-output_dir='/home/zhangw/work/cgfd_ac/00/output'
+parfnm='../project/test3.json'
+output_dir='../project/output3'
 
 % which snapshot to plot
 id=1;
 
 %-- z slice
-subs=[1,1,53];      % start from index '1'
+subs=[1,1,1];      % start from index '1'
 subc=[-1,-1,1];     % '-1' to plot all points in this dimension
 subt=[1,1,1];
 
@@ -35,23 +31,22 @@ subt=[1,1,1];
 
 % variable and time to plot
 varnm='Vx';
-ns=1;
-ne=500;
+ns=300;
+ne=300;
 nt=50;
-%ns=2;
-%ne=500;
-%nt=2;
+
 
 % figure control parameters
 flag_km     = 1;
 flag_emlast = 1;
 flag_print  = 0;
+savegif = 0;
+% scl_caxis=[-1.0 1.0];
+filename1 = ['Vx.gif'];
 scl_daspect =[1 1 1];
-clrmp       = 'parula';
+clrmp       = 'jetwr';
 taut=0.5;
 % ---------------------------------------------------------------------- %
-
-
 
 % load snapshot data
 snapinfo=locate_snap(parfnm,id,'start',subs,'count',subc,'stride',subt,'snapdir',output_dir);
@@ -142,7 +137,7 @@ for nlayer=ns:nt:ne
     colorbar('vert');
     
     %title
-    titlestr=['Snapshot of ' varnm ' at ' ...
+    titlestr=['gpu Snapshot of ' varnm ' at ' ...
               '{\fontsize{12}{\bf ' ...
               num2str((t),'%7.3f') ...
               '}}s'];
@@ -150,6 +145,16 @@ for nlayer=ns:nt:ne
     
     drawnow;
     pause(taut);
+    %save gif
+    if savegif
+      im=frame2im(getframe(gcf));
+      [imind,map]=rgb2ind(im,256);
+      if nlayer==ns
+        imwrite(imind,map,filename1,'gif','LoopCount',Inf,'DelayTime',0.5);
+      else
+        imwrite(imind,map,filename1,'gif','WriteMode','append','DelayTime',0.5);
+      end
+    end
     
     % save and print figure
     if flag_print==1

@@ -5,16 +5,10 @@ set -e
 
 date
 
-#-- source intel lib
-#source /share/apps/intel-2019.3/intel/bin/compilervars.sh intel64
-#export FI_PROVIDER=tcp
-#MPIDIR=/share/apps/intel-2019.3/mpich-3.3
-
 #-- system related dir
-MPIDIR=/share/apps/gnu-4.8.5/mpich-3.3
+MPIDIR=/data3/lihl/software/openmpi-gnu-4.1.2
 
 #-- program related dir
-#EXEC_WAVE=/home/zhangw/code/zwlab/CGFD3D-elastic/main_curv_col_el_3d
 EXEC_WAVE=`pwd`/../main_curv_col_el_3d
 echo "EXEC_WAVE=$EXEC_WAVE"
 
@@ -22,12 +16,12 @@ echo "EXEC_WAVE=$EXEC_WAVE"
 INPUTDIR=`pwd`
 
 #-- output and conf
-PROJDIR=~/work/cgfd3d-wave-el/05grd
-PAR_FILE=${PROJDIR}/test.json
-GRID_DIR=${PROJDIR}/output
-MEDIA_DIR=${PROJDIR}/output
-SOURCE_DIR=${PROJDIR}/output
-OUTPUT_DIR=${PROJDIR}/output
+PROJDIR=`pwd`/../project
+PAR_FILE=${PROJDIR}/test3.json
+GRID_DIR=${PROJDIR}/output3
+MEDIA_DIR=${PROJDIR}/output3
+SOURCE_DIR=${PROJDIR}/output3
+OUTPUT_DIR=${PROJDIR}/output3
 
 #-- create dir
 mkdir -p $PROJDIR
@@ -36,68 +30,60 @@ mkdir -p $GRID_DIR
 mkdir -p $MEDIA_DIR
 
 #----------------------------------------------------------------------
-#-- create hostlist for mpirun
-#----------------------------------------------------------------------
-cat << ieof > ${PROJDIR}/hostlist
-server1
-ieof
-
-#----------------------------------------------------------------------
 #-- create main conf
 #----------------------------------------------------------------------
 cat << ieof > $PAR_FILE
 {
-  "number_of_total_grid_points_x" : 120,
-  "number_of_total_grid_points_y" : 100,
+  "number_of_total_grid_points_x" : 300,
+  "number_of_total_grid_points_y" : 300,
   "number_of_total_grid_points_z" : 60,
 
-  "number_of_mpiprocs_x" : 1,
-  "number_of_mpiprocs_y" : 1,
+  "number_of_mpiprocs_x" : 6,
+  "number_of_mpiprocs_y" : 6,
 
-  "#size_of_time_step" : 0.008,
-  "#size_of_time_step" : 0.015,
-  "#number_of_time_steps" : 500,
-  "time_window_length" : 4,
+  "size_of_time_step" : 0.015,
+  "number_of_time_steps" : 300,
+  "#time_window_length" : 4,
   "check_stability" : 1,
 
   "boundary_x_left" : {
       "cfspml" : {
-          "number_of_layers" : 5,
+          "number_of_layers" : 10,
           "alpha_max" : 3.14,
           "beta_max" : 2.0,
-          "ref_vel"  : 5000.0
+          "ref_vel"  : 7000.0
           }
       },
   "boundary_x_right" : {
       "cfspml" : {
-          "number_of_layers" : 5,
+          "number_of_layers" : 10,
           "alpha_max" : 3.14,
           "beta_max" : 2.0,
-          "ref_vel"  : 5000.0
+          "ref_vel"  : 7000.0
           }
       },
   "boundary_y_front" : {
       "cfspml" : {
-          "number_of_layers" : 5,
+          "number_of_layers" : 10,
           "alpha_max" : 3.14,
           "beta_max" : 2.0,
-          "ref_vel"  : 5000.0
+          "ref_vel"  : 7000.0
           }
       },
   "boundary_y_back" : {
       "cfspml" : {
-          "number_of_layers" : 5,
+          "number_of_layers" : 10,
           "alpha_max" : 3.14,
           "beta_max" : 2.0,
-          "ref_vel"  : 5000.0
+          "ref_vel"  : 7000.0
           }
       },
   "boundary_z_bottom" : {
       "cfspml" : {
-          "number_of_layers" : 5,
+          "number_of_layers" : 10,
           "alpha_max" : 3.14,
           "beta_max" : 2.0,
-          "ref_vel"  : 5000.0
+          "ref_vel"  : 7000.0
           }
       },
   "boundary_z_top" : {
@@ -111,7 +97,7 @@ cat << ieof > $PAR_FILE
         "inteval" : [ 100.0, 100.0, 100.0 ]
       },
       "#layer_interp" : {
-        "in_grid_layer_file" : "$INPUTDIR/prep_grid/random_topo.gdlay",
+        "in_grid_layer_file" : "$INPUTDIR/prep_grid/tangshan_area_topo.gdlay",
         "refine_factor" : [ 1, 1, 1 ],
         "horizontal_start_index" : [ 3, 3 ],
         "vertical_last_to_top" : 0
@@ -129,11 +115,11 @@ cat << ieof > $PAR_FILE
   "medium" : {
       "type" : "elastic_iso",
       "#type" : "elastic_vti",
-      "#code" : "func_name_here",
+      "code" : "func_name_here",
       "#import" : "$MEDIA_DIR",
       "#infile_layer" : "$INPUTDIR/prep_medium/basin_el_iso.md3lay",
-      "infile_grid" : "$INPUTDIR/prep_medium/topolay_el_iso.md3grd",
-      "equivalent_medium_method" : "har"
+      "#infile_grid" : "$INPUTDIR/prep_medium/topolay_el_iso.md3grd",
+      "#equivalent_medium_method" : "har"
   },
   "is_export_media" : 1,
   "media_export_dir"  : "$MEDIA_DIR",
@@ -144,11 +130,11 @@ cat << ieof > $PAR_FILE
   },
 
   "source_input" : {
-      "in_par" : {
+      "#in_par" : {
          "name" : "evt_by_par",
          "source" : [
             {
-                "index" : [ 80, 49, 50 ],
+                "index" : [ 80, 50, 30 ],
                 "#coord" : [ 4000, 4000, -1000 ],
                 "wavelet_name" : "ricker",
                 "ricker_center_frequency" : 2.0,
@@ -158,12 +144,12 @@ cat << ieof > $PAR_FILE
                 "#gaussian_peak_time" : 0.5,
                 "start_time" : 0.0,
                 "end_time"   : 1.0,
-                "#force_vector" : [ 0.0, 0.0, 1e16],
-                "moment_tensor" : [ 1e16, 1e16, 1e16, 0.0, 0.0, 0.0]
+                "force_vector" : [ 1e16, 1e16, 1e16],
+                "#moment_tensor" : [ 1e16, 1e16, 1e16, 0.0, 0.0, 0.0]
             }
          ]
       },
-      "#in_source_file" : "$INPUTDIR/source.anasrc"
+      "in_source_file" : "$INPUTDIR/prep_source/test_source.valsrc"
   },
   "is_export_source" : 1,
   "source_export_dir"  : "$SOURCE_DIR",
@@ -172,7 +158,7 @@ cat << ieof > $PAR_FILE
 
   "in_station_file" : "$INPUTDIR/station.list",
 
-  "receiver_line" : [
+  "#receiver_line" : [
     {
       "name" : "line_x_1",
       "grid_index_start"    : [  0, 49, 59 ],
@@ -187,17 +173,17 @@ cat << ieof > $PAR_FILE
     } 
   ],
 
-  "slice" : {
-      "x_index" : [ 19, 49, 59 ],
-      "y_index" : [ 20, 50, 60 ],
-      "z_index" : [ 29, 59 ]
+  "#slice" : {
+      "x_index" : [ 190 ],
+      "y_index" : [ 90 ],
+      "z_index" : [ 59 ]
   },
 
   "snapshot" : [
     {
       "name" : "volume_vel",
-      "grid_index_start" : [ 0, 0, 0 ],
-      "grid_index_count" : [ 120,100, 60 ],
+      "grid_index_start" : [ 0, 0, 59 ],
+      "grid_index_count" : [ 300,300, 1 ],
       "grid_index_incre" : [  1, 1, 1 ],
       "time_index_start" : 0,
       "time_index_incre" : 1,
@@ -231,10 +217,9 @@ cat << ieof > ${PROJDIR}/cgfd_sim.sh
 
 set -e
 printf "\nUse $NUMPROCS CPUs on following nodes:\n"
-cat ${PROJDIR}/hostlist
 
 printf "\nStart simualtion ...\n";
-time $MPIDIR/bin/mpiexec -machinefile ${PROJDIR}/hostlist -np $NUMPROCS $EXEC_WAVE $PAR_FILE 100
+time $MPIDIR/bin/mpiexec -np $NUMPROCS $EXEC_WAVE $PAR_FILE 100 2>&1 |tee log
 if [ $? -ne 0 ]; then
     printf "\nSimulation fail! stop!\n"
     exit 1

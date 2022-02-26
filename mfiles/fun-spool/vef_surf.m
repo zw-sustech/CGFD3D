@@ -1,6 +1,0 @@
-function sid=vef_surf(x,y,z,v)
-
-sid=surf(x,y,z,v);
-set(sid,'DiffuseStrength',1.0,'SpecularStrength',0.2, ...
-    'SpecularExponent',50, ...
-    'SpecularColorReflectance',0.1)

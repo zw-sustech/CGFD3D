@@ -5,21 +5,21 @@
 % Date:         2021.05.31
 
 clear all;
-
+addmypath
 % -------------------------- parameters input -------------------------- %
 % file and path name
-parfnm='./project/test.json';
-output_dir='./project/output';
+parfnm='../project/test.json';
+output_dir='../project/output';
 
 % which snapshot to plot
 id=1;
 subs=[1,1,50];      % start from index '1'
 subc=[-1,-1,1];     % '-1' to plot all points in this dimension
-subt=[2,2,1];
+subt=[1,1,1];
 
 % variable and time to plot
-varnm='Vz';
-ns=1;
+varnm='Vx';
+ns=50;
 ne=500;
 nt=50;
 
@@ -28,9 +28,11 @@ flag_km     = 1;
 flag_emlast = 1;
 flag_print  = 0;
 flag_light  = 0;
+savegif = 1;
+% scl_caxis=[-1.0 1.0];
+filename1 = ['Vx.gif'];
 scl_daspect =[1 1 1];
-% scl_caxis=[-0.5 0.5];
-clrmp       = 'parula';
+clrmp       = 'jetwr';
 taut=0.5;
 % ---------------------------------------------------------------------- %
 
@@ -114,7 +116,16 @@ for nlayer=ns:nt:ne
     
     drawnow;
     pause(taut);
-    
+    %save gif
+    if savegif
+      im=frame2im(getframe(gcf));
+      [imind,map]=rgb2ind(im,256);
+      if nlayer==ns
+        imwrite(imind,map,filename1,'gif','LoopCount',Inf,'DelayTime',0.5);
+      else
+        imwrite(imind,map,filename1,'gif','WriteMode','append','DelayTime',0.5);
+      end
+    end
     % save and print figure
     if flag_print==1
         width= 500;

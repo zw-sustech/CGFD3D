@@ -4,22 +4,22 @@
 % Date:     2021.05.31
 
 clear all;
-
+addmypath
 % -------------------------- parameters input -------------------------- %
 % file and path name
-parfnm='./project/test.json';
-output_dir='./project/output';
+parfnm='../project/test.json';
+output_dir='../project/output';
 
 % which slice to plot
 % slice 1
 slicedir{1}='y';
-sliceid{1}=50;
+sliceid{1}=120;
 % slice 2
 slicedir{2}='x';
-sliceid{2}=49;
+sliceid{2}=190;
 % slice 3
 slicedir{3}='z';
-sliceid{3}=29;
+sliceid{3}=59;
 
 % which variable and time to plot
 varnm='Vz';

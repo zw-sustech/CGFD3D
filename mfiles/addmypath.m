@@ -1,2 +1,2 @@
- dirnm = '/data/data_array4/lihl/CGFD3D-elastic/mfiles'
+ dirnm = '../mfiles'
  addpath(genpath(dirnm))

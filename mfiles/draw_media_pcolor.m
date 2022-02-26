@@ -5,15 +5,13 @@
 % Date:         2021.06.06
 
 clear all;
-
+addmypath;
 % -------------------------- parameters input -------------------------- %
 % file and path name
 %media_type = 'ac_iso';
-%parfnm='/home/zhangw/work/cgfd3d-wave-ac/02/test.json'
-%output_dir='/home/zhangw/work/cgfd3d-wave-ac/02/output'
 media_type = 'el_iso';
-parfnm='/home/zhangw/work/cgfd3d-wave-el/04/test.json'
-output_dir='/home/zhangw/work/cgfd3d-wave-el/04/output'
+parfnm='../project/test.json'
+output_dir='../project/output'
 
 %media_type = 'el_vti';
 
