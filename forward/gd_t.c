@@ -1931,9 +1931,10 @@ gd_curv_coord_to_glob_indx(gdinfo_t *gdinfo,
 {
   int is_here = 0;
 
-  int si_glob = 0;
-  int sj_glob = 0;
-  int sk_glob = 0;
+  //NOTE si_glob sj_glob sk_glob must less -3. due to ghost points length is 3.
+  int si_glob = -1000;
+  int sj_glob = -1000;
+  int sk_glob = -1000;
   float sx_inc = 0.0;
   float sy_inc = 0.0;
   float sz_inc = 0.0;
@@ -2498,8 +2499,8 @@ int isPointInHexahedron_c(float px,  float py,  float pz,
  * Check whether the point is in the polyhedron.
  * Note: The hexahedron must be convex!
  */
-  float sign;
-  float len_p2f;
+  float sign = 0.0;
+  float len_p2f = 0.0;
   float p2f[3] = {0};
   float normal_unit[3] = {0};
   for(int i=0; i<6; i++)
