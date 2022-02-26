@@ -101,6 +101,6 @@ wav_ac_init(gdinfo_t *gdinfo,
                int number_of_levels);
 
 int
-PG_calcu(float *w_end, float *w_pre, gdinfo_t *gdinfo, float *PG, float dt);
+PG_calcu(float *w_end, float *w_pre, gdinfo_t *gdinfo, float *PG, float *Dis_accu, float dt);
 
 #endif

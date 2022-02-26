@@ -256,7 +256,7 @@ int main(int argc, char** argv)
 
   // print basic info for QC
   fprintf(stdout,"gdcurv info at topoid=%d,%d\n", mympi->topoid[0],mympi->topoid[1]); 
-  gd_print(gdcurv);
+  //gd_print(gdcurv);
 
 //-------------------------------------------------------------------------------
 //-- media generation or import

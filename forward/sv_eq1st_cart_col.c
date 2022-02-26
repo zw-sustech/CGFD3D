@@ -116,9 +116,12 @@ sv_eq1st_cart_col_allstep(
 
   // alloc free surface PGV and PGA
   float *PG = NULL;
+  // Dis_accu is Displacemen accumulation, be uesd for PGD calculaton.
+  float *Dis_accu = NULL;
   if (bdryfree->is_at_sides[CONST_NDIM-1][1] == 1)
   {
-    PG = (float *) fdlib_mem_calloc_1d_float(6*gdinfo->ny*gdinfo->nx,0.0,"PG malloc");
+    PG = (float *) fdlib_mem_calloc_1d_float(CONST_NDIM_3*gdinfo->ny*gdinfo->nx,0.0,"PG malloc");
+    Dis_accu = (float *) fdlib_mem_calloc_1d_float(CONST_NDIM*gdinfo->ny*gdinfo->nx,0.0,"Dis_accu malloc");
   }
   // calculate conversion matrix for free surface
   if (bdryfree->is_at_sides[CONST_NDIM-1][1] == 1)
@@ -372,7 +375,7 @@ sv_eq1st_cart_col_allstep(
     // calculate PGV and PGA for each surface at each stage
     if (bdryfree->is_at_sides[CONST_NDIM-1][1] == 1)
     {
-        PG_calcu(w_end, w_pre, gdinfo, PG, dt);
+        PG_calcu(w_end, w_pre, gdinfo, PG, Dis_accu, dt);
     }
     //-- recv by interp
     io_recv_keep(iorecv, w_end, it, wav->ncmp, wav->siz_icmp);
