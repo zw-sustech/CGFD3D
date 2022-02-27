@@ -44,12 +44,15 @@ CGFD3D supports simulating wave propagation in following media:
 More complex media will be implemented in the future.
 
 %===============================================================================
-\section{Equivalent Medium Parameterization} \label{equivalent_method} 
+\section{Medium Parameterization Methods} \label{equivalent_method} 
 %===============================================================================
+
+One parameter the user should determine but the meaning is not so straightfowrad is ``medium parameterization method''.
+We explain this concept first to ease description of the medium input in following chapters.
 
 If there are topographic interfaces with strong velocity contrast, 
 medium paramters at a grid point directly taking values according to its coordinate in the input velocity model
- will result in stair-case representation of the interfaces, introuce interface-related errors and cause stong artificial diffraction.
+ will result in stair-case representation of the interfaces, introduce interface-related errors and cause stong artificial diffraction.
 One advance feathure of CGFD3D is to evaluate equivalent medium parameters at grid points 
 to accurately represent the location of the interface inside a grid cell 
 and realize subgrid resolution of the layer velocity models.
@@ -87,8 +90,6 @@ averaging of difference medium parameters for different medium types (Table~\ref
 
 \begin{table}[h!]
 \centering
-\caption{Medium parameterization on difference parameters for different medium types.}
-\label{table_parameterization}
 \begin{tabular}{| c | c | c | c | c |}
 \hline
    medium type               &   loc$^L$   &   ari$^A$   & har$^H$  & tti$^T$ \\
@@ -106,6 +107,8 @@ averaging of difference medium parameters for different medium types (Table~\ref
    \verb|elastic_tti_*|      &    all$^L$  &   all$^A$   &$C_{ij}^H$, $\rho^A$ & todo \\
 \hline
 \end{tabular}
+\caption{Medium parameterization on difference parameters for different medium types.}
+\label{table_parameterization}
 \end{table}
 
 %\begin{table}[h!]
