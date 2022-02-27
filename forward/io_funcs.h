@@ -335,4 +335,7 @@ iorecv_print(iorecv_t *iorecv);
 int
 PG_slice_output(float *PG,  gdinfo_t *gdinfo, char *output_dir, char *frame_coords, int* topoid);
 
+int
+io_get_nextline(FILE *fp, char *str, int length);
+
 #endif

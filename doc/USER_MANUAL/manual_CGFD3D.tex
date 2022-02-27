@@ -26,11 +26,20 @@
 \usepackage{mathrsfs}
 \usepackage[colorlinks, citecolor=blue, linkcolor=black, anchorcolor=black]{hyperref}
 \usepackage[dvipsnames,usenames]{xcolor}
+
+\usepackage[list=true]{subcaption}
+
 % colors to show the corrections
 \definecolor{light-gray}{rgb}{0.7,0.7,0.7}
 \definecolor{dark-gray}{rgb}{0.1,0.1,0.3}
 \definecolor{light-blue}{rgb}{0.7,0.7,0.9}
 \definecolor{dark-blue}{rgb}{0.2,0.2,0.5}
+
+\definecolor{codeblue}{rgb}{0.5,0.5,0.7}
+\definecolor{codegreen}{rgb}{0,0.6,0}
+\definecolor{codegray}{rgb}{0.5,0.5,0.5}
+\definecolor{codepurple}{rgb}{0.58,0,0.82}
+\definecolor{backcolour}{rgb}{0.95,0.95,0.92}
 
 %code
 \usepackage{listings}
@@ -45,6 +54,7 @@
     stringstyle=\rmfamily\slshape\color[RGB]{128,0,0},   
     showstringspaces=false,                                                          
     basicstyle=\small\ttfamily, %\scriptsize%\tiny%\footnotesize  
+    belowcaptionskip=0.5\baselineskip,
     breaklines=true
 }
 
@@ -137,7 +147,7 @@
 %\par\end{center}
 
 
-\title{\textbf{CGFD3D-elastic}\\
+\title{\textbf{CGFD3D Seismic Wave Simulation Program}\\
        \textbf{User Manual}}
  
 
@@ -164,11 +174,11 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 %\include{01_introduction}
-\include{grid}
+\include{chap_grid}
 
-\include{07_media}
+\include{chap_media}
 
-\include{source}
+\include{chap_source}
 
 \include{copyright}
 

@@ -1679,3 +1679,27 @@ PG_slice_output(float *PG, gdinfo_t *gdinfo, char *output_dir, char *frame_coord
     }
   return 0;
 }
+
+/*
+ * get next non-comment line
+ */
+
+int
+io_get_nextline(FILE *fp, char *str, int length)
+{
+  int ierr = 0;
+
+  do
+  {
+    if (fgets(str, length, fp) == NULL)
+    {
+      ierr = 1;
+      return ierr;
+    }
+  } while (str[0] == '#' || str[0] == '\n');
+
+  // for debug:
+  //fprintf(stdout," --return: %s\n", str);
+
+  return ierr;
+}

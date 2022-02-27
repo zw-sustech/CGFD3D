@@ -85,6 +85,23 @@ src_coord_to_local_indx(gdinfo_t *gdinfo,
                         float *restrict wrk3d);
 
 int
+src_read_locate_file(gdinfo_t *gdinfo,
+                     gd_t     *gd,
+                     src_t    *src,
+                     char     *in_src_file,
+                     float     t0,
+                     float     dt,
+                     int       max_stage,
+                     float    *rk_stage_time,
+                     int       npoint_half_ext,
+                     MPI_Comm  comm,
+                     int       myid,
+                     int       verbose);
+
+float
+src_cal_wavelet(float t, char *wavelet_name, float *wavelet_coefs);
+
+int
 src_set_by_par(gdinfo_t *gdinfo,
                gd_t *gdcurv,
                src_t    *src,
@@ -154,6 +171,10 @@ void
 angle2moment(float strike, float dip, float rake, float* source_moment_tensor);
 
 int
+src_muDA_to_moment(float strike, float dip, float rake, float mu, float D, float A,
+          float *mxx, float *myy, float *mzz, float *myz, float *mxz, float *mxy);
+
+int
 src_coord2index(float sx, float sy, float sz,
                 int nx, int ny, int nz,
                 int ni1, int ni2, int nj1, int nj2, int nk1, int nk2,
@@ -199,5 +220,8 @@ src_set_time(src_t *src, int it, int istage);
 void
 src_cal_norm_delt3d(float *delt, float x0, float y0, float z0,
                     float rx0, float ry0, float rz0, int LenDelt);
+
+int
+src_print(src_t *src, int verbose);
 
 #endif

@@ -390,64 +390,20 @@ int main(int argc, char** argv)
 //-------------------------------------------------------------------------------
 //-- source import or locate on fly
 //-------------------------------------------------------------------------------
-  
-  if (par->source_input_itype == PAR_SOURCE_FILE)
-  {
-    char fnm_suffix[250] = { 0 } ;
-    int  n = strlen(par->source_input_file);
-    strncpy(fnm_suffix,par->source_input_file+n-6,6);
-    if(strcmp(fnm_suffix,"anasrc")==0)
-    {
-      if (myid==0) fprintf(stdout,"***input source type is analysis***\n");
-      
-      src_read_locate_anasrc(gdinfo, gdcurv, src,
-                             par->source_input_file,
-                             t0,
-                             dt,
-                             fd->num_rk_stages, fd->rk_rhs_time,
-                             fd->fdx_max_half_len,
-                             comm,
-                             myid,
-                             verbose);
-    }
-    if(strcmp(fnm_suffix,"valsrc")==0)
-    {
-      if (myid==0) fprintf(stdout,"***input source type is value sample***\n");
 
-      src_read_locate_valsrc(gdinfo, gdcurv, src,
-                             par->source_input_file,
-                             t0,
-                             dt,
-                             fd->num_rk_stages, fd->rk_rhs_time,
-                             fd->fdx_max_half_len,
-                             comm,
-                             myid,
-                             verbose);
-    }
-  }
-  else
-  {
-    if (myid==0) fprintf(stdout,"set source using info from par file ...\n"); 
+  src_read_locate_file(gdinfo, gdcurv, src,
+                       par->source_input_file,
+                       t0,
+                       dt,
+                       fd->num_rk_stages, fd->rk_rhs_time,
+                       fd->fdx_max_half_len,
+                       comm,
+                       myid,
+                       verbose);
 
-    src_set_by_par(gdinfo, gdcurv, src,
-                   t0, dt,
-                   fd->num_rk_stages, fd->rk_rhs_time,
-                   fd->fdx_max_half_len,
-                   par->source_name,
-                   par->source_number,
-                   par->source_index,
-                   par->source_inc,
-                   par->source_coords,
-                   par->source_force_vector,
-                   par->source_force_actived,
-                   par->source_moment_tensor,
-                   par->source_moment_actived,
-                   par->wavelet_name,
-                   par->wavelet_coefs,
-                   par->wavelet_tstart,
-                   par->wavelet_tend,
-                   comm, myid, verbose);
-  }
+  // print basic info for QC
+  fprintf(stdout,"src info at topoid=%d,%d\n", mympi->topoid[0],mympi->topoid[1]); 
+  src_print(src, verbose);
 
   /*
   if (par->is_export_source==1)
