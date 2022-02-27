@@ -64,28 +64,34 @@ and also the curvilinear grid for high accurate calculation with surface topogra
 As shown in List~\ref{lst_grid_json}, user needs to set following parameters
 related to the grid in .json file:
 \begin{itemize}
-  \item \item \verb|grid_generation_method|: how the grid is generated.
+  \item \verb|grid_generation_method|: \\
+    how the grid is generated.
     There are current three possible methods:
 
     \begin{itemize}
-      \item \verb|import|: import previoused generated curvilinear grid, 
+      \item \verb|import|: \\
+        import previoused generated curvilinear grid, 
         thus no need to re-generate grid for repeated run. 
         select this option and give the folder of the exported curvilinear grid, e.g.:  \\
         \verb|"import" : "/home/user/prj/grid"| 
 
-      \item \verb|cartesian|: generate Cartesian grid, see next section for details.
+      \item \verb|cartesian|: \\
+        generate Cartesian grid, see next section for details.
 
-      \item \verb|layer_interp|: generate general curvilinear grid, see later section for details.
+      \item \verb|layer_interp|: \\
+        generate general curvilinear grid, see later section for details.
     \end{itemize}
 
-  \item \verb|is_export_grid|: if the coordiantes of the curvilinear grid are exported 
+  \item \verb|is_export_grid|: \\
+    if the coordiantes of the curvilinear grid are exported 
          for display purpose or reuse for later calculation without re-generateion of the curvilinear grid.
       \begin{itemize}
         \item 0: do not export,
         \item 1: export.
       \end{itemize}
 
-  \item \verb|grid_export_dir|: set the output dir if \verb|is_export_grid : 1|.
+  \item \verb|grid_export_dir|: \\
+    set the output dir if \verb|is_export_grid : 1|.
 \end{itemize}
 
 %===============================================================================
@@ -141,10 +147,11 @@ with given number of cells between interfaces, which we name as \verb|layer_inte
 To use \verb|layer_interp| to generate the curvilinear grid,
 we should provide following informations in the .json file (List~\ref{lst_curv}):
 \begin{itemize}
-  \item \verb|in_grid_layer_file|: the .gdlay file that represents the curvilinear grid using
+  \item \verb|in_grid_layer_file|: \\
+    the .gdlay file that represents the curvilinear grid using
       serveral topographic grid interfaces and number of cells between interfaces.
       Please see Section \ref{gridlayerinterp} of the file format description. 
-  \item \verb|refine_factor|: 
+  \item \verb|refine_factor|: \\
       The .gdlay file describes a whole curvinear grid with 
       pre-defined $nx,ny,nz$, number of grid points, and grid spacings.
       If we want to use a smaller grid spacing (denser grid) or larger grid spacing (corser grid),
@@ -156,7 +163,7 @@ we should provide following informations in the .json file (List~\ref{lst_curv})
               every two or three points.
       \end{itemize}
       This parameter must be an integer and cannot be zero.
-  \item \verb|horizontal_start_index| and \verb|vertical_last_to_top|: 
+  \item \verb|horizontal_start_index| and \verb|vertical_last_to_top|: \\ 
     We can also use a smaller part of the total .gdlay grid in simulation .
     To do so, we need to tell the program the index of the starting point in the .gdlay to be used.
     Because CGFD3D uses a z-axis positive upward coordinate system, 
@@ -165,23 +172,24 @@ we should provide following informations in the .json file (List~\ref{lst_curv})
     while end points of the cut grid to that of the .gdlay through \verb|vertical_last_to_top|.
     E.g.,
     \begin{itemize}
-      \item \verb|"vertical_last_to_top" : 0|:
+      \item \verb|"vertical_last_to_top" : 0|: \\
           the last layer along 3rd-dim of the cut grid conincides with the free surface in the .gdlay.
-      \item \verb|"vertical_last_to_top" : 40|:
+      \item \verb|"vertical_last_to_top" : 40|: \\
           the last layer along 3rd-dim of the cut grid conincides with 
             the last 40 points along 3rd-dim in the .gdlay.
     \end{itemize}
     Note: if used with resampling by \verb|refine_factor|,
       there should be at least three points (for current DRP/opt MacCormack scheme) left
           outside the resulting computational grid as the ghost points,
-          thus the \verb|horizontal_start_index| should be set to ensure this condition satisfied.
-    E.g.:
+          thus the \\
+          \verb|horizontal_start_index| should be set to ensure this condition satisfied, e.g.:
     \begin{itemize}
       \item If you do not resample, the minimum value of \verb|horizontal_start_index| is 3;
       \item If you do two or three times  downsampling,
           the minimum value of \verb|horizontal_start_index| is 6 or 10;
       \item If you do two or three times interpolating,
         the minimum value of \verb|horizontal_start_index| is 2 or 1.
+    \end{itemize}
 \end{itemize}
 
 
@@ -222,13 +230,16 @@ we should provide following informations in the .json file (List~\ref{lst_curv})
 An example of .gdlay is shown in Listing~\ref{lst_grid_gdlay} and Figure~\ref{fig_gdlay}.
 The detailed format of the .gdlay is:
 \begin{itemize}
-  \item The first line: the number of grid interfaces ($NI$, 4 in this example).
-  \item The second line: number of cells of each layer
+  \item The first line: \\
+    the number of grid interfaces ($NI$, 4 in this example).
+  \item The second line: \\
+    number of cells of each layer
       (the space between two grid interfaces is called a layer).
     There are 43 cells between the 1st and 2nd grid interfaces,
       10 between 2nd and 3rd interfaces,
       10 between 3rd and 4th interfaces in this example.
- \item The third line: $NI-1$ int values to set if the grid spacing along the 3rd-dim is equal:
+ \item The third line: \\
+   $NI-1$ int values to set if the grid spacing along the 3rd-dim is equal:
    \begin{itemize}
      \item 1: is equal, thus the grid spacing of the 3rd-dim is easily calculated by the two points
          of the grid interfaces in the .gdlay and number of cells of this layer specified in previous line.
@@ -241,7 +252,8 @@ The detailed format of the .gdlay is:
    CGFD3D will first generate the grid of the grid layers with equal grid spacing, 
    then generate rest grid between these equal-spacing layers.
    Thus any layer of ``0'' equal value, should have both ``1''  layers above and below it.
-  \item The fourth line: two int values $NX$ and $NY$,
+  \item The fourth line: \\
+    two int values $NX$ and $NY$,
         the number of horizontal grid points of each grid interfaces 
          of this .gdlay file. The numbers are same for all the grid interfaces.
          %thus are given once in this line for all the interfaces.

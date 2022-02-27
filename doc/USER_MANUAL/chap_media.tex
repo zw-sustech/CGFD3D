@@ -58,19 +58,22 @@ to accurately represent the location of the interface inside a grid cell
 and realize subgrid resolution of the layer velocity models.
 CGFD3D supports various medium parameterization approaches:
 \begin{itemize}
-\item loc: abbrevation of direct location, which is the simplest and most widely used one. 
+\item loc: \\
+  abbrevation of direct location, which is the simplest and most widely used one. 
       In this approach, the medium parameter of a grid point,
       is the value just at that ccoordinate position
       in the input velocity model. In terms of processing time,
       LOC method is fastest comparing to rest methods.
-\item ari: abbrevation of volume arithmetic averaging (add ref) as
+\item ari: \\
+  abbrevation of volume arithmetic averaging (add ref) as
   \begin{align}
     \left<var\right> = \frac{1}{\Delta V} 
             \int_{k-1/2}^{k+1/2} \int_{j-1/2}^{j+1/2} \int_{i-1/2}^{i+1/2} var~dx dy dz,
   \end{align}
   which evaluats an averaging value for all the medium parameters
     in the cell volume representing by the grid point.
-\item har: abbrevation of volume harmonic averaging for medium modulus as 
+\item har: \\
+  abbrevation of volume harmonic averaging for medium modulus as 
   \begin{align}
     \left<var\right>^H = \frac{\Delta V}
       {\int_{k-1/2}^{k+1/2} \int_{j-1/2}^{j+1/2} \int_{i-1/2}^{i+1/2} \frac{1}{var} dx dy dz},
@@ -79,7 +82,8 @@ CGFD3D supports various medium parameterization approaches:
   while and volume arithmetic average for density as proposed by (ref).
   The approach does not alter medium type,
     e.g., isotropic model is still an isotropic one, after parametrization.
-\item tti: abbrevation of tiled transversely isotropic equivalent medium approach (add ref), 
+\item tti: \\
+  abbrevation of tiled transversely isotropic equivalent medium approach (add ref), 
         which evaluats an effictive TTI representation of the thin layers inside the cell volume representing by the grid point.
         The approach does alter medium type, e.g., isotropic model becomes a TTI anisotropic one, after parametrization.
 \end{itemize}
@@ -195,7 +199,8 @@ averaging of difference medium parameters for different medium types (Table~\ref
 
 There are several medium related keys in the main par .josn file (List~\ref{lst_medium_json}),
 \begin{itemize}
-\item \verb|medium|: major block for medium input, tells the program:
+\item \verb|medium|: \\
+  major block for medium input, tells the program:
   \begin{itemize}
 
   \item \texttt{type} determins the solver equation, that is,
@@ -212,15 +217,19 @@ There are several medium related keys in the main par .josn file (List~\ref{lst_
     There are four possible ways:
     \texttt{import}, \texttt{code}, \texttt{infile\_layer} or \texttt{infile\_grid}.
     \begin{itemize}  
-      \item \texttt{code}: Choose this flag if you want to give the media by code.
+      \item \texttt{code}: \\
+        Choose this flag if you want to give the media by code.
                  You should edit \textbf{forward/md\_t.c} file and recompile the code.
-      \item \texttt{infile\_layer}: If you want to give media by the intereface line,
+      \item \texttt{infile\_layer}: \\
+        If you want to give media by the intereface line,
           this option should be helpful. The media parameters are given by the \textbf{md3lay} file,
           and the file format is shown in Section \ref{md3lay} 
-      \item \texttt{infile\_grid}: If you want to give media by a given grid media,
+      \item \texttt{infile\_grid}: \\
+        If you want to give media by a given grid media,
           this option should be helpful. The media parameters are given by the \textbf{md3grd} file,
           the file format is shown in Section \ref{md3grd}.
-      \item \texttt{import}: If you already generated media from the above three options,
+      \item \texttt{import}: \\
+        If you already generated media from the above three options,
         and do not want to re-generate media, 
         select this option and give the folder of the exported media. 
     \end{itemize}
@@ -232,15 +241,18 @@ There are several medium related keys in the main par .josn file (List~\ref{lst_
         please see Section \ref{equivalent_method} for detail.
   \end{itemize}
    
-\item \verb|is_export_media|: if the discreted medium parameters at FD grid points are exported 
+\item \verb|is_export_media|: \\
+  if the discreted medium parameters at FD grid points are exported 
        for display purpose or reuse for later calculation without re-discrete media calculation.
     \begin{itemize}
       \item 0: do not export discrete media,
       \item 1: export discrete media.
     \end{itemize}
-\item \verb|media_export_dir|: set the output dir if \verb|is_export_media : 1|.
+\item \verb|media_export_dir|: \\
+  set the output dir if \verb|is_export_media : 1|.
   
-\item \verb|visco_config|: block for attuantion settings.
+\item \verb|visco_config|: \\
+  block for attuantion settings.
   If this block is enabled (appeared in the .json),
     the attuation will be implemented with following two parameters (add Grave's ref):
   \begin{itemize}
@@ -299,23 +311,30 @@ The detailed format of the .md3lay is:
 \begin{itemize}
   \item The first line: sets the medium type, which can be
     \begin{itemize}
-    \item \verb|one_component|: there is only a single medium parameter in this file.
-    \item \verb|acoustic_isotropic|: two parameters $\rho$ and Vp.
-    \item \verb|elastic_isotropic|: three parameters $\rho$, Vp, Vs.
-    \item \verb|elastic_vti_prem|:  density and five VTI parameters same to PREM model,
+    \item \verb|one_component|: \\
+      there is only a single medium parameter in this file.
+    \item \verb|acoustic_isotropic|: \\
+      two parameters $\rho$ and Vp.
+    \item \verb|elastic_isotropic|: \\
+      three parameters $\rho$, Vp, Vs.
+    \item \verb|elastic_vti_prem|: \\
+      density and five VTI parameters same to PREM model,
        $\rho$, vph, vpv, vsh, vsv, $\eta$. Please see \citep{dziewonski1981preliminary} for detail.
-    \item \verb|elastic_vti_thomsen|: density and five Thomsen parameters,
+    \item \verb|elastic_vti_thomsen|: \\
+      density and five Thomsen parameters,
         $\rho$, $\alpha_0$, $\beta_0$, $\epsilon$, $\delta$, $\gamma$.
         Please see \citep{ thomsen1986weak} for detail.
-    \item \verb|elastic_vti_cij|: density and five VTI parameters given by $C_{ij}$,
+    \item \verb|elastic_vti_cij|: \\
+      density and five VTI parameters given by $C_{ij}$,
          $\rho$, $c_{11}$, $c_{33}$, $c_{55}$, $c_{66}$, $c_{13}$. 
-    \item \verb|elastic_tti_thomsen|: density ,five Thomsen parameters, two angle of symmetric axis.
+    \item \verb|elastic_tti_thomsen|: \\
+      density ,five Thomsen parameters, two angle of symmetric axis.
          $\rho$, $\alpha_0$, $\beta_0$, $\epsilon$, $\delta$, $\gamma$, $\Phi$, $\theta$.
          Please see \citep{thomsen1986weak} for detail.
-    \item \verb|elastic_tti_bond|:
+    \item \verb|elastic_tti_bond|: \\
           $\rho$, $c_{11}$, $c_{33}$, $c_{55}$, $c_{66}$, $c_{13}$, $\Phi$, $\theta$.
           $\Phi$ is azimuth angle, $\theta$ is the dip angle.
-    \item \verb|elastic_aniso_cij|:
+    \item \verb|elastic_aniso_cij|: \\
            $\rho$, $c_{11}$, $c_{12}$, $c_{13}$, $c_{14}$, $c_{15}$, $c_{16}$,  
                                       $c_{22}$, $c_{23}$, $c_{24}$, $c_{25}$, $c_{26}$, 
                                       $c_{33}$, $c_{34}$, $c_{35}$, $c_{36}$, $c_{44}$,
@@ -354,7 +373,7 @@ The detailed format of the .md3lay is:
   where \texttt{*\_grad} and \texttt{*\_pow} are the coefficient and power of the parameters
     in z-direction as in following equation:
    \begin{equation*}
-     {\rm{value}^{\rm{grid~point}} = \rm{value}^{\rm{interface}}
+     \rm{value}^{\rm{grid~point}} = \rm{value}^{\rm{interface}}
         + (z^{\rm{interface}}-z^{\rm{grid~point}})^{var\_pow} * var\_grad.
    \end{equation*}
    Please notice that the z-axis is positive upward in CGFD3D.
@@ -415,10 +434,12 @@ elastic_isotropic
 An example of .md3grd is shown in Listing~\ref{lst_medium_md3grd}. % and Figure~\ref{fig_md3grd}.
 The detailed format of the .md3grd is:
 \begin{itemize}
-  \item The first line: sets the medium type, similar to that of .md3lay. 
+  \item The first line: \\
+    sets the medium type, similar to that of .md3lay. 
      Please see descriptions in \ref{md3lay}.
 
-   \item The second line is the number of layer or interfaces (\texttt{NL}) (3 in this example).
+   \item The second line: \\
+     is the number of layer or interfaces (\texttt{NL}) (3 in this example).
      If \texttt{NL} = 1, the model becomes the standard grid model that
      only has descrete sampling value along depth but without interfaces.
      If \texttt{NL} > 1, the equivalent medium parameterization can be applied across the interfaces.
@@ -426,7 +447,7 @@ The detailed format of the .md3grd is:
    \item The next \texttt{NL} numbers (either at the same line or \texttt{NL} lines)
      set the number of grids in the z-direction of \texttt{NL} layer.
   
-   \item The next line:
+   \item The next line: \\
       six values (two integers and four float) specify the horizontal sampling points as:\\
       \texttt{NX} ~~ \texttt{NY} ~~ \texttt{X0} ~~ \texttt{Y0} ~~ \texttt{DX} ~~ \texttt{DY}, \\
       where
