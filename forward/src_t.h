@@ -101,60 +101,6 @@ src_read_locate_file(gdinfo_t *gdinfo,
 float
 src_cal_wavelet(float t, char *wavelet_name, float *wavelet_coefs);
 
-int
-src_set_by_par(gdinfo_t *gdinfo,
-               gd_t *gdcurv,
-               src_t    *src,
-               float t0,
-               float dt,
-               int   max_stage,
-               float *rk_stage_time,
-               int   npoint_half_ext,
-               char  *in_source_name,
-               int   in_num_of_src,
-               int   **source_index,
-               float **source_inc,
-               float **source_coords,
-               float **force_vector, 
-               int   *source_force_actived,
-               float **moment_tensor,
-               int   *source_moment_actived,
-               char  **wavelet_name,
-               float **wavelet_coefs,
-               float *wavelet_tstart,
-               float *wavelet_tend,
-               MPI_Comm comm, 
-               int myid,
-               int verbose);
-
-int
-src_read_locate_valsrc(gdinfo_t *gdinfo,
-                       gd_t *gdcurv,
-                       src_t    *src,
-                       char *pfilepath,
-                       float t0,
-                       float dt,
-                       int   max_stages,
-                       float *rk_stage_time,
-                       int   npoint_half_ext,
-                       MPI_Comm comm,
-                       int myid,
-                       int verbose);
-
-int
-src_read_locate_anasrc(gdinfo_t *gdinfo,
-                       gd_t *gdcurv,
-                       src_t    *src,
-                       char *pfilepath,
-                       float t0,
-                       float dt,
-                       int   max_stages,
-                       float *rk_stage_time,
-                       int   npoint_half_ext,
-                       MPI_Comm comm,
-                       int myid,
-                       int verbose);
-
 float 
 fun_ricker(float t, float fc, float t0);
 

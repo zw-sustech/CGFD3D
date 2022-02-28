@@ -526,12 +526,13 @@ src_read_locate_file(gdinfo_t *gdinfo,
         for (int istage=0; istage<max_stage; istage++)
         {
           int iptr = iptr_it + istage;
-          // time relative to start time of this source, considering diff from int conversion
-          float t = it * dt + rk_stage_time[istage] * dt - t_shift;
 
           // cal stf for given wavelet name
           if (in_stf_given==0)
           {
+            // time relative to start time of this source, considering diff from int conversion
+            float t = it_to_it1 * dt + rk_stage_time[istage] * dt - t_shift;
+
             float stf_val = src_cal_wavelet(t,wavelet_name,wavelet_coefs);
             if (force_actived==1) {
               src->Fx[iptr]  = stf_val * fx;
@@ -550,6 +551,9 @@ src_read_locate_file(gdinfo_t *gdinfo,
           // interp for input values
           else
           {
+            // time relative to start time of this source, considering diff from int conversion
+            float t = it * dt + rk_stage_time[istage] * dt - t_shift;
+
             // interp1d order
             int order = 3;     
 
@@ -688,7 +692,7 @@ src_cal_norm_delt3d(float *delt, float x0, float y0, float z0,
  */
 
 // ricker and it deriv.
-  float 
+float 
 fun_ricker(float t, float fc, float t0)
 {
   //float pi = acos(-1.0);
@@ -699,7 +703,7 @@ fun_ricker(float t, float fc, float t0)
   return v;
 }
 
-  float 
+float 
 fun_ricker_deriv(float t, float fc, float t0)
 {
   //float pi = acos(-1.0);
@@ -710,7 +714,7 @@ fun_ricker_deriv(float t, float fc, float t0)
   return v;
 }
 //gauss and it deriv
-  float
+float
 fun_gauss(float t, float a, float t0)
 {
   float f;
@@ -718,7 +722,7 @@ fun_gauss(float t, float a, float t0)
   return f;
 }
 
-  float
+float
 fun_gauss_deriv(float t, float a, float t0)
 {
   float f;
