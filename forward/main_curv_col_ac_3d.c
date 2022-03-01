@@ -427,7 +427,8 @@ int main(int argc, char** argv)
 
   // receiver: need to do
   io_recv_read_locate(gdinfo, gdcurv, iorecv,
-                      nt_total, wav->ncmp, par->in_station_file);
+                      nt_total, wav->ncmp, par->in_station_file,
+                      comm, myid, verbose);
 
   // line
   io_line_locate(gdinfo, gdcurv, ioline,

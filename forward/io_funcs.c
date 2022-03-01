@@ -236,7 +236,10 @@ io_recv_read_locate(gdinfo_t *gdinfo,
                     iorecv_t  *iorecv,
                     int       nt_total,
                     int       num_of_vars,
-                    char *in_filenm)
+                    char *in_filenm,
+                    MPI_Comm  comm,
+                    int       myid,
+                    int       verbose)
 {
   FILE *fp;
   char line[500];
@@ -258,59 +261,54 @@ io_recv_read_locate(gdinfo_t *gdinfo,
 
   //fprintf(stdout, "-- nr_loc=%d, nr_point=%d, nr=%d\n", nr_loc, nr_point, nr);
 
-  if (nr_loc > 0) {
-    fprintf(stderr, "ERROR: nr_loc=%d, coord loc not implement yet\n", nr_loc);
-    fflush(stderr);
-    exit(1);
-  }
-
   // check fail in the future
-  iorecv_one_t *recvone = (iorecv_one_t *)
-                                      malloc(nr * sizeof(iorecv_one_t));
+  iorecv_one_t *recvone = (iorecv_one_t *)malloc(nr * sizeof(iorecv_one_t));
 
   // read coord and locate
 
   int ir=0;
   int nr_this = 0; // in this thread
 
-  //for (ir=0; ir<nr_loc; ir++)
-  //{
-  //  float rx, ry, rz;
-  //  // read one line
-  //  fgets(line,500,fp);
-  //  // get values
-  //  sscanf(line, "%s %f %f %f", sta_name[ir], &rx, &ry, &rz);
-  //  // locate
-  //  if (is_coord_in_phys_region(rx,ry,rz,nx,ny,nz,ni1,ni2,nj1,nj2,nk1,nk2,x3d,y3d,z3d)==1)
-  //  {
-  //    int ptr_this = nr_this * CONST_NDIM;
-  //    sprintf(sta_name[nr_this], "%s", sta_name[ir]);
-  //    sta_coord[ptr_this+0]=rx;
-  //    sta_coord[ptr_this+1]=ry;
-  //    sta_coord[ptr_this+2]=rz;
-  //    // set point and shift
-
-  //    nr_this += 1;
-  //  }
-  //}
-
-  // read index and locate
-
-  for (ir=0; ir<nr_point; ir++)
+  for (ir=0; ir<nr_loc; ir++)
   {
     float rx, ry, rz;
-    int ix, iy, iz;
-    int i_local, j_local, k_local;
+    float rx_inc, ry_inc, rz_inc; // shift in computational space grid
+    int ix, iy, iz; // global index
+
     // read one line
     fgets(line,500,fp);
-    // get values, use float to allow not-at-point reciever
+
+    // get values
     sscanf(line, "%s %g %g %g", recvone[ir].name, &rx, &ry, &rz);
-    ix = (int) (rx + 0.5);
-    iy = (int) (ry + 0.5);
-    iz = (int) (rz + 0.5);
-    //fprintf(stdout,"== in: %s %d %d %d\n", sta_name[ir],ix,iy,iz); fflush(stdout);
-    // locate
-    int ptr_this = nr_this * CONST_NDIM;
+
+    // convert coord to global index
+    if (gd->type == GD_TYPE_CURV)
+    {
+      gd_curv_coord_to_glob_indx(gdinfo,gd,rx,ry,rz,comm,myid,
+                             &ix,&iy,&iz,&rx_inc,&ry_inc,&rz_inc);
+    }
+    else if (gd->type == GD_TYPE_CART)
+    {
+      gd_cart_coord_to_glob_indx(gdinfo,gd,rx,ry,rz,comm,myid,
+                             &ix,&iy,&iz,&rx_inc,&ry_inc,&rz_inc);
+    }
+
+    // conver minus shift to plus to use linear interp with all grid in this thread
+    //    there may be problem if the receiver is located just bewteen two mpi block
+    //    we should exchange data first then before save receiver waveform
+    if (rx_inc < 0.0) {
+      rx_inc = 1.0 + rx_inc;
+      ix += 1;
+    }
+    if (ry_inc < 0.0) {
+      ry_inc = 1.0 + ry_inc;
+      iy += 1;
+    }
+    if (rz_inc < 0.0) {
+      rz_inc = 1.0 + rz_inc;
+      iz += 1;
+    }
+
     if (gd_info_gindx_is_inner(ix,iy,iz,gdinfo) == 1)
     {
       // convert to local index w ghost
@@ -322,6 +320,65 @@ io_recv_read_locate(gdinfo_t *gdinfo,
       iorecv_one_t *this_recv = recvone + nr_this;
 
       sprintf(this_recv->name, "%s", recvone[ir].name);
+
+      // get coord
+      this_recv->x = rx;
+      this_recv->y = ry;
+      this_recv->z = rz;
+      // set point and shift
+      this_recv->i=i_local;
+      this_recv->j=j_local;
+      this_recv->k=k_local;
+      this_recv->di = rx_inc;
+      this_recv->dj = ry_inc;
+      this_recv->dk = rz_inc;
+
+      this_recv->indx1d[0] = i_local   + j_local     * gd->siz_iy + k_local * gd->siz_iz;
+      this_recv->indx1d[1] = i_local+1 + j_local     * gd->siz_iy + k_local * gd->siz_iz;
+      this_recv->indx1d[2] = i_local   + (j_local+1) * gd->siz_iy + k_local * gd->siz_iz;
+      this_recv->indx1d[3] = i_local+1 + (j_local+1) * gd->siz_iy + k_local * gd->siz_iz;
+      this_recv->indx1d[4] = i_local   + j_local     * gd->siz_iy + (k_local+1) * gd->siz_iz;
+      this_recv->indx1d[5] = i_local+1 + j_local     * gd->siz_iy + (k_local+1) * gd->siz_iz;
+      this_recv->indx1d[6] = i_local   + (j_local+1) * gd->siz_iy + (k_local+1) * gd->siz_iz;
+      this_recv->indx1d[7] = i_local+1 + (j_local+1) * gd->siz_iy + (k_local+1) * gd->siz_iz;
+
+      //fprintf(stdout,"== ir_this=%d,name=%s,i=%d,j=%d,k=%d\n",
+      //      nr_this,sta_name[nr_this],i_local,j_local,k_local); fflush(stdout);
+
+      nr_this += 1;
+    }
+  }
+
+  // read index and locate
+
+  for (ir=0; ir<nr_point; ir++)
+  {
+    float rx, ry, rz;
+    int ix, iy, iz;
+    int i_local, j_local, k_local;
+    // read one line
+    fgets(line,500,fp);
+    // get values, use float to allow not-at-point reciever
+    sscanf(line, "%s %g %g %g", recvone[ir+nr_loc].name, &rx, &ry, &rz);
+
+    // do not take nearest value, but use smaller value
+    ix = (int) (rx + 0.0);
+    iy = (int) (ry + 0.0);
+    iz = (int) (rz + 0.0);
+
+    //fprintf(stdout,"== in: %s %d %d %d\n", sta_name[ir],ix,iy,iz); fflush(stdout);
+    // locate
+    if (gd_info_gindx_is_inner(ix,iy,iz,gdinfo) == 1)
+    {
+      // convert to local index w ghost
+      int i_local = gd_info_ind_glphy2lcext_i(ix,gdinfo);
+      int j_local = gd_info_ind_glphy2lcext_j(iy,gdinfo);
+      int k_local = gd_info_ind_glphy2lcext_k(iz,gdinfo);
+
+      int ptr_this = nr_this * CONST_NDIM;
+      iorecv_one_t *this_recv = recvone + nr_this;
+
+      sprintf(this_recv->name, "%s", recvone[ir+nr_loc].name);
 
       // get coord
       this_recv->x = gd_coord_get_x(gd,i_local,j_local,k_local);
