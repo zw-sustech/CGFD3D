@@ -25,7 +25,7 @@ typedef struct
   int   i;
   int   j;
   int   k;
-  int   indx1d;
+  int   indx1d[CONST_2_NDIM];
   float *seismo;
   char  name[CONST_MAX_STRLEN];
 } iorecv_one_t;

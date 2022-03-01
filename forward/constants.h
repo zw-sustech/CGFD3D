@@ -5,6 +5,7 @@
 #define CONST_NDIM   3
 #define CONST_NDIM_2 6 // 2 * ndim
 #define CONST_NDIM_3 9 // 3 * ndim
+#define CONST_2_NDIM 8 // ndim^3 = 8
 #define CONST_MAX_STRLEN 1024
 
 #ifndef M_PI

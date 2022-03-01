@@ -298,12 +298,16 @@ io_recv_read_locate(gdinfo_t *gdinfo,
 
   for (ir=0; ir<nr_point; ir++)
   {
+    float rx, ry, rz;
     int ix, iy, iz;
     int i_local, j_local, k_local;
     // read one line
     fgets(line,500,fp);
-    // get values
-    sscanf(line, "%s %d %d %d", recvone[ir].name, &ix, &iy, &iz);
+    // get values, use float to allow not-at-point reciever
+    sscanf(line, "%s %g %g %g", recvone[ir].name, &rx, &ry, &rz);
+    ix = (int) (rx + 0.5);
+    iy = (int) (ry + 0.5);
+    iz = (int) (rz + 0.5);
     //fprintf(stdout,"== in: %s %d %d %d\n", sta_name[ir],ix,iy,iz); fflush(stdout);
     // locate
     int ptr_this = nr_this * CONST_NDIM;
@@ -327,11 +331,18 @@ io_recv_read_locate(gdinfo_t *gdinfo,
       this_recv->i=i_local;
       this_recv->j=j_local;
       this_recv->k=k_local;
-      this_recv->di=0.0;
-      this_recv->dj=0.0;
-      this_recv->dk=0.0;
+      this_recv->di = rx - ix;
+      this_recv->dj = ry - iy;
+      this_recv->dk = rz - iz;
 
-      this_recv->indx1d = i_local + j_local * gd->siz_iy + k_local * gd->siz_iz;
+      this_recv->indx1d[0] = i_local   + j_local     * gd->siz_iy + k_local * gd->siz_iz;
+      this_recv->indx1d[1] = i_local+1 + j_local     * gd->siz_iy + k_local * gd->siz_iz;
+      this_recv->indx1d[2] = i_local   + (j_local+1) * gd->siz_iy + k_local * gd->siz_iz;
+      this_recv->indx1d[3] = i_local+1 + (j_local+1) * gd->siz_iy + k_local * gd->siz_iz;
+      this_recv->indx1d[4] = i_local   + j_local     * gd->siz_iy + (k_local+1) * gd->siz_iz;
+      this_recv->indx1d[5] = i_local+1 + j_local     * gd->siz_iy + (k_local+1) * gd->siz_iz;
+      this_recv->indx1d[6] = i_local   + (j_local+1) * gd->siz_iy + (k_local+1) * gd->siz_iz;
+      this_recv->indx1d[7] = i_local+1 + (j_local+1) * gd->siz_iy + (k_local+1) * gd->siz_iz;
 
       //fprintf(stdout,"== ir_this=%d,name=%s,i=%d,j=%d,k=%d\n",
       //      nr_this,sta_name[nr_this],i_local,j_local,k_local); fflush(stdout);
@@ -1422,15 +1433,38 @@ int
 io_recv_keep(iorecv_t *iorecv, float *restrict w4d,
              int it, int ncmp, int siz_icmp)
 {
+  float Lx1, Lx2, Ly1, Ly2, Lz1, Lz2;
+
   for (int n=0; n < iorecv->total_number; n++)
   {
     iorecv_one_t *this_recv = iorecv->recvone + n;
-    int iptr = this_recv->indx1d;
-    // need to implement interp, now just take value
-    for (int icmp=0; icmp < ncmp; icmp++) {
+    int *indx1d = this_recv->indx1d;
+
+    // get coef of linear interp
+    Lx2 = this_recv->di; Lx1 = 1.0 - Lx2;
+    Ly2 = this_recv->dj; Ly1 = 1.0 - Ly2;
+    Lz2 = this_recv->dk; Lz1 = 1.0 - Lz2;
+    for (int icmp=0; icmp < ncmp; icmp++)
+    {
       int iptr_sta = icmp * iorecv->max_nt + it;
-      this_recv->seismo[iptr_sta] = w4d[icmp*siz_icmp + iptr];
+      size_t iptr_cmp = icmp * siz_icmp;
+      this_recv->seismo[iptr_sta] = 
+          w4d[iptr_cmp + indx1d[0]] * Lx1 * Ly1 * Lz1
+        + w4d[iptr_cmp + indx1d[1]] * Lx2 * Ly1 * Lz1
+        + w4d[iptr_cmp + indx1d[2]] * Lx1 * Ly2 * Lz1
+        + w4d[iptr_cmp + indx1d[3]] * Lx2 * Ly2 * Lz1
+        + w4d[iptr_cmp + indx1d[5]] * Lx1 * Ly1 * Lz2
+        + w4d[iptr_cmp + indx1d[5]] * Lx2 * Ly1 * Lz2
+        + w4d[iptr_cmp + indx1d[6]] * Lx1 * Ly2 * Lz2
+        + w4d[iptr_cmp + indx1d[7]] * Lx2 * Ly2 * Lz2;
     }
+
+    // need to implement interp, flollowing just take value
+    //for (int icmp=0; icmp < ncmp; icmp++) {
+    //  int iptr_sta = icmp * iorecv->max_nt + it;
+    //  this_recv->seismo[iptr_sta] = w4d[icmp*siz_icmp + iptr];
+    //}
+    
   }
 
   return(0);
