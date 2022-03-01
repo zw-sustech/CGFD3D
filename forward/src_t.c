@@ -157,6 +157,7 @@ src_read_locate_file(gdinfo_t *gdinfo,
   // local
   FILE *fp =NULL;
   char str[500];
+  //char *in_source_name = (char *) malloc(sizeof(char)*500);
 
   // numbe of source, could be force and/or moment
   int in_num_source;
@@ -182,9 +183,9 @@ src_read_locate_file(gdinfo_t *gdinfo,
 
   // event name
   if (!io_get_nextline(fp, str,500)) {
+    sscanf(str,"%s",str);
     sprintf(src->evtnm,"%s",str);
   }
-
   // number of source
   if (!io_get_nextline(fp, str,500)) {
     sscanf(str,"%d",&in_num_source);

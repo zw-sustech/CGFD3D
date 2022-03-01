@@ -11,7 +11,7 @@ parfnm='../project/test.json';
 output_dir='../project/output';
 
 % which line to plot (start from index '1')
-lineid=2;
+lineid=1;
 
 % which receiver of the line to plot (start from index '0')
 recid=1;
@@ -27,14 +27,15 @@ flag_print=1;
 % read parameter file
 par=loadjson(parfnm);
 
-%judge source type
-if isfield(par.source_input,'in_par')
-    lineprefix=par.source_input.in_par.name;
-elseif isfield(par.source_input,'in_source_file')
-    fileID = fopen(par.source_input.in_source_file);
+fileID = fopen(par.in_source_file);
+lineprefix = fgetl(fileID);
+while(lineprefix(1) == "#")
     lineprefix = fgetl(fileID);
-end
+    if(lineprefix(1) ~= "#")
 
+        break;
+    end
+end
 
 % line name and receiver number
 linenm=par.receiver_line{lineid}.name;
