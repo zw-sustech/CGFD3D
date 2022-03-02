@@ -323,6 +323,15 @@ io_recv_output_sac(iorecv_t *iorecv,
                    char *err_message);
 
 int
+io_recv_output_sac_el_strain(iorecv_t *iorecv,
+                   float *restrict lam3d,
+                   float *restrict mu3d,
+                   float dt,
+                   char *evtnm,
+                   char *output_dir,
+                   char *err_message);
+
+int
 io_line_output_sac(ioline_t *ioline,
       float dt, char **cmp_name, char *evtnm, char *output_dir);
 

@@ -1588,6 +1588,96 @@ io_recv_output_sac(iorecv_t *iorecv,
             dt, dt, iorecv->max_nt, err_message);
     }
   }
+
+  return 0;
+}
+
+// calculate and output strain cmp for elastic medium
+//   do not find a better file to hold this func
+//   temporarily put here
+
+int
+io_recv_output_sac_el_strain(iorecv_t *iorecv,
+                   float *restrict lam3d,
+                   float *restrict mu3d,
+                   float dt,
+                   char *evtnm,
+                   char *output_dir,
+                   char *err_message)
+{
+  // use fake evt_x etc. since did not implement gather evt_x by mpi
+  float evt_x = 0.0;
+  float evt_y = 0.0;
+  float evt_z = 0.0;
+  float evt_d = 0.0;
+  char ou_file[CONST_MAX_STRLEN];
+
+  for (int ir=0; ir < iorecv->total_number; ir++)
+  {
+    iorecv_one_t *this_recv = iorecv->recvone + ir;
+    int iptr = this_recv->indx1d[0];
+
+    float lam = lam3d[iptr];
+    float mu  =  mu3d[iptr];
+
+    // cmp seq hard-coded, need to revise in the future
+    float *Txx = this_recv->seismo + 3 * iorecv->max_nt;
+    float *Tyy = this_recv->seismo + 4 * iorecv->max_nt;
+    float *Tzz = this_recv->seismo + 5 * iorecv->max_nt;
+    float *Tyz = this_recv->seismo + 6 * iorecv->max_nt;
+    float *Txz = this_recv->seismo + 7 * iorecv->max_nt;
+    float *Txy = this_recv->seismo + 8 * iorecv->max_nt;
+
+    float E1 = (lam + mu) / (mu * ( 3.0 * lam + 2.0 * mu));
+    float E2 = - lam / ( 2.0 * mu * (3.0 * lam + 2.0 * mu));
+    float E3 = 1.0 / mu;
+
+    // conver to strain per time step
+    for (int it = 0; it < iorecv->max_nt; it++)
+    {
+      float E0 = E2 * (Txx[it] + Tyy[it] + Tzz[it]);
+
+      Txx[it] = E0 - (E2 - E1) * Txx[it];
+      Tyy[it] = E0 - (E2 - E1) * Tyy[it];
+      Tzz[it] = E0 - (E2 - E1) * Tzz[it];
+      Tyz[it] = 0.5 * E3 * Tyz[it];
+      Txz[it] = 0.5 * E3 * Txz[it];
+      Txy[it] = 0.5 * E3 * Txy[it];
+    }
+
+    // output to sca file
+    sprintf(ou_file,"%s/%s.%s.%s.sac", output_dir, evtnm, this_recv->name, "Exx");
+    sacExport1C1R(ou_file,Txx,evt_x, evt_y, evt_z, evt_d,
+          this_recv->x, this_recv->y, this_recv->z,
+          dt, dt, iorecv->max_nt, err_message);
+
+    sprintf(ou_file,"%s/%s.%s.%s.sac", output_dir, evtnm, this_recv->name, "Eyy");
+    sacExport1C1R(ou_file,Tyy,evt_x, evt_y, evt_z, evt_d,
+          this_recv->x, this_recv->y, this_recv->z,
+          dt, dt, iorecv->max_nt, err_message);
+
+    sprintf(ou_file,"%s/%s.%s.%s.sac", output_dir, evtnm, this_recv->name, "Ezz");
+    sacExport1C1R(ou_file,Tzz,evt_x, evt_y, evt_z, evt_d,
+          this_recv->x, this_recv->y, this_recv->z,
+          dt, dt, iorecv->max_nt, err_message);
+
+    sprintf(ou_file,"%s/%s.%s.%s.sac", output_dir, evtnm, this_recv->name, "Eyz");
+    sacExport1C1R(ou_file,Tyz,evt_x, evt_y, evt_z, evt_d,
+          this_recv->x, this_recv->y, this_recv->z,
+          dt, dt, iorecv->max_nt, err_message);
+
+    sprintf(ou_file,"%s/%s.%s.%s.sac", output_dir, evtnm, this_recv->name, "Exz");
+    sacExport1C1R(ou_file,Txz,evt_x, evt_y, evt_z, evt_d,
+          this_recv->x, this_recv->y, this_recv->z,
+          dt, dt, iorecv->max_nt, err_message);
+
+    sprintf(ou_file,"%s/%s.%s.%s.sac", output_dir, evtnm, this_recv->name, "Exy");
+    sacExport1C1R(ou_file,Txy,evt_x, evt_y, evt_z, evt_d,
+          this_recv->x, this_recv->y, this_recv->z,
+          dt, dt, iorecv->max_nt, err_message);
+  } // loop ir
+
+  return 0;
 }
 
 int

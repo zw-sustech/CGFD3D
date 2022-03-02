@@ -632,6 +632,9 @@ int main(int argc, char** argv)
   io_recv_output_sac(iorecv,dt,wav->ncmp,wav->cmp_name,
                       src->evtnm,blk->output_dir,err_message);
 
+  io_recv_output_sac_el_strain(iorecv,md->lambda,md->mu,dt,
+                      src->evtnm,blk->output_dir,err_message);
+
   io_line_output_sac(ioline,dt,wav->cmp_name,src->evtnm,blk->output_dir);
 
 //-------------------------------------------------------------------------------
