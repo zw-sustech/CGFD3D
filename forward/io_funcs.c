@@ -298,15 +298,15 @@ io_recv_read_locate(gdinfo_t *gdinfo,
     //    we should exchange data first then before save receiver waveform
     if (rx_inc < 0.0) {
       rx_inc = 1.0 + rx_inc;
-      ix += 1;
+      ix -= 1;
     }
     if (ry_inc < 0.0) {
       ry_inc = 1.0 + ry_inc;
-      iy += 1;
+      iy -= 1;
     }
     if (rz_inc < 0.0) {
       rz_inc = 1.0 + rz_inc;
-      iz += 1;
+      iz -= 1;
     }
 
     if (gd_info_gindx_is_inner(ix,iy,iz,gdinfo) == 1)
