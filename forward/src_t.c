@@ -183,7 +183,6 @@ src_read_locate_file(gdinfo_t *gdinfo,
 
   // event name
   if (!io_get_nextline(fp, str,500)) {
-    sscanf(str,"%s",str);
     sprintf(src->evtnm,"%s",str);
   }
   // number of source

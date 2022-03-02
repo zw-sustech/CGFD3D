@@ -1789,6 +1789,13 @@ io_get_nextline(FILE *fp, char *str, int length)
     }
   } while (str[0] == '#' || str[0] == '\n');
 
+  // remove newline char
+  int len = strlen(str);
+
+  if (len > 0 && str[len-1] == '\n') {
+    str[len-1] = '\0';
+  }
+
   // for debug:
   //fprintf(stdout," --return: %s\n", str);
 
