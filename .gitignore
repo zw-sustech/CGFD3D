@@ -54,6 +54,6 @@ dkms.conf
 # test data and figure
 *.dat
 *.eps
-*.png
+#*.png
 *.*~
 project

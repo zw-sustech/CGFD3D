@@ -1,4 +1,6 @@
 
+% !TEX root=./manual_CGFD3D.tex
+
 \chapter{Input Layer or Grid Structure Models}\label{chapter-media}
 
 \markright{CHAPTER \ref{chapter-media} MEDIA}
@@ -65,7 +67,7 @@ CGFD3D supports various medium parameterization approaches:
       in the input velocity model. In terms of processing time,
       LOC method is fastest comparing to rest methods.
 \item ari: \\
-  abbrevation of volume arithmetic averaging (add ref) as
+  abbrevation of volume arithmetic averaging as
   \begin{align}
     \left<var\right> = \frac{1}{\Delta V} 
             \int_{k-1/2}^{k+1/2} \int_{j-1/2}^{j+1/2} \int_{i-1/2}^{i+1/2} var~dx dy dz,
@@ -79,11 +81,11 @@ CGFD3D supports various medium parameterization approaches:
       {\int_{k-1/2}^{k+1/2} \int_{j-1/2}^{j+1/2} \int_{i-1/2}^{i+1/2} \frac{1}{var} dx dy dz},
   \end{align}
   which evaluats an averaging value of medium modulus in the cell volume representing by the grid point,
-  while and volume arithmetic average for density as proposed by (ref).
+  while and volume arithmetic average for density as proposed by \citet{moczo_3d_2002,moczo_finite-difference_2014}.
   The approach does not alter medium type,
     e.g., isotropic model is still an isotropic one, after parametrization.
 \item tti: \\
-  abbrevation of tiled transversely isotropic equivalent medium approach (add ref), 
+  abbrevation of tiled transversely isotropic equivalent medium approach \citep{jiang2021tti}, 
         which evaluats an effictive TTI representation of the thin layers inside the cell volume representing by the grid point.
         The approach does alter medium type, e.g., isotropic model becomes a TTI anisotropic one, after parametrization.
 \end{itemize}
@@ -100,7 +102,7 @@ averaging of difference medium parameters for different medium types (Table~\ref
 \hline
    \verb|one_component|      &    all$^L$  &   all$^A$   & all$^H$  &  NA \\
 \hline
-   \verb|acoustic_isotropic| &    all$^L$  &   all$^A$   &$\kappa^H$, $\rho^A$ & todo \\
+   \verb|acoustic_isotropic| &    all$^L$  &   all$^A$   &$\kappa^H$, $\rho^A$ & NA \\
 \hline
    \verb|elastic_isotropic|  &    all$^L$  &   all$^A$   &$\lambda^H$,$\mu^H$,$\rho^A$ &  todo \\
 \hline
@@ -283,19 +285,23 @@ For such structures, we can use .md3lay file to input the structure into CGFD3D.
    numbers=left, numbersep=5pt,numberstyle=\tiny\color{codegray}, commentstyle=\color{codegreen},
     label={lst_medium_md3lay},
    frame=tb]
+# media type
 elastic_isotropic
+# number of interfaces (NI)
 4
-126 106 -300.000000 -300.000000 100.000000 100.000000
--0 1000 0.2 1 1500 0.2 1 1000 0.2 1
--0 1000 0.2 1 1500 0.2 1 1000 0.2 1
--0 1000 0.2 1 1500 0.2 1 1000 0.2 1
--0 1000 0.2 1 1500 0.2 1 1000 0.2 1
--0 1000 0.2 1 1500 0.2 1 1000 0.2 1
--0 1000 0.2 1 1500 0.2 1 1000 0.2 1
--0 1000 0.2 1 1500 0.2 1 1000 0.2 1
-.
-.
-.
+# NX  NY    X0    Y0    DX    DY   (interface mesh)
+ 126 106 -300.0 -300.0 100.0 100.0
+# elevation  rho   rho_grad rho_pow    vp   vp_grad  vp_pow    vs    vs_grad  vs_pow
+   0.0      1000.0    0.2    1.0     1500.0    0.2    1.0     1000.0    0.2    1.0
+   0.0      1000.0    0.2    1.0     1500.0    0.2    1.0     1000.0    0.2    1.0
+   0.0      1000.0    0.2    1.0     1500.0    0.2    1.0     1000.0    0.2    1.0
+   0.0      1000.0    0.2    1.0     1500.0    0.2    1.0     1000.0    0.2    1.0
+   0.0      1000.0    0.2    1.0     1500.0    0.2    1.0     1000.0    0.2    1.0
+   0.0      1000.0    0.2    1.0     1500.0    0.2    1.0     1000.0    0.2    1.0
+   0.0      1000.0    0.2    1.0     1500.0    0.2    1.0     1000.0    0.2    1.0
+   .
+   .
+   .
 \end{lstlisting}
 
 \begin{figure}
@@ -352,9 +358,9 @@ The detailed format of the .md3lay is:
       \item \texttt{NX} and \texttt{NY}:
           the number of sampling points along $x$ and $y$ direction (126 and 106 for this example);
       \item \texttt{X0} and \texttt{Y0}: 
-        the $x$ and $y$ coordinates of the first point (-300 and -300 for this example);
+        the $x$ and $y$ coordinates of the first point (-300.0 and -300.0 for this example);
       \item \texttt{DX} and \texttt{DY}:
-        spacing between sampling points along $x$ and $y$ (100 and 100 for this example).
+        spacing between sampling points along $x$ and $y$ (100.0 and 100.0 for this example).
     \end{itemize}
 
  \item 
@@ -407,20 +413,25 @@ then discrete the velocity variation along depth for each layer.
    numbers=left, numbersep=5pt,numberstyle=\tiny\color{codegray}, commentstyle=\color{codegreen},
     label={lst_medium_md3grd},
    frame=tb]
+# media type   
 elastic_isotropic
+# number of layers (NL)
 3
+# number of grids in the z-direction for each layer of the NL layers
  11 21 101
-126 106 -300.000000 -300.000000 100.000000 100.000000
-0 1000 1510 1020
-0 1000 1510 1020
-0 1000 1510 1020
-0 1000 1510 1020
-0 1000 1510 1020
-0 1000 1510 1020
-0 1000 1510 1020
-.
-.
-.
+# NX  NY  X0     Y0    DX    DY    (mesh in xOy of the given model)
+126 106 -300.0 -300.0 100.0 100.0
+# elevation  rho     vp      vs  
+   0.0      1000.0  1510.0  1020.0
+   0.0      1000.0  1510.0  1020.0
+   0.0      1000.0  1510.0  1020.0
+   0.0      1000.0  1510.0  1020.0
+   0.0      1000.0  1510.0  1020.0
+   0.0      1000.0  1510.0  1020.0
+   0.0      1000.0  1510.0  1020.0
+   .
+   .
+   .
 \end{lstlisting}
 
 %\begin{figure}
@@ -455,9 +466,9 @@ The detailed format of the .md3grd is:
         \item \texttt{NX} and \texttt{NY}:
             the number of sampling points along $x$ and $y$ direction (126 and 106 for this example);
         \item \texttt{X0} and \texttt{Y0}: 
-          the $x$ and $y$ coordinates of the first point (-300 and -300 for this example);
+          the $x$ and $y$ coordinates of the first point (-300.0 and -300.0 for this example);
         \item \texttt{DX} and \texttt{DY}:
-          spacing between sampling points along $x$ and $y$ (100 and 100 for this example).
+          spacing between sampling points along $x$ and $y$ (100.0 and 100.0 for this example).
       \end{itemize}
 
   \item Rest are the elevation and media parameters of every grid point per line.
@@ -488,3 +499,8 @@ the medium parameters are taken as the values at the top interface.
 \end{itemize}
 
 You can find matlab example script to generate .md3grd in \textbf{example/prep\_medium} directory.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% REFERENCES
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% 
+\bibliography{citation_media}
