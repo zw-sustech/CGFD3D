@@ -70,72 +70,64 @@ for ilay = num_of_interfaces-1 : -1 : 1
 end
 
 %-- construct grid interfaces from free_topo and z_of_interfaces
-grid_topo = zeros(nx,ny,num_of_interfaces);
+x3d = zeros(nx,ny,num_of_interfaces);
+y3d = zeros(nx,ny,num_of_interfaces);
+z3d = zeros(nx,ny,num_of_interfaces);
+
+%-- set x3d
+for n = 1 : num_of_interfaces
+for j = 1 : ny
+  x3d(:,j,n) = x1d;
+end
+end
+
+%-- set y3d
+for n = 1 : num_of_interfaces
+for i = 1 : nx
+  y3d(i,:,n) = y1d';
+end
+end
 
 %- first same to free surface
-grid_topo(:,:,num_of_interfaces) = free_topo;
+z3d(:,:,num_of_interfaces) = free_topo;
 
 for ilay = num_of_interfaces-1 : -1 : 1
   %-- smooth free_topo 
   topo  = smooth2(free_topo, smooth_length(ilay));
-  grid_topo(:,:,ilay) = topo + z_of_interfaces(ilay);
+  z3d(:,:,ilay) = topo + z_of_interfaces(ilay);
 end
 
 %------------------------------------------------------------------------------
 %-- plot
 %------------------------------------------------------------------------------
 
-figure
-hold off
-for n = 1 : num_of_interfaces
-    surf(x1d, y1d, permute(grid_topo(:,:,n),[2 1]));
-    hold on
-end
-
-colorbar();
-shading interp
-% set(gca,'zdir','reverse')
-set(gca,'fontsize',16)
-ylabel('X');
-xlabel('Y');
-zlabel('Depth','fontsize',20);
-set(gcf,'Position',[50 50 900 1000])
-axis equal tight
-box on
+%figure
+%hold off
+%for n = 1 : num_of_interfaces
+%    %surf(x1d, y1d, permute(z3d(:,:,n),[2 1]));
+%    surf(x3d(:,:,n), y3d(:,:,n), z3d(:,:,n));
+%    hold on
+%end
+%
+%colorbar();
+%shading interp
+%% set(gca,'zdir','reverse')
+%set(gca,'fontsize',16)
+%ylabel('X');
+%xlabel('Y');
+%zlabel('Depth','fontsize',20);
+%set(gcf,'Position',[50 50 900 1000])
+%axis equal tight
+%box on
 
 %==============================================================================
 %-- write .gdlay file
 %==============================================================================
 gdlay_file = 'random_topo.gdlay'
 
-fid=fopen(gdlay_file,'w'); % Output file name 
+gdlay_export(gdlay_file, ...
+             num_of_interfaces, nx, ny, ...
+             num_of_cell_per_layer, ...
+             dz_is_equal_of_layer, ...
+             x3d, y3d, z3d);
 
-%-- first line: how many interfaces
-fprintf(fid,'%6d\n',num_of_interfaces);
-
-%-- second line: how many cells
-for ilay = 1 : num_of_interfaces - 1
-  fprintf(fid,' %6d',num_of_cell_per_layer(ilay) );
-end
-fprintf(fid,'\n');
-
-%-- third line: is dz equal of each layer
-for ilay = 1 : num_of_interfaces - 1
-  fprintf(fid,' %6d',dz_is_equal_of_layer(ilay) );
-end
-fprintf(fid,'\n');
-
-%-- 4th line: nx, ny
-fprintf(fid,'%6d %6d\n',nx, ny);
-
-%-- others: z of interfaces
-for n = 1 : num_of_interfaces
-for j = 1 : ny
-for i = 1 : nx
-    %-- seems the first layer is the deepest one
-    fprintf(fid,'%12.2f %12.2f %12.2f\n', x1d(i), y1d(j), grid_topo(i,j,n) );
-end
-end
-end
-
-fclose(fid);
