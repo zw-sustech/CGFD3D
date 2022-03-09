@@ -4,7 +4,8 @@ clear all;
 %filename = 'basin_ac_iso.md3lay'
 %filename = 'basin_el_aniso.md3lay'
 %filename = 'basin_el_tti.md3lay'
-filename = 'basin_el_vti.md3lay'
+%filename = 'basin_el_vti.md3lay'
+filename = 'can4_vp.md3lay'
 
 %-- read file
 md = md3lay_import(filename);
@@ -34,7 +35,7 @@ figure;
 for n = 1 : md.num_of_intfce
     surf(x2d, y2d, ...
          squeeze(permute(md.elev{n}(:,:),[2,1])),  ...
-         squeeze(permute(md.Vpv  {n}(:,:),[2,1]))  ...
+         squeeze(permute(md.val  {n}(:,:),[2,1]))  ...
          );
     hold on;
     xlabel('x','fontsize', 12);

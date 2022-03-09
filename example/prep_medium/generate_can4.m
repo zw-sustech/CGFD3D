@@ -4,10 +4,6 @@
 clear all;
 close all;
 
-if_write_rho = 1;
-if_write_vp = 1;
-if_write_vs = 1;
-
 NI = 4;
 
 H(1) =     0;
@@ -38,6 +34,14 @@ xvec = [0:NX-1]*DX + MINX;
 yvec = [0:NY-1]*DY + MINY;
 [X,Y] = meshgrid(xvec,yvec);
 
+elevation = zeros(NY,NX,NI);
+grad3d    = zeros(NY,NX,NI);
+pow3d     = zeros(NY,NX,NI);
+
+Vp3d     = zeros(NY,NX,NI);
+Vs3d     = zeros(NY,NX,NI);
+Dp3d     = zeros(NY,NX,NI);
+
 % calculate elevation 
 for ni = 1:NI
     for j =1:NY
@@ -48,7 +52,15 @@ for ni = 1:NI
             end
         end
     end
+
+    % layer values
+    Vp3d(:,:,ni) = vp(ni);
+    Vs3d(:,:,ni) = vs(ni);
+    Dp3d(:,:,ni) = rho(ni);
 end
+% const grad and pow
+grad3d(:,:,:) = par_grad;
+pow3d(:,:,:) = par_pow;
 
 % plot
 figure;
@@ -65,44 +77,51 @@ end
 %figure;
 %drawmodel(501,501,300,-2500,0,-3000,10,10,10,'rho.dat',[],0,[]);
 
-if if_write_rho
-	fid = fopen('can4_rho.md3lay','w');
-	fprintf(fid, '%d\n', NI);
-	fprintf(fid, '%d %d %f %f %f %f\n', NX, NY, MINX, MINY, DX, DY);
-    for ni = 1:NI
-        for j = 1:NY
-            for i = 1:NX
-              	fprintf(fid, '%f %f %f %f\n', elevation(j,i,ni), rho(ni), par_grad, par_pow);
-            end
-        end
-    end
-    fclose(fid);
+%------------------------------------------------------------------------------
+%-- create md3lay structure
+%------------------------------------------------------------------------------
+
+md.media_type = 'one_component'
+%  one_component, 
+%  acoustic_isotropic, 
+%  elastic_isotropic, 
+%  elastic_vti_prem, elastic_vti_thomsen, elastic_vti_cij,
+%  elastic_tti_thomsen, elastic_tti_bond,
+%  elastic_aniso_cij
+
+md.num_of_intfce = NI;
+
+md.nx = NX;
+md.ny = NY;
+md.dx = DX;
+md.dy = DY;
+md.x0 = MINX;
+md.y0 = MINY;
+
+%-- permute if order is not [x,y,layer]
+for n = 1 : md.num_of_intfce
+  md.elev{n}    = permute(elevation(:,:,n),[2,1]);
+
+  md.val     {n} = permute(Dp3d     (:,:,n),[2,1]);
+  md.val_coef{n} = permute(grad3d(:,:,n),[2,1]);
+  md.val_pow {n} = permute(pow3d (:,:,n),[2,1]);
 end
 
-if if_write_vp
-	fid = fopen('can4_vp.md3lay','w');
-	fprintf(fid, '%d\n', NI);
-	fprintf(fid, '%d %d %f %f %f %f\n', NX, NY, MINX, MINY, DX, DY);
-    for ni = 1:NI
-        for j = 1:NY
-            for i = 1:NX
-              	fprintf(fid, '%f %f %f %f\n', elevation(j,i,ni), vp(ni), par_grad, par_pow);
-            end
-        end
-    end
-    fclose(fid);
-end
+%-- export rho
+filename = 'can4_rho.md3lay'
+md3lay_export(filename, md);
 
-if if_write_vs
-	fid = fopen('can4_vs.md3lay','w');
-	fprintf(fid, '%d\n', NI);
-	fprintf(fid, '%d %d %f %f %f %f\n', NX, NY, MINX, MINY, DX, DY);
-    for ni = 1:NI
-        for j = 1:NY
-            for i = 1:NX
-              	fprintf(fid, '%f %f %f %f\n', elevation(j,i,ni), vs(ni), par_grad, par_pow);
-            end
-        end
-    end
-    fclose(fid);
+%-- export Vp
+for n = 1 : md.num_of_intfce
+  md.val{n} = permute(Vp3d(:,:,n),[2,1]);
 end
+filename = 'can4_vp.md3lay'
+md3lay_export(filename, md);
+
+%-- export Vs
+for n = 1 : md.num_of_intfce
+  md.val{n} = permute(Vs3d(:,:,n),[2,1]);
+end
+filename = 'can4_vs.md3lay'
+md3lay_export(filename, md);
+

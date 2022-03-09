@@ -75,6 +75,37 @@ lay_epsilon = zeros(ny, nx, num_of_layer+1);
 lay_gamma   = zeros(ny, nx, num_of_layer+1);
 lay_delta   = zeros(ny, nx, num_of_layer+1);
 
+lay_Vp_grad      = zeros(ny, nx, num_of_layer+1);
+lay_Vs_grad      = zeros(ny, nx, num_of_layer+1);
+lay_den_grad     = zeros(ny, nx, num_of_layer+1);
+lay_epsilon_grad = zeros(ny, nx, num_of_layer+1);
+lay_gamma_grad   = zeros(ny, nx, num_of_layer+1);
+lay_delta_grad   = zeros(ny, nx, num_of_layer+1);
+
+lay_Vp_pow      = zeros(ny, nx, num_of_layer+1);
+lay_Vs_pow      = zeros(ny, nx, num_of_layer+1);
+lay_den_pow     = zeros(ny, nx, num_of_layer+1);
+lay_epsilon_pow = zeros(ny, nx, num_of_layer+1);
+lay_gamma_pow   = zeros(ny, nx, num_of_layer+1);
+lay_delta_pow   = zeros(ny, nx, num_of_layer+1);
+
+%-- set grad and pow
+for n = 1 : num_of_layer+1
+  lay_Vp_grad(:,:,n) = Vp_grad(n);
+  lay_Vp_pow (:,:,n) = Vp_pow (n);
+  lay_Vs_grad(:,:,n) = Vs_grad(n);
+  lay_Vs_pow (:,:,n) = Vs_pow (n);
+  lay_den_grad(:,:,n) = den_grad(n);
+  lay_den_pow (:,:,n) = den_pow (n);
+
+  lay_epsilon_grad(:,:,n) = epsilon_grad(n);
+  lay_epsilon_pow (:,:,n) = epsilon_pow (n);
+  lay_delta_grad(:,:,n) = delta_grad(n);
+  lay_delta_pow (:,:,n) = delta_pow (n);
+  lay_gamma_grad(:,:,n) = gamma_grad(n);
+  lay_gamma_pow (:,:,n) = gamma_pow (n);
+end
+
 %-- 1st: free surface
 lay_Vp     (:,:,1) =      Vp(1);
 lay_Vs     (:,:,1) =      Vs(1);
@@ -146,55 +177,66 @@ end
 %figure;
 %drawmodel(501,501,300,-2500,0,-3000,10,10,10,'rho.dat',[],0,[]);
 
-%==============================================================================
-%-- write file
-%==============================================================================
+%------------------------------------------------------------------------------
+%-- create md3lay structure
+%------------------------------------------------------------------------------
 
-% first line of 3lay header is media_type, can take:  
+md.media_type = 'elastic_vti_thomsen'
 %  one_component, 
 %  acoustic_isotropic, 
 %  elastic_isotropic, 
 %  elastic_vti_prem, elastic_vti_thomsen, elastic_vti_cij,
 %  elastic_tti_thomsen, elastic_tti_bond,
 %  elastic_aniso_cij
-media_type = 'elastic_vti_thomsen'
 
-fnm_ou = 'basin_el_vti.md3lay'
+md.num_of_intfce = num_of_layer + 1;
 
-fid = fopen(fnm_ou,'w');
+md.nx = nx;
+md.ny = ny;
+md.dx = dx;
+md.dy = dy;
+md.x0 = x0;
+md.y0 = y0;
 
-%-- 1st: type
-fprintf(fid, '%s\n',media_type);
+%-- elastic iso
+%md.elev = point_elev;
+%md.Vp = point_Vp;
+%md.Vs = point_Vs;
+%md.density = point_den;
+%-- permute if order is not [x,y,layer]
+for n = 1 : md.num_of_intfce
+  md.elev{n}    = permute(lay_elev(:,:,n),[2,1]);
 
-%-- 2nd: number of layer
-fprintf(fid, '%d\n', num_of_layer + 1);
+  md.density     {n} = permute(lay_den     (:,:,n),[2,1]);
+  md.density_coef{n} = permute(lay_den_grad(:,:,n),[2,1]);
+  md.density_pow {n} = permute(lay_den_pow (:,:,n),[2,1]);
 
-%-- 3rd
-fprintf(fid, '%d %d %f %f %f %f\n', nx, ny, x0, y0, dx, dy);
+  md.Vpv     {n} = permute(lay_Vp     (:,:,n),[2,1]);
+  md.Vpv_coef{n} = permute(lay_Vp_grad(:,:,n),[2,1]);
+  md.Vpv_pow {n} = permute(lay_Vp_pow (:,:,n),[2,1]);
 
-%-- rest
-  for ilay = 1 : num_of_layer+1
-      for j = 1 : ny
-          for i = 1 : nx
-              % elevation
-            	fprintf(fid, '%g', lay_elev(j,i,ilay));
-              % rho
-            	fprintf(fid, ' %g %g %g', lay_den(j,i,ilay), den_grad(ilay), den_pow(ilay));
-              % Vp
-            	fprintf(fid, ' %g %g %g', lay_Vp(j,i,ilay), Vp_grad(ilay), Vp_pow(ilay));
-              % Vs
-            	fprintf(fid, ' %g %g %g', lay_Vs(j,i,ilay), Vs_grad(ilay), Vs_pow(ilay));
-              % epsilon
-            	fprintf(fid, ' %g %g %g', lay_epsilon(j,i,ilay), epsilon_grad(ilay), epsilon_pow(ilay));
-              % delta
-            	fprintf(fid, ' %g %g %g', lay_delta(j,i,ilay), delta_grad(ilay), delta_pow(ilay));
-              % gamma
-            	fprintf(fid, ' %g %g %g', lay_gamma(j,i,ilay), gamma_grad(ilay), gamma_pow(ilay));
-              % return
-            	fprintf(fid, '\n');
-          end
-      end
-  end
-fclose(fid);
+  md.Vsv     {n} = permute(lay_Vs     (:,:,n),[2,1]);
+  md.Vsv_coef{n} = permute(lay_Vs_grad(:,:,n),[2,1]);
+  md.Vsv_pow {n} = permute(lay_Vs_pow (:,:,n),[2,1]);
 
+  md.epsilon     {n} = permute(lay_epsilon     (:,:,n),[2,1]);
+  md.epsilon_coef{n} = permute(lay_epsilon_grad(:,:,n),[2,1]);
+  md.epsilon_pow {n} = permute(lay_epsilon_pow (:,:,n),[2,1]);
+
+  md.delta     {n} = permute(lay_delta     (:,:,n),[2,1]);
+  md.delta_coef{n} = permute(lay_delta_grad(:,:,n),[2,1]);
+  md.delta_pow {n} = permute(lay_delta_pow (:,:,n),[2,1]);
+
+  md.gamma     {n} = permute(lay_gamma     (:,:,n),[2,1]);
+  md.gamma_coef{n} = permute(lay_gamma_grad(:,:,n),[2,1]);
+  md.gamma_pow {n} = permute(lay_gamma_pow (:,:,n),[2,1]);
+end
+
+%------------------------------------------------------------------------------
+%-- export
+%------------------------------------------------------------------------------
+
+filename = 'basin_el_vti.md3lay'
+
+md3lay_export(filename, md);
 
