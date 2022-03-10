@@ -162,7 +162,7 @@ src_read_locate_file(gdinfo_t *gdinfo,
   // numbe of source, could be force and/or moment
   int in_num_source;
   // input location is grid index (0) or coordinate (1)
-  int in_location_meaning;
+  int is_location_coord;
   // if above value is 1, the 3rd coord is coord (0) or depth (1)
   int in_3coord_meaning;
   // stf is specified by wavelet name (0) or values (1)
@@ -214,7 +214,7 @@ src_read_locate_file(gdinfo_t *gdinfo,
 
   // meaning of location and the 3rd input if location is given by coord
   if (!io_get_nextline(fp, str,500)) {
-    sscanf(str,"%d %d",&in_location_meaning, &in_3coord_meaning);
+    sscanf(str,"%d %d",&is_location_coord, &in_3coord_meaning);
   }
 
   //
@@ -242,7 +242,7 @@ src_read_locate_file(gdinfo_t *gdinfo,
       // read in as float value
       sscanf(str,"%f %f %f", &sx, &sy, &sz);
 
-      if (in_location_meaning == 1) // physical coord
+      if (is_location_coord == 1) // physical coord
       {
         // convert to global index
         //    todo: check if out of computational region
