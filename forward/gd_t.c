@@ -2178,6 +2178,104 @@ gd_curv_coord_to_local_indx(gdinfo_t *gdinfo,
   return is_here;
 }
 
+/*
+ * convert depth to axis
+ */
+int
+gd_curv_depth_to_axis(gdinfo_t *gdinfo,
+                      gd_t *gd,
+                      float sx,
+                      float sy,
+                      float *sz,
+                      MPI_Comm comm,
+                      int myid)
+{
+  int ierr = 0;
+
+  // not here if outside coord range
+  if ( sx < gd->xmin || sx > gd->xmax ||
+       sy < gd->ymin || sy > gd->ymax )
+  {
+    return ierr;
+  }
+
+  float points_x[4];
+  float points_y[4];
+  float points_z[4];
+
+  size_t iptr_k, iptr_j, iptr;
+
+  // take upper-right cell, thus do not take last index
+  int k_tile = GD_TILE_NZ - 1;
+  {
+    for (int j_tile = 0; j_tile < GD_TILE_NY; j_tile++)
+    {
+      for (int i_tile = 0; i_tile < GD_TILE_NX; i_tile++)
+      {
+        if (  sx < gd->tile_xmin[k_tile][j_tile][i_tile] ||
+              sx > gd->tile_xmax[k_tile][j_tile][i_tile] ||
+              sy < gd->tile_ymin[k_tile][j_tile][i_tile] ||
+              sy > gd->tile_ymax[k_tile][j_tile][i_tile])
+        {
+          // loop next tile
+          continue;
+        }
+
+        // otherwise may in this tile
+        int k = gd->tile_kend[k_tile];
+        {
+          iptr_k = k * gdinfo->siz_slice;
+          for (int j = gd->tile_jstart[j_tile]; j <= gd->tile_jend[j_tile]; j++)
+          {
+            iptr_j = iptr_k + j * gdinfo->siz_line;
+            for (int i = gd->tile_istart[i_tile]; i <= gd->tile_iend[i_tile]; i++)
+            {
+              iptr = i + iptr_j;
+
+              // use AABB algorith
+              if (  sx < gd->cell_xmin[iptr] ||
+                    sx > gd->cell_xmax[iptr] ||
+                    sy < gd->cell_ymin[iptr] ||
+                    sy > gd->cell_ymax[iptr] )
+              {
+                // loop next cell
+                continue;
+              }
+
+              // otherwise may in this cell, use inpolygon to check
+
+              // set cell points
+              for (int n2=0; n2<2; n2++) {
+                for (int n1=0; n1<2; n1++) {
+                  int iptr_cube = n1 + n2 * 2;
+                  int iptr_pt = (i+n1) + (j+n2) * gdinfo->siz_line + k * gdinfo->siz_slice;
+                  points_x[iptr_cube] = gd->x3d[iptr_pt];
+                  points_y[iptr_cube] = gd->y3d[iptr_pt];
+                  points_z[iptr_cube] = gd->z3d[iptr_pt];
+                }
+              }
+
+              // interp z if in this cell
+              if (fdlib_math_isPoint2InQuad(sx,sy,points_x,points_y) == 1)
+              {
+                float ztopo = fdlib_math_rdinterp_2d(sx,sy,4,points_x,points_y,points_z);
+                
+                *sz = ztopo - (*sz);
+
+                return ierr;
+              }
+              
+            } // i
+          } // j
+        } // k
+
+      } // i_tile
+    } // j_tile
+  } // k_tile
+
+  return ierr;
+}
+
 /* 
  * find relative coord shift in this cell using sampling
  */

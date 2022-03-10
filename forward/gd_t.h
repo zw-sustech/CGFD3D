@@ -304,6 +304,15 @@ gd_curv_coord2index_rdinterp(float sx, float sy, float sz,
     float *sj_curv,
     float *sk_curv);
 
+int
+gd_curv_depth_to_axis(gdinfo_t *gdinfo,
+                      gd_t *gdcurv,
+                      float sx,
+                      float sy,
+                      float *sz,
+                      MPI_Comm comm,
+                      int myid);
+
 float
 gd_coord_get_x(gd_t *gd, int i, int j, int k);
 

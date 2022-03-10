@@ -248,11 +248,19 @@ src_read_locate_file(gdinfo_t *gdinfo,
         //    todo: check if out of computational region
         if (gd->type == GD_TYPE_CURV)
         {
+          // if sz is depth, convert to axis when it is in this thread
+          if (in_3coord_meaning == 1) {
+            gd_curv_depth_to_axis(gdinfo,gd,sx,sy,&sz,comm,myid);
+          }
           gd_curv_coord_to_glob_indx(gdinfo,gd,sx,sy,sz,comm,myid,
                                  &si_glob,&sj_glob,&sk_glob,&sx_inc,&sy_inc,&sz_inc);
         }
         else if (gd->type == GD_TYPE_CART)
         {
+          // if sz is depth, convert to axis
+          if (in_3coord_meaning == 1) {
+            sz = gd->z1d[gdinfo->nk2] - sz;
+          }
           gd_cart_coord_to_glob_indx(gdinfo,gd,sx,sy,sz,comm,myid,
                                  &si_glob,&sj_glob,&sk_glob,&sx_inc,&sy_inc,&sz_inc);
         }
@@ -273,6 +281,11 @@ src_read_locate_file(gdinfo_t *gdinfo,
       }
       else // computational coordinate or grid index
       {
+        // if sz is relative to surface, convert to normal index
+        if (in_3coord_meaning == 1) {
+          sz = gdinfo->gnk2 - sz;
+        }
+
         // nearest integer index
         si_glob = (int) (sx + 0.5);
         sj_glob = (int) (sy + 0.5);
@@ -813,7 +826,7 @@ src_print(src_t *src, int verbose)
   int ierr = 0;
 
   // evtnm has a terminal char at end
-  fprintf(stdout,"-- evtnm=%s", src->evtnm);
+  fprintf(stdout,"-- evtnm=%s\n", src->evtnm);
 
   fprintf(stdout,"-- total_number=%d\n", src->total_number);
   fprintf(stdout,"-- force_actived=%d, moment_actived=%d\n",
