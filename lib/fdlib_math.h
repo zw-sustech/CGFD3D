@@ -21,4 +21,14 @@ fdlib_math_bubble_sort(float a[], int index[], int n);
 
 void
 fdlib_math_bubble_sort_int(int a[], int index[], int n);
+
+int
+fdlib_math_isPoint2InQuad(float px, float py, const float *vertx, const float *verty);
+
+float
+fdlib_math_rdinterp_2d(float x, float z, 
+                  int num_points,
+                  float *points_x, // x coord 
+                  float *points_z, // z coord
+                  float *points_v);
 #endif

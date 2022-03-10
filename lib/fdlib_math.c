@@ -128,3 +128,100 @@ fdlib_math_bubble_sort_int(int a[], int index[], int n)
     }
 }
 
+/*
+ * Input: vertx, verty are the FOUR vertexes of the quadrilateral
+ *
+ *    ↑ +z    
+ *    |       
+ *            2----3 
+ *            |    |
+ *            |    | 
+ *            0----1
+ *
+ * The quadrilateral must be convex!
+ *
+ * (anti-clockwise + Judge whether the v->p is on the left side of the edge)
+ */
+int
+fdlib_math_isPoint2InQuad(float px, float py, const float *vertx, const float *verty)
+{
+    float vx[4], vy[4]; // for colockwise
+    vx[0] = vertx[0]; vy[0] = verty[0];
+    vx[1] = vertx[1]; vy[1] = verty[1];
+    vx[2] = vertx[3]; vy[2] = verty[3];
+    vx[3] = vertx[2]; vy[3] = verty[2];
+
+    for (int i = 0; i < 4; i++) {
+        // vector: edge
+        float vecte_x = i==3?(vx[0]-vx[3]):(vx[i+1]-vx[i]);
+        float vecte_y = i==3?(vy[0]-vy[3]):(vy[i+1]-vy[i]);
+        // vector: vertex to point
+        float vectp_x = px - vx[i];
+        float vectp_y = py - vy[i];
+
+        float sign = vecte_x*vectp_y - vecte_y*vectp_x;
+        sign /= (sqrt(vecte_x*vecte_x + vecte_y*vecte_y));
+        // normalization
+        
+        if (sign < -1e-6)
+            return 0;
+    }
+
+    return 1;
+}
+
+/* 
+ * interp value in 2D grid using inverse distance interp
+ */
+
+float
+fdlib_math_rdinterp_2d(float x, float z, 
+                  int num_points,
+                  float *points_x, // x coord 
+                  float *points_z, // z coord
+                  float *points_v)
+{
+  float val = 0.0; // return value
+
+  float weight[num_points];
+  float total_weight = 0.0 ;
+
+  // cal weight
+  int at_point_indx = -1;
+  for (int i=0; i<num_points; i++)
+  {
+    float dist = sqrtf ((x - points_x[i]) * (x - points_x[i])
+        + (z - points_z[i]) * (z - points_z[i])
+        );
+    if (dist < 1e-9) {
+      at_point_indx = i;
+    } else {
+      weight[i]   = 1.0 / dist;
+      total_weight += weight[i];
+    }
+  }
+  // if at a point
+  if (at_point_indx > 0) {
+    total_weight = 1.0;
+    // other weight 0
+    for (int i=0; i<num_points; i++) {
+      weight[i] = 0.0;
+    }
+    // point weight 1
+    weight[at_point_indx] = 1.0;
+  }
+
+  // interp
+
+  for (int i=0; i<num_points; i++)
+  {
+    weight[i] *= 1.0 / total_weight ;
+
+    val += weight[i] * points_v[i];  
+
+    //fprintf(stdout,"---- i=%d,weight=%f,points_v=%f\n",
+    //    i,weight[i],points_v[i]);
+  }
+
+  return val;
+}
