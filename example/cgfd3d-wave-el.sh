@@ -6,7 +6,7 @@ set -e
 date
 
 #-- system related dir
-MPIDIR=/data3/lihl/software/openmpi-gnu-4.1.2
+MPIDIR=/share/apps/gnu-4.8.5/mpich-3.3
 
 #-- program related dir
 EXEC_WAVE=`pwd`/../main_curv_col_el_3d
@@ -16,7 +16,7 @@ echo "EXEC_WAVE=$EXEC_WAVE"
 INPUTDIR=`pwd`
 
 #-- output and conf
-PROJDIR=~/work/cgfd3d-wave-el/10src
+PROJDIR=~/work/cgfd3d-wave-el/01eij
 PAR_FILE=${PROJDIR}/test.json
 GRID_DIR=${PROJDIR}/output
 MEDIA_DIR=${PROJDIR}/output
@@ -212,8 +212,8 @@ cat << ieof > $PAR_FILE
       "time_index_start" : 0,
       "time_index_incre" : 1,
       "save_velocity" : 1,
-      "save_stress"   : 0,
-      "save_strain"   : 0
+      "save_stress"   : 1,
+      "save_strain"   : 1
     }
   ],
 

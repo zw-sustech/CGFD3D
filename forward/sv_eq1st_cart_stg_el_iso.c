@@ -147,7 +147,7 @@ sv_eq1st_cart_stg_el_iso_allstep(
                      CONST_NDIM, wav->ncmp-1);
 
     // snapshot
-    io_snap_nc_put(iosnap, &iosnap_nc, gdinfo, wav, 
+    io_snap_nc_put(iosnap, &iosnap_nc, gdinfo, md, wav, 
                    wav->v5d, wrk, nt_total, it, t_end, 0, 1, 0);
 
     MPI_Waitall(num_of_s_reqs, mympi->s_reqs_stress, MPI_STATUS_IGNORE);
@@ -245,7 +245,7 @@ sv_eq1st_cart_stg_el_iso_allstep(
                      0, CONST_NDIM-1);
 
     // snapshot
-    io_snap_nc_put(iosnap, &iosnap_nc, gdinfo, wav, 
+    io_snap_nc_put(iosnap, &iosnap_nc, gdinfo, md, wav,
                    wav->v5d, wrk, nt_total, it, t_end, 1, 0, 1);
 
     // debug output
