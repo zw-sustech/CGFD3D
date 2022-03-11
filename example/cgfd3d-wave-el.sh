@@ -6,7 +6,8 @@ set -e
 date
 
 #-- system related dir
-MPIDIR=/data3/lihl/software/openmpi-gnu-4.1.2
+#MPIDIR=/data3/lihl/software/openmpi-gnu-4.1.2
+MPIDIR=/share/apps/gnu-4.8.5/mpich-3.3
 
 #-- program related dir
 EXEC_WAVE=`pwd`/../main_curv_col_el_3d
@@ -16,7 +17,7 @@ echo "EXEC_WAVE=$EXEC_WAVE"
 INPUTDIR=`pwd`
 
 #-- output and conf
-PROJDIR=~/work/cgfd3d-wave-el/10src
+PROJDIR=~/work/cgfd3d-wave-el/03stadep
 PAR_FILE=${PROJDIR}/test.json
 GRID_DIR=${PROJDIR}/output
 MEDIA_DIR=${PROJDIR}/output
@@ -59,10 +60,10 @@ event_1
 # flag for location
 #   1st value: 0 computational coordiate, 1 physical coordinate
 #   2nd value: third coordinate is 0 axis or 1 depth 
-0 0
+0 1
 # location of each source
 #   sx sy sz
-80.2 49.3 50.5
+80.2 49.3 5.5
 #80 49 50
 #8020 4930 -950
 # stf and cmp
@@ -159,10 +160,23 @@ cat << ieof > $PAR_FILE
   "medium" : {
       "type" : "elastic_iso",
       "#type" : "elastic_vti",
+      "#input_way" : "infile_layer",
+      "input_way" : "binfile",
+      "binfile" : {
+        "size"    : [1101, 1447, 1252],
+        "spacing" : [-10, 10, 10],
+        "origin"  : [0.0,0.0,0.0],
+        "dim1" : "z",
+        "dim2" : "x",
+        "dim3" : "y",
+        "Vp" : "$INPUTDIR/prep_medium/seam_Vp.bin",
+        "Vs" : "$INPUTDIR/prep_medium/seam_Vs.bin",
+        "rho" : "$INPUTDIR/prep_medium/seam_rho.bin"
+      },
       "code" : "func_name_here",
-      "#import" : "$MEDIA_DIR",
-      "#infile_layer" : "$INPUTDIR/prep_medium/basin_el_iso.md3lay",
-      "#infile_grid" : "$INPUTDIR/prep_medium/topolay_el_iso.md3grd",
+      "import" : "$MEDIA_DIR",
+      "infile_layer" : "$INPUTDIR/prep_medium/basin_el_iso.md3lay",
+      "infile_grid" : "$INPUTDIR/prep_medium/topolay_el_iso.md3grd",
       "equivalent_medium_method" : "loc",
       "#equivalent_medium_method" : "har"
   },
@@ -244,7 +258,7 @@ set -e
 printf "\nUse $NUMPROCS CPUs on following nodes:\n"
 
 printf "\nStart simualtion ...\n";
-time $MPIDIR/bin/mpiexec -machinefile ${PROJDIR}/hostlist -np $NUMPROCS $EXEC_WAVE $PAR_FILE 11
+time $MPIDIR/bin/mpiexec -machinefile ${PROJDIR}/hostlist -np $NUMPROCS $EXEC_WAVE $PAR_FILE 100
 if [ $? -ne 0 ]; then
     printf "\nSimulation fail! stop!\n"
     exit 1

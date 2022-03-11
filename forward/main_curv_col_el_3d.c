@@ -385,8 +385,94 @@ int main(int argc, char** argv)
                                      par->equivalent_medium_method);
         }
         break;
-    }
-  }
+    } // md3grd
+
+    //case PAR_MEDIA_3BIN : {
+
+    //    if (myid==0) fprintf(stdout,"read and descretize 3D bin medium file ...\n"); 
+
+    //    if (md->medium_type == CONST_MEDIUM_ELASTIC_ISO)
+    //    {
+    //        media_bin2model_el_iso(md->rho,md->lambda, md->mu, 
+    //                                 gdcurv->x3d, gdcurv->y3d, gdcurv->z3d,
+    //                                 gdcurv->nx, gdcurv->ny, gdcurv->nz,
+    //                                 gdcurv->xmin,gdcurv->xmax,
+    //                                 gdcurv->ymin,gdcurv->ymax,
+    //                                 MEDIA_USE_CURV,
+    //                                 par->bin_size,
+    //                                 par->bin_spacing,
+    //                                 par->bin_oirigin,
+    //                                 par->bin_order,
+    //                                 par->bin_file_rho,
+    //                                 par->bin_file_vp,
+    //                                 par->bin_file_vs
+    //                                 )
+    //    }
+    //    else if (md->medium_type == CONST_MEDIUM_ELASTIC_VTI)
+    //    {
+    //        media_bin2model_el_vti_thomsen(md->rho, md->c11, md->c33,
+    //                                 md->c55,md->c66,md->c13,
+    //                                 gdcurv->x3d, gdcurv->y3d, gdcurv->z3d,
+    //                                 gdcurv->nx, gdcurv->ny, gdcurv->nz,
+    //                                 gdcurv->xmin,gdcurv->xmax,
+    //                                 gdcurv->ymin,gdcurv->ymax,
+    //                                 MEDIA_USE_CURV,
+    //                                 par->bin_size,
+    //                                 par->bin_spacing,
+    //                                 par->bin_oirigin,
+    //                                 par->bin_order,
+    //                                 par->bin_file_rho,
+    //                                 par->bin_file_vp,
+    //                                 par->bin_file_epsilon,
+    //                                 par->bin_file_delta,
+    //                                 par->bin_file_gamma
+    //                                 )
+    //    } else if (md->medium_type == CONST_MEDIUM_ELASTIC_ANISO)
+    //    {
+    //        media_bin2model_el_aniso(md->rho,
+    //                                 md->c11,md->c12,md->c13,md->c14,md->c15,md->c16,
+    //                                         md->c22,md->c23,md->c24,md->c25,md->c26,
+    //                                                 md->c33,md->c34,md->c35,md->c36,
+    //                                                         md->c44,md->c45,md->c46,
+    //                                                                 md->c55,md->c56,
+    //                                                                         md->c66,
+    //                                 gdcurv->x3d, gdcurv->y3d, gdcurv->z3d,
+    //                                 gdcurv->nx, gdcurv->ny, gdcurv->nz,
+    //                                 gdcurv->xmin,gdcurv->xmax,
+    //                                 gdcurv->ymin,gdcurv->ymax,
+    //                                 MEDIA_USE_CURV,
+    //                                 par->bin_size,
+    //                                 par->bin_spacing,
+    //                                 par->bin_oirigin,
+    //                                 par->bin_order,
+    //                                 par->bin_file_rho,
+    //                                 par->bin_file_c11,
+    //                                 par->bin_file_c12,
+    //                                 par->bin_file_c13,
+    //                                 par->bin_file_c14,
+    //                                 par->bin_file_c15,
+    //                                 par->bin_file_c16,
+    //                                 par->bin_file_c22,
+    //                                 par->bin_file_c23,
+    //                                 par->bin_file_c24,
+    //                                 par->bin_file_c25,
+    //                                 par->bin_file_c26,
+    //                                 par->bin_file_c33,
+    //                                 par->bin_file_c34,
+    //                                 par->bin_file_c35,
+    //                                 par->bin_file_c36,
+    //                                 par->bin_file_c44,
+    //                                 par->bin_file_c45,
+    //                                 par->bin_file_c46,
+    //                                 par->bin_file_c55,
+    //                                 par->bin_file_c56,
+    //                                 par->bin_file_c66
+    //                                 )
+    //    }
+    //    break;
+    //} // md3grd
+
+  } // switch
 
   // export grid media
   if (par->is_export_media==1)
