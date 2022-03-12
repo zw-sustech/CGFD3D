@@ -5,6 +5,7 @@
 #include "gd_info.h"
 #include "gd_t.h"
 #include "io_funcs.h"
+#include "md_t.h"
 #include "wav_t.h"
 
 /*************************************************
@@ -257,6 +258,7 @@ int
 io_snap_nc_put(iosnap_t *iosnap,
                iosnap_nc_t *iosnap_nc,
                gdinfo_t    *gdinfo,
+               md_t    *md,
                wav_t   *wav,
                float *restrict w4d,
                float *restrict buff,
@@ -298,6 +300,33 @@ io_snap_pack_buff(float *restrict var,
                   int countk,
                   int increk,
                   float *restrict buff);
+
+int
+io_snap_stress_to_strain_eliso(float *restrict lam3d,
+                               float *restrict mu3d,
+                               float *restrict Txx,
+                               float *restrict Tyy,
+                               float *restrict Tzz,
+                               float *restrict Tyz,
+                               float *restrict Txz,
+                               float *restrict Txy,
+                               float *restrict Exx,
+                               float *restrict Eyy,
+                               float *restrict Ezz,
+                               float *restrict Eyz,
+                               float *restrict Exz,
+                               float *restrict Exy,
+                               size_t siz_line,
+                               size_t siz_slice,
+                               int starti,
+                               int counti,
+                               int increi,
+                               int startj,
+                               int countj,
+                               int increj,
+                               int startk,
+                               int countk,
+                               int increk);
 
 int
 io_slice_nc_close(ioslice_nc_t *ioslice_nc);

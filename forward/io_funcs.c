@@ -1097,6 +1097,7 @@ int
 io_snap_nc_put(iosnap_t *iosnap,
                iosnap_nc_t *iosnap_nc,
                gdinfo_t    *gdinfo,
+               md_t    *md,
                wav_t   *wav,
                float *restrict w4d,
                float *restrict buff,
@@ -1208,7 +1209,35 @@ io_snap_nc_put(iosnap_t *iosnap,
       }
       if (is_run_out_stress==1 && snap_out_E==1)
       {
-        // need to implement
+        // convert to strain
+        io_snap_stress_to_strain_eliso(md->lambda,md->mu,
+              w4d + wav->Txx_pos,
+              w4d + wav->Tyy_pos,
+              w4d + wav->Tzz_pos,
+              w4d + wav->Tyz_pos,
+              w4d + wav->Txz_pos,
+              w4d + wav->Txy_pos,
+              buff + wav->Txx_pos,
+              buff + wav->Tyy_pos,
+              buff + wav->Tzz_pos,
+              buff + wav->Tyz_pos,
+              buff + wav->Txz_pos,
+              buff + wav->Txy_pos,
+              siz_line,siz_slice,snap_i1,snap_ni,snap_di,snap_j1,snap_nj,
+              snap_dj,snap_k1,snap_nk,snap_dk);
+        // export
+        nc_put_vara_float(iosnap_nc->ncid[n],iosnap_nc->varid_E[n*CONST_NDIM_2+0],
+              startp,countp,buff+wav->Txx_pos);
+        nc_put_vara_float(iosnap_nc->ncid[n],iosnap_nc->varid_E[n*CONST_NDIM_2+1],
+              startp,countp,buff+wav->Tyy_pos);
+        nc_put_vara_float(iosnap_nc->ncid[n],iosnap_nc->varid_E[n*CONST_NDIM_2+2],
+              startp,countp,buff+wav->Tzz_pos);
+        nc_put_vara_float(iosnap_nc->ncid[n],iosnap_nc->varid_E[n*CONST_NDIM_2+3],
+              startp,countp,buff+wav->Txz_pos);
+        nc_put_vara_float(iosnap_nc->ncid[n],iosnap_nc->varid_E[n*CONST_NDIM_2+4],
+              startp,countp,buff+wav->Tyz_pos);
+        nc_put_vara_float(iosnap_nc->ncid[n],iosnap_nc->varid_E[n*CONST_NDIM_2+5],
+              startp,countp,buff+wav->Txy_pos);
       }
 
       if (is_incr_cur_it == 1) {
@@ -1407,6 +1436,75 @@ io_snap_nc_put_ac(iosnap_t *iosnap,
 }
 
 int
+io_snap_stress_to_strain_eliso(float *restrict lam3d,
+                               float *restrict mu3d,
+                               float *restrict Txx,
+                               float *restrict Tyy,
+                               float *restrict Tzz,
+                               float *restrict Tyz,
+                               float *restrict Txz,
+                               float *restrict Txy,
+                               float *restrict Exx,
+                               float *restrict Eyy,
+                               float *restrict Ezz,
+                               float *restrict Eyz,
+                               float *restrict Exz,
+                               float *restrict Exy,
+                               size_t siz_line,
+                               size_t siz_slice,
+                               int starti,
+                               int counti,
+                               int increi,
+                               int startj,
+                               int countj,
+                               int increj,
+                               int startk,
+                               int countk,
+                               int increk)
+{
+  size_t iptr_snap=0;
+  size_t i,j,k,iptr,iptr_j,iptr_k;
+  float lam,mu,E1,E2,E3,E0;
+
+  for (int n3=0; n3<countk; n3++)
+  {
+    k = startk + n3 * increk;
+    iptr_k = k * siz_slice;
+    for (int n2=0; n2<countj; n2++)
+    {
+      j = startj + n2 * increj;
+      iptr_j = j * siz_line + iptr_k;
+
+      for (int n1=0; n1<counti; n1++)
+      {
+        i = starti + n1 * increi;
+        iptr = i + iptr_j;
+
+        lam = lam3d[iptr];
+        mu  =  mu3d[iptr];
+
+        E1 = (lam + mu) / (mu * ( 3.0 * lam + 2.0 * mu));
+        E2 = - lam / ( 2.0 * mu * (3.0 * lam + 2.0 * mu));
+        E3 = 1.0 / mu;
+
+        E0 = E2 * (Txx[iptr] + Tyy[iptr] + Tzz[iptr]);
+
+        Exx[iptr_snap] = E0 - (E2 - E1) * Txx[iptr];
+        Eyy[iptr_snap] = E0 - (E2 - E1) * Tyy[iptr];
+        Ezz[iptr_snap] = E0 - (E2 - E1) * Tzz[iptr];
+        Eyz[iptr_snap] = 0.5 * E3 * Tyz[iptr];
+        Exz[iptr_snap] = 0.5 * E3 * Txz[iptr];
+        Exy[iptr_snap] = 0.5 * E3 * Txy[iptr];
+
+        iptr_snap++;
+      } // i
+    } //j
+  } //k
+
+  return 0;
+}
+
+int
 io_snap_pack_buff(float *restrict var,
                   size_t siz_line,
                   size_t siz_slice,
@@ -1424,19 +1522,21 @@ io_snap_pack_buff(float *restrict var,
   int iptr_snap=0;
   for (int n3=0; n3<countk; n3++)
   {
-    int k = startk + n3 * increk;
+    size_t k = startk + n3 * increk;
     for (int n2=0; n2<countj; n2++)
     {
-      int j = startj + n2 * increj;
+      size_t j = startj + n2 * increj;
       for (int n1=0; n1<counti; n1++)
       {
-        int i = starti + n1 * increi;
-        int iptr = i + j * siz_line + k * siz_slice;
+        size_t i = starti + n1 * increi;
+        size_t iptr = i + j * siz_line + k * siz_slice;
         buff[iptr_snap] = var[iptr];
         iptr_snap++;
       }
     }
   }
+
+  return 0;
 }
 
 int
