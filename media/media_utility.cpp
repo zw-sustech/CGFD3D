@@ -182,8 +182,9 @@ float BilinearInterpolation(
 }
 
 /* 
- * BilinearInterpolate to the (xq, yq, zq) point 
- * It's just for the problem: (x,y) is a grid and the x, y vector are increment 
+ * TrilinearInterpolate to the (xq, yq, zq) point 
+ * It's just for the problum: (x,y) is a grid and the x, y vector are increment 
+ * Just for bin2model, 
  */
 float TrilinearInterpolation(
     std::vector<float> &x, 
@@ -281,7 +282,6 @@ float TrilinearInterpolation(
 
     return v111;
 }
-
 
 //============== for matrix: just used in bond transform ===============
 // construct: init

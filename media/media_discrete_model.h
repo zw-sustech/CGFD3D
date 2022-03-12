@@ -6,6 +6,26 @@
 #define MEDIA_USE_VMAP 2
 #define MEDIA_USE_CURV 3
 
+/*------------ bin2model --------------*/
+int media_bin2model_el_iso(
+    float *rho3d,
+    float *lam3d,
+    float *mu3d, 
+    const float *x3d,
+    const float *y3d,
+    const float *z3d,
+    size_t nx, size_t ny, size_t nz,
+    float xmin, float xmax,
+    float ymin, float ymax,
+    int grid_type,
+    int  *bin_order,    // eg, [2, 0, 1]=[z, x, y] 0:x, 1:y, 2:z
+    int  *bin_size,     // [ndim1, ndim2, ndim3],
+    float  *bin_spacing,  // [dh1, dh2, dh3],
+    float  *bin_origin,   // [h0_1, h0_2, h0_3],
+    const char *bin_file_rho,
+    const char *bin_file_vp,
+    const char *bin_file_vs  );
+
 /*--------------------------- layer2model --------------------- */
 //---- 0. one component
 int media_layer2model_onecmp(float *var3d,

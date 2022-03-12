@@ -337,6 +337,7 @@ float TrilinearInterpolation(
     float xq,
     float yq, 
     float zq);
+
 /*---- matrix: just for Bond transform ----*/
 template <typename T>
 class Matrix;
