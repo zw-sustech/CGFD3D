@@ -15,7 +15,6 @@
 #include "constants.h"
 #include "fd_t.h"
 #include "gd_info.h"
-#include "md_t.h"
 #include "io_funcs.h"
 
 //#define M_NCERR(ierr) {fprintf(stderr,"sv_ nc error: %s\n", nc_strerror(ierr)); exit(1);}
