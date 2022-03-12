@@ -675,8 +675,8 @@ void read_grid_file(
     std::vector<int> &NGz, // how many z-grid in each layer
     inter_t *interfaces)
 {
-    FILE *file = gfopen(grid_file, "r");
-    FILE *tmp_file = tmpfile();
+    FILE *tmp_file = gfopen(grid_file, "r");
+//    FILE *tmp_file = tmpfile();
 
     char  line[MAX_BUF_LEN];
     char  media_type[MAX_BUF_LEN];
@@ -686,15 +686,15 @@ void read_grid_file(
     float MINX = 0, MINY = 0;
 
     /* Read every line in the file. */
-    while(fgets(line, MAX_BUF_LEN, file) != NULL)
-    {
-        if (line[0] == '#' || line[0] == '\n')
-            continue;
-        fputs(line,tmp_file);
-    } 
-
-    /* Set the file pointer at the beginning of the stream*/
-    rewind(tmp_file);
+//    while(fgets(line, MAX_BUF_LEN, file) != NULL)
+//    {
+//        if (line[0] == '#' || line[0] == '\n')
+//            continue;
+//        fputs(line, tmp_file);
+//    } 
+//
+//    /* Set the file pointer at the beginning of the stream*/
+//    rewind(tmp_file);
 
     /* Read the temporary data file, Can not use the feof() */
     while(feof(tmp_file) != EOF)
@@ -1234,7 +1234,7 @@ void read_grid_file(
 
     checkGridData(NL, NGz, *interfaces, grid_file);
 
-    fclose(file);   
+//    fclose(file);   
     fclose(tmp_file);    
 }
 
@@ -1263,4 +1263,57 @@ int checkGridData(int NL,
     }
 
     return 0;
+}
+
+
+/* 
+ * Just read the grid data within the given
+ *  [Xmin, Xmax]\times[Ymin, Ymax] domain.
+ */
+void read_bin_file(
+    const char *bin_file,
+    float *var,
+    int dimx, 
+    int dimy, 
+    int dimz,
+    int *bin_start, 
+    int *bin_end, 
+    int *bin_size, 
+    size_t bin_line, 
+    size_t bin_slice)
+{
+    FILE *fid = gfopen(bin_file, "rb");
+    std::vector<int> i(3, 0);
+
+    for (i[0] = 0; i[0] < bin_size[0]; i[0]++) {
+      for (i[1] = 0; i[1] < bin_size[1]; i[1]++) {
+        for (i[2] = 0; i[2] < bin_size[2]; i[2]++) {
+          if (i[0] >= bin_start[0] && i[0] <= bin_end[0] &&
+              i[1] >= bin_start[1] && i[1] <= bin_end[1] &&
+              i[2] >= bin_start[2] && i[2] <= bin_end[2]) 
+          {
+            size_t indx = (i[dimx] - bin_start[dimx]) + 
+                          (i[dimy] - bin_start[dimy]) * bin_line + 
+                           i[dimz] * bin_slice;
+
+            int u = fread(&var[indx], sizeof(float), 1, fid);
+            if (u < 1) {
+                fprintf(stderr,"Error: Insufficient data in %s.\n",bin_file);
+                fflush(stderr);
+                exit(1);
+            }
+          } else {
+            float tmp;
+            int u = fread(&tmp, sizeof(float), 1, fid);
+            if (u < 1) {
+                fprintf(stderr,"Error: Insufficient data in %s.\n",bin_file);
+                fflush(stderr);
+                exit(1);
+            }
+          }
+        }
+      }
+    }
+
+    fclose(fid);
 }
