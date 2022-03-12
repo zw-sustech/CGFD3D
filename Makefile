@@ -65,6 +65,7 @@ main_curv_col_el_3d: \
 		media_utility.o \
 		media_layer2model.o \
 		media_grid2model.o \
+		media_bin2model.o \
 		media_geometry3d.o \
 		media_read_file.o \
 		gd_info.o gd_t.o md_t.o wav_t.o \
@@ -84,6 +85,7 @@ main_curv_col_ac_3d: \
 		media_utility.o \
 		media_layer2model.o \
 		media_grid2model.o \
+		media_bin2model.o \
 		media_geometry3d.o \
 		media_read_file.o \
 		gd_info.o gd_t.o md_t.o wav_t.o \
@@ -103,6 +105,7 @@ main_cart_col_el_3d: \
 		media_utility.o \
 		media_layer2model.o \
 		media_grid2model.o \
+		media_bin2model.o \
 		media_geometry3d.o \
 		media_read_file.o \
 		gd_info.o gd_t.o md_t.o wav_t.o \
@@ -119,6 +122,7 @@ main_cart_stg_el_3d: \
 		media_utility.o \
 		media_layer2model.o \
 		media_grid2model.o \
+		media_bin2model.o \
 		media_geometry3d.o \
 		media_read_file.o \
 		gd_info.o gd_t.o md_t.o wav_t.o \
@@ -134,6 +138,7 @@ main_cart_stg_ac_3d: \
 		media_utility.o \
 		media_layer2model.o \
 		media_grid2model.o \
+		media_bin2model.o \
 		media_geometry3d.o \
 		media_read_file.o \
 		gd_info.o gd_t.o md_t.o wav_t.o \
@@ -150,6 +155,8 @@ media_utility.o: media/media_utility.cpp
 media_layer2model.o: media/media_layer2model.cpp
 	${CXX} -c -o $@ $(CPPFLAGS) $<
 media_grid2model.o: media/media_grid2model.cpp
+	${CXX} -c -o $@ $(CPPFLAGS) $<
+media_bin2model.o: media/media_bin2model.cpp
 	${CXX} -c -o $@ $(CPPFLAGS) $<
 media_read_file.o: media/media_read_file.cpp
 	${CXX} -c -o $@ $(CPPFLAGS) $<

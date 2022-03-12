@@ -1285,9 +1285,9 @@ void read_bin_file(
     FILE *fid = gfopen(bin_file, "rb");
     std::vector<int> i(3, 0);
 
-    for (i[0] = 0; i[0] < bin_size[0]; i[0]++) {
+    for (i[2] = 0; i[2] < bin_size[2]; i[2]++) {
       for (i[1] = 0; i[1] < bin_size[1]; i[1]++) {
-        for (i[2] = 0; i[2] < bin_size[2]; i[2]++) {
+        for (i[0] = 0; i[0] < bin_size[0]; i[0]++) {
           if (i[0] >= bin_start[0] && i[0] <= bin_end[0] &&
               i[1] >= bin_start[1] && i[1] <= bin_end[1] &&
               i[2] >= bin_start[2] && i[2] <= bin_end[2]) 
