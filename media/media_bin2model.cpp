@@ -159,13 +159,13 @@ int media_bin2model_el_iso(
     float *bin_vp  = new float[bin_volume];
     float *bin_vs  = new float[bin_volume];
 
-    fprintf(stdout, "- reading model file: %s, \n" \
-                    "                      %s, \n" \
-                    "                      %s. \n",
-            bin_file_rho, bin_file_vp, bin_file_vs);
-
+    fprintf(stdout, "- reading model file: %s, \n", bin_file_rho);
     read_bin_file(bin_file_rho, bin_rho, dimx, dimy, dimz, bin_start, bin_end, bin_size, bin_line, bin_slice);
+
+    fprintf(stdout, "                      %s, \n", bin_file_vp);
     read_bin_file(bin_file_vp,  bin_vp,  dimx, dimy, dimz, bin_start, bin_end, bin_size, bin_line, bin_slice);
+
+    fprintf(stdout, "                      %s, \n", bin_file_vs);
     read_bin_file(bin_file_vs,  bin_vs,  dimx, dimy, dimz, bin_start, bin_end, bin_size, bin_line, bin_slice);
 
     // media parameterization
