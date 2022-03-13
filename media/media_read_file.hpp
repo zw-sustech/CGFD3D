@@ -31,4 +31,16 @@ int checkGridData(int NL,
     inter_t &interfaces, 
     const char *grid_file); 
 
+void read_bin_file(
+    const char *bin_file,
+    float *var,
+    int dimx, 
+    int dimy, 
+    int dimz,
+    int *bin_start, 
+    int *bin_end, 
+    int *bin_size, 
+    size_t bin_line, 
+    size_t bin_slice);
+
 #endif

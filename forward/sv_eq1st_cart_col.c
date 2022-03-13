@@ -387,7 +387,7 @@ sv_eq1st_cart_col_allstep(
     io_slice_nc_put(ioslice,&ioslice_nc,gdinfo,w_end,w_rhs,it,t_end,0,wav->ncmp-1);
 
     // snapshot
-    io_snap_nc_put(iosnap, &iosnap_nc, gdinfo, wav, 
+    io_snap_nc_put(iosnap, &iosnap_nc, gdinfo, md, wav, 
                    w_end, w_rhs, nt_total, it, t_end, 1,1,1);
 
     // zero temp used w_rsh

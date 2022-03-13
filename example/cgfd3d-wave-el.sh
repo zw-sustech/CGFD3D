@@ -6,7 +6,6 @@ set -e
 date
 
 #-- system related dir
-#MPIDIR=/data3/lihl/software/openmpi-gnu-4.1.2
 MPIDIR=/share/apps/gnu-4.8.5/mpich-3.3
 
 #-- program related dir
@@ -226,8 +225,8 @@ cat << ieof > $PAR_FILE
       "time_index_start" : 0,
       "time_index_incre" : 1,
       "save_velocity" : 1,
-      "save_stress"   : 0,
-      "save_strain"   : 0
+      "save_stress"   : 1,
+      "save_strain"   : 1
     }
   ],
 

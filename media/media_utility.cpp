@@ -181,6 +181,107 @@ float BilinearInterpolation(
     return vq;
 }
 
+/* 
+ * TrilinearInterpolate to the (xq, yq, zq) point 
+ * It's just for the problum: (x,y) is a grid and the x, y vector are increment 
+ * Just for bin2model, 
+ */
+float TrilinearInterpolation(
+    std::vector<float> &x, 
+    std::vector<float> &y, 
+    std::vector<float> &z, 
+    float *v,
+    float xq,
+    float yq, 
+    float zq)
+{    
+    float vq;
+    size_t nx = x.size();
+    size_t ny = y.size();
+    size_t nz = z.size();
+    float dx = x[1]-x[0];
+    float dy = y[1]-y[0];
+    float dz = z[1]-z[0];
+
+//    int ix0 = xq <= x[0]? 0:floor((xq-x[0])/dx); 
+//    int iy0 = yq <= y[0]? 0:floor((yq-y[0])/dy);
+//    int ix2 = xq >= x[nx-1]? nx-1:ceil((xq-x[0])/dx); 
+//    int iy2 = yq >= y[ny-1]? ny-1:ceil((yq-y[0])/dy);
+    int ix0 = floor((xq-x[0])/dx); 
+    int iy0 = floor((yq-y[0])/dy);
+    int ix2 = ceil((xq-x[0])/dx); 
+    int iy2 = ceil((yq-y[0])/dy);
+    // out of bound, or every bound
+    ix0 = ix0 < 0 ? 0:ix0;
+    ix2 = ix2 < 0 ? 0:ix2;
+    ix0 = ix0 > nx-1 ? nx-1:ix0;
+    ix2 = ix2 > nx-1 ? nx-1:ix2;
+    iy0 = iy0 < 0 ? 0:iy0;
+    iy2 = iy2 < 0 ? 0:iy2;
+    iy0 = iy0 > ny-1 ? ny-1:iy0;
+    iy2 = iy2 > ny-1 ? ny-1:iy2;
+
+    // z can be increasing or descreasing
+    int iz0 = floor((zq-z[0])/dz);
+    int iz2 = ceil((zq-z[0])/dz);
+    // judge out of bound by 
+    iz0 = iz0 < 0 ? 0:iz0;
+    iz0 = iz0 > nz-1?nz-1:iz0;
+    iz2 = iz2 > nz-1?nz-1:iz2;
+    iz2 = iz2 < 0 ? 0:iz2;
+
+    size_t siz_line = nx;
+    size_t siz_slice = nx*ny;
+    // at the point
+    if (ix0 == ix2 && iy0 == iy2 && iz0 == iz2) {
+      return v[ix0 + iy0*siz_line + iz0*siz_slice];
+    }
+
+    // interp in every direction, can reduce judgement
+    float v000 = v[ix0 + iy0*siz_line + iz0*siz_slice];
+    float v002 = v[ix0 + iy0*siz_line + iz2*siz_slice];
+    float v200 = v[ix2 + iy0*siz_line + iz0*siz_slice];
+    float v202 = v[ix2 + iy0*siz_line + iz2*siz_slice];
+    float v020 = v[ix0 + iy2*siz_line + iz0*siz_slice];
+    float v022 = v[ix0 + iy2*siz_line + iz2*siz_slice];
+    float v220 = v[ix2 + iy2*siz_line + iz0*siz_slice];
+    float v222 = v[ix2 + iy2*siz_line + iz2*siz_slice];
+    //- xdir
+    float v100, v102, v122, v120;
+    // xq = x[i]
+    if (ix0 == ix2) { 
+        v100 = v000;
+        v102 = v002;
+        v122 = v022;
+        v120 = v020;
+    } else {
+        float w = (xq-x[ix0])/(x[ix2]-x[ix0]);
+        v100 = v000 + w * (v200-v000);
+        v102 = v002 + w * (v202-v002);
+        v122 = v022 + w * (v222-v022);
+        v120 = v020 + w * (v220-v020);   
+    }
+    // y-dir
+    float v110, v112;
+    if (iy0 == iy2) {
+        v110 = v100;
+        v112 = v102;
+    } else {
+        float w = (yq - y[iy0])/(y[iy2]-y[iy0]);
+        v110 = v100 + w * (v120-v100);
+        v112 = v102 + w * (v122-v102); 
+    }
+      
+    // z-dir
+    float v111;
+    if (iz0 == iz2) {
+        v111 = v110;
+    } else {
+        v111 = v110 + (zq-z[iz0])/(z[iz2]-z[iz0]) * (v112-v110); 
+    }
+
+    return v111;
+}
 
 //============== for matrix: just used in bond transform ===============
 // construct: init

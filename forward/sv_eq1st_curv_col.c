@@ -461,7 +461,7 @@ sv_eq1st_curv_col_allstep(
       io_snap_nc_put_ac(iosnap, &iosnap_nc, gdinfo, wav, 
                      w_end, w_rhs, nt_total, it, t_end, 1,1,1);
     } else {
-      io_snap_nc_put(iosnap, &iosnap_nc, gdinfo, wav, 
+      io_snap_nc_put(iosnap, &iosnap_nc, gdinfo, md, wav, 
                      w_end, w_rhs, nt_total, it, t_end, 1,1,1);
     }
 

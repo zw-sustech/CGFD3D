@@ -329,6 +329,15 @@ float BilinearInterpolation(
     float xq,
     float yq );
 
+float TrilinearInterpolation(
+    std::vector<float> &x, 
+    std::vector<float> &y, 
+    std::vector<float> &z, 
+    float *v,
+    float xq,
+    float yq, 
+    float zq);
+
 /*---- matrix: just for Bond transform ----*/
 template <typename T>
 class Matrix;
