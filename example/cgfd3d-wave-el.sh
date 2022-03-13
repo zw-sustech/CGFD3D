@@ -158,7 +158,6 @@ cat << ieof > $PAR_FILE
 
   "medium" : {
       "type" : "elastic_iso",
-      "#type" : "elastic_vti",
       "#input_way" : "infile_layer",
       "input_way" : "binfile",
       "binfile" : {
