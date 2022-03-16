@@ -330,7 +330,7 @@ int main(int argc, char** argv)
     float rk_rhs_time[] = { 0.0 };
 
     // need to check if work for stg scheme
-    src_read_locate_file(gdinfo, gdcart, src,
+    src_read_locate_file(gdinfo, gdcart, md, src,
                          par->source_input_file,
                          t0,
                          dt,

@@ -328,7 +328,7 @@ int main(int argc, char** argv)
 //-- source import or locate on fly
 //-------------------------------------------------------------------------------
 
-  src_read_locate_file(gdinfo, gdcart, src,
+  src_read_locate_file(gdinfo, gdcart, md, src,
                        par->source_input_file,
                        t0,
                        dt,
