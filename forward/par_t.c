@@ -489,11 +489,11 @@ par_read_from_str(const char *str, par_t *par)
         if (thirditem = cJSON_GetObjectItem(subitem, "dim1"))
         {
           sprintf(par->bin_dim1_name, "%s", thirditem->valuestring);
-          if (strcmp(par->bin_dim1_name,"x")) {
+          if (strcmp(par->bin_dim1_name,"x")==0) {
             par->bin_order[0] = 0;
-          } else if (strcmp(par->bin_dim1_name,"y")) {
+          } else if (strcmp(par->bin_dim1_name,"y")==0) {
             par->bin_order[0] = 1;
-          } else if (strcmp(par->bin_dim1_name,"z")) {
+          } else if (strcmp(par->bin_dim1_name,"z")==0) {
             par->bin_order[0] = 2;
           }
         }
@@ -501,11 +501,11 @@ par_read_from_str(const char *str, par_t *par)
         if (thirditem = cJSON_GetObjectItem(subitem, "dim2"))
         {
           sprintf(par->bin_dim2_name, "%s", thirditem->valuestring);
-          if (strcmp(par->bin_dim2_name,"x")) {
+          if (strcmp(par->bin_dim2_name,"x")==0) {
             par->bin_order[1] = 0;
-          } else if (strcmp(par->bin_dim2_name,"y")) {
+          } else if (strcmp(par->bin_dim2_name,"y")==0) {
             par->bin_order[1] = 1;
-          } else if (strcmp(par->bin_dim2_name,"z")) {
+          } else if (strcmp(par->bin_dim2_name,"z")==0) {
             par->bin_order[1] = 2;
           }
         }
@@ -513,11 +513,11 @@ par_read_from_str(const char *str, par_t *par)
         if (thirditem = cJSON_GetObjectItem(subitem, "dim3"))
         {
           sprintf(par->bin_dim3_name, "%s", thirditem->valuestring);
-          if (strcmp(par->bin_dim3_name,"x")) {
+          if (strcmp(par->bin_dim3_name,"x")==0) {
             par->bin_order[2] = 0;
-          } else if (strcmp(par->bin_dim3_name,"y")) {
+          } else if (strcmp(par->bin_dim3_name,"y")==0) {
             par->bin_order[2] = 1;
-          } else if (strcmp(par->bin_dim3_name,"z")) {
+          } else if (strcmp(par->bin_dim3_name,"z")==0) {
             par->bin_order[2] = 2;
           }
         }
