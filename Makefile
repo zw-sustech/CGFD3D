@@ -10,12 +10,12 @@
 #  .h dependency is not included, use make cleanall
 
 #-------------------------------------------------------------------------------
-# compiler
+# please set PATH and NETCDFROOT in run_make.sh
 #-------------------------------------------------------------------------------
 
-CC     :=  /share/apps/gnu-4.8.5/mpich-3.3/bin/mpicc
-CXX    :=  /share/apps/gnu-4.8.5/mpich-3.3/bin/mpicxx
-NETCDF :=  /share/apps/gnu-4.8.5/disable-netcdf-4.4.1
+CC     :=  mpicc
+CXX    :=  mpicxx
+NETCDF :=  ${NETCDFROOT}
 
 #-- 
 CFLAGS := -I$(NETCDF)/include -I./lib/ -I./forward/ -I./media/  $(CFLAGS)
