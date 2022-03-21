@@ -2,7 +2,8 @@
 
 #-- use module to set mpicc etc, on Mars
 module load intel/2019.5
-module load mpi/mpich/3.4.1_intel_2019.5
+#module load mpi/mpich/3.4.1_intel_2019.5
+module load mpi/mpich/3.3.1_intel_2019.5
 module load netcdf-c/4.4.1
 
 #-- add mpi to PATH if module is not used, on server1
