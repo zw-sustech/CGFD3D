@@ -1,6 +1,0 @@
-# number of stations
-3
-# stanm  is_index  is_depth  x  y  z
-pt_i50_j50_k60   1  0   50  50  59
-pt_i100_j50_k60  1  0  100  50  59
-pt_x1000_y1000_d500  0  1  1e3  1e3  500

@@ -23,6 +23,7 @@
 #define PAR_MEDIA_CODE   2
 #define PAR_MEDIA_3LAY   3
 #define PAR_MEDIA_3GRD   4
+#define PAR_MEDIA_3BIN   5
 
 #define PAR_MEDIA_CMP_VELOCITY 1
 #define PAR_MEDIA_CMP_THOMSEN  2
@@ -109,7 +110,7 @@ typedef struct{
   // medium
   char media_type[PAR_MAX_STRLEN]; // iso, vti, or aniso
   int  media_itype; // iso, vti, or aniso
-  char media_input_type[PAR_MAX_STRLEN]; // in_code, import, file
+  char media_input_way[PAR_MAX_STRLEN]; // in_code, import, file
   int  media_input_itype;
   char media_input_cmptype[PAR_MAX_STRLEN]; // cij, thomson
   int  media_input_icmptype;
@@ -119,6 +120,42 @@ typedef struct{
   char media_export_dir[PAR_MAX_STRLEN];
   char media_import_dir[PAR_MAX_STRLEN];
   char media_input_file[PAR_MAX_STRLEN];
+
+  // medium in bin file
+  int bin_size[CONST_NDIM];
+  int bin_order[CONST_NDIM];
+  float bin_spacing[CONST_NDIM];
+  float bin_origin[CONST_NDIM];
+  char bin_dim1_name[PAR_TYPE_STRLEN];
+  char bin_dim2_name[PAR_TYPE_STRLEN];
+  char bin_dim3_name[PAR_TYPE_STRLEN];
+  char bin_file_vp[PAR_MAX_STRLEN];
+  char bin_file_vs[PAR_MAX_STRLEN];
+  char bin_file_rho[PAR_MAX_STRLEN];
+  char bin_file_epsilon[PAR_MAX_STRLEN];
+  char bin_file_delta[PAR_MAX_STRLEN];
+  char bin_file_gamma[PAR_MAX_STRLEN];
+  char bin_file_c11[PAR_MAX_STRLEN];
+  char bin_file_c12[PAR_MAX_STRLEN];
+  char bin_file_c13[PAR_MAX_STRLEN];
+  char bin_file_c14[PAR_MAX_STRLEN];
+  char bin_file_c15[PAR_MAX_STRLEN];
+  char bin_file_c16[PAR_MAX_STRLEN];
+  char bin_file_c22[PAR_MAX_STRLEN];
+  char bin_file_c23[PAR_MAX_STRLEN];
+  char bin_file_c24[PAR_MAX_STRLEN];
+  char bin_file_c25[PAR_MAX_STRLEN];
+  char bin_file_c26[PAR_MAX_STRLEN];
+  char bin_file_c33[PAR_MAX_STRLEN];
+  char bin_file_c34[PAR_MAX_STRLEN];
+  char bin_file_c35[PAR_MAX_STRLEN];
+  char bin_file_c36[PAR_MAX_STRLEN];
+  char bin_file_c44[PAR_MAX_STRLEN];
+  char bin_file_c45[PAR_MAX_STRLEN];
+  char bin_file_c46[PAR_MAX_STRLEN];
+  char bin_file_c55[PAR_MAX_STRLEN];
+  char bin_file_c56[PAR_MAX_STRLEN];
+  char bin_file_c66[PAR_MAX_STRLEN];
 
   // following not used 
   char media_input_rho[PAR_MAX_STRLEN];

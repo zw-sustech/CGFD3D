@@ -62,16 +62,19 @@ int media_bin2model_el_iso(
 
     if (dimx == -1) {
       fprintf(stderr, "Error: missing the order of x in bin_order.\n");
+      fprintf(stderr, "       bin_order=%d,%d,%d\n", bin_order[0],bin_order[1],bin_order[2]);
       fflush(stderr);
       exit(1);
     }
     if (dimy == -1) {
       fprintf(stderr, "Error: missing the order of y in bin_order.\n");
+      fprintf(stderr, "       bin_order=%d,%d,%d\n", bin_order[0],bin_order[1],bin_order[2]);
       fflush(stderr);
       exit(1);
     }
     if (dimz == -1) {
       fprintf(stderr, "Error: missing the order of z in bin_order.\n");
+      fprintf(stderr, "       bin_order=%d,%d,%d\n", bin_order[0],bin_order[1],bin_order[2]);
       fflush(stderr);
       exit(1);
     }

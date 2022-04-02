@@ -128,6 +128,7 @@ cat << ieof > $PAR_FILE
 
   "medium" : {
       "type" : "acoustic_iso",
+      "input_way" : "infile_layer",
       "#code" : "func_name_here",
       "import" : "$MEDIA_DIR",
       "infile_layer" : "$INPUTDIR/prep_medium/basin_ac_iso.md3lay",

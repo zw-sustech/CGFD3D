@@ -5,23 +5,30 @@ set -e
 
 date
 
-#-- system related dir
-MPIDIR=/share/apps/gnu-4.8.5/mpich-3.3
+#-- system related dir, from module env or manually set
+#MPIDIR=/share/apps/gnu-4.8.5/mpich-3.3
+MPIDIR=$MPI_ROOT
 
 #-- program related dir
-EXEC_WAVE=`pwd`/../main_curv_col_el_3d
+CUR_DIR=`pwd`
+EXE_DIR=`pwd`/../
+
+EXEC_WAVE=${EXE_DIR}/main_curv_col_el_3d
+
 echo "EXEC_WAVE=$EXEC_WAVE"
 
-#-- input dir
-INPUTDIR=`pwd`
-
 #-- output and conf
-PROJDIR=~/work/cgfd3d-wave-el/03stadep
+PROJDIR=~/work/cgfd3d-wave-el/test2
+EVTNM=codetest
+
 PAR_FILE=${PROJDIR}/test.json
 GRID_DIR=${PROJDIR}/output
 MEDIA_DIR=${PROJDIR}/output
 SOURCE_DIR=${PROJDIR}/output
 OUTPUT_DIR=${PROJDIR}/output
+
+#RUN_SCRIPT_FILE=${PROJDIR}/runscript.sh
+RUN_SCRIPT_FILE=${PROJDIR}/runscript.lsf
 
 #-- create dir
 mkdir -p $PROJDIR
@@ -32,16 +39,17 @@ mkdir -p $MEDIA_DIR
 #----------------------------------------------------------------------
 #-- create hostlist for mpirun
 #----------------------------------------------------------------------
-cat << ieof > ${PROJDIR}/hostlist
-server1
-ieof
+#- no need in LSF
+#cat << ieof > ${PROJDIR}/hostlist
+#server1
+#ieof
 
 #----------------------------------------------------------------------
 #-- create in soruce file
 #----------------------------------------------------------------------
-cat << ieof > $INPUTDIR/test.src
+cat << ieof > ${PROJDIR}/test.src
 # name of this input source
-event_1
+${EVTNM}
 # number of source
 1
 # flag for stf
@@ -70,7 +78,15 @@ event_1
 1e16  1e16  1e16 0 0 0 
 ieof
 
-#cp -f $INPUTDIR/test_by_values.src $INPUTDIR/test.src
+#----------------------------------------------------------------------
+#-- create station list file
+#----------------------------------------------------------------------
+cat << ieof > $PROJDIR/test.station
+# number of station
+1
+# name is_grid_indx is_3dim_depth  x y z
+r1  0  1  1000 1000 0
+ieof
 
 #----------------------------------------------------------------------
 #-- create main conf
@@ -141,7 +157,7 @@ cat << ieof > $PAR_FILE
         "inteval" : [ 100.0, 100.0, 100.0 ]
       },
       "#layer_interp" : {
-        "in_grid_layer_file" : "$INPUTDIR/prep_grid/tangshan_area_topo.gdlay",
+        "in_grid_layer_file" : "${CUR_DIR}/prep_grid/tangshan_area_topo.gdlay",
         "refine_factor" : [ 1, 1, 1 ],
         "horizontal_start_index" : [ 3, 3 ],
         "vertical_last_to_top" : 0
@@ -158,8 +174,8 @@ cat << ieof > $PAR_FILE
 
   "medium" : {
       "type" : "elastic_iso",
-      "#input_way" : "infile_layer",
-      "input_way" : "binfile",
+      "input_way" : "code",
+      "#input_way" : "binfile",
       "binfile" : {
         "size"    : [1101, 1447, 1252],
         "spacing" : [-10, 10, 10],
@@ -167,14 +183,14 @@ cat << ieof > $PAR_FILE
         "dim1" : "z",
         "dim2" : "x",
         "dim3" : "y",
-        "Vp" : "$INPUTDIR/prep_medium/seam_Vp.bin",
-        "Vs" : "$INPUTDIR/prep_medium/seam_Vs.bin",
-        "rho" : "$INPUTDIR/prep_medium/seam_rho.bin"
+        "Vp" : "${CUR_DIR}/prep_medium/seam_Vp.bin",
+        "Vs" : "${CUR_DIR}/prep_medium/seam_Vs.bin",
+        "rho" : "${CUR_DIR}/prep_medium/seam_rho.bin"
       },
       "code" : "func_name_here",
-      "import" : "$MEDIA_DIR",
-      "infile_layer" : "$INPUTDIR/prep_medium/basin_el_iso.md3lay",
-      "infile_grid" : "$INPUTDIR/prep_medium/topolay_el_iso.md3grd",
+      "#import" : "$MEDIA_DIR",
+      "#infile_layer" : "${CUR_DIR}/prep_medium/basin_el_iso.md3lay",
+      "#infile_grid" : "${CUR_DIR}/prep_medium/topolay_el_iso.md3grd",
       "equivalent_medium_method" : "loc",
       "#equivalent_medium_method" : "har"
   },
@@ -186,13 +202,13 @@ cat << ieof > $PAR_FILE
       "Qs_freq" : 1.0
   },
 
-  "in_source_file" : "$INPUTDIR/test.src",
+  "in_source_file" : "$PROJDIR/test.src",
   "is_export_source" : 1,
   "source_export_dir"  : "$SOURCE_DIR",
 
   "output_dir" : "$OUTPUT_DIR",
 
-  "in_station_file" : "$INPUTDIR/station.list",
+  "in_station_file" : "$PROJDIR/test.station",
 
   "#receiver_line" : [
     {
@@ -225,7 +241,7 @@ cat << ieof > $PAR_FILE
       "time_index_incre" : 1,
       "save_velocity" : 1,
       "save_stress"   : 1,
-      "save_strain"   : 1
+      "save_strain"   : 0
     }
   ],
 
@@ -238,25 +254,35 @@ echo "+ created $PAR_FILE"
 
 
 #-------------------------------------------------------------------------------
-#-- Performce simulation
+#-- generate run script
 #-------------------------------------------------------------------------------
-#
 
 #-- get np
 NUMPROCS_X=`grep number_of_mpiprocs_x ${PAR_FILE} | sed 's/:/ /g' | sed 's/,/ /g' | awk '{print $2}'`
 NUMPROCS_Y=`grep number_of_mpiprocs_y ${PAR_FILE} | sed 's/:/ /g' | sed 's/,/ /g' | awk '{print $2}'`
 NUMPROCS=$(( NUMPROCS_X*NUMPROCS_Y ))
-echo $NUMPROCS_X $NUMPROCS_Y $NUMPROCS
+
+echo "NPROC_X=" $NUMPROCS_X
+echo "NPROC_Y=" $NUMPROCS_Y
+echo "NPROC_total=" $NUMPROCS
 
 #-- gen run script
-cat << ieof > ${PROJDIR}/cgfd_sim.sh
+cat << ieof > ${RUN_SCRIPT_FILE}
 #!/bin/bash
 
+#BSUB -J ${EVTNM}  ### set the job Name
+#BSUB -q normal ### specify queue
+#BSUB -n ${NUMPROCS} ### ask for number of cores (default: 1)
+##BSUB -R "hname!=c013" ### ask for number of cores (default: 1)
+#BSUB -o stdout.%J ### combine the std and err to file. %J is the job-id
+
 set -e
+
 printf "\nUse $NUMPROCS CPUs on following nodes:\n"
 
 printf "\nStart simualtion ...\n";
-time $MPIDIR/bin/mpiexec -machinefile ${PROJDIR}/hostlist -np $NUMPROCS $EXEC_WAVE $PAR_FILE 100
+#time $MPIDIR/bin/mpiexec -machinefile ${PROJDIR}/hostlist -np $NUMPROCS $EXEC_WAVE $PAR_FILE 100
+time $MPIDIR/bin/mpiexec -np $NUMPROCS $EXEC_WAVE $PAR_FILE 110
 if [ $? -ne 0 ]; then
     printf "\nSimulation fail! stop!\n"
     exit 1
@@ -265,15 +291,23 @@ fi
 ieof
 
 #-------------------------------------------------------------------------------
-#-- start run
+# submit or run
 #-------------------------------------------------------------------------------
 
-chmod 755 ${PROJDIR}/cgfd_sim.sh
-${PROJDIR}/cgfd_sim.sh
-if [ $? -ne 0 ]; then
-    printf "\nSimulation fail! stop!\n"
-    exit 1
-fi
+echo "sumbit to lsf ..."
+bsub < ${RUN_SCRIPT_FILE}
+
+#echo "start run script ..."
+#chmod 755 ${RUN_SCRIPT_FILE}
+#${RUN_SCRIPT_FILE}
+#if [ $? -ne 0 ]; then
+#    printf "\nSimulation fail! stop!\n"
+#    exit 1
+#fi
+
+#-------------------------------------------------------------------------------
+# end
+#-------------------------------------------------------------------------------
 
 date
 
