@@ -1175,7 +1175,10 @@ gd_curv_gen_layer(char *in_grid_layer_file,
   else if (nx_first + n_total_grid_x + fdx_nghosts > nx_interp || ny_first + n_total_grid_y + fdy_nghosts > ny_interp)
   {
     fprintf(stdout, "Input Parameter Error:\n"); 
-    fflush(stdout);
+    fprintf(stdout,"nx_first=%d+n_total_grid_y=%d+fdx_nghosts=%d>nx_interp=%d\n",
+             nx_first,n_total_grid_x,fdx_nghosts,nx_interp);
+    fprintf(stdout,"ny_first=%d+n_total_grid_y=%d+fdy_nghosts=%d>ny_interp=%d\n",
+             ny_first,n_total_grid_y,fdy_nghosts,ny_interp);
     fprintf(stdout, "please check the number_of_total_grid_points， refine_factor and in_grid_layer_file file !!\n"); 
     fflush(stdout);
     exit(-1);
