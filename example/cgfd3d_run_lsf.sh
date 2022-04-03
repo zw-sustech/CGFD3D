@@ -5,8 +5,8 @@
 date
 
 #-- system related dir, from module env or manually set
-MPIDIR=/share/apps/gnu-4.8.5/mpich-3.3
-#MPIDIR=$MPI_ROOT
+#MPIDIR=/share/apps/gnu-4.8.5/mpich-3.3
+MPIDIR=$MPI_ROOT
 
 #-- program related dir
 CUR_DIR=`pwd`
@@ -305,10 +305,10 @@ printf "\nUse $NPROCS CPUs on following nodes:\n"
 MPI_CMD="$MPIDIR/bin/mpiexec -np ${NPROCS} ${EXEC_WAVE} ${PAR_FILE} 110"
 
 printf "\nStart simualtion ...\n";
-printf "%s\n\n" "${MPI_CMD}";
+printf "%s\n\n" "\${MPI_CMD}";
 
-time ${MPI_CMD};
-if [ $? -ne 0 ]; then
+time \${MPI_CMD};
+if [ \$? -ne 0 ]; then
     printf "\nSimulation fail! stop!\n"
     exit 1
 fi
@@ -332,15 +332,15 @@ cat << ieof > ${RUN_SCRIPT_FILE}
 #PBS -j oe
 
 printf "\nUse $NPROCS CPUs on following nodes:\n"
-printf "%s " `cat ${PBS_NODEFILE} | sort`;
+printf "%s " \`cat ${PBS_NODEFILE} | sort\`;
 
 MPI_CMD="$MPIDIR/bin/mpiexec -np ${NPROCS} ${EXEC_WAVE} ${PAR_FILE} 110"
 
 printf "\nStart simualtion ...\n";
-printf "%s\n\n" "${MPI_CMD}";
+printf "%s\n\n" "\${MPI_CMD}";
 
-time ${MPI_CMD};
-if [ $? -ne 0 ]; then
+time \${MPI_CMD};
+if [ \$? -ne 0 ]; then
     printf "\nSimulation fail! stop!\n"
     exit 1
 fi
@@ -368,7 +368,7 @@ printf "\nStart simualtion ...\n";
 printf "%s\n\n" "'\${MPI_CMD}'";
 
 time \${MPI_CMD};
-if [ $? -ne 0 ]; then
+if [ \$? -ne 0 ]; then
     printf "\nSimulation fail! stop!\n"
     exit 1
 fi
@@ -389,9 +389,9 @@ create_source_file;
 create_station_file;
 
 #-- run with lsf
-#echo "sumbit to lsf ..."
-#create_script_lsf;
-#bsub < ${RUN_SCRIPT_FILE}
+echo "sumbit to lsf ..."
+create_script_lsf;
+bsub < ${RUN_SCRIPT_FILE}
 
 #-- run with pbs
 #echo "sumbit to pbs ..."
@@ -399,9 +399,9 @@ create_station_file;
 #qsub ${RUN_SCRIPT_FILE}
 
 #-- directly run
-echo "start run script ..."
-create_script_run;
-${RUN_SCRIPT_FILE}
+#echo "start run script ..."
+#create_script_run;
+#${RUN_SCRIPT_FILE}
 
 date
 
