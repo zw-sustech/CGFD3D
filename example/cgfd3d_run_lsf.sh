@@ -1,7 +1,6 @@
 #!/bin/bash
 
 #set -x
-set -e
 
 date
 
@@ -11,15 +10,16 @@ MPIDIR=$MPI_ROOT
 
 #-- program related dir
 CUR_DIR=`pwd`
-EXE_DIR=`pwd`/../
 
+EXE_DIR=`dirname ${CUR_DIR}`
 EXEC_WAVE=${EXE_DIR}/main_curv_col_el_3d
-
 echo "EXEC_WAVE=$EXEC_WAVE"
 
 #-- output and conf
 PROJDIR=~/work/cgfd3d-wave-el/test2
 EVTNM=codetest
+echo "PROJDIR=${PROJDIR}"
+echo "EVTNM=${EVTNM}"
 
 PAR_FILE=${PROJDIR}/test.json
 GRID_DIR=${PROJDIR}/output
@@ -29,6 +29,7 @@ OUTPUT_DIR=${PROJDIR}/output
 
 #RUN_SCRIPT_FILE=${PROJDIR}/runscript.sh
 RUN_SCRIPT_FILE=${PROJDIR}/runscript.lsf
+echo "RUN_SCRIPT_FILE=${RUN_SCRIPT_FILE}"
 
 #-- create dir
 mkdir -p $PROJDIR
@@ -37,16 +38,28 @@ mkdir -p $GRID_DIR
 mkdir -p $MEDIA_DIR
 
 #----------------------------------------------------------------------
-#-- create hostlist for mpirun
+#-- grid and mpi configurations
 #----------------------------------------------------------------------
-#- no need in LSF
-#cat << ieof > ${PROJDIR}/hostlist
-#server1
-#ieof
+
+#-- total x grid points
+NX=300
+#-- total y grid points
+NY=300
+#-- total z grid points
+NZ=60
+#-- total x mpi procs
+NPROCS_X=2
+#-- total y mpi procs
+NPROCS_Y=2
+#-- total mpi procs
+NPROCS=$(( NPROCS_X*NPROCS_Y ))
 
 #----------------------------------------------------------------------
 #-- create in soruce file
 #----------------------------------------------------------------------
+
+create_source_file()
+{
 cat << ieof > ${PROJDIR}/test.src
 # name of this input source
 ${EVTNM}
@@ -78,9 +91,15 @@ ${EVTNM}
 1e16  1e16  1e16 0 0 0 
 ieof
 
+echo "+ created $PROJDIR/test.src"
+}
+
 #----------------------------------------------------------------------
 #-- create station list file
 #----------------------------------------------------------------------
+
+create_station_file()
+{
 cat << ieof > $PROJDIR/test.station
 # number of station
 1
@@ -88,17 +107,23 @@ cat << ieof > $PROJDIR/test.station
 r1  0  1  1000 1000 0
 ieof
 
+echo "+ created $PROJDIR/test.station"
+}
+
 #----------------------------------------------------------------------
 #-- create main conf
 #----------------------------------------------------------------------
+
+create_json_file()
+{
 cat << ieof > $PAR_FILE
 {
-  "number_of_total_grid_points_x" : 300,
-  "number_of_total_grid_points_y" : 300,
-  "number_of_total_grid_points_z" : 60,
+  "number_of_total_grid_points_x" : $NX,
+  "number_of_total_grid_points_y" : $NY,
+  "number_of_total_grid_points_z" : $NZ,
 
-  "number_of_mpiprocs_x" : 2,
-  "number_of_mpiprocs_y" : 2,
+  "number_of_mpiprocs_x" : $NPROCS_X,
+  "number_of_mpiprocs_y" : $NPROCS_Y,
 
   "#size_of_time_step" : 0.008,
   "#size_of_time_step" : 0.020,
@@ -234,8 +259,8 @@ cat << ieof > $PAR_FILE
   "snapshot" : [
     {
       "name" : "volume_vel",
-      "grid_index_start" : [ 0, 0, 59 ],
-      "grid_index_count" : [ 300,300, 1 ],
+      "grid_index_start" : [ 0, 0, $(( NZ - 1 )) ],
+      "grid_index_count" : [ $NX, $NY, 1 ],
       "grid_index_incre" : [  1, 1, 1 ],
       "time_index_start" : 0,
       "time_index_incre" : 1,
@@ -251,64 +276,133 @@ cat << ieof > $PAR_FILE
 ieof
 
 echo "+ created $PAR_FILE"
-
+}
 
 #-------------------------------------------------------------------------------
 #-- generate run script
 #-------------------------------------------------------------------------------
 
-#-- get np
-NUMPROCS_X=`grep number_of_mpiprocs_x ${PAR_FILE} | sed 's/:/ /g' | sed 's/,/ /g' | awk '{print $2}'`
-NUMPROCS_Y=`grep number_of_mpiprocs_y ${PAR_FILE} | sed 's/:/ /g' | sed 's/,/ /g' | awk '{print $2}'`
-NUMPROCS=$(( NUMPROCS_X*NUMPROCS_Y ))
-
-echo "NPROC_X=" $NUMPROCS_X
-echo "NPROC_Y=" $NUMPROCS_Y
-echo "NPROC_total=" $NUMPROCS
-
-#-- gen run script
+#-- for lsf
+create_script_lsf()
+{
 cat << ieof > ${RUN_SCRIPT_FILE}
 #!/bin/bash
 
-#BSUB -J ${EVTNM}  ### set the job Name
-#BSUB -q normal ### specify queue
-#BSUB -n ${NUMPROCS} ### ask for number of cores (default: 1)
-##BSUB -R "hname!=c013" ### ask for number of cores (default: 1)
-#BSUB -o stdout.%J ### combine the std and err to file. %J is the job-id
+#-- Job Name
+#BSUB -J ${EVTNM} 
+#-- Queue name
+#--  mars: normal, large;  earth: short, large, long
+#BSUB -q normal
+#-- requires number of cores (default: 1)
+#BSUB -n ${NPROCS}
+#-- Other specification
+##BSUB -R "hname!=c013"
+#-- Merge stderr with stdout, %J is the job-id
+#BSUB -o stdout.%J
 
-set -e
+printf "\nUse $NPROCS CPUs on following nodes:\n"
 
-printf "\nUse $NUMPROCS CPUs on following nodes:\n"
+MPI_CMD="$MPIDIR/bin/mpiexec -np ${NPROCS} ${EXEC_WAVE} ${PAR_FILE} 110"
 
 printf "\nStart simualtion ...\n";
-#time $MPIDIR/bin/mpiexec -machinefile ${PROJDIR}/hostlist -np $NUMPROCS $EXEC_WAVE $PAR_FILE 100
-time $MPIDIR/bin/mpiexec -np $NUMPROCS $EXEC_WAVE $PAR_FILE 110
-if [ $? -ne 0 ]; then
+printf "%s\n\n" "\${MPI_CMD}";
+
+time \${MPI_CMD};
+if [ \$? -ne 0 ]; then
     printf "\nSimulation fail! stop!\n"
     exit 1
 fi
-
 ieof
+}
+
+#-- for pbs
+create_script_pbs()
+{
+cat << ieof > ${RUN_SCRIPT_FILE}
+#!/bin/bash
+
+#-- Job Name
+#PBS -N ${EVTNM} 
+#-- Queue name, should check the naming of the system
+#PBS -q normal
+#-- requires number of cores
+#--  be aware that pbs requires to specify number of nodes, ncpus per node
+#PBS -l select=1:ncpus=${NPROCS}
+#-- Merge stderr with stdout
+#PBS -j oe
+
+printf "\nUse $NPROCS CPUs on following nodes:\n"
+printf "%s " \`cat ${PBS_NODEFILE} | sort\`;
+
+MPI_CMD="$MPIDIR/bin/mpiexec -np ${NPROCS} ${EXEC_WAVE} ${PAR_FILE} 110"
+
+printf "\nStart simualtion ...\n";
+printf "%s\n\n" "\${MPI_CMD}";
+
+time \${MPI_CMD};
+if [ \$? -ne 0 ]; then
+    printf "\nSimulation fail! stop!\n"
+    exit 1
+fi
+ieof
+}
+
+#-- for directly run
+create_script_run()
+{
+#-- create hostlist
+cat << ieof > ${PROJDIR}/hostlist
+server1
+ieof
+
+#-- create runscript
+cat << ieof > ${RUN_SCRIPT_FILE}
+#!/bin/bash
+
+printf "\nUse $NPROCS CPUs on following nodes:\n"
+printf "%s " \`cat ${PROJDIR}/hostlist | sort\`;
+
+MPI_CMD="$MPIDIR/bin/mpiexec -machinefile ${PROJDIR}/hostlist -np $NPROCS $EXEC_WAVE $PAR_FILE 100"
+
+printf "\nStart simualtion ...\n";
+printf "%s\n\n" "'\${MPI_CMD}'";
+
+time \${MPI_CMD};
+if [ \$? -ne 0 ]; then
+    printf "\nSimulation fail! stop!\n"
+    exit 1
+fi
+ieof
+
+chmod 755 ${RUN_SCRIPT_FILE}
+}
 
 #-------------------------------------------------------------------------------
 # submit or run
 #-------------------------------------------------------------------------------
 
+#-- common steps
+create_json_file;
+
+create_source_file;
+
+create_station_file;
+
+#-- run with lsf
 echo "sumbit to lsf ..."
+create_script_lsf;
 bsub < ${RUN_SCRIPT_FILE}
 
-#echo "start run script ..."
-#chmod 755 ${RUN_SCRIPT_FILE}
-#${RUN_SCRIPT_FILE}
-#if [ $? -ne 0 ]; then
-#    printf "\nSimulation fail! stop!\n"
-#    exit 1
-#fi
+#-- run with pbs
+#echo "sumbit to pbs ..."
+#create_script_pbs;
+#qsub ${RUN_SCRIPT_FILE}
 
-#-------------------------------------------------------------------------------
-# end
-#-------------------------------------------------------------------------------
+#-- directly run
+#echo "start run script ..."
+#create_script_run;
+#${RUN_SCRIPT_FILE}
 
 date
 
-# vim:ft=conf:ts=4:sw=4:nu:et:ai:
+# vim:ts=4:sw=4:nu:et:ai:
