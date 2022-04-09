@@ -17,7 +17,7 @@
 #include "io_funcs.h"
 #include "src_t.h"
 
-#define DEBUG_SRC_T
+//#define DEBUG_SRC_T
 
 /*
  * src_t alloc
