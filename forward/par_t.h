@@ -42,6 +42,7 @@ typedef struct{
   //char source_dir   [PAR_MAX_STRLEN];
   //char station_dir  [PAR_MAX_STRLEN];
   //char log_file_name[PAR_MAX_STRLEN];
+  char tmp_dir[PAR_MAX_STRLEN];
 
   // MPI
   int number_of_mpiprocs_x;
@@ -182,6 +183,10 @@ typedef struct{
   char source_input_file[PAR_MAX_STRLEN];
   int is_export_source;
   char source_export_dir[PAR_MAX_STRLEN];
+
+  char source_dd_input_file[PAR_MAX_STRLEN];
+  int  source_dd_add_at_point;
+  int  source_dd_nt_per_read;
 
   // output
   // receiver

@@ -121,4 +121,13 @@ sv_eq1st_curv_col_el_iso_rhs_src(
     src_t *src, // short nation for reference member
     const int myid, const int verbose);
 
+int
+sv_eq1st_curv_col_el_iso_rhs_srcdd(
+    float *restrict hVx , float *restrict hVy , float *restrict hVz ,
+    float *restrict hTxx, float *restrict hTyy, float *restrict hTzz,
+    float *restrict hTxz, float *restrict hTyz, float *restrict hTxy,
+    float *restrict jac3d, float *restrict slw3d,
+    src_t *src, // short nation for reference member
+    const int myid, const int verbose);
+
 #endif

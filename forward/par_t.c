@@ -714,6 +714,21 @@ par_read_from_str(const char *str, par_t *par)
       sprintf(par->source_export_dir,"%s",item->valuestring);
   }
 
+  // input source file
+  if (item = cJSON_GetObjectItem(root, "in_ddsource_file"))
+  {
+      sprintf(par->source_dd_input_file, "%s", item->valuestring);
+  }
+  // default value
+  par->source_dd_add_at_point = 1;
+  if (item = cJSON_GetObjectItem(root, "ddsource_add_at_point")) {
+    par->source_dd_add_at_point = item->valueint;
+  }
+  par->source_dd_nt_per_read = 100;
+  if (item = cJSON_GetObjectItem(root, "ddsource_nt_per_read")) {
+    par->source_dd_nt_per_read = item->valueint;
+  }
+
   //-- output dir
   if (item = cJSON_GetObjectItem(root, "output_dir")) {
       sprintf(par->output_dir,"%s",item->valuestring);
@@ -883,6 +898,12 @@ par_read_from_str(const char *str, par_t *par)
   }
   if (item = cJSON_GetObjectItem(root, "output_all")) {
       par->output_all = item->valueint;
+  }
+
+  // tmp dir
+  if (item = cJSON_GetObjectItem(root, "tmp_dir"))
+  {
+      sprintf(par->tmp_dir, "%s", item->valuestring);
   }
 
   //if (item = cJSON_GetObjectItem(root, "grid_name")) {

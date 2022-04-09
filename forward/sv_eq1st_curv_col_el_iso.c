@@ -12,7 +12,7 @@
 #include "fdlib_math.h"
 #include "sv_eq1st_curv_col_el_iso.h"
 
-//#define SV_EQ1ST_CURV_COLGRD_ISO_DEBUG
+//#define DEBUG_SV_EQ1ST_CURV_COLGRD_ISO
 
 /*******************************************************************************
  * perform one stage calculation of rhs
@@ -175,6 +175,15 @@ sv_eq1st_curv_col_el_iso_onestage(
   if (src->total_number > 0)
   {
     sv_eq1st_curv_col_el_iso_rhs_src(hVx,hVy,hVz,hTxx,hTyy,hTzz,hTxz,hTyz,hTxy,
+                                    jac3d, slw3d, 
+                                    src,
+                                    myid, verbose);
+  }
+
+  // not do if pass time range
+  if (src->dd_is_valid ==1)
+  {
+    sv_eq1st_curv_col_el_iso_rhs_srcdd(hVx,hVy,hVz,hTxx,hTyy,hTzz,hTxz,hTyz,hTxy,
                                     jac3d, slw3d, 
                                     src,
                                     myid, verbose);
@@ -1695,3 +1704,155 @@ sv_eq1st_curv_col_el_iso_rhs_src(
   return ierr;
 }
 
+/*
+ * add group of sources per time step, naming as inject to differentiate with previous
+ * function, not strictly means injection method
+ */
+
+int
+sv_eq1st_curv_col_el_iso_rhs_srcdd(
+    float *restrict hVx , float *restrict hVy , float *restrict hVz ,
+    float *restrict hTxx, float *restrict hTyy, float *restrict hTzz,
+    float *restrict hTxz, float *restrict hTyz, float *restrict hTxy,
+    float *restrict jac3d, float *restrict slw3d,
+    src_t *src, // short nation for reference member
+    const int myid, const int verbose)
+{
+  int ierr = 0;
+
+  // get info from src
+  int it_here= src->dd_it_here;
+  int istage = src->istage;
+
+  if (verbose>999) {
+    fprintf(stdout,"-- add srcdd: myid=%d,it_here=%d,istage=%d\n",myid,it_here,istage);
+    fflush(stdout);
+  }
+
+  // return if pass time range: compare out of func for efficiency
+  //if (it >= src->dd_max_nt) {
+  //  return 0;
+  //}
+
+  // add injection src; is is a commont iterater var
+  if (src->dd_is_add_at_point == 1)
+  {
+    // vi
+    if (src->dd_vi_actived == 1) 
+    {
+      size_t iptr0_stf = it_here * src->max_stage * src->dd_total_number * CONST_NDIM
+                                         + istage * src->dd_total_number * CONST_NDIM;
+      float *dd_vi_pt = src->dd_vi + iptr0_stf;
+
+      for (int is=0; is < src->dd_total_number; is++)
+      {
+        size_t iptr      = src->dd_indx[is];
+        float V = slw3d[iptr] / jac3d[iptr];
+
+        hVx[iptr] += dd_vi_pt[0] * V;
+        hVy[iptr] += dd_vi_pt[1] * V;
+        hVz[iptr] += dd_vi_pt[2] * V;
+
+        // next source
+        dd_vi_pt += CONST_NDIM;
+      }
+    }
+
+    // mij
+    if (src->dd_mij_actived == 1) 
+    {
+      size_t iptr0_stf = it_here * src->max_stage * src->dd_total_number * CONST_NDIM_2
+                                         + istage * src->dd_total_number * CONST_NDIM_2;
+      float *dd_mij_pt = src->dd_mij + iptr0_stf;
+#ifdef DEBUG_SV_EQ1ST_CURV_COLGRD_ISO
+      fprintf(stdout,"-- add srcdd mij: it_here=%d,istage=%d,max_stage=%d,dd_total_number=%d\n",
+                          it_here,istage,src->max_stage,src->dd_total_number);
+      fprintf(stdout,"-- add srcdd mij: iptr0_stf=%zu\n",
+                          iptr0_stf);
+      fflush(stdout);
+#endif
+
+      for (int is=0; is < src->dd_total_number; is++)
+      {
+        size_t iptr      = src->dd_indx[is];
+        float rjac = 1.0 / jac3d[iptr];
+#ifdef DEBUG_SV_EQ1ST_CURV_COLGRD_ISO
+        fprintf(stdout,"-- add srcdd mij: is=%d,iptr=%zu,dd_mpi_pt=%p\n",
+                            is,iptr,dd_mij_pt);
+        fprintf(stdout,"-- add srcdd mij: mxx=%g,myy=%g,mzz=%g,myz=%g,mxz=%g,mxy=%g\n",
+                  dd_mij_pt[0], dd_mij_pt[1], dd_mij_pt[2], dd_mij_pt[3], dd_mij_pt[4], dd_mij_pt[5]);
+        fflush(stdout);
+#endif
+
+        hTxx[iptr] -= dd_mij_pt[0] * rjac;
+        hTyy[iptr] -= dd_mij_pt[1] * rjac;
+        hTzz[iptr] -= dd_mij_pt[2] * rjac;
+        hTxz[iptr] -= dd_mij_pt[3] * rjac;
+        hTyz[iptr] -= dd_mij_pt[4] * rjac;
+        hTxy[iptr] -= dd_mij_pt[5] * rjac;
+
+        dd_mij_pt += CONST_NDIM_2;
+      }
+    }
+  }
+  // add with spatial smooth
+  else
+  {
+    fprintf(stderr,"ERROR: ddsrc with smoooth not implemented\n");
+    fflush(stderr);
+    MPI_Abort(MPI_COMM_WORLD, 1);
+
+    //float wid_gauss = src->dd_smo_hlen / 2.0;
+    //int   smo_heln  = src->dd_smo_hlen;
+
+    //// mij
+    //if (src->dd_mij_actived == 1) 
+    //{
+    //  size_t iptr0_stf = it_here * src->max_stage * src->dd_total_number * CONST_NDIM_2
+    //                                     + istage * src->dd_total_number * CONST_NDIM_2;
+    //  float *dd_mij_pt = src->dd_mij + iptr0_stf;
+
+    //  for (int is=0; is < src->dd_total_number; is++)
+    //  {
+    //    size_t iptr      = src->dd_indx[is];
+    //    float rjac = 1.0 / jac3d[iptr];
+
+    //    int   si = src->dd_si[is];
+    //    int   sj = src->dd_sj[is];
+    //    int   sk = src->dd_sk[is];
+    //    float si_inc = src->dd_si_inc[is];
+    //    float sj_inc = src->dd_si_inc[is];
+    //    float sk_inc = src->dd_si_inc[is];
+
+    //    hTxx[iptr] -= dd_mij_pt[0] * rjac;
+    //    hTyy[iptr] -= dd_mij_pt[1] * rjac;
+    //    hTzz[iptr] -= dd_mij_pt[2] * rjac;
+    //    hTxz[iptr] -= dd_mij_pt[3] * rjac;
+    //    hTyz[iptr] -= dd_mij_pt[4] * rjac;
+    //    hTxy[iptr] -= dd_mij_pt[5] * rjac;
+
+    //    dd_mij_pt += CONST_NDIM_2;
+
+    //    for (int ismo=-smo_heln; ismo<smo_heln; ismo++)
+    //    {
+    //      for (int jsmo=-smo_heln; jsmo<smo_heln; jsmo++)
+    //      {
+    //        for (int ksmo=-smo_heln; ksmo<smo_heln; ksmo++)
+    //        {
+    //          int i = si + ismo;
+    //          int j = sj + jsmo;
+    //          int k = sk + ksmo;
+    //          if (    i<=ni2 && i>=ni1 
+    //               && j<=nj2 && j>=nj1 
+    //               && k<=nk2 && k>=nk1)
+    //          {
+    //          }
+    //        }
+    //      }
+    //    }
+    //  }
+    //}
+  }
+
+  return ierr;
+}

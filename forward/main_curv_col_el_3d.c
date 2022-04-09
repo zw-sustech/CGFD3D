@@ -567,13 +567,22 @@ int main(int argc, char** argv)
 
   src_read_locate_file(gdinfo, gdcurv, src,
                        par->source_input_file,
-                       t0,
-                       dt,
+                       t0, dt,
                        fd->num_rk_stages, fd->rk_rhs_time,
                        fd->fdx_max_half_len,
-                       comm,
-                       myid,
+                       comm, myid,
                        verbose);
+
+  src_dd_read2local(gdinfo, gdcurv, src,
+                    par->source_dd_input_file,
+                    par->tmp_dir,
+                    par->source_dd_add_at_point,
+                    par->source_dd_nt_per_read,
+                    t0, dt, nt_total,
+                    fd->num_rk_stages, fd->rk_rhs_time,
+                    fd->fdx_max_half_len,
+                    comm, myid, mympi->topoid,
+                    verbose);
 
   // print basic info for QC
   fprintf(stdout,"src info at topoid=%d,%d\n", mympi->topoid[0],mympi->topoid[1]); 
@@ -734,6 +743,8 @@ int main(int argc, char** argv)
 //-------------------------------------------------------------------------------
 //-- postprocess
 //-------------------------------------------------------------------------------
+
+  src_dd_free(src);
 
   MPI_Finalize();
 

@@ -173,10 +173,19 @@ sv_eq1st_curv_col_allstep(
     ipair = it % num_of_pairs;
     if (myid==0 && verbose>10) fprintf(stdout, " --> ipair=%d\n",ipair);
 
+    // increase dd it and reload stf
+    if (src->dd_is_valid == 1) {
+      src_dd_accit_loadstf(src,it,myid);
+    }
+
     // loop RK stages for one step
     for (istage=0; istage<num_rk_stages; istage++)
     {
       if (myid==0 && verbose>10) fprintf(stdout, " --> istage=%d\n",istage);
+
+      //if (src->dd_is_valid == 1) {
+      //  src_dd_set_stage(src,istage);
+      //}
 
       // for mesg
       if (istage != num_rk_stages-1) {
