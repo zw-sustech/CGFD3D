@@ -369,7 +369,7 @@ cat << ieof > ${RUN_SCRIPT_FILE}
 printf "\nUse $NPROCS CPUs on following nodes:\n"
 printf "%s " \`cat ${PROJDIR}/hostlist | sort\`;
 
-MPI_CMD="$MPIDIR/bin/mpiexec -machinefile ${PROJDIR}/hostlist -np $NPROCS $EXEC_WAVE $PAR_FILE 1000"
+MPI_CMD="$MPIDIR/bin/mpiexec -machinefile ${PROJDIR}/hostlist -np $NPROCS $EXEC_WAVE $PAR_FILE 10"
 
 printf "\nStart simualtion ...\n";
 printf "%s\n\n" "'\${MPI_CMD}'";
