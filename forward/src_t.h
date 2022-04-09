@@ -129,6 +129,7 @@ src_coord_to_local_indx(gdinfo_t *gdinfo,
 int
 src_read_locate_file(gdinfo_t *gdinfo,
                      gd_t     *gd,
+                     md_t     *md,
                      src_t    *src,
                      char     *in_src_file,
                      float     t0,

@@ -126,6 +126,7 @@ src_glob_ext_ishere(int si, int sj, int sk, int half_ext, gdinfo_t *gdinfo)
 int
 src_read_locate_file(gdinfo_t *gdinfo,
                      gd_t     *gd,
+                     md_t     *md,
                      src_t    *src,
                      char     *in_src_file,
                      float     t0,
@@ -323,7 +324,13 @@ src_read_locate_file(gdinfo_t *gdinfo,
       fprintf(stdout,"-- %d: indx=(%d,%d,%d), inc=(%f,%f,%f)\n",
                     is, all_index[is][0],all_index[is][1],all_index[is][2],
                         all_inc[is][0],all_inc[is][1],all_inc[is][2]);
-                    
+    }
+    fflush(stdout);
+  }
+
+  if (myid == 0) {
+    for (int is=0; is < in_num_source; is++)
+    {
       if(all_index[is][0] == -1000 || all_index[is][1] == -1000 || 
          all_index[is][2] == -1000)
         {
@@ -335,7 +342,6 @@ src_read_locate_file(gdinfo_t *gdinfo,
     }
     fflush(stdout);
   }
-
   //
   // alloc src_t struct for this thread
   //
@@ -387,7 +393,7 @@ src_read_locate_file(gdinfo_t *gdinfo,
   float *t_in = (float *)malloc(in_stf_nt*sizeof(float));
 
   int is_local = 0;
-
+  float M0 = 0.0;
   for (int is=0; is<in_num_source; is++)
   {
     // read stf and cmp of each source
@@ -428,7 +434,15 @@ src_read_locate_file(gdinfo_t *gdinfo,
           // convert uDA input into moment tensor
           if (moment_actived==1 && in_mechanism_type ==1)
           {
-            src_muDA_to_moment(mxx,myy,mzz,myz,mxz,mxy,
+            si = gd_info_ind_glphy2lcext_i(all_index[is][0], gdinfo);
+            sj = gd_info_ind_glphy2lcext_j(all_index[is][1], gdinfo);
+            sk = gd_info_ind_glphy2lcext_k(all_index[is][2], gdinfo);
+            size_t iptr = si + sj * siz_line + sk * siz_slice;
+            float *mu3d = md->mu;
+            float mu =  mu3d[iptr];
+            //mxz is D, mxy[it] is A,
+            M0 += mu*mxz*mxy;
+            src_muDA_to_moment(mxx,myy,mzz,mu,mxz,mxy,
                       &mxx,&myy,&mzz,&myz,&mxz,&mxy);
           }
         }
@@ -460,7 +474,15 @@ src_read_locate_file(gdinfo_t *gdinfo,
             // convert uDA input into moment tensor
             if (moment_actived==1 && in_mechanism_type ==1)
             {
-              src_muDA_to_moment(m11[it],m22[it],m33[it],m23[it],m13[it],m12[it],
+              si = gd_info_ind_glphy2lcext_i(all_index[is][0], gdinfo);
+              sj = gd_info_ind_glphy2lcext_j(all_index[is][1], gdinfo);
+              sk = gd_info_ind_glphy2lcext_k(all_index[is][2], gdinfo);
+              size_t iptr = si + sj * siz_line + sk * siz_slice;
+              float *mu3d = md->mu;
+              float mu =  mu3d[iptr];
+              //m13[it] is v, m12[it] is A,
+              M0 += mu*m13[it]*in_stf_dt*m12[it];
+              src_muDA_to_moment(m11[it],m22[it],m33[it],mu,m13[it],m12[it],
                                  m11+it ,m22+it ,m33+it ,m23+it ,m13+it ,m12+it);
             }
           } // in this thread
@@ -617,6 +639,13 @@ src_read_locate_file(gdinfo_t *gdinfo,
 
     } // if in_thread
   } // is
+  if (in_cmp_type == 2 && in_mechanism_type ==1)
+  {
+    float sendbuf = M0;
+    MPI_Allreduce(&sendbuf, &M0, 1, MPI_FLOAT, MPI_SUM, comm);
+    float Mw = 2.0/3.0*log10(M0)-6.06;
+    fprintf(stdout,"Mw is %f\n",Mw);
+  }
 
   // close file and free local pointer
 

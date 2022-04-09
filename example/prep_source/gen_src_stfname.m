@@ -22,7 +22,7 @@ src.stf_dt = 0.0;
 src.stf_nt = 1;
 
 %-- cmp,  1(force), 2(momoment), 3(force+moment)
-src.cmp_fi_mij = 0;
+src.cmp_fi_mij = 1;
 
 %-- mechanism type: 0 by mij, 1 by angle + mu + D + A
 src.mechansim_type = 0;
@@ -36,7 +36,7 @@ src.loc_3dim = 0;
 %-- coords
 src.x_coord = [1000.0, 2000.0, 3000.0 ];
 src.y_coord = [2200.0, 3050.0, 5000.0 ];
-src.z_coord = [3200.0, 2300.0, 1000.0 ];
+src.z_coord = [-3200.0, -2300.0, -1000.0 ];
 
 %-- stf
 src.stf_coefs = zeros(10, src.number_of_source);
@@ -55,7 +55,7 @@ src.Fx = [1e16, 1e16, 1e16];
 src.Fy = [1e16, 1e16, 1e16];
 src.Fz = [1e15, 1e15, 1e15];
 
-%- if cmp_fi_mij >= 1
+%- if cmp_fi_mij >= 2
 %src.Mxx = [1e15, 1e15, 1e15];
 %src.Myy = [1e15, 1e15, 1e15];
 %src.Mzz = [1e15, 1e15, 1e15];

@@ -256,7 +256,7 @@ int main(int argc, char** argv)
 
   // print basic info for QC
   fprintf(stdout,"gdcurv info at topoid=%d,%d\n", mympi->topoid[0],mympi->topoid[1]); 
-  gd_print(gdcurv, verbose);
+  //gd_print(gdcurv, verbose);
 
 //-------------------------------------------------------------------------------
 //-- media generation or import
@@ -565,7 +565,7 @@ int main(int argc, char** argv)
 //-- source import or locate on fly
 //-------------------------------------------------------------------------------
 
-  src_read_locate_file(gdinfo, gdcurv, src,
+  src_read_locate_file(gdinfo, gdcurv, md, src,
                        par->source_input_file,
                        t0, dt,
                        fd->num_rk_stages, fd->rk_rhs_time,
@@ -585,8 +585,8 @@ int main(int argc, char** argv)
                     verbose);
 
   // print basic info for QC
-  fprintf(stdout,"src info at topoid=%d,%d\n", mympi->topoid[0],mympi->topoid[1]); 
-  src_print(src, verbose);
+  //fprintf(stdout,"src info at topoid=%d,%d\n", mympi->topoid[0],mympi->topoid[1]); 
+  //src_print(src, verbose);
   
   /*
   if (par->is_export_source==1)
