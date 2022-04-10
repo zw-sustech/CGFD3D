@@ -895,7 +895,7 @@ src_dd_read2local(gdinfo_t *gdinfo,
       all_inc  [is][2] = sz_inc;
 
       //-- to notice user the progress using screen output for large input
-      if (myid == 0 && (is % 1000 ==0) && verbose>999) {
+      if (myid == 0 && (is % 1000 ==0) && verbose>1) {
           fprintf(stdout,"-- loc %d-th src index, finish %2.0f\%\n",
                       is, (float)(is+1)/in_num_source*100.0);
         fflush(stdout);
@@ -1252,13 +1252,11 @@ src_dd_read2local(gdinfo_t *gdinfo,
             v3e[0] = ou_f1[it][istage];
             v3e[1] = ou_f2[it][istage];
             v3e[2] = ou_f3[it][istage];
+
             // write
-            if (istage == 0) { // seek from is=0 to is_local
-              fseek(src->fp_vi, CONST_NDIM*is_local*sizeof(float), SEEK_CUR);
-            } else { // skip (num_of_src_here-1) ( minus 1 due to cur source writes out 3 eleme)
-              fseek(src->fp_vi, CONST_NDIM*(num_of_src_here-1)*sizeof(float), SEEK_CUR);
-            }
             fwrite(v3e, sizeof(float), CONST_NDIM, src->fp_vi);
+
+            fseek(src->fp_vi, CONST_NDIM*(num_of_src_here-1)*sizeof(float), SEEK_CUR);
           }
         }
       }
@@ -1288,12 +1286,6 @@ src_dd_read2local(gdinfo_t *gdinfo,
             v6e[5] = ou_m12[it][istage];
 
             // write
-            //if (istage == 0) {
-            //  fseek(src->fp_mij, CONST_NDIM_2*is_local*sizeof(float), SEEK_CUR);
-            //} else {
-            //  fseek(src->fp_mij, CONST_NDIM_2*(num_of_src_here-1)*sizeof(float), SEEK_CUR);
-            //}
-
             fwrite(v6e, sizeof(float), CONST_NDIM_2, src->fp_mij);
 
             fseek(src->fp_mij, CONST_NDIM_2*(num_of_src_here-1)*sizeof(float), SEEK_CUR);
