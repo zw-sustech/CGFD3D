@@ -54,7 +54,7 @@ typedef struct{
   int   time_end_index;
   float time_start;
   //float time_end  ;
-  float time_check_stability;
+  int time_check_stability;
   float time_window_length;
 
   // for each block
