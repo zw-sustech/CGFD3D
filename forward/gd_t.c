@@ -438,42 +438,45 @@ gd_curv_metric_exchange(gdinfo_t        *gdinfo,
   MPI_Status status;
   MPI_Datatype DTypeXL, DTypeYL;
 
-  MPI_Type_vector(ny*nz*metric->ncmp,
+  MPI_Type_vector(ny*nz,
                   3,
                   nx,
                   MPI_FLOAT,
                   &DTypeXL);
-  MPI_Type_vector(nz*metric->ncmp,
+  MPI_Type_vector(nz,
                   3*nx,
                   nx*ny,
                   MPI_FLOAT,
                   &DTypeYL);
   MPI_Type_commit(&DTypeXL);
   MPI_Type_commit(&DTypeYL);
-  // to X1
-  s_iptr = ni1 + 0 * siz_line + 0 * siz_slice;        //sendbuff point (ni1,ny1,nz1)
-  r_iptr = (ni2+1) + 0 * siz_line + 0 * siz_slice;    //recvbuff point (ni2+1,ny1,nz1)
-  MPI_Sendrecv(&g3d[s_iptr],1,DTypeXL,neighid[0],110,
-               &g3d[r_iptr],1,DTypeXL,neighid[1],110,
-               topocomm,&status);
-  // to X2
-  s_iptr = (ni2-3+1) + 0 * siz_line + 0 * siz_slice;    //sendbuff point (ni2-3+1,ny1,nz1)
-  r_iptr = (ni1-3) + 0 * siz_line + 0 * siz_slice;      //recvbuff point (ni1-3,ny1,nz1)
-  MPI_Sendrecv(&g3d[s_iptr],1,DTypeXL,neighid[1],120,
-               &g3d[r_iptr],1,DTypeXL,neighid[0],120,
-               topocomm,&status);
-  // to Y1
-  s_iptr = 0 + nj1 * siz_line + 0 * siz_slice;        //sendbuff point (nx1,nj1,nz1)
-  r_iptr = 0 + (nj2+1) * siz_line + 0 * siz_slice;    //recvbuff point (nx1,nj2+1,nz1)
-  MPI_Sendrecv(&g3d[s_iptr],1,DTypeYL,neighid[2],210,
-               &g3d[r_iptr],1,DTypeYL,neighid[3],210,
-               topocomm,&status);
-  // to Y2
-  s_iptr = 0 + (nj2-3+1) * siz_line + 0 * siz_slice;   //sendbuff point (nx1,nj2-3+1,nz1)
-  r_iptr = 0 + (nj1-3) * siz_line + 0 * siz_slice;     //recvbuff point (nx1,nj1-3,nz1)
-  MPI_Sendrecv(&g3d[s_iptr],1,DTypeYL,neighid[3],220,
-               &g3d[r_iptr],1,DTypeYL,neighid[2],220,
-               topocomm,&status);
+  for(int i=0; i<metric->ncmp; i++)
+  {
+    // to X1
+    s_iptr = ni1 + i * siz_volume;        //sendbuff point (ni1,ny1,nz1)
+    r_iptr = (ni2+1) + i * siz_volume;    //recvbuff point (ni2+1,ny1,nz1)
+    MPI_Sendrecv(&g3d[s_iptr],1,DTypeXL,neighid[0],110,
+                 &g3d[r_iptr],1,DTypeXL,neighid[1],110,
+                 topocomm,&status);
+    // to X2
+    s_iptr = (ni2-3+1) + i * siz_volume;    //sendbuff point (ni2-3+1,ny1,nz1)
+    r_iptr = (ni1-3) + i * siz_volume;      //recvbuff point (ni1-3,ny1,nz1)
+    MPI_Sendrecv(&g3d[s_iptr],1,DTypeXL,neighid[1],120,
+                 &g3d[r_iptr],1,DTypeXL,neighid[0],120,
+                 topocomm,&status);
+    // to Y1
+    s_iptr = nj1 * siz_line + i * siz_volume;        //sendbuff point (nx1,nj1,nz1)
+    r_iptr = (nj2+1) * siz_line + i * siz_volume;    //recvbuff point (nx1,nj2+1,nz1)
+    MPI_Sendrecv(&g3d[s_iptr],1,DTypeYL,neighid[2],210,
+                 &g3d[r_iptr],1,DTypeYL,neighid[3],210,
+                 topocomm,&status);
+    // to Y2
+    s_iptr = (nj2-3+1) * siz_line + i * siz_volume;   //sendbuff point (nx1,nj2-3+1,nz1)
+    r_iptr = (nj1-3) * siz_line + i * siz_volume;     //recvbuff point (nx1,nj1-3,nz1)
+    MPI_Sendrecv(&g3d[s_iptr],1,DTypeYL,neighid[3],220,
+                 &g3d[r_iptr],1,DTypeYL,neighid[2],220,
+                 topocomm,&status);
+  }
 /*
   // for test.  check send_recv whether success
   for (size_t i = ni1; i < ni1+3; i++)
