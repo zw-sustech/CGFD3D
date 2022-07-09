@@ -2877,7 +2877,7 @@ blk_dt_esti_curv(gdinfo_t *gdinfo, gd_t *gdcurv, md_t *md,
         float p0[] = { x3d[iptr], y3d[iptr], z3d[iptr] };
 
         // min L to 8 adjacent planes
-        for (int kk = -1; kk <1; kk++) {
+        for (int kk = -1; kk <=1; kk++) {
           for (int jj = -1; jj <= 1; jj++) {
             for (int ii = -1; ii <= 1; ii++) {
               if (ii != 0 && jj !=0 && kk != 0)

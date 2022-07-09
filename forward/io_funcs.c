@@ -1675,13 +1675,13 @@ io_recv_output_sac(iorecv_t *iorecv,
 //   temporarily put here
 
 int
-io_recv_output_sac_el_strain(iorecv_t *iorecv,
-                   float *restrict lam3d,
-                   float *restrict mu3d,
-                   float dt,
-                   char *evtnm,
-                   char *output_dir,
-                   char *err_message)
+io_recv_output_sac_el_iso_strain(iorecv_t *iorecv,
+                     float *restrict lam3d,
+                     float *restrict mu3d,
+                     float dt,
+                     char *evtnm,
+                     char *output_dir,
+                     char *err_message)
 {
   // use fake evt_x etc. since did not implement gather evt_x by mpi
   float evt_x = 0.0;
@@ -1754,6 +1754,47 @@ io_recv_output_sac_el_strain(iorecv_t *iorecv,
           this_recv->x, this_recv->y, this_recv->z,
           dt, dt, iorecv->max_nt, err_message);
   } // loop ir
+
+  return 0;
+}
+
+int
+io_recv_output_sac_el_vti_strain(iorecv_t *iorecv,
+                        float *restrict c11, float *restrict c13,
+                        float *restrict c33, float *restrict c55,
+                        float *restrict c66,
+                        float dt,
+                        char *evtnm,
+                        char *output_dir,
+                        char *err_message)
+{
+  //not implement
+
+
+
+  return 0;
+}
+int
+io_recv_output_sac_el_aniso_strain(iorecv_t *iorecv,
+                        float *restrict c11d, float *restrict c12d,
+                        float *restrict c13d, float *restrict c14d,
+                        float *restrict c15d, float *restrict c16d,
+                        float *restrict c22d, float *restrict c23d,
+                        float *restrict c24d, float *restrict c25d,
+                        float *restrict c26d, float *restrict c33d,
+                        float *restrict c34d, float *restrict c35d,
+                        float *restrict c36d, float *restrict c44d,
+                        float *restrict c45d, float *restrict c46d,
+                        float *restrict c55d, float *restrict c56d,
+                        float *restrict c66d,
+                        float dt,
+                        char *evtnm,
+                        char *output_dir,
+                        char *err_message)
+{
+  //not implement
+
+
 
   return 0;
 }
