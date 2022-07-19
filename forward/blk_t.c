@@ -2852,11 +2852,11 @@ blk_dt_esti_curv(gdinfo_t *gdinfo, gd_t *gdcurv, md_t *md,
   float *restrict y3d = gdcurv->y3d;
   float *restrict z3d = gdcurv->z3d;
 
-  for (int k = gdinfo->nk1; k < gdinfo->nk2; k++)
+  for (int k = gdinfo->nk1; k <= gdinfo->nk2; k++)
   {
-    for (int j = gdinfo->nj1; j < gdinfo->nj2; j++)
+    for (int j = gdinfo->nj1; j <= gdinfo->nj2; j++)
     {
-      for (int i = gdinfo->ni1; i < gdinfo->ni2; i++)
+      for (int i = gdinfo->ni1; i <= gdinfo->ni2; i++)
       {
         size_t iptr = i + j * gdinfo->siz_iy + k * gdinfo->siz_iz;
 
@@ -2942,11 +2942,11 @@ blk_dt_esti_cart(gdinfo_t *gdinfo, gd_t *gdcart, md_t *md,
 
   float dtLe = fdlib_math_dist_point2plane(p0, p1, p2, p3);
 
-  for (int k = gdinfo->nk1; k < gdinfo->nk2; k++)
+  for (int k = gdinfo->nk1; k <= gdinfo->nk2; k++)
   {
-    for (int j = gdinfo->nj1; j < gdinfo->nj2; j++)
+    for (int j = gdinfo->nj1; j <= gdinfo->nj2; j++)
     {
-      for (int i = gdinfo->ni1; i < gdinfo->ni2; i++)
+      for (int i = gdinfo->ni1; i <= gdinfo->ni2; i++)
       {
         size_t iptr = i + j * gdinfo->siz_iy + k * gdinfo->siz_iz;
 
