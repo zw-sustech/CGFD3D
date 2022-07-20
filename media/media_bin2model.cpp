@@ -88,37 +88,38 @@ int media_bin2model_el_iso(
     float  bin_dy = bin_spacing[dimy];
     float  bin_dz = bin_spacing[dimz];
 
-    size_t ix_start = xmin < bin_x0 ? 0:( xmin - bin_x0 ) / bin_dx; 
+    int ix_start = (xmin < bin_x0 ? 0:( xmin - bin_x0 ) / bin_dx); 
     if (ix_start >= bin_size[dimx] || xmax < bin_x0) {
       fprintf(stderr, "Error: The given model does not coincide with the calculation area\n"\
                       "       in x-direction. Please check the model settings!");
       fflush(stderr);
       exit(1);
     }
-    size_t ix_end = ceil( ( xmax - bin_x0 ) / bin_dx );
+    int ix_end = ceil( ( xmax - bin_x0 ) / bin_dx );
     if (ix_end >= bin_size[dimx])
       ix_end = bin_size[dimx]-1;
 
-    size_t iy_start = ymin < bin_y0 ? 0: (ymin - bin_y0)/ bin_dy; 
+    int iy_start = (ymin < bin_y0 ? 0: (ymin - bin_y0)/ bin_dy); 
     if (iy_start >= bin_size[dimy] || ymax < bin_y0) {
       fprintf(stderr, "Error: The given model does not coincide with the calculation area\n"\
                       "       in y-direction. Please check the model settings!");
       fflush(stderr);
       exit(1);
     }
-    size_t iy_end = ceil( ( ymax - bin_y0 ) / bin_dy ); 
+    int iy_end = ceil( ( ymax - bin_y0 ) / bin_dy ); 
     if (iy_end >= bin_size[dimy])
       iy_end = bin_size[dimy]-1;
 
     // judge whether the calculation area does coincide with the model in z direction
     float zmin = FLT_MAX, zmax = -FLT_MAX;
     size_t siz_volume =  nx * ny * nz;
-    size_t siz_z3d = grid_type == GRID_CART ? nz:siz_volume;
+    size_t siz_z3d = (grid_type == GRID_CART ? nz:siz_volume);
 
     for (size_t i = 0; i < siz_z3d; i++) {
       zmin = std::min(zmin, z3d[i]);
       zmax = std::max(zmax, z3d[i]);
     }
+    
     float bin_zn = bin_z0 + bin_dz * (bin_size[dimz]-1);
     if (zmin >= std::max(bin_zn, bin_z0) || zmax <= std::min(bin_z0, bin_zn) ) {
       fprintf(stderr, "Error: The given model does not coincide with the calculation area\n"\
