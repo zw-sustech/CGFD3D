@@ -196,9 +196,9 @@ float TrilinearInterpolation(
     float zq)
 {    
     float vq;
-    size_t nx = x.size();
-    size_t ny = y.size();
-    size_t nz = z.size();
+    int nx = x.size();
+    int ny = y.size();
+    int nz = z.size();
     float dx = x[1]-x[0];
     float dy = y[1]-y[0];
     float dz = z[1]-z[0];
@@ -232,6 +232,7 @@ float TrilinearInterpolation(
 
     size_t siz_line = nx;
     size_t siz_slice = nx*ny;
+
     // at the point
     if (ix0 == ix2 && iy0 == iy2 && iz0 == iz2) {
       return v[ix0 + iy0*siz_line + iz0*siz_slice];

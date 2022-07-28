@@ -164,7 +164,7 @@ par_read_from_str(const char *str, par_t *par)
   if (item = cJSON_GetObjectItem(root, "time_start")) {
     par->time_start = item->valuedouble;
   }
-  if (item = cJSON_GetObjectItem(root, "time_check_stability")) {
+  if (item = cJSON_GetObjectItem(root, "check_stability")) {
     par->time_check_stability = item->valueint;
   }
 

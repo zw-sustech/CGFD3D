@@ -196,7 +196,7 @@ int main(int argc, char** argv)
 
     case PAR_MEDIA_IMPORT :
         if (myid==0) fprintf(stdout,"import discrete medium file ...\n"); 
-        md_import(md, blk->output_fname_part, par->grid_import_dir);
+        md_import(md, blk->output_fname_part, par->media_import_dir);
 
         break;
 
