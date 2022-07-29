@@ -1,4 +1,16 @@
 /*
+<<<<<<< Updated upstream
+<<<<<<< Updated upstream
+=======
+##module load mpi/mpich/3.4.1_intel_2019.5
+<<<<<<< Updated upstream
+=======
+##module load mpi/mpich/3.4.1_intel_2019.5
+>>>>>>> Stashed changes
+>>>>>>> Stashed changes
+=======
+##module load mpi/mpich/3.4.1_intel_2019.5
+>>>>>>> Stashed changes
  * source term related processing
  */
 
@@ -278,7 +290,7 @@ src_read_locate_file(gdinfo_t *gdinfo,
 
         //-- to notice user the progress using screen output for large input
         if (myid == 0 && (is % 1000 ==0) && verbose>99) {
-          fprintf(stdout,"-- loc %d-th src index, finish %2.0f\%\n",
+          fprintf(stdout,"-- loc %d-th src index, finish %2.0f%%\n",
                       is, (float)(is+1)/in_num_source*100.0);
           fflush(stdout);
         }
@@ -896,7 +908,7 @@ src_dd_read2local(gdinfo_t *gdinfo,
 
       //-- to notice user the progress using screen output for large input
       if (myid == 0 && (is % 1000 ==0) && verbose>1) {
-          fprintf(stdout,"-- loc %d-th src index, finish %2.0f\%\n",
+          fprintf(stdout,"-- loc %d-th src index, finish %2.0f%%\n",
                       is, (float)(is+1)/in_num_source*100.0);
         fflush(stdout);
       }
