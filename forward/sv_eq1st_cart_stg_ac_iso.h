@@ -8,8 +8,7 @@
 #include "md_t.h"
 #include "wav_t.h"
 #include "src_t.h"
-#include "bdry_free.h"
-#include "bdry_pml.h"
+#include "bdry_t.h"
 #include "io_funcs.h"
 
 /*************************************************
@@ -23,8 +22,7 @@ sv_eq1st_cart_stg_ac_iso_allstep(
   gd_t       *gdcart,
   md_t       *md,
   src_t      *src,
-  bdryfree_t *bdryfree,
-  bdrypml_t  *bdrypml,
+  bdry_t    *bdry,
   wav_t      *wav,
   mympi_t    *mympi,
   iorecv_t   *iorecv,
@@ -45,8 +43,7 @@ sv_eq1st_cart_stg_ac_iso_hook(
   wav_t  *wav,
   gdinfo_t   *gdinfo,
   md_t   *md,
-  bdryfree_t *bdryfree,
-  bdrypml_t  *bdrypml,
+  bdry_t    *bdry,
   src_t *src,
   float dt, float dx, float dy, float dz,
   const int myid, const int verbose);
@@ -57,8 +54,7 @@ sv_eq1st_cart_stg_ac_iso_moment(
   wav_t  *wav,
   gdinfo_t   *gdinfo,
   md_t   *md,
-  bdryfree_t *bdryfree,
-  bdrypml_t  *bdrypml,
+  bdry_t    *bdry,
   src_t *src,
   float dt, float dx, float dy, float dz,
   const int myid, const int verbose);
@@ -71,7 +67,7 @@ sv_eq1st_cart_stg_ac_iso_hook_cfspml(
     float *restrict kappa3d, 
     float dt, float dx, float dy, float dz,
     int nk2, size_t siz_line, size_t siz_slice,
-    bdrypml_t *bdrypml, bdryfree_t *bdryfree,
+    bdry_t    *bdry,
     const int myid, const int verbose);
 
 void
@@ -82,7 +78,7 @@ sv_eq1st_cart_stg_ac_iso_moment_cfspml(
     float *restrict slw3d,
     float dt, float dx, float dy, float dz,
     int nk2, size_t siz_line, size_t siz_slice,
-    bdrypml_t *bdrypml,
+    bdry_t    *bdry,
     const int myid, const int verbose);
 
 int

@@ -69,7 +69,7 @@ main_curv_col_el_3d: \
 		media_geometry3d.o \
 		media_read_file.o \
 		gd_info.o gd_t.o md_t.o wav_t.o \
-		bdry_free.o bdry_pml.o src_t.o io_funcs.o \
+		bdry_t.o src_t.o io_funcs.o \
 		blk_t.o \
 		sv_eq1st_curv_col.o \
 		sv_eq1st_curv_col_ac_iso.o \
@@ -89,7 +89,7 @@ main_curv_col_ac_3d: \
 		media_geometry3d.o \
 		media_read_file.o \
 		gd_info.o gd_t.o md_t.o wav_t.o \
-		bdry_free.o bdry_pml.o src_t.o io_funcs.o \
+		bdry_t.o src_t.o io_funcs.o \
 		blk_t.o \
 		sv_eq1st_curv_col.o \
 		sv_eq1st_curv_col_ac_iso.o \
@@ -109,7 +109,7 @@ main_cart_col_el_3d: \
 		media_geometry3d.o \
 		media_read_file.o \
 		gd_info.o gd_t.o md_t.o wav_t.o \
-		bdry_free.o bdry_pml.o src_t.o io_funcs.o \
+		bdry_t.o src_t.o io_funcs.o \
 		blk_t.o \
 		sv_eq1st_cart_col.o \
 		sv_eq1st_cart_col_el_iso.o \
@@ -126,7 +126,7 @@ main_cart_stg_el_3d: \
 		media_geometry3d.o \
 		media_read_file.o \
 		gd_info.o gd_t.o md_t.o wav_t.o \
-		bdry_free.o bdry_pml.o src_t.o io_funcs.o \
+		bdry_t.o src_t.o io_funcs.o \
 		blk_t.o \
 		sv_eq1st_cart_stg_el_iso.o \
 		main_cart_stg_el_3d.o
@@ -142,7 +142,7 @@ main_cart_stg_ac_3d: \
 		media_geometry3d.o \
 		media_read_file.o \
 		gd_info.o gd_t.o md_t.o wav_t.o \
-		bdry_free.o bdry_pml.o src_t.o io_funcs.o \
+		bdry_t.o src_t.o io_funcs.o \
 		blk_t.o \
 		sv_eq1st_cart_stg_ac_iso.o \
 		main_cart_stg_ac_3d.o
@@ -184,9 +184,7 @@ md_t.o: forward/md_t.c
 	${CC} -c -o $@ $(CFLAGS) $<
 wav_t.o: forward/wav_t.c
 	${CC} -c -o $@ $(CFLAGS) $<
-bdry_pml.o: forward/bdry_pml.c
-	${CC} -c -o $@ $(CFLAGS) $<
-bdry_free.o: forward/bdry_free.c
+bdry_t.o: forward/bdry_t.c
 	${CC} -c -o $@ $(CFLAGS) $<
 src_t.o: forward/src_t.c
 	${CC} -c -o $@ $(CFLAGS) $<

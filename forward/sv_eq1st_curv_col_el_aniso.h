@@ -8,8 +8,7 @@
 #include "md_t.h"
 #include "wav_t.h"
 #include "src_t.h"
-#include "bdry_free.h"
-#include "bdry_pml.h"
+#include "bdry_t.h"
 #include "io_funcs.h"
 
 /*************************************************
@@ -24,8 +23,7 @@ sv_eq1st_curv_col_el_aniso_onestage(
   gdinfo_t   *gdinfo,
   gdcurv_metric_t  *metric,
   md_t *md,
-  bdryfree_t *bdryfree,
-  bdrypml_t  *bdrypml,
+  bdry_t    *bdry,
   src_t *src,
   // include different order/stentil
   int num_of_fdx_op, fd_op_t *fdx_op,
@@ -129,14 +127,14 @@ sv_eq1st_curv_col_el_aniso_rhs_cfspml(
     int fdx_len, int *restrict fdx_indx, float *restrict fdx_coef,
     int fdy_len, int *restrict fdy_indx, float *restrict fdy_coef,
     int fdz_len, int *restrict fdz_indx, float *restrict fdz_coef,
-    bdrypml_t *bdrypml, bdryfree_t *bdryfree,
+    bdry_t    *bdry,
     const int myid, const int verbose);
 
 int
 sv_eq1st_curv_col_el_aniso_dvh2dvz(gdinfo_t        *gdinfo,
                                    gdcurv_metric_t *metric,
                                    md_t       *md,
-                                   bdryfree_t      *bdryfree,
+                                   bdry_t      *bdryfree,
                                    const int verbose);
 
 #endif

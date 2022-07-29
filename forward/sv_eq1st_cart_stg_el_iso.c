@@ -25,8 +25,7 @@ sv_eq1st_cart_stg_el_iso_allstep(
   gd_t       *gdcart,
   md_t       *md,
   src_t      *src,
-  bdryfree_t *bdryfree,
-  bdrypml_t  *bdrypml,
+  bdry_t    *bdry,
   wav_t      *wav,
   mympi_t    *mympi,
   iorecv_t   *iorecv,
@@ -81,9 +80,9 @@ sv_eq1st_cart_stg_el_iso_allstep(
   int num_of_s_reqs = 4;
 
   // calculate conversion matrix for free surface
-  if (bdryfree->is_at_sides[CONST_NDIM-1][1] == 1)
+  if (bdry->is_sides_free[CONST_NDIM-1][1] == 1)
   {
-     sv_eq1st_cart_stg_el_iso_dvh2dvz(gdinfo,md,bdryfree,verbose);
+     sv_eq1st_cart_stg_el_iso_dvh2dvz(gdinfo,md,bdry,verbose);
   }
 
   //--------------------------------------------------------
@@ -107,7 +106,7 @@ sv_eq1st_cart_stg_el_iso_allstep(
     src_set_time(src, it, 0);
 
     sv_eq1st_cart_stg_el_iso_hook(fd, wav,
-        gdinfo, md, bdryfree, bdrypml, src,
+        gdinfo, md, bdry, src,
         dt, dx, dy, dz,
         myid, verbose);
 
@@ -171,7 +170,7 @@ sv_eq1st_cart_stg_el_iso_allstep(
 
     // from Tij to Vi
     sv_eq1st_cart_stg_el_iso_moment(fd,wav,
-        gdinfo, md, bdryfree, bdrypml, src,
+        gdinfo, md, bdry, src,
         dt, dx, dy, dz,
         myid, verbose);
 
@@ -288,8 +287,7 @@ sv_eq1st_cart_stg_el_iso_hook(
   wav_t  *wav,
   gdinfo_t   *gdinfo,
   md_t   *md,
-  bdryfree_t *bdryfree,
-  bdrypml_t  *bdrypml,
+  bdry_t    *bdry,
   src_t *src,
   float dt, float dx, float dy, float dz,
   const int myid, const int verbose)
@@ -309,8 +307,8 @@ sv_eq1st_cart_stg_el_iso_hook(
   float *restrict lam3d = md->lambda;
   float *restrict  mu3d = md->mu;
 
-  float *matVx2Vz = bdryfree->matVx2Vz2;
-  float *matVy2Vz = bdryfree->matVy2Vz2;
+  float *matVx2Vz = bdry->matVx2Vz2;
+  float *matVy2Vz = bdry->matVy2Vz2;
 
   // grid size
   int ni1 = gdinfo->ni1;
@@ -377,7 +375,7 @@ sv_eq1st_cart_stg_el_iso_hook(
   }
 
   // free surface at z2
-  if (bdryfree->is_at_sides[2][1] == 1)
+  if (bdry->is_sides_free[2][1] == 1)
   {
     sv_eq1st_cart_stg_el_iso_free_vzero(Vx,Vy,Vz,
                                   ni1,ni2,nj1,nj2,nk1,nk2,nz,
@@ -395,7 +393,7 @@ sv_eq1st_cart_stg_el_iso_hook(
     // use normal op if not free surface
     int lfdz_op_n = num_of_fdz_op - 1; 
     // use lower order free surface at z2
-    if (bdryfree->is_at_sides[2][1] == 1) {
+    if (bdry->is_sides_free[2][1] == 1) {
       lfdz_op_n = n;
     }
 
@@ -443,7 +441,7 @@ sv_eq1st_cart_stg_el_iso_hook(
         M_FD_SHIFT_PTR(DyVx, Vx_ptr, lfdy_len, lfdy_shift_F, lfdy_coef, n_fd);
 
         // if surface
-        if (k==nk2 && bdryfree->is_at_sides[CONST_NDIM-1][1]) // at surface, convert
+        if (k==nk2 && bdry->is_sides_free[CONST_NDIM-1][1]) // at surface, convert
         {
           size_t ij = (i + j * siz_line)*9;
           DzVz = matVx2Vz[ij+3*2+0] * DxVx
@@ -530,13 +528,13 @@ sv_eq1st_cart_stg_el_iso_hook(
   }
 
   // cfs-pml, loop face inside
-  if (bdrypml->is_enable == 1)
+  if (bdry->is_enable_pml == 1)
   {
     sv_eq1st_cart_stg_el_iso_hook_cfspml(fd,Vx,Vy,Vz,Txx,Tyy,Tzz,Txz,Tyz,Txy,
                                        lam3d, mu3d, 
                                        dt, dx, dy, dz,
                                        nk2, siz_line,siz_slice,
-                                       bdrypml, bdryfree,
+                                       bdry,
                                        myid, verbose);
   }
 
@@ -558,8 +556,7 @@ sv_eq1st_cart_stg_el_iso_moment(
   wav_t  *wav,
   gdinfo_t   *gdinfo,
   md_t   *md,
-  bdryfree_t *bdryfree,
-  bdrypml_t  *bdrypml,
+  bdry_t    *bdry,
   src_t *src,
   float dt, float dx, float dy, float dz,
   const int myid, const int verbose)
@@ -656,7 +653,7 @@ sv_eq1st_cart_stg_el_iso_moment(
   }
 
   // free surface at z2
-  if (bdryfree->is_at_sides[2][1] == 1)
+  if (bdry->is_sides_free[2][1] == 1)
   {
     sv_eq1st_cart_stg_el_iso_free_simg(Tzz,Txz,Tyz,
                                   ni1,ni2,nj1,nj2,nk1,nk2,nz,
@@ -711,12 +708,12 @@ sv_eq1st_cart_stg_el_iso_moment(
   }
 
   // cfs-pml, loop face inside
-  if (bdrypml->is_enable == 1)
+  if (bdry->is_enable_pml == 1)
   {
     sv_eq1st_cart_stg_el_iso_moment_cfspml(fd,Vx,Vy,Vz,Txx,Tyy,Tzz,Txz,Tyz,Txy,
                                        slw3d, dt, dx, dy, dz,
                                        nk2, siz_line,siz_slice,
-                                       bdrypml,
+                                       bdry,
                                        myid, verbose);
   }
 
@@ -750,11 +747,11 @@ sv_eq1st_cart_stg_el_iso_hook_cfspml(
     float *restrict lam3d, float *restrict  mu3d,
     float dt, float dx, float dy, float dz,
     int nk2, size_t siz_line, size_t siz_slice,
-    bdrypml_t *bdrypml, bdryfree_t *bdryfree,
+    bdry_t    *bdry,
     const int myid, const int verbose)
 {
-  float *matVx2Vz = bdryfree->matVx2Vz2;
-  float *matVy2Vz = bdryfree->matVy2Vz2;
+  float *matVx2Vz = bdry->matVx2Vz2;
+  float *matVy2Vz = bdry->matVy2Vz2;
 
   // loop var for fd
   // use local stack array for better speed
@@ -825,25 +822,25 @@ sv_eq1st_cart_stg_el_iso_hook_cfspml(
     for (int iside=0; iside<2; iside++)
     {
       // skip to next face if not cfspml
-      if (bdrypml->is_at_sides[idim][iside] == 0) continue;
+      if (bdry->is_sides_pml[idim][iside] == 0) continue;
 
       // get index into local var
-      int abs_ni1 = bdrypml->ni1[idim][iside];
-      int abs_ni2 = bdrypml->ni2[idim][iside];
-      int abs_nj1 = bdrypml->nj1[idim][iside];
-      int abs_nj2 = bdrypml->nj2[idim][iside];
-      int abs_nk1 = bdrypml->nk1[idim][iside];
-      int abs_nk2 = bdrypml->nk2[idim][iside];
+      int abs_ni1 = bdry->ni1[idim][iside];
+      int abs_ni2 = bdry->ni2[idim][iside];
+      int abs_nj1 = bdry->nj1[idim][iside];
+      int abs_nj2 = bdry->nj2[idim][iside];
+      int abs_nk1 = bdry->nk1[idim][iside];
+      int abs_nk2 = bdry->nk2[idim][iside];
 
       // get coef for this face
-      float *restrict ptr_coef_A = bdrypml->A[idim][iside];
-      float *restrict ptr_coef_B = bdrypml->B[idim][iside];
-      float *restrict ptr_coef_D = bdrypml->D[idim][iside];
-      float *restrict ptr_coef_Am = bdrypml->Am[idim][iside];
-      float *restrict ptr_coef_Bm = bdrypml->Bm[idim][iside];
-      float *restrict ptr_coef_Dm = bdrypml->Dm[idim][iside];
+      float *restrict ptr_coef_A = bdry->A[idim][iside];
+      float *restrict ptr_coef_B = bdry->B[idim][iside];
+      float *restrict ptr_coef_D = bdry->D[idim][iside];
+      float *restrict ptr_coef_Am = bdry->Am[idim][iside];
+      float *restrict ptr_coef_Bm = bdry->Bm[idim][iside];
+      float *restrict ptr_coef_Dm = bdry->Dm[idim][iside];
 
-      bdrypml_auxvar_t *auxvar = &(bdrypml->auxvar[idim][iside]);
+      bdrypml_auxvar_t *auxvar = &(bdry->auxvar[idim][iside]);
 
       // for each dim
       if (idim == 0 ) // x direction
@@ -917,7 +914,7 @@ sv_eq1st_cart_stg_el_iso_hook_cfspml(
 
               // add contributions from free surface condition
               //     only consider Tii on surface
-              if (bdryfree->is_at_sides[CONST_NDIM-1][1]==1 && k==nk2)
+              if (bdry->is_sides_free[CONST_NDIM-1][1]==1 && k==nk2)
               {
                 // zeta derivatives
                 int ij = (i + j * siz_line)*9;
@@ -1009,7 +1006,7 @@ sv_eq1st_cart_stg_el_iso_hook_cfspml(
               pml_DyVx[iptr_a] = 2.0 * Vx2 - pml_DyVx[iptr_a];
 
               // add contributions from free surface condition
-              if (bdryfree->is_at_sides[CONST_NDIM-1][1]==1 && k==nk2)
+              if (bdry->is_sides_free[CONST_NDIM-1][1]==1 && k==nk2)
               {
                 // zeta derivatives
                 int ij = (i + j * siz_line)*9;
@@ -1129,7 +1126,7 @@ sv_eq1st_cart_stg_el_iso_moment_cfspml(
     float *restrict slw3d,
     float dt, float dx, float dy, float dz,
     int nk2, size_t siz_line, size_t siz_slice,
-    bdrypml_t *bdrypml,
+    bdry_t *bdry,
     const int myid, const int verbose)
 {
   // loop var for fd
@@ -1203,25 +1200,25 @@ sv_eq1st_cart_stg_el_iso_moment_cfspml(
     for (int iside=0; iside<2; iside++)
     {
       // skip to next face if not cfspml
-      if (bdrypml->is_at_sides[idim][iside] == 0) continue;
+      if (bdry->is_sides_pml[idim][iside] == 0) continue;
 
       // get index into local var
-      int abs_ni1 = bdrypml->ni1[idim][iside];
-      int abs_ni2 = bdrypml->ni2[idim][iside];
-      int abs_nj1 = bdrypml->nj1[idim][iside];
-      int abs_nj2 = bdrypml->nj2[idim][iside];
-      int abs_nk1 = bdrypml->nk1[idim][iside];
-      int abs_nk2 = bdrypml->nk2[idim][iside];
+      int abs_ni1 = bdry->ni1[idim][iside];
+      int abs_ni2 = bdry->ni2[idim][iside];
+      int abs_nj1 = bdry->nj1[idim][iside];
+      int abs_nj2 = bdry->nj2[idim][iside];
+      int abs_nk1 = bdry->nk1[idim][iside];
+      int abs_nk2 = bdry->nk2[idim][iside];
 
       // get coef for this face
-      float *restrict ptr_coef_A = bdrypml->A[idim][iside];
-      float *restrict ptr_coef_B = bdrypml->B[idim][iside];
-      float *restrict ptr_coef_D = bdrypml->D[idim][iside];
-      float *restrict ptr_coef_Am = bdrypml->Am[idim][iside];
-      float *restrict ptr_coef_Bm = bdrypml->Bm[idim][iside];
-      float *restrict ptr_coef_Dm = bdrypml->Dm[idim][iside];
+      float *restrict ptr_coef_A = bdry->A[idim][iside];
+      float *restrict ptr_coef_B = bdry->B[idim][iside];
+      float *restrict ptr_coef_D = bdry->D[idim][iside];
+      float *restrict ptr_coef_Am = bdry->Am[idim][iside];
+      float *restrict ptr_coef_Bm = bdry->Bm[idim][iside];
+      float *restrict ptr_coef_Dm = bdry->Dm[idim][iside];
 
-      bdrypml_auxvar_t *auxvar = &(bdrypml->auxvar[idim][iside]);
+      bdrypml_auxvar_t *auxvar = &(bdry->auxvar[idim][iside]);
 
       // for each dim
       if (idim == 0 ) // x direction
@@ -1593,7 +1590,7 @@ sv_eq1st_cart_stg_el_iso_moment_src(
 int
 sv_eq1st_cart_stg_el_iso_dvh2dvz(gdinfo_t   *gdinfo,
                                  md_t       *md,
-                                 bdryfree_t      *bdryfree,
+                                 bdry_t      *bdryfree,
                                  const int verbose)
 {
   int ierr = 0;
