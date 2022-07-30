@@ -401,7 +401,7 @@ int main(int argc, char** argv)
 
   if (myid==0 && verbose>0) fprintf(stdout,"setup boundary ...\n"); 
 
-  bdry_init(bdry);
+  bdry_init(bdry, gdinfo->nx, gdinfo->ny, gdinfo->nz);
 
   //-- absorbing boundary etc auxiliary variables
   
@@ -416,6 +416,22 @@ int main(int argc, char** argv)
                  par->cfspml_alpha_max,
                  par->cfspml_beta_max,
                  par->cfspml_velocity,
+                 verbose);
+  }
+
+  //-- ablexp
+  
+  if (par->bdry_has_ablexp == 1)
+  {
+    if (myid==0 && verbose>0) fprintf(stdout,"setup sponge layer ...\n"); 
+
+    bdry_ablexp_set(gdinfo, gdcart, wav, bdry,
+                 mympi->neighid,
+                 par->ablexp_is_sides,
+                 par->abs_num_of_layers,
+                 par->ablexp_velocity,
+                 dt,
+                 mympi->topoid,
                  verbose);
   }
 

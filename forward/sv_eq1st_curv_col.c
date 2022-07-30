@@ -444,6 +444,14 @@ sv_eq1st_curv_col_allstep(
       if (myid==0 && verbose>10) fprintf(stdout,"-> check value nan\n");
         //wav_check_value(w_end);
     }
+
+    //--------------------------------------------
+    // apply ablexp
+    //--------------------------------------------
+    if (bdry->is_enable_ablexp) {
+      if (myid==0 && verbose>10) fprintf(stdout,"-> apply ablexp\n");
+       bdry_ablexp_apply(bdry, w_end, wav->ncmp, wav->siz_icmp);
+    }
     
     //--------------------------------------------
     // save results

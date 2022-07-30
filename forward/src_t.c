@@ -1,17 +1,4 @@
 /*
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-=======
-##module load mpi/mpich/3.4.1_intel_2019.5
-<<<<<<< Updated upstream
-=======
-##module load mpi/mpich/3.4.1_intel_2019.5
->>>>>>> Stashed changes
->>>>>>> Stashed changes
-=======
-##module load mpi/mpich/3.4.1_intel_2019.5
->>>>>>> Stashed changes
- * source term related processing
  */
 
 // todo:
@@ -724,6 +711,11 @@ src_dd_read2local(gdinfo_t *gdinfo,
   src->fp_vi  = NULL;
   src->fp_mij = NULL;
   src->dd_is_valid = 0;
+
+  // return if input dd file is empty
+  if (strlen(in_file) == 0) {
+    return ierr;
+  }
 
   // get values from input
   src->dd_is_add_at_point = dd_is_add_at_point;

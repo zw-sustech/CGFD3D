@@ -16,7 +16,8 @@ EXEC_WAVE=${EXE_DIR}/main_curv_col_el_3d
 echo "EXEC_WAVE=$EXEC_WAVE"
 
 #-- output and conf
-PROJDIR=~/work/cgfd3d-wave-el/srcddpl
+PROJDIR=~/work/cgfd3d-wave-el/ablexp20c
+#PROJDIR=~/work/cgfd3d-wave-el/ablexp1test
 EVTNM=codetest
 echo "PROJDIR=${PROJDIR}"
 echo "EVTNM=${EVTNM}"
@@ -92,7 +93,7 @@ ${EVTNM}
 #8020 4930 -950
 # stf and cmp
 0.0 ricker 2.0 0.5   # t0  stf_name  ricker_fc ricker_t0
-0  0  0 0 0 0 
+1.0e16  1.0e16  1.0e16 0 0 0 
 ieof
 
 echo "+ created $PROJDIR/test.src"
@@ -132,46 +133,36 @@ cat << ieof > $PAR_FILE
   "#size_of_time_step" : 0.008,
   "#size_of_time_step" : 0.020,
   "#number_of_time_steps" : 500,
-  "time_window_length" : 4,
+  "time_window_length" : 6,
   "check_stability" : 1,
 
   "boundary_x_left" : {
-      "cfspml" : {
-          "number_of_layers" : 10,
-          "alpha_max" : 3.14,
-          "beta_max" : 2.0,
+      "ablexp" : {
+          "number_of_layers" : 20,
           "ref_vel"  : 7000.0
           }
       },
   "boundary_x_right" : {
-      "cfspml" : {
-          "number_of_layers" : 10,
-          "alpha_max" : 3.14,
-          "beta_max" : 2.0,
+      "ablexp" : {
+          "number_of_layers" : 20,
           "ref_vel"  : 7000.0
           }
       },
   "boundary_y_front" : {
-      "cfspml" : {
-          "number_of_layers" : 10,
-          "alpha_max" : 3.14,
-          "beta_max" : 2.0,
+      "ablexp" : {
+          "number_of_layers" : 20,
           "ref_vel"  : 7000.0
           }
       },
   "boundary_y_back" : {
-      "cfspml" : {
-          "number_of_layers" : 10,
-          "alpha_max" : 3.14,
-          "beta_max" : 2.0,
+      "ablexp" : {
+          "number_of_layers" : 20,
           "ref_vel"  : 7000.0
           }
       },
   "boundary_z_bottom" : {
-      "cfspml" : {
-          "number_of_layers" : 10,
-          "alpha_max" : 3.14,
-          "beta_max" : 2.0,
+      "ablexp" : {
+          "number_of_layers" : 20,
           "ref_vel"  : 7000.0
           }
       },
@@ -235,7 +226,7 @@ cat << ieof > $PAR_FILE
   "is_export_source" : 1,
   "source_export_dir"  : "$SOURCE_DIR",
 
-  "in_ddsource_file" : "${CUR_DIR}/prep_source/event_3moment_srcdd.nc",
+  "#in_ddsource_file" : "${CUR_DIR}/prep_source/event_3moment_srcdd.nc",
 
   "output_dir" : "$OUTPUT_DIR",
   "tmp_dir"    : "$TMP_DIR",
@@ -369,7 +360,7 @@ cat << ieof > ${RUN_SCRIPT_FILE}
 printf "\nUse $NPROCS CPUs on following nodes:\n"
 printf "%s " \`cat ${PROJDIR}/hostlist | sort\`;
 
-MPI_CMD="$MPIDIR/bin/mpiexec -machinefile ${PROJDIR}/hostlist -np $NPROCS $EXEC_WAVE $PAR_FILE 10"
+MPI_CMD="$MPIDIR/bin/mpiexec -machinefile ${PROJDIR}/hostlist -np $NPROCS $EXEC_WAVE $PAR_FILE 1000"
 
 printf "\nStart simualtion ...\n";
 printf "%s\n\n" "'\${MPI_CMD}'";

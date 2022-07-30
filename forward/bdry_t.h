@@ -50,6 +50,15 @@ typedef struct {
 
 } bdrypml_auxvar_t;
 
+/*
+ * structure for block index range
+ */
+
+typedef struct {
+  int enable;
+  int nx1,nx2,ny1,ny2,nz1,nz2,nx,ny,nz;
+  int ni1,ni2,nj1,nj2,nk1,nk2,ni,nj,nk;
+} bdry_block_t;
 
 /*
  * main bdry structure to implement free, pml, exp etc
@@ -62,12 +71,12 @@ typedef struct
   int is_sides_pml [CONST_NDIM][2];
   int is_sides_free[CONST_NDIM][2];
   int is_sides_mpml[CONST_NDIM][2];
-  int is_sides_exp [CONST_NDIM][2];
+  int is_sides_ablexp [CONST_NDIM][2];
 
   int is_enable_pml;
   int is_enable_free;
   int is_enable_mpml;
-  int is_enable_exp;
+  int is_enable_ablexp;
 
   // same as grid, to make here self contained
   int nx;
@@ -98,6 +107,17 @@ typedef struct
   float *Dm[CONST_NDIM][2]; // dim, side, length
 
   bdrypml_auxvar_t auxvar[CONST_NDIM][2];
+
+  //
+  // for ABLEXP
+  //
+
+  // use 6 blocks to partition the boundaries
+  bdry_block_t bdry_blk[CONST_NDIM_2];
+
+  float *ablexp_Ex;
+  float *ablexp_Ey;
+  float *ablexp_Ez;
 
   //
   // for free surface condition
@@ -134,7 +154,7 @@ typedef struct
  *************************************************/
 
 int
-bdry_init(bdry_t *bdry);
+bdry_init(bdry_t *bdry, int nx, int ny, int nz);
 
 float
 bdry_pml_cal_R(float N);
@@ -188,7 +208,7 @@ bdry_pml_auxvar_init(int nx, int ny, int nz,
                      const int verbose);
 
 int
-bdry_pml_cal_len_dh(gd_t *gd, 
+bdry_cal_abl_len_dh(gd_t *gd, 
                     int abs_ni1, int abs_ni2,
                     int abs_nj1, int abs_nj2,
                     int abs_nk1, int abs_nk2,
@@ -201,5 +221,24 @@ bdry_free_set(gdinfo_t        *gdinfo,
               int   *neighid, 
               int   in_is_sides[][2],
               const int verbose);
+
+int
+bdry_ablexp_set(gdinfo_t *gdinfo,
+             gd_t *gd,
+             wav_t *wav,
+             bdry_t *bdry,
+             int   *neighid, 
+             int   in_is_sides[][2],
+             int   in_num_layers[][2],
+             float in_velocity[][2], //
+             float dt,
+             int  *topoid,
+             int verbose);
+
+float
+bdry_ablexp_cal_mask(int i, float vel, float dt, int num_lay, float dh);
+
+int
+bdry_ablexp_apply(bdry_t *bdry, float *w_end, int ncmp, size_t siz_icmp);
 
 #endif

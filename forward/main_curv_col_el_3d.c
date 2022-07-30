@@ -654,13 +654,13 @@ int main(int argc, char** argv)
 
   if (myid==0 && verbose>0) fprintf(stdout,"setup boundary ...\n"); 
 
-  bdry_init(bdry);
+  bdry_init(bdry, gdinfo->nx, gdinfo->ny, gdinfo->nz);
 
-  //-- absorbing boundary etc auxiliary variables
+  //-- ade cfs-pml
   
   if (par->bdry_has_cfspml == 1)
   {
-    if (myid==0 && verbose>0) fprintf(stdout,"setup absorbing boundary ...\n"); 
+    if (myid==0 && verbose>0) fprintf(stdout,"setup ade cfs-pml ...\n"); 
 
     bdry_pml_set(gdinfo, gdcurv, wav, bdry,
                  mympi->neighid,
@@ -669,6 +669,22 @@ int main(int argc, char** argv)
                  par->cfspml_alpha_max,
                  par->cfspml_beta_max,
                  par->cfspml_velocity,
+                 verbose);
+  }
+
+  //-- ablexp
+  
+  if (par->bdry_has_ablexp == 1)
+  {
+    if (myid==0 && verbose>0) fprintf(stdout,"setup sponge layer ...\n"); 
+
+    bdry_ablexp_set(gdinfo, gdcurv, wav, bdry,
+                 mympi->neighid,
+                 par->ablexp_is_sides,
+                 par->abs_num_of_layers,
+                 par->ablexp_velocity,
+                 dt,
+                 mympi->topoid,
                  verbose);
   }
 

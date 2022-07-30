@@ -84,6 +84,11 @@ typedef struct{
   float cfspml_velocity[CONST_NDIM][2];
   int   bdry_has_cfspml;
 
+  // exp
+  int   ablexp_is_sides[CONST_NDIM][2];
+  float ablexp_velocity[CONST_NDIM][2];
+  int   bdry_has_ablexp;
+
   // free
   int   free_is_sides[CONST_NDIM][2];
   int   bdry_has_free;
@@ -235,6 +240,9 @@ par_read_from_str(const char *str, par_t *par);
 void 
 par_read_json_cfspml(cJSON *item,
       int *nlay, float *amax, float *bmax, float *vel);
+
+void 
+par_read_json_ablexp(cJSON *item, int *nlay, float *vel);
 
 int
 par_print(par_t *par);
