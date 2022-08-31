@@ -29,8 +29,7 @@ sv_eq1st_cart_col_allstep(
   gd_t        *gdcart,
   md_t      *md,
   src_t      *src,
-  bdryfree_t *bdryfree,
-  bdrypml_t  *bdrypml,
+  bdry_t    *bdry,
   wav_t  *wav,
   mympi_t    *mympi,
   iorecv_t   *iorecv,
@@ -104,8 +103,8 @@ sv_eq1st_cart_col_allstep(
   // set pml for rk
   for (int idim=0; idim<CONST_NDIM; idim++) {
     for (int iside=0; iside<2; iside++) {
-      if (bdrypml->is_at_sides[idim][iside]==1) {
-        bdrypml_auxvar_t *auxvar = &(bdrypml->auxvar[idim][iside]);
+      if (bdry->is_sides_pml[idim][iside]==1) {
+        bdrypml_auxvar_t *auxvar = &(bdry->auxvar[idim][iside]);
         auxvar->pre = auxvar->var + auxvar->siz_ilevel * 0;
         auxvar->tmp = auxvar->var + auxvar->siz_ilevel * 1;
         auxvar->rhs = auxvar->var + auxvar->siz_ilevel * 2;
@@ -118,21 +117,21 @@ sv_eq1st_cart_col_allstep(
   float *PG = NULL;
   // Dis_accu is Displacemen accumulation, be uesd for PGD calculaton.
   float *Dis_accu = NULL;
-  if (bdryfree->is_at_sides[CONST_NDIM-1][1] == 1)
+  if (bdry->is_sides_free[CONST_NDIM-1][1] == 1)
   {
     PG = (float *) fdlib_mem_calloc_1d_float(CONST_NDIM_3*gdinfo->ny*gdinfo->nx,0.0,"PG malloc");
     Dis_accu = (float *) fdlib_mem_calloc_1d_float(CONST_NDIM*gdinfo->ny*gdinfo->nx,0.0,"Dis_accu malloc");
   }
   // calculate conversion matrix for free surface
-  if (bdryfree->is_at_sides[CONST_NDIM-1][1] == 1)
+  if (bdry->is_sides_free[CONST_NDIM-1][1] == 1)
   {
     if (md->medium_type == CONST_MEDIUM_ELASTIC_ISO)
     {
-      sv_eq1st_cart_col_el_iso_dvh2dvz(gdinfo,md,bdryfree,verbose);
+      sv_eq1st_cart_col_el_iso_dvh2dvz(gdinfo,md,bdry,verbose);
     }
     else if (md->medium_type == CONST_MEDIUM_ELASTIC_ANISO)
     {
-      //sv_eq1st_cart_col_el_aniso_dvh2dvz(gdinfo,md,bdryfree,verbose);
+      //sv_eq1st_cart_col_el_aniso_dvh2dvz(gdinfo,md,bdry,verbose);
     }
   }
 
@@ -163,7 +162,7 @@ sv_eq1st_cart_col_allstep(
         w_cur = w_pre;
         for (int idim=0; idim<CONST_NDIM; idim++) {
           for (int iside=0; iside<2; iside++) {
-            bdrypml->auxvar[idim][iside].cur = bdrypml->auxvar[idim][iside].pre;
+            bdry->auxvar[idim][iside].cur = bdry->auxvar[idim][iside].pre;
           }
         }
       }
@@ -172,7 +171,7 @@ sv_eq1st_cart_col_allstep(
         w_cur = w_tmp;
         for (int idim=0; idim<CONST_NDIM; idim++) {
           for (int iside=0; iside<2; iside++) {
-            bdrypml->auxvar[idim][iside].cur = bdrypml->auxvar[idim][iside].tmp;
+            bdry->auxvar[idim][iside].cur = bdry->auxvar[idim][iside].tmp;
           }
         }
       }
@@ -186,7 +185,7 @@ sv_eq1st_cart_col_allstep(
         case CONST_MEDIUM_ELASTIC_ISO : {
           sv_eq1st_cart_col_el_iso_onestage(
               w_cur,w_rhs,wav,
-              gdinfo, gdcart, md, bdryfree, bdrypml, src,
+              gdinfo, gdcart, md, bdry, src,
               fd->num_of_fdx_op, fd->pair_fdx_op[ipair][istage],
               fd->num_of_fdy_op, fd->pair_fdy_op[ipair][istage],
               fd->num_of_fdz_op, fd->pair_fdz_op[ipair][istage],
@@ -199,7 +198,7 @@ sv_eq1st_cart_col_allstep(
         //case CONST_MEDIUM_ELASTIC_ANISO : {
         //  sv_eq1st_cart_col_el_aniso_onestage(
         //      w_cur,w_rhs,wav,
-        //      gdinfo, md, bdryfree, bdrypml, src,
+        //      gdinfo, md, bdry, src,
         //      fd->num_of_fdx_op, fd->pair_fdx_op[ipair][istage],
         //      fd->num_of_fdy_op, fd->pair_fdy_op[ipair][istage],
         //      fd->num_of_fdz_op, fd->pair_fdz_op[ipair][istage],
@@ -212,7 +211,7 @@ sv_eq1st_cart_col_allstep(
         //case CONST_MEDIUM_ELASTIC_VTI : {
         //  sv_eq1st_cart_col_el_vti_onestage(
         //      w_cur,w_rhs,wav,
-        //      gdinfo, md, bdryfree, bdrypml, src,
+        //      gdinfo, md, bdry, src,
         //      fd->num_of_fdx_op, fd->pair_fdx_op[ipair][istage],
         //      fd->num_of_fdy_op, fd->pair_fdy_op[ipair][istage],
         //      fd->num_of_fdz_op, fd->pair_fdz_op[ipair][istage],
@@ -245,8 +244,8 @@ sv_eq1st_cart_col_allstep(
         // pml_tmp
         for (int idim=0; idim<CONST_NDIM; idim++) {
           for (int iside=0; iside<2; iside++) {
-            if (bdrypml->is_at_sides[idim][iside]==1) {
-              bdrypml_auxvar_t *auxvar = &(bdrypml->auxvar[idim][iside]);
+            if (bdry->is_sides_pml[idim][iside]==1) {
+              bdrypml_auxvar_t *auxvar = &(bdry->auxvar[idim][iside]);
               for (size_t iptr=0; iptr < auxvar->siz_ilevel; iptr++) {
                 auxvar->tmp[iptr] = auxvar->pre[iptr] + coef_a * auxvar->rhs[iptr];
               }
@@ -261,8 +260,8 @@ sv_eq1st_cart_col_allstep(
         // pml_end
         for (int idim=0; idim<CONST_NDIM; idim++) {
           for (int iside=0; iside<2; iside++) {
-            if (bdrypml->is_at_sides[idim][iside]==1) {
-              bdrypml_auxvar_t *auxvar = &(bdrypml->auxvar[idim][iside]);
+            if (bdry->is_sides_pml[idim][iside]==1) {
+              bdrypml_auxvar_t *auxvar = &(bdry->auxvar[idim][iside]);
               for (size_t iptr=0; iptr < auxvar->siz_ilevel; iptr++) {
                 auxvar->end[iptr] = auxvar->pre[iptr] + coef_b * auxvar->rhs[iptr];
               }
@@ -288,8 +287,8 @@ sv_eq1st_cart_col_allstep(
         // pml_tmp
         for (int idim=0; idim<CONST_NDIM; idim++) {
           for (int iside=0; iside<2; iside++) {
-            if (bdrypml->is_at_sides[idim][iside]==1) {
-              bdrypml_auxvar_t *auxvar = &(bdrypml->auxvar[idim][iside]);
+            if (bdry->is_sides_pml[idim][iside]==1) {
+              bdrypml_auxvar_t *auxvar = &(bdry->auxvar[idim][iside]);
               for (size_t iptr=0; iptr < auxvar->siz_ilevel; iptr++) {
                 auxvar->tmp[iptr] = auxvar->pre[iptr] + coef_a * auxvar->rhs[iptr];
               }
@@ -304,8 +303,8 @@ sv_eq1st_cart_col_allstep(
         // pml_end
         for (int idim=0; idim<CONST_NDIM; idim++) {
           for (int iside=0; iside<2; iside++) {
-            if (bdrypml->is_at_sides[idim][iside]==1) {
-              bdrypml_auxvar_t *auxvar = &(bdrypml->auxvar[idim][iside]);
+            if (bdry->is_sides_pml[idim][iside]==1) {
+              bdrypml_auxvar_t *auxvar = &(bdry->auxvar[idim][iside]);
               for (size_t iptr=0; iptr < auxvar->siz_ilevel; iptr++) {
                 auxvar->end[iptr] += coef_b * auxvar->rhs[iptr];
               }
@@ -336,8 +335,8 @@ sv_eq1st_cart_col_allstep(
         // pml_end
         for (int idim=0; idim<CONST_NDIM; idim++) {
           for (int iside=0; iside<2; iside++) {
-            if (bdrypml->is_at_sides[idim][iside]==1) {
-              bdrypml_auxvar_t *auxvar = &(bdrypml->auxvar[idim][iside]);
+            if (bdry->is_sides_pml[idim][iside]==1) {
+              bdrypml_auxvar_t *auxvar = &(bdry->auxvar[idim][iside]);
               for (size_t iptr=0; iptr < auxvar->siz_ilevel; iptr++) {
                 auxvar->end[iptr] += coef_b * auxvar->rhs[iptr];
               }
@@ -369,11 +368,18 @@ sv_eq1st_cart_col_allstep(
     }
 
     //--------------------------------------------
+    // apply ablexp
+    //--------------------------------------------
+    if (bdry->is_enable_ablexp) {
+       bdry_ablexp_apply(bdry, w_end, wav->ncmp, wav->siz_icmp);
+    }
+
+    //--------------------------------------------
     // save results
     //--------------------------------------------
 
     // calculate PGV and PGA for each surface at each stage
-    if (bdryfree->is_at_sides[CONST_NDIM-1][1] == 1)
+    if (bdry->is_sides_free[CONST_NDIM-1][1] == 1)
     {
         PG_calcu(w_end, w_pre, gdinfo, PG, Dis_accu, dt);
     }
@@ -413,7 +419,7 @@ sv_eq1st_cart_col_allstep(
 
     for (int idim=0; idim<CONST_NDIM; idim++) {
       for (int iside=0; iside<2; iside++) {
-        bdrypml_auxvar_t *auxvar = &(bdrypml->auxvar[idim][iside]);
+        bdrypml_auxvar_t *auxvar = &(bdry->auxvar[idim][iside]);
         auxvar->cur = auxvar->pre;
         auxvar->pre = auxvar->end;
         auxvar->end = auxvar->cur;
@@ -423,7 +429,7 @@ sv_eq1st_cart_col_allstep(
   } // time loop
 
   // postproc
-  if (bdryfree->is_at_sides[CONST_NDIM-1][1] == 1)
+  if (bdry->is_sides_free[CONST_NDIM-1][1] == 1)
   {
     PG_slice_output(PG,gdinfo,output_dir, output_fname_part,topoid);
   }

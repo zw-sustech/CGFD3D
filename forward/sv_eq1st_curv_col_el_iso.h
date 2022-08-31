@@ -8,8 +8,7 @@
 #include "md_t.h"
 #include "wav_t.h"
 #include "src_t.h"
-#include "bdry_free.h"
-#include "bdry_pml.h"
+#include "bdry_t.h"
 #include "io_funcs.h"
 
 /*************************************************
@@ -24,8 +23,7 @@ sv_eq1st_curv_col_el_iso_onestage(
   gdinfo_t   *gdinfo,
   gdcurv_metric_t  *metric,
   md_t *mdeliso,
-  bdryfree_t *bdryfree,
-  bdrypml_t  *bdrypml,
+  bdry_t  *bdry,
   src_t *src,
   // include different order/stentil
   int num_of_fdx_op, fd_op_t *fdx_op,
@@ -102,18 +100,27 @@ sv_eq1st_curv_col_el_iso_rhs_cfspml(
     int fdx_len, int *restrict fdx_indx, float *restrict fdx_coef,
     int fdy_len, int *restrict fdy_indx, float *restrict fdy_coef,
     int fdz_len, int *restrict fdz_indx, float *restrict fdz_coef,
-    bdrypml_t *bdrypml, bdryfree_t *bdryfree,
+    bdry_t    *bdry,
     const int myid, const int verbose);
 
 int
 sv_eq1st_curv_col_el_iso_dvh2dvz(gdinfo_t        *gdinfo,
                                  gdcurv_metric_t *metric,
                                  md_t       *mdeliso,
-                                 bdryfree_t      *bdryfree,
+                                 bdry_t      *bdryfree,
                                  const int verbose);
 
 int
 sv_eq1st_curv_col_el_iso_rhs_src(
+    float *restrict hVx , float *restrict hVy , float *restrict hVz ,
+    float *restrict hTxx, float *restrict hTyy, float *restrict hTzz,
+    float *restrict hTxz, float *restrict hTyz, float *restrict hTxy,
+    float *restrict jac3d, float *restrict slw3d,
+    src_t *src, // short nation for reference member
+    const int myid, const int verbose);
+
+int
+sv_eq1st_curv_col_el_iso_rhs_srcdd(
     float *restrict hVx , float *restrict hVy , float *restrict hVz ,
     float *restrict hTxx, float *restrict hTyy, float *restrict hTzz,
     float *restrict hTxz, float *restrict hTyz, float *restrict hTxy,

@@ -13,12 +13,33 @@
 
 #include "fdlib_math.h"
 #include "fdlib_mem.h"
-#include "bdry_pml.h"
+#include "bdry_t.h"
 
 //- may move to par file
 #define CONSPD 2.0f // power for d
 #define CONSPB 2.0f // power for beta
 #define CONSPA 1.0f // power for alpha
+
+//#define BDRY_T_DEBUG
+
+/*
+ * init bdry_t
+ */
+
+int
+bdry_init(bdry_t *bdry, int nx, int ny, int nz)
+{
+  bdry->is_enable_pml  = 0;
+  bdry->is_enable_mpml = 0;
+  bdry->is_enable_ablexp  = 0;
+  bdry->is_enable_free = 0;
+
+  bdry->nx = nx;
+  bdry->ny = ny;
+  bdry->nz = nz;
+
+  return 0;
+}
 
 /*
  * set up abs_coefs for cfs-pml
@@ -63,7 +84,7 @@ void
 bdry_pml_set(gdinfo_t *gdinfo,
              gd_t *gd,
              wav_t *wav,
-             bdrypml_t *bdrypml,
+             bdry_t *bdrypml,
              int   *neighid, 
              int   in_is_sides[][2],
              int   in_num_layers[][2],
@@ -85,7 +106,7 @@ bdry_pml_set(gdinfo_t *gdinfo,
   int    siz_slice = gdinfo->siz_iz;
 
   // default disable
-  bdrypml->is_enable = 0;
+  bdrypml->is_enable_pml = 0;
 
   // check each side
   for (int idim=0; idim<CONST_NDIM; idim++)
@@ -95,13 +116,13 @@ bdry_pml_set(gdinfo_t *gdinfo,
       int ind_1d = iside + idim * 2;
 
       // default set to input
-      bdrypml->is_at_sides  [idim][iside] = in_is_sides[idim][iside];
+      bdrypml->is_sides_pml  [idim][iside] = in_is_sides[idim][iside];
       bdrypml->num_of_layers[idim][iside] = in_num_layers[idim][iside];
 
       // reset 0 if not mpi boundary
       if (neighid[ind_1d] != MPI_PROC_NULL)
       {
-        bdrypml->is_at_sides  [idim][iside] = 0;
+        bdrypml->is_sides_pml  [idim][iside] = 0;
         bdrypml->num_of_layers[idim][iside] = 0;
       }
 
@@ -134,8 +155,8 @@ bdry_pml_set(gdinfo_t *gdinfo,
       }
 
       // enable if any side valid
-      if (bdrypml->is_at_sides  [idim][iside] == 1) {
-        bdrypml->is_enable = 1;
+      if (bdrypml->is_sides_pml  [idim][iside] == 1) {
+        bdrypml->is_enable_pml = 1;
       }
 
     } // iside
@@ -146,7 +167,7 @@ bdry_pml_set(gdinfo_t *gdinfo,
   {
     for (int iside=0; iside<2; iside++)
     {
-      if (bdrypml->is_at_sides[idim][iside] == 1) {
+      if (bdrypml->is_sides_pml[idim][iside] == 1) {
         int npoints = bdrypml->num_of_layers[idim][iside] + 1;
         bdrypml->A[idim][iside] = (float *)malloc( npoints * sizeof(float));
         bdrypml->B[idim][iside] = (float *)malloc( npoints * sizeof(float));
@@ -165,7 +186,7 @@ bdry_pml_set(gdinfo_t *gdinfo,
     for (int iside=0; iside<2; iside++)
     {
       // skip if not pml
-      if (bdrypml->is_at_sides[idim][iside] == 0) continue;
+      if (bdrypml->is_sides_pml[idim][iside] == 0) continue;
 
       float *A = bdrypml->A[idim][iside];
       float *B = bdrypml->B[idim][iside];
@@ -173,7 +194,7 @@ bdry_pml_set(gdinfo_t *gdinfo,
 
       // esti L0 and dh
       float L0, dh;
-      bdry_pml_cal_len_dh(gd,bdrypml->ni1[idim][iside],
+      bdry_cal_abl_len_dh(gd,bdrypml->ni1[idim][iside],
                              bdrypml->ni2[idim][iside],
                              bdrypml->nj1[idim][iside],
                              bdrypml->nj2[idim][iside],
@@ -239,7 +260,7 @@ void
 bdry_pml_set_stg(gdinfo_t *gdinfo,
                  gd_t *gd,
                  wav_t *wav,
-                 bdrypml_t *bdrypml,
+                 bdry_t *bdrypml,
                  int   *neighid, 
                  int   in_is_sides[][2],
                  int   in_num_layers[][2],
@@ -261,7 +282,7 @@ bdry_pml_set_stg(gdinfo_t *gdinfo,
   int    siz_slice = gdinfo->siz_iz;
 
   // default disable
-  bdrypml->is_enable = 0;
+  bdrypml->is_enable_pml = 0;
 
   // check each side
   for (int idim=0; idim<CONST_NDIM; idim++)
@@ -271,13 +292,13 @@ bdry_pml_set_stg(gdinfo_t *gdinfo,
       int ind_1d = iside + idim * 2;
 
       // default set to input
-      bdrypml->is_at_sides  [idim][iside] = in_is_sides[idim][iside];
+      bdrypml->is_sides_pml  [idim][iside] = in_is_sides[idim][iside];
       bdrypml->num_of_layers[idim][iside] = in_num_layers[idim][iside];
 
       // reset 0 if not mpi boundary
       if (neighid[ind_1d] != MPI_PROC_NULL)
       {
-        bdrypml->is_at_sides  [idim][iside] = 0;
+        bdrypml->is_sides_pml  [idim][iside] = 0;
         bdrypml->num_of_layers[idim][iside] = 0;
       }
 
@@ -310,8 +331,8 @@ bdry_pml_set_stg(gdinfo_t *gdinfo,
       }
 
       // enable if any side valid
-      if (bdrypml->is_at_sides  [idim][iside] == 1) {
-        bdrypml->is_enable = 1;
+      if (bdrypml->is_sides_pml  [idim][iside] == 1) {
+        bdrypml->is_enable_pml = 1;
       }
 
     } // iside
@@ -322,7 +343,7 @@ bdry_pml_set_stg(gdinfo_t *gdinfo,
   {
     for (int iside=0; iside<2; iside++)
     {
-      if (bdrypml->is_at_sides[idim][iside] == 1) {
+      if (bdrypml->is_sides_pml[idim][iside] == 1) {
         int npoints = bdrypml->num_of_layers[idim][iside] + 1;
         bdrypml->A[idim][iside] = (float *)malloc( npoints * sizeof(float));
         bdrypml->B[idim][iside] = (float *)malloc( npoints * sizeof(float));
@@ -347,7 +368,7 @@ bdry_pml_set_stg(gdinfo_t *gdinfo,
     for (int iside=0; iside<2; iside++)
     {
       // skip if not pml
-      if (bdrypml->is_at_sides[idim][iside] == 0) continue;
+      if (bdrypml->is_sides_pml[idim][iside] == 0) continue;
 
       float *A = bdrypml->A[idim][iside];
       float *B = bdrypml->B[idim][iside];
@@ -359,7 +380,7 @@ bdry_pml_set_stg(gdinfo_t *gdinfo,
 
       // esti L0 and dh
       float L0, dh;
-      bdry_pml_cal_len_dh(gd,bdrypml->ni1[idim][iside],
+      bdry_cal_abl_len_dh(gd,bdrypml->ni1[idim][iside],
                              bdrypml->ni2[idim][iside],
                              bdrypml->nj1[idim][iside],
                              bdrypml->nj2[idim][iside],
@@ -484,7 +505,7 @@ bdry_pml_auxvar_init(int nx, int ny, int nz,
  */
 
 int
-bdry_pml_cal_len_dh(gd_t *gd, 
+bdry_cal_abl_len_dh(gd_t *gd, 
                     int abs_ni1, int abs_ni2,
                     int abs_nj1, int abs_nj2,
                     int abs_nk1, int abs_nk2,
@@ -618,4 +639,446 @@ bdry_pml_cal_len_dh(gd_t *gd,
   } // gd type
 
   return ierr;
+}
+
+/*
+ * matrix for velocity gradient conversion
+ *  only implement z2 (top) right now
+ */
+
+int
+bdry_free_set(gdinfo_t    *gdinfo,
+              bdry_t      *bdryfree,
+              int   *neighid, 
+              int   in_is_sides[][2],
+              const int verbose)
+{
+  int ierr = 0;
+
+  size_t siz_slice  = gdinfo->siz_iz;
+
+  // default disable
+  bdryfree->is_enable_free = 0;
+
+  // check each side
+  for (int idim=0; idim<CONST_NDIM; idim++)
+  {
+    for (int iside=0; iside<2; iside++)
+    {
+      int ind_1d = iside + idim * 2;
+
+      bdryfree->is_sides_free  [idim][iside] = in_is_sides[idim][iside];
+
+      // reset 0 if not mpi boundary
+      if (neighid[ind_1d] != MPI_PROC_NULL)
+      {
+        bdryfree->is_sides_free  [idim][iside] = 0;
+      }
+
+      // enable if any side valid
+      if (bdryfree->is_sides_free  [idim][iside] == 1) {
+        bdryfree->is_enable_free = 1;
+      }
+    } // iside
+  } // idim
+
+  // following only implement z2 (top) right now
+  float *matVx2Vz = (float *)fdlib_mem_calloc_1d_float(
+                                      siz_slice * CONST_NDIM * CONST_NDIM,
+                                      0.0,
+                                      "bdry_free_set");
+
+  float *matVy2Vz = (float *)fdlib_mem_calloc_1d_float(
+                                      siz_slice * CONST_NDIM * CONST_NDIM,
+                                      0.0,
+                                      "bdry_free_set");
+
+  bdryfree->matVx2Vz2 = matVx2Vz;
+  bdryfree->matVy2Vz2 = matVy2Vz;
+
+  return ierr;
+}
+
+/*
+ * setup ablexp parameters
+ */
+
+int
+bdry_ablexp_set(gdinfo_t *gdinfo,
+             gd_t *gd,
+             wav_t *wav,
+             bdry_t *bdry,
+             int   *neighid, 
+             int   in_is_sides[][2],
+             int   in_num_layers[][2],
+             float in_velocity[][2], //
+             float dt,
+             int  *topoid,
+             int verbose)
+{
+  int    ierr = 0;
+
+  int    ni1 = gdinfo->ni1;
+  int    ni2 = gdinfo->ni2;
+  int    nj1 = gdinfo->nj1;
+  int    nj2 = gdinfo->nj2;
+  int    nk1 = gdinfo->nk1;
+  int    nk2 = gdinfo->nk2;
+  int    ni  = gdinfo->ni ;
+  int    nj  = gdinfo->nj ;
+  int    nk  = gdinfo->nk ;
+  int    nx  = gdinfo->nx ;
+  int    ny  = gdinfo->ny ;
+  int    nz  = gdinfo->nz ;
+  int    siz_line = gdinfo->siz_iy;
+  int    siz_slice = gdinfo->siz_iz;
+  int    abs_number[CONST_NDIM][2];
+
+  int n;
+
+  // default disable
+  bdry->is_enable_ablexp = 0;
+
+  // check each side
+  for (int idim=0; idim<CONST_NDIM; idim++)
+  {
+    for (int iside=0; iside<2; iside++)
+    {
+      int ind_1d = iside + idim * 2;
+
+      // default set to input
+      bdry->is_sides_ablexp  [idim][iside] = in_is_sides[idim][iside];
+      bdry->num_of_layers[idim][iside] = in_num_layers[idim][iside];
+
+      // reset 0 if not mpi boundary
+      if (neighid[ind_1d] != MPI_PROC_NULL)
+      {
+        bdry->is_sides_ablexp  [idim][iside] = 0;
+        bdry->num_of_layers[idim][iside] = 0;
+      }
+
+      // enable if any side valid
+      if (bdry->is_sides_ablexp  [idim][iside] == 1) {
+        bdry->is_enable_ablexp = 1;
+      }
+    } // iside
+  } // idim
+
+  // block index for ablexp, default inactive
+  bdry_block_t *D = bdry->bdry_blk;
+  for (n=0; n < CONST_NDIM_2; n++)
+  {
+     D[n].enable = 0;
+     D[n].ni1 =  0;
+     D[n].ni2 = -1;
+     D[n].ni  =  0;
+
+     D[n].nj1 =  0;
+     D[n].nj2 = -1;
+     D[n].nj  =  0;
+
+     D[n].nk1 =  0;
+     D[n].nk2 = -1;
+     D[n].nk  =  0;
+  }
+
+  // alloc coef
+  bdry->ablexp_Ex = (float *)malloc( nx * sizeof(float));
+  bdry->ablexp_Ey = (float *)malloc( ny * sizeof(float));
+  bdry->ablexp_Ez = (float *)malloc( nz * sizeof(float));
+  for (int i=0; i<nx; i++) bdry->ablexp_Ex[i] = 1.0;
+  for (int j=0; j<ny; j++) bdry->ablexp_Ey[j] = 1.0;
+  for (int k=0; k<nz; k++) bdry->ablexp_Ez[k] = 1.0;
+
+  // x1
+  n=0;
+  D[n].ni=bdry->num_of_layers[0][0]; D[n].ni1=ni1; D[n].ni2=D[n].ni1+D[n].ni-1; 
+  D[n].nj=nj                       ; D[n].nj1=nj1; D[n].nj2=D[n].nj1+D[n].nj-1; 
+  D[n].nk=nk                       ; D[n].nk1=nk1; D[n].nk2=D[n].nk1+D[n].nk-1; 
+  if (D[n].ni>0 && D[n].nj>0 && D[n].nk>0)
+  {
+     D[n].enable = 1;
+
+     // esti L0 and dh
+     float L0, dh;
+     bdry_cal_abl_len_dh(gd,D[n].ni1,
+                            D[n].ni2,
+                            D[n].nj1,
+                            D[n].nj2,
+                            D[n].nk1,
+                            D[n].nk2,
+                            0,
+                            &L0, &dh);
+
+     for (int i=D[n].ni1; i<=D[n].ni2; i++)
+     {
+        // the first point of layer is the first dh damping
+        bdry->ablexp_Ex[i] = bdry_ablexp_cal_mask(D[n].ni - (i - D[n].ni1),
+                                                  in_velocity[0][0], dt,
+                                                  D[n].ni, dh);
+     }
+  }
+
+  // x2
+  n += 1;
+  D[n].ni=bdry->num_of_layers[0][1];D[n].ni1=ni2 - D[n].ni + 1; D[n].ni2=D[n].ni1+D[n].ni-1; 
+  D[n].nj=nj                       ;D[n].nj1=nj1               ; D[n].nj2=D[n].nj1+D[n].nj-1; 
+  D[n].nk=nk                       ;D[n].nk1=nk1               ; D[n].nk2=D[n].nk1+D[n].nk-1; 
+  if (D[n].ni>0 && D[n].nj>0 && D[n].nk>0)
+  {
+     D[n].enable = 1;
+
+     // esti L0 and dh
+     float L0, dh;
+     bdry_cal_abl_len_dh(gd,D[n].ni1,
+                            D[n].ni2,
+                            D[n].nj1,
+                            D[n].nj2,
+                            D[n].nk1,
+                            D[n].nk2,
+                            0,
+                            &L0, &dh);
+
+     for (int i=D[n].ni1; i<=D[n].ni2; i++)
+     {
+        bdry->ablexp_Ex[i] = bdry_ablexp_cal_mask(i - D[n].ni1 + 1,
+                                                  in_velocity[0][1], dt,
+                                                  D[n].ni, dh);
+     }
+  }
+
+  int ni_x = bdry->num_of_layers[0][0] + bdry->num_of_layers[0][1];
+  int nj_y = bdry->num_of_layers[1][0] + bdry->num_of_layers[1][1];
+
+  //y1
+  n += 1;
+  D[n].ni = ni - ni_x;
+  D[n].ni1= ni1 + bdry->num_of_layers[0][0];
+  D[n].ni2= D[n].ni1 + D[n].ni - 1; 
+  D[n].nj = bdry->num_of_layers[1][0];
+  D[n].nj1= nj1;
+  D[n].nj2= D[n].nj1 + D[n].nj - 1; 
+  D[n].nk = nk;
+  D[n].nk1= nk1;
+  D[n].nk2= D[n].nk1 + D[n].nk - 1; 
+  if (D[n].ni>0 && D[n].nj>0 && D[n].nk>0)
+  {
+     D[n].enable = 1;
+     // esti L0 and dh
+     float L0, dh;
+     bdry_cal_abl_len_dh(gd,D[n].ni1,
+                            D[n].ni2,
+                            D[n].nj1,
+                            D[n].nj2,
+                            D[n].nk1,
+                            D[n].nk2,
+                            1,
+                            &L0, &dh);
+
+     for (int j=D[n].nj1; j<=D[n].nj2; j++)
+     {
+        bdry->ablexp_Ey[j] = bdry_ablexp_cal_mask(D[n].nj - (j - D[n].nj1),
+                                                  in_velocity[1][0], dt,
+                                                  D[n].nj, dh);
+     }
+  }
+
+  // y2
+  n += 1;
+  D[n].ni = ni - ni_x;
+  D[n].ni1= ni1 + bdry->num_of_layers[0][0];
+  D[n].ni2= D[n].ni1 + D[n].ni - 1; 
+  D[n].nj = bdry->num_of_layers[1][1];
+  D[n].nj1= nj2 - D[n].nj + 1;
+  D[n].nj2= D[n].nj1 + D[n].nj - 1; 
+  D[n].nk = nk;
+  D[n].nk1= nk1;
+  D[n].nk2= D[n].nk1 + D[n].nk - 1; 
+  if (D[n].ni>0 && D[n].nj>0 && D[n].nk>0)
+  {
+     D[n].enable = 1;
+     // esti L0 and dh
+     float L0, dh;
+     bdry_cal_abl_len_dh(gd,D[n].ni1,
+                            D[n].ni2,
+                            D[n].nj1,
+                            D[n].nj2,
+                            D[n].nk1,
+                            D[n].nk2,
+                            1,
+                            &L0, &dh);
+
+     for (int j=D[n].nj1; j<=D[n].nj2; j++)
+     {
+        bdry->ablexp_Ey[j] = bdry_ablexp_cal_mask(j - D[n].nj1 + 1,
+                                                  in_velocity[1][1], dt,
+                                                  D[n].nj, dh);
+     }
+  }
+
+  // z1
+  n += 1;
+  D[n].ni = ni - ni_x;
+  D[n].ni1= ni1 + bdry->num_of_layers[0][0];
+  D[n].ni2= D[n].ni1 + D[n].ni - 1; 
+  D[n].nj = nj - nj_y;
+  D[n].nj1= nj1 + bdry->num_of_layers[1][0];
+  D[n].nj2= D[n].nj1 + D[n].nj - 1; 
+  D[n].nk = bdry->num_of_layers[2][0];
+  D[n].nk1= nk1;
+  D[n].nk2= D[n].nk1 + D[n].nk - 1; 
+  if (D[n].ni>0 && D[n].nj>0 && D[n].nk>0)
+  {
+     D[n].enable = 1;
+     // esti L0 and dh
+     float L0, dh;
+     bdry_cal_abl_len_dh(gd,D[n].ni1,
+                            D[n].ni2,
+                            D[n].nj1,
+                            D[n].nj2,
+                            D[n].nk1,
+                            D[n].nk2,
+                            2,
+                            &L0, &dh);
+
+     for (int k=D[n].nk1; k<=D[n].nk2; k++)
+     {
+        bdry->ablexp_Ez[k] = bdry_ablexp_cal_mask(D[n].nk - (k - D[n].nk1),
+                                                  in_velocity[2][0], dt,
+                                                  D[n].nk, dh);
+     }
+  }
+
+  // z2
+  n += 1;
+  D[n].ni = ni - ni_x;
+  D[n].ni1= ni1 + bdry->num_of_layers[0][0];
+  D[n].ni2= D[n].ni1 + D[n].ni - 1; 
+  D[n].nj = nj - nj_y;
+  D[n].nj1= nj1 + bdry->num_of_layers[1][0];
+  D[n].nj2= D[n].nj1 + D[n].nj - 1; 
+  D[n].nk = bdry->num_of_layers[2][1];
+  D[n].nk1= nk2 - D[n].nk + 1;
+  D[n].nk2= D[n].nk1 + D[n].nk - 1; 
+  if (D[n].ni>0 && D[n].nj>0 && D[n].nk>0)
+  {
+     D[n].enable = 1;
+     // esti L0 and dh
+     float L0, dh;
+     bdry_cal_abl_len_dh(gd,D[n].ni1,
+                            D[n].ni2,
+                            D[n].nj1,
+                            D[n].nj2,
+                            D[n].nk1,
+                            D[n].nk2,
+                            2,
+                            &L0, &dh);
+
+     for (int k=D[n].nk1; k<=D[n].nk2; k++)
+     {
+        bdry->ablexp_Ez[k] = bdry_ablexp_cal_mask(k - D[n].nk1 + 1,
+                                                  in_velocity[2][1], dt,
+                                                  D[n].nk, dh);
+     }
+  }
+
+#ifdef BDRY_T_DEBUG
+  fprintf(stderr,"== debug for ablexp at %i %i\n", topoid[0],topoid[1]);
+  fprintf(stderr,"--- nx = %d\n", nx);
+  for (int i=0; i<nx; i++) {
+    fprintf(stderr,"---- Ex[%d] = %g\n", i, bdry->ablexp_Ex[i]);
+  }
+  fprintf(stderr,"--- ny = %d\n", ny);
+  for (int j=0; j<ny; j++) {
+    fprintf(stderr,"---- Ey[%d] = %g\n", j, bdry->ablexp_Ey[j]);
+  }
+  fprintf(stderr,"--- nz = %d\n", nz);
+  for (int k=0; k<nz; k++) {
+    fprintf(stderr,"---- Ez[%d] = %g\n", k, bdry->ablexp_Ez[k]);
+  }
+
+  fprintf(stderr,"--- index for each block\n");
+  for (int n=0; n<CONST_NDIM_2; n++)
+  {
+    fprintf(stderr,"---- block %d enable = %d\n", n, D[n].enable);
+    fprintf(stderr,"----- ni1=%d,ni2=%d,ni=%d\n", D[n].ni1, D[n].ni2, D[n].ni);
+    fprintf(stderr,"----- nj1=%d,nj2=%d,nj=%d\n", D[n].nj1, D[n].nj2, D[n].nj);
+    fprintf(stderr,"----- nk1=%d,nk2=%d,nk=%d\n", D[n].nk1, D[n].nk2, D[n].nk);
+  }
+
+  fflush(stderr);
+#endif
+
+  return ierr;
+}
+
+float
+bdry_ablexp_cal_mask(int i, float vel, float dt, int num_lay, float dh)
+{
+  float len = num_lay * dh;
+
+  int num_step  = (int) (len / vel / dt);
+
+  float total_damp=0.0;
+  for (int n=0; n<num_step; n++) {
+     total_damp += powf((n*dt*vel)/len, 2.0);
+  }
+
+  float alpha = 0.6 / total_damp;
+
+  float mask_val = expf( -alpha * powf((float)i/num_lay, 2.0 ) );
+
+  return mask_val;
+}
+
+int
+bdry_ablexp_apply(bdry_t *bdry, float *w_end, int ncmp, size_t siz_icmp)
+{
+  float *Ex = bdry->ablexp_Ex;
+  float *Ey = bdry->ablexp_Ey;
+  float *Ez = bdry->ablexp_Ez;
+
+  int nx = bdry->nx;
+  int ny = bdry->ny;
+  int nz = bdry->nz;
+
+  size_t siz_slice = nx * ny;
+
+  bdry_block_t *D = bdry->bdry_blk;
+  
+  for (int ivar=0; ivar<ncmp; ivar++)
+  {
+    float *W = w_end + ivar * siz_icmp;
+
+    for (int n=0; n < CONST_NDIM_2; n++)
+    {
+      if (D[n].enable == 1)
+      {
+        for (int k = D[n].nk1; k <= D[n].nk2; k++)
+        {
+          size_t iptr_k = k * siz_slice;
+          for (int j = D[n].nj1; j <= D[n].nj2; j++)
+          {
+            size_t iptr = iptr_k + j * nx + D[n].ni1;
+            for (int i = D[n].ni1; i <= D[n].ni2; i++)
+            {
+              float mask = (Ex[i]<Ey[j]) ? Ex[i] : Ey[j];
+              if (mask > Ez[k]) mask = Ez[k];
+
+#ifdef BDRY_T_DEBUG
+              fprintf(stderr,"--> n=%d,i=%d,j=%d,k=%d\n", n,i,j,k);
+              fprintf(stderr,"----> Ex=%g,Ey=%g,Ez=%g,mask=%g\n",Ex[i],Ey[j],Ez[k],mask);
+#endif
+
+              W[iptr] *= mask;
+
+              iptr +=1 ;
+            }
+          }
+        }
+      }
+    }
+  }
+
+  return 0;
 }

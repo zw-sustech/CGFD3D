@@ -99,8 +99,7 @@ int main(int argc, char** argv)
   md_t            *md            = blk->md;
   wav_t           *wav           = blk->wav;
   src_t           *src           = blk->src;
-  bdryfree_t      *bdryfree      = blk->bdryfree;
-  bdrypml_t       *bdrypml       = blk->bdrypml;
+  bdry_t          *bdry          = blk->bdry;
   iorecv_t        *iorecv        = blk->iorecv;
   ioline_t        *ioline        = blk->ioline;
   ioslice_t       *ioslice       = blk->ioslice;
@@ -397,14 +396,20 @@ int main(int argc, char** argv)
                      blk->output_dir);
 
 //-------------------------------------------------------------------------------
-//-- absorbing boundary etc auxiliary variables
+//-- setup boundary
 //-------------------------------------------------------------------------------
 
-  if (myid==0 && verbose>0) fprintf(stdout,"setup absorbingg boundary ...\n"); 
+  if (myid==0 && verbose>0) fprintf(stdout,"setup boundary ...\n"); 
+
+  bdry_init(bdry, gdinfo->nx, gdinfo->ny, gdinfo->nz);
+
+  //-- absorbing boundary etc auxiliary variables
   
   if (par->bdry_has_cfspml == 1)
   {
-    bdry_pml_set(gdinfo, gdcart, wav, bdrypml,
+    if (myid==0 && verbose>0) fprintf(stdout,"setup absorbing boundary ...\n"); 
+
+    bdry_pml_set(gdinfo, gdcart, wav, bdry,
                  mympi->neighid,
                  par->cfspml_is_sides,
                  par->abs_num_of_layers,
@@ -414,15 +419,29 @@ int main(int argc, char** argv)
                  verbose);
   }
 
-//-------------------------------------------------------------------------------
-//-- free surface preproc
-//-------------------------------------------------------------------------------
+  //-- ablexp
+  
+  if (par->bdry_has_ablexp == 1)
+  {
+    if (myid==0 && verbose>0) fprintf(stdout,"setup sponge layer ...\n"); 
 
-  if (myid==0 && verbose>0) fprintf(stdout,"cal free surface matrix ...\n"); 
+    bdry_ablexp_set(gdinfo, gdcart, wav, bdry,
+                 mympi->neighid,
+                 par->ablexp_is_sides,
+                 par->abs_num_of_layers,
+                 par->ablexp_velocity,
+                 dt,
+                 mympi->topoid,
+                 verbose);
+  }
+
+  //-- free surface preproc
 
   if (par->bdry_has_free == 1)
   {
-    bdry_free_set(gdinfo,bdryfree, mympi->neighid, par->free_is_sides, verbose);
+    if (myid==0 && verbose>0) fprintf(stdout,"cal free surface matrix ...\n"); 
+
+    bdry_free_set(gdinfo,bdry, mympi->neighid, par->free_is_sides, verbose);
   }
 
 //-------------------------------------------------------------------------------
@@ -459,7 +478,7 @@ int main(int argc, char** argv)
   time_t t_start = time(NULL);
   
   sv_eq1st_cart_col_allstep(fd,gdinfo,gdcart,md,
-                            src,bdryfree,bdrypml,
+                            src,bdry,
                             wav, mympi,
                             iorecv,ioline,ioslice,iosnap,
                             dt,nt_total,t0,

@@ -9,8 +9,7 @@
 #include "md_t.h"
 #include "wav_t.h"
 #include "src_t.h"
-#include "bdry_free.h"
-#include "bdry_pml.h"
+#include "bdry_t.h"
 #include "io_funcs.h"
 
 /*******************************************************************************
@@ -50,13 +49,8 @@ typedef struct
   // source term
   src_t *src;
   
-  // free surface
-  bdryfree_t *bdryfree;
-  
-  // pml
-  bdrypml_t *bdrypml;
-  // exp
-  //bdryexp_t *bdryexp;
+  // boundary
+  bdry_t *bdry;
   
   // io
   iorecv_t  *iorecv;

@@ -99,8 +99,7 @@ int main(int argc, char** argv)
   md_t            *md            = blk->md;
   wav_t           *wav           = blk->wav;
   src_t           *src           = blk->src;
-  bdryfree_t      *bdryfree      = blk->bdryfree;
-  bdrypml_t       *bdrypml       = blk->bdrypml;
+  bdry_t          *bdry          = blk->bdry;
   iorecv_t        *iorecv        = blk->iorecv;
   ioline_t        *ioline        = blk->ioline;
   ioslice_t       *ioslice       = blk->ioslice;
@@ -567,13 +566,22 @@ int main(int argc, char** argv)
 
   src_read_locate_file(gdinfo, gdcurv, md, src,
                        par->source_input_file,
-                       t0,
-                       dt,
+                       t0, dt,
                        fd->num_rk_stages, fd->rk_rhs_time,
                        fd->fdx_max_half_len,
-                       comm,
-                       myid,
+                       comm, myid,
                        verbose);
+
+  src_dd_read2local(gdinfo, gdcurv, src,
+                    par->source_dd_input_file,
+                    par->tmp_dir,
+                    par->source_dd_add_at_point,
+                    par->source_dd_nt_per_read,
+                    t0, dt, nt_total,
+                    fd->num_rk_stages, fd->rk_rhs_time,
+                    fd->fdx_max_half_len,
+                    comm, myid, mympi->topoid,
+                    verbose);
 
   // print basic info for QC
   //fprintf(stdout,"src info at topoid=%d,%d\n", mympi->topoid[0],mympi->topoid[1]); 
@@ -641,14 +649,20 @@ int main(int argc, char** argv)
                      blk->output_dir);
 
 //-------------------------------------------------------------------------------
-//-- absorbing boundary etc auxiliary variables
+//-- setup boundary
 //-------------------------------------------------------------------------------
 
-  if (myid==0 && verbose>0) fprintf(stdout,"setup absorbingg boundary ...\n"); 
+  if (myid==0 && verbose>0) fprintf(stdout,"setup boundary ...\n"); 
+
+  bdry_init(bdry, gdinfo->nx, gdinfo->ny, gdinfo->nz);
+
+  //-- ade cfs-pml
   
   if (par->bdry_has_cfspml == 1)
   {
-    bdry_pml_set(gdinfo, gdcurv, wav, bdrypml,
+    if (myid==0 && verbose>0) fprintf(stdout,"setup ade cfs-pml ...\n"); 
+
+    bdry_pml_set(gdinfo, gdcurv, wav, bdry,
                  mympi->neighid,
                  par->cfspml_is_sides,
                  par->abs_num_of_layers,
@@ -658,15 +672,29 @@ int main(int argc, char** argv)
                  verbose);
   }
 
-//-------------------------------------------------------------------------------
-//-- free surface preproc
-//-------------------------------------------------------------------------------
+  //-- ablexp
+  
+  if (par->bdry_has_ablexp == 1)
+  {
+    if (myid==0 && verbose>0) fprintf(stdout,"setup sponge layer ...\n"); 
 
-  if (myid==0 && verbose>0) fprintf(stdout,"cal free surface matrix ...\n"); 
+    bdry_ablexp_set(gdinfo, gdcurv, wav, bdry,
+                 mympi->neighid,
+                 par->ablexp_is_sides,
+                 par->abs_num_of_layers,
+                 par->ablexp_velocity,
+                 dt,
+                 mympi->topoid,
+                 verbose);
+  }
+
+  //-- free surface preproc
 
   if (par->bdry_has_free == 1)
   {
-    bdry_free_set(gdinfo,bdryfree, mympi->neighid, par->free_is_sides, verbose);
+    if (myid==0 && verbose>0) fprintf(stdout,"cal free surface matrix ...\n"); 
+
+    bdry_free_set(gdinfo,bdry, mympi->neighid, par->free_is_sides, verbose);
   }
 
 //-------------------------------------------------------------------------------
@@ -703,7 +731,7 @@ int main(int argc, char** argv)
   time_t t_start = time(NULL);
   
   sv_eq1st_curv_col_allstep(fd,gdinfo,gdcurv_metric,md,
-                            src,bdryfree,bdrypml,
+                            src,bdry,
                             wav, mympi,
                             iorecv,ioline,ioslice,iosnap,
                             dt,nt_total,t0,
@@ -726,14 +754,33 @@ int main(int argc, char** argv)
   io_recv_output_sac(iorecv,dt,wav->ncmp,wav->cmp_name,
                       src->evtnm,blk->output_dir,err_message);
 
-  io_recv_output_sac_el_strain(iorecv,md->lambda,md->mu,dt,
+  if(md->medium_type == CONST_MEDIUM_ELASTIC_ISO) {
+    io_recv_output_sac_el_iso_strain(iorecv,md->lambda,md->mu,dt,
                       src->evtnm,blk->output_dir,err_message);
+  }
+  if(md->medium_type == CONST_MEDIUM_ELASTIC_VTI) {
+    io_recv_output_sac_el_vti_strain(iorecv,md->c11,md->c13,
+                      md->c33,md->c55,md->c66,dt,
+                      src->evtnm,blk->output_dir,err_message);
+  }
+  if(md->medium_type == CONST_MEDIUM_ELASTIC_ANISO) {
+    io_recv_output_sac_el_aniso_strain(iorecv,
+                     md->c11,md->c12,md->c13,md->c14,md->c15,md->c16,
+                             md->c22,md->c23,md->c24,md->c25,md->c26,
+                             md->c33,md->c34,md->c35,md->c36,
+                                     md->c44,md->c45,md->c46,
+                                     md->c55,md->c56,
+                                             md->c66,
+                     dt,src->evtnm,blk->output_dir,err_message);
+  }
 
   io_line_output_sac(ioline,dt,wav->cmp_name,src->evtnm,blk->output_dir);
 
 //-------------------------------------------------------------------------------
 //-- postprocess
 //-------------------------------------------------------------------------------
+
+  src_dd_free(src);
 
   MPI_Finalize();
 

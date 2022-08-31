@@ -12,7 +12,7 @@
 #include "fdlib_math.h"
 #include "sv_eq1st_curv_col_el_iso.h"
 
-//#define SV_EQ1ST_CURV_COLGRD_ISO_DEBUG
+//#define DEBUG_SV_EQ1ST_CURV_COLGRD_ISO
 
 /*******************************************************************************
  * perform one stage calculation of rhs
@@ -26,8 +26,7 @@ sv_eq1st_curv_col_el_iso_onestage(
   gdinfo_t   *gdinfo,
   gdcurv_metric_t  *metric,
   md_t *md,
-  bdryfree_t *bdryfree,
-  bdrypml_t  *bdrypml,
+  bdry_t  *bdry,
   src_t *src,
   // include different order/stentil
   int num_of_fdx_op, fd_op_t *fdx_op,
@@ -89,8 +88,8 @@ sv_eq1st_curv_col_el_iso_onestage(
   size_t siz_slice  = gdinfo->siz_slice;
   size_t siz_volume = gdinfo->siz_volume;
 
-  float *matVx2Vz = bdryfree->matVx2Vz2;
-  float *matVy2Vz = bdryfree->matVy2Vz2;
+  float *matVx2Vz = bdry->matVx2Vz2;
+  float *matVy2Vz = bdry->matVy2Vz2;
 
   // local fd op
   int              fdx_inn_len;
@@ -131,7 +130,7 @@ sv_eq1st_curv_col_el_iso_onestage(
   // free, abs, source in turn
 
   // free surface at z2
-  if (bdryfree->is_at_sides[2][1] == 1)
+  if (bdry->is_sides_free[2][1] == 1)
   {
     // tractiong
     sv_eq1st_curv_col_el_iso_rhs_timg_z2(Txx,Tyy,Tzz,Txz,Tyz,Txy,hVx,hVy,hVz,
@@ -156,7 +155,7 @@ sv_eq1st_curv_col_el_iso_onestage(
   }
 
   // cfs-pml, loop face inside
-  if (bdrypml->is_enable == 1)
+  if (bdry->is_enable_pml == 1)
   {
     sv_eq1st_curv_col_el_iso_rhs_cfspml(Vx,Vy,Vz,Txx,Tyy,Tzz,Txz,Tyz,Txy,
                                        hVx,hVy,hVz,hTxx,hTyy,hTzz,hTxz,hTyz,hTxy,
@@ -166,7 +165,7 @@ sv_eq1st_curv_col_el_iso_onestage(
                                        fdx_inn_len, fdx_inn_indx, fdx_inn_coef,
                                        fdy_inn_len, fdy_inn_indx, fdy_inn_coef,
                                        fdz_inn_len, fdz_inn_indx, fdz_inn_coef,
-                                       bdrypml, bdryfree,
+                                       bdry, 
                                        myid, verbose);
     
   }
@@ -175,6 +174,15 @@ sv_eq1st_curv_col_el_iso_onestage(
   if (src->total_number > 0)
   {
     sv_eq1st_curv_col_el_iso_rhs_src(hVx,hVy,hVz,hTxx,hTyy,hTzz,hTxz,hTyz,hTxy,
+                                    jac3d, slw3d, 
+                                    src,
+                                    myid, verbose);
+  }
+
+  // not do if pass time range
+  if (src->dd_is_valid ==1)
+  {
+    sv_eq1st_curv_col_el_iso_rhs_srcdd(hVx,hVy,hVz,hTxx,hTyy,hTzz,hTxz,hTyz,hTxy,
                                     jac3d, slw3d, 
                                     src,
                                     myid, verbose);
@@ -895,12 +903,12 @@ sv_eq1st_curv_col_el_iso_rhs_cfspml(
     int fdx_len, int *restrict fdx_indx, float *restrict fdx_coef,
     int fdy_len, int *restrict fdy_indx, float *restrict fdy_coef,
     int fdz_len, int *restrict fdz_indx, float *restrict fdz_coef,
-    bdrypml_t *bdrypml, bdryfree_t *bdryfree,
+    bdry_t *bdry, 
     const int myid, const int verbose)
 {
 
-  float *matVx2Vz = bdryfree->matVx2Vz2;
-  float *matVy2Vz = bdryfree->matVy2Vz2;
+  float *matVx2Vz = bdry->matVx2Vz2;
+  float *matVy2Vz = bdry->matVy2Vz2;
 
   // loop var for fd
   int n_fd; // loop var for fd
@@ -948,15 +956,15 @@ sv_eq1st_curv_col_el_iso_rhs_cfspml(
     for (int iside=0; iside<2; iside++)
     {
       // skip to next face if not cfspml
-      if (bdrypml->is_at_sides[idim][iside] == 0) continue;
+      if (bdry->is_sides_pml[idim][iside] == 0) continue;
 
       // get index into local var
-      int abs_ni1 = bdrypml->ni1[idim][iside];
-      int abs_ni2 = bdrypml->ni2[idim][iside];
-      int abs_nj1 = bdrypml->nj1[idim][iside];
-      int abs_nj2 = bdrypml->nj2[idim][iside];
-      int abs_nk1 = bdrypml->nk1[idim][iside];
-      int abs_nk2 = bdrypml->nk2[idim][iside];
+      int abs_ni1 = bdry->ni1[idim][iside];
+      int abs_ni2 = bdry->ni2[idim][iside];
+      int abs_nj1 = bdry->nj1[idim][iside];
+      int abs_nj2 = bdry->nj2[idim][iside];
+      int abs_nk1 = bdry->nk1[idim][iside];
+      int abs_nk2 = bdry->nk2[idim][iside];
 
 #ifdef SV_ELISO1ST_CURV_MACDRP_DEBUG
     //fprintf(stdout," iface=%d,ni1=%d,ni2=%d,nj1=%d,nj2=%d,nk1=%d,nk2=%d\n",
@@ -965,11 +973,11 @@ sv_eq1st_curv_col_el_iso_rhs_cfspml(
 #endif
 
       // get coef for this face
-      float *restrict ptr_coef_A = bdrypml->A[idim][iside];
-      float *restrict ptr_coef_B = bdrypml->B[idim][iside];
-      float *restrict ptr_coef_D = bdrypml->D[idim][iside];
+      float *restrict ptr_coef_A = bdry->A[idim][iside];
+      float *restrict ptr_coef_B = bdry->B[idim][iside];
+      float *restrict ptr_coef_D = bdry->D[idim][iside];
 
-      bdrypml_auxvar_t *auxvar = &(bdrypml->auxvar[idim][iside]);
+      bdrypml_auxvar_t *auxvar = &(bdry->auxvar[idim][iside]);
 
       // get pml vars
       float *restrict abs_vars_cur = auxvar->cur;
@@ -1076,7 +1084,7 @@ sv_eq1st_curv_col_el_iso_rhs_cfspml(
               // add contributions from free surface condition
               //  not consider timg because conflict with main cfspml,
               //     need to revise in the future if required
-              if (bdryfree->is_at_sides[CONST_NDIM-1][1]==1 && k==nk2)
+              if (bdry->is_sides_free[CONST_NDIM-1][1]==1 && k==nk2)
               {
                 // zeta derivatives
                 int ij = (i + j * siz_line)*9;
@@ -1224,7 +1232,7 @@ sv_eq1st_curv_col_el_iso_rhs_cfspml(
               pml_hTxy[iptr_a] = coef_D * hTxy_rhs - coef_A * pml_Txy[iptr_a];
 
               // add contributions from free surface condition
-              if (bdryfree->is_at_sides[CONST_NDIM-1][1]==1 && k==nk2)
+              if (bdry->is_sides_free[CONST_NDIM-1][1]==1 && k==nk2)
               {
                 // zeta derivatives
                 int ij = (i + j * siz_line)*9;
@@ -1497,7 +1505,7 @@ int
 sv_eq1st_curv_col_el_iso_dvh2dvz(gdinfo_t        *gdinfo,
                                  gdcurv_metric_t *metric,
                                  md_t       *md,
-                                 bdryfree_t      *bdryfree,
+                                 bdry_t      *bdryfree,
                                  const int verbose)
 {
   int ierr = 0;
@@ -1695,3 +1703,155 @@ sv_eq1st_curv_col_el_iso_rhs_src(
   return ierr;
 }
 
+/*
+ * add group of sources per time step, naming as inject to differentiate with previous
+ * function, not strictly means injection method
+ */
+
+int
+sv_eq1st_curv_col_el_iso_rhs_srcdd(
+    float *restrict hVx , float *restrict hVy , float *restrict hVz ,
+    float *restrict hTxx, float *restrict hTyy, float *restrict hTzz,
+    float *restrict hTxz, float *restrict hTyz, float *restrict hTxy,
+    float *restrict jac3d, float *restrict slw3d,
+    src_t *src, // short nation for reference member
+    const int myid, const int verbose)
+{
+  int ierr = 0;
+
+  // get info from src
+  int it_here= src->dd_it_here;
+  int istage = src->istage;
+
+  if (verbose>999) {
+    fprintf(stdout,"-- add srcdd: myid=%d,it_here=%d,istage=%d\n",myid,it_here,istage);
+    fflush(stdout);
+  }
+
+  // return if pass time range: compare out of func for efficiency
+  //if (it >= src->dd_max_nt) {
+  //  return 0;
+  //}
+
+  // add injection src; is is a commont iterater var
+  if (src->dd_is_add_at_point == 1)
+  {
+    // vi
+    if (src->dd_vi_actived == 1) 
+    {
+      size_t iptr0_stf = it_here * src->max_stage * src->dd_total_number * CONST_NDIM
+                                         + istage * src->dd_total_number * CONST_NDIM;
+      float *dd_vi_pt = src->dd_vi + iptr0_stf;
+
+      for (int is=0; is < src->dd_total_number; is++)
+      {
+        size_t iptr      = src->dd_indx[is];
+        float V = slw3d[iptr] / jac3d[iptr];
+
+        hVx[iptr] += dd_vi_pt[0] * V;
+        hVy[iptr] += dd_vi_pt[1] * V;
+        hVz[iptr] += dd_vi_pt[2] * V;
+
+        // next source
+        dd_vi_pt += CONST_NDIM;
+      }
+    }
+
+    // mij
+    if (src->dd_mij_actived == 1) 
+    {
+      size_t iptr0_stf = it_here * src->max_stage * src->dd_total_number * CONST_NDIM_2
+                                         + istage * src->dd_total_number * CONST_NDIM_2;
+      float *dd_mij_pt = src->dd_mij + iptr0_stf;
+#ifdef DEBUG_SV_EQ1ST_CURV_COLGRD_ISO
+      fprintf(stdout,"-- add srcdd mij: it_here=%d,istage=%d,max_stage=%d,dd_total_number=%d\n",
+                          it_here,istage,src->max_stage,src->dd_total_number);
+      fprintf(stdout,"-- add srcdd mij: iptr0_stf=%zu\n",
+                          iptr0_stf);
+      fflush(stdout);
+#endif
+
+      for (int is=0; is < src->dd_total_number; is++)
+      {
+        size_t iptr      = src->dd_indx[is];
+        float rjac = 1.0 / jac3d[iptr];
+#ifdef DEBUG_SV_EQ1ST_CURV_COLGRD_ISO
+        fprintf(stdout,"-- add srcdd mij: is=%d,iptr=%zu,dd_mpi_pt=%p\n",
+                            is,iptr,dd_mij_pt);
+        fprintf(stdout,"-- add srcdd mij: mxx=%g,myy=%g,mzz=%g,myz=%g,mxz=%g,mxy=%g\n",
+                  dd_mij_pt[0], dd_mij_pt[1], dd_mij_pt[2], dd_mij_pt[3], dd_mij_pt[4], dd_mij_pt[5]);
+        fflush(stdout);
+#endif
+
+        hTxx[iptr] -= dd_mij_pt[0] * rjac;
+        hTyy[iptr] -= dd_mij_pt[1] * rjac;
+        hTzz[iptr] -= dd_mij_pt[2] * rjac;
+        hTxz[iptr] -= dd_mij_pt[3] * rjac;
+        hTyz[iptr] -= dd_mij_pt[4] * rjac;
+        hTxy[iptr] -= dd_mij_pt[5] * rjac;
+
+        dd_mij_pt += CONST_NDIM_2;
+      }
+    }
+  }
+  // add with spatial smooth
+  else
+  {
+    fprintf(stderr,"ERROR: ddsrc with smoooth not implemented\n");
+    fflush(stderr);
+    MPI_Abort(MPI_COMM_WORLD, 1);
+
+    //float wid_gauss = src->dd_smo_hlen / 2.0;
+    //int   smo_heln  = src->dd_smo_hlen;
+
+    //// mij
+    //if (src->dd_mij_actived == 1) 
+    //{
+    //  size_t iptr0_stf = it_here * src->max_stage * src->dd_total_number * CONST_NDIM_2
+    //                                     + istage * src->dd_total_number * CONST_NDIM_2;
+    //  float *dd_mij_pt = src->dd_mij + iptr0_stf;
+
+    //  for (int is=0; is < src->dd_total_number; is++)
+    //  {
+    //    size_t iptr      = src->dd_indx[is];
+    //    float rjac = 1.0 / jac3d[iptr];
+
+    //    int   si = src->dd_si[is];
+    //    int   sj = src->dd_sj[is];
+    //    int   sk = src->dd_sk[is];
+    //    float si_inc = src->dd_si_inc[is];
+    //    float sj_inc = src->dd_si_inc[is];
+    //    float sk_inc = src->dd_si_inc[is];
+
+    //    hTxx[iptr] -= dd_mij_pt[0] * rjac;
+    //    hTyy[iptr] -= dd_mij_pt[1] * rjac;
+    //    hTzz[iptr] -= dd_mij_pt[2] * rjac;
+    //    hTxz[iptr] -= dd_mij_pt[3] * rjac;
+    //    hTyz[iptr] -= dd_mij_pt[4] * rjac;
+    //    hTxy[iptr] -= dd_mij_pt[5] * rjac;
+
+    //    dd_mij_pt += CONST_NDIM_2;
+
+    //    for (int ismo=-smo_heln; ismo<smo_heln; ismo++)
+    //    {
+    //      for (int jsmo=-smo_heln; jsmo<smo_heln; jsmo++)
+    //      {
+    //        for (int ksmo=-smo_heln; ksmo<smo_heln; ksmo++)
+    //        {
+    //          int i = si + ismo;
+    //          int j = sj + jsmo;
+    //          int k = sk + ksmo;
+    //          if (    i<=ni2 && i>=ni1 
+    //               && j<=nj2 && j>=nj1 
+    //               && k<=nk2 && k>=nk1)
+    //          {
+    //          }
+    //        }
+    //      }
+    //    }
+    //  }
+    //}
+  }
+
+  return ierr;
+}

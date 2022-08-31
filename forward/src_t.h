@@ -55,6 +55,48 @@ typedef struct {
   float *Mxz;
   float *Myz;
   float *Mxy;
+
+  /*
+   * add vars for distributed and discrete (dd) sources
+   *  reload stf during time marching
+   *  all points have same start and end t to simplify io and apply
+   */
+
+  // if dd should be added for this it step
+  int dd_is_valid;
+
+  int dd_is_add_at_point;
+  int dd_smo_hlen;
+
+  // force and/or moment
+  int dd_vi_actived;
+  int dd_mij_actived;
+
+  int dd_total_number;
+  int dd_max_nt;
+  int dd_nt_per_read;  // time block size
+
+  int dd_nt_this_read;  // time block size of this read
+  int dd_it_here; // cur it relative to it0 of this read 
+
+  // time independent
+  int *dd_si; // local i index 
+  int *dd_sj; // local j index 
+  int *dd_sk; // local k index 
+  size_t *dd_indx; // 1d index
+
+  float *dd_si_inc; // local i shift 
+  float *dd_sj_inc; // local j shift 
+  float *dd_sk_inc; // local k shift 
+
+  // file id
+  FILE *fp_vi;
+  FILE *fp_mij;
+
+  // vars
+  float *dd_vi; // 3 * max_stage * nt_per_read * total_number;
+  float *dd_mij;
+
 } src_t;
 
 /*************************************************
@@ -98,6 +140,31 @@ src_read_locate_file(gdinfo_t *gdinfo,
                      MPI_Comm  comm,
                      int       myid,
                      int       verbose);
+
+int
+src_dd_read2local(gdinfo_t *gdinfo,
+                     gd_t     *gd,
+                     src_t    *src,
+                     char     *in_file,
+                     char     *tmp_dir,
+                     int       dd_is_add_at_point,
+                     int       dd_nt_per_read,
+                     float     t0,
+                     float     dt,
+                     int       nt_total,
+                     int       max_stage,
+                     float    *rk_stage_time,
+                     int       npoint_half_ext,
+                     MPI_Comm  comm,
+                     int       myid,
+                     int*      topoid,
+                     int       verbose);
+
+int
+src_dd_free(src_t *src);
+
+int
+src_dd_accit_loadstf(src_t *src, int it, int myid);
 
 float
 src_cal_wavelet(float t, char *wavelet_name, float *wavelet_coefs);

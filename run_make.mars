@@ -1,0 +1,11 @@
+#!/bin/bash
+
+#-- module is loaded in .bash_profile on Mars
+
+echo "mpicc and mpicxx will invoke:"
+mpicc -show
+mpicxx -show
+
+echo
+echo "start to make ..."
+make -f Makefile 

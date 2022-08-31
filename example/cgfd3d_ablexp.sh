@@ -5,8 +5,8 @@
 date
 
 #-- system related dir, from module env or manually set
-#MPIDIR=/share/apps/gnu-4.8.5/mpich-3.3
-MPIDIR=$MPI_ROOT
+MPIDIR=/share/apps/gnu-4.8.5/mpich-3.3
+#MPIDIR=$MPI_ROOT
 
 #-- program related dir
 CUR_DIR=`pwd`
@@ -16,7 +16,8 @@ EXEC_WAVE=${EXE_DIR}/main_curv_col_el_3d
 echo "EXEC_WAVE=$EXEC_WAVE"
 
 #-- output and conf
-PROJDIR=~/work/cgfd3d-wave-el/test2
+PROJDIR=~/work/cgfd3d-wave-el/ablexp20c
+#PROJDIR=~/work/cgfd3d-wave-el/ablexp1test
 EVTNM=codetest
 echo "PROJDIR=${PROJDIR}"
 echo "EVTNM=${EVTNM}"
@@ -36,6 +37,10 @@ mkdir -p $PROJDIR
 mkdir -p $OUTPUT_DIR
 mkdir -p $GRID_DIR
 mkdir -p $MEDIA_DIR
+
+#-- tmp dir should be in local, here is for test
+TMP_DIR=${PROJDIR}/scratch
+mkdir -p ${TMP_DIR}
 
 #----------------------------------------------------------------------
 #-- grid and mpi configurations
@@ -88,7 +93,7 @@ ${EVTNM}
 #8020 4930 -950
 # stf and cmp
 0.0 ricker 2.0 0.5   # t0  stf_name  ricker_fc ricker_t0
-1e16  1e16  1e16 0 0 0 
+1.0e16  1.0e16  1.0e16 0 0 0 
 ieof
 
 echo "+ created $PROJDIR/test.src"
@@ -128,46 +133,36 @@ cat << ieof > $PAR_FILE
   "#size_of_time_step" : 0.008,
   "#size_of_time_step" : 0.020,
   "#number_of_time_steps" : 500,
-  "time_window_length" : 4,
+  "time_window_length" : 6,
   "check_stability" : 1,
 
   "boundary_x_left" : {
-      "cfspml" : {
-          "number_of_layers" : 10,
-          "alpha_max" : 3.14,
-          "beta_max" : 2.0,
+      "ablexp" : {
+          "number_of_layers" : 20,
           "ref_vel"  : 7000.0
           }
       },
   "boundary_x_right" : {
-      "cfspml" : {
-          "number_of_layers" : 10,
-          "alpha_max" : 3.14,
-          "beta_max" : 2.0,
+      "ablexp" : {
+          "number_of_layers" : 20,
           "ref_vel"  : 7000.0
           }
       },
   "boundary_y_front" : {
-      "cfspml" : {
-          "number_of_layers" : 10,
-          "alpha_max" : 3.14,
-          "beta_max" : 2.0,
+      "ablexp" : {
+          "number_of_layers" : 20,
           "ref_vel"  : 7000.0
           }
       },
   "boundary_y_back" : {
-      "cfspml" : {
-          "number_of_layers" : 10,
-          "alpha_max" : 3.14,
-          "beta_max" : 2.0,
+      "ablexp" : {
+          "number_of_layers" : 20,
           "ref_vel"  : 7000.0
           }
       },
   "boundary_z_bottom" : {
-      "cfspml" : {
-          "number_of_layers" : 10,
-          "alpha_max" : 3.14,
-          "beta_max" : 2.0,
+      "ablexp" : {
+          "number_of_layers" : 20,
           "ref_vel"  : 7000.0
           }
       },
@@ -231,7 +226,10 @@ cat << ieof > $PAR_FILE
   "is_export_source" : 1,
   "source_export_dir"  : "$SOURCE_DIR",
 
+  "#in_ddsource_file" : "${CUR_DIR}/prep_source/event_3moment_srcdd.nc",
+
   "output_dir" : "$OUTPUT_DIR",
+  "tmp_dir"    : "$TMP_DIR",
 
   "in_station_file" : "$PROJDIR/test.station",
 
@@ -250,10 +248,10 @@ cat << ieof > $PAR_FILE
     } 
   ],
 
-  "#slice" : {
-      "x_index" : [ 190 ],
-      "y_index" : [ 90 ],
-      "z_index" : [ 59 ]
+  "slice" : {
+      "x_index" : [ 90, 149 ],
+      "y_index" : [ 90, 149 ],
+      "z_index" : [ 30, 59 ]
   },
 
   "snapshot" : [
@@ -362,7 +360,7 @@ cat << ieof > ${RUN_SCRIPT_FILE}
 printf "\nUse $NPROCS CPUs on following nodes:\n"
 printf "%s " \`cat ${PROJDIR}/hostlist | sort\`;
 
-MPI_CMD="$MPIDIR/bin/mpiexec -machinefile ${PROJDIR}/hostlist -np $NPROCS $EXEC_WAVE $PAR_FILE 100"
+MPI_CMD="$MPIDIR/bin/mpiexec -machinefile ${PROJDIR}/hostlist -np $NPROCS $EXEC_WAVE $PAR_FILE 1000"
 
 printf "\nStart simualtion ...\n";
 printf "%s\n\n" "'\${MPI_CMD}'";
@@ -389,9 +387,9 @@ create_source_file;
 create_station_file;
 
 #-- run with lsf
-echo "sumbit to lsf ..."
-create_script_lsf;
-bsub < ${RUN_SCRIPT_FILE}
+#echo "sumbit to lsf ..."
+#create_script_lsf;
+#bsub < ${RUN_SCRIPT_FILE}
 
 #-- run with pbs
 #echo "sumbit to pbs ..."
@@ -399,9 +397,9 @@ bsub < ${RUN_SCRIPT_FILE}
 #qsub ${RUN_SCRIPT_FILE}
 
 #-- directly run
-#echo "start run script ..."
-#create_script_run;
-#${RUN_SCRIPT_FILE}
+echo "start run script ..."
+create_script_run;
+${RUN_SCRIPT_FILE}
 
 date
 

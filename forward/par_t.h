@@ -42,6 +42,7 @@ typedef struct{
   //char source_dir   [PAR_MAX_STRLEN];
   //char station_dir  [PAR_MAX_STRLEN];
   //char log_file_name[PAR_MAX_STRLEN];
+  char tmp_dir[PAR_MAX_STRLEN];
 
   // MPI
   int number_of_mpiprocs_x;
@@ -82,6 +83,11 @@ typedef struct{
   float cfspml_beta_max[CONST_NDIM][2];
   float cfspml_velocity[CONST_NDIM][2];
   int   bdry_has_cfspml;
+
+  // exp
+  int   ablexp_is_sides[CONST_NDIM][2];
+  float ablexp_velocity[CONST_NDIM][2];
+  int   bdry_has_ablexp;
 
   // free
   int   free_is_sides[CONST_NDIM][2];
@@ -183,6 +189,10 @@ typedef struct{
   int is_export_source;
   char source_export_dir[PAR_MAX_STRLEN];
 
+  char source_dd_input_file[PAR_MAX_STRLEN];
+  int  source_dd_add_at_point;
+  int  source_dd_nt_per_read;
+
   // output
   // receiver
   char in_station_file[PAR_MAX_STRLEN];
@@ -230,6 +240,9 @@ par_read_from_str(const char *str, par_t *par);
 void 
 par_read_json_cfspml(cJSON *item,
       int *nlay, float *amax, float *bmax, float *vel);
+
+void 
+par_read_json_ablexp(cJSON *item, int *nlay, float *vel);
 
 int
 par_print(par_t *par);
