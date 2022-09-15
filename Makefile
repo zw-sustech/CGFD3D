@@ -48,16 +48,6 @@ LDFLAGS := -lm $(NETCDF)/lib/libnetcdf.a -lm $(LDFLAGS)
 #   $^ The names of all the prerequisites 
 
 default: main_curv_col_el_3d
-#default: main_curv_col_ac_3d
-#default: main_cart_col_el_3d
-#default: main_cart_stg_el_3d
-#default: main_cart_stg_ac_3d
-
-all: main_curv_col_el_3d \
-     main_curv_col_ac_3d \
-     main_cart_col_el_3d \
-     main_cart_stg_el_3d \
-     main_cart_stg_ac_3d
 
 main_curv_col_el_3d: \
 		cJSON.o sacLib.o fdlib_mem.o fdlib_math.o  \
@@ -72,80 +62,10 @@ main_curv_col_el_3d: \
 		bdry_t.o src_t.o io_funcs.o \
 		blk_t.o \
 		sv_eq1st_curv_col.o \
-		sv_eq1st_curv_col_ac_iso.o \
 		sv_eq1st_curv_col_el_iso.o \
 		sv_eq1st_curv_col_el_vti.o \
 		sv_eq1st_curv_col_el_aniso.o \
 		main_curv_col_el_3d.o
-	$(CXX) -o $@ $^ $(LDFLAGS)
-
-main_curv_col_ac_3d: \
-		cJSON.o sacLib.o fdlib_mem.o fdlib_math.o  \
-		fd_t.o par_t.o interp.o mympi_t.o \
-		media_utility.o \
-		media_layer2model.o \
-		media_grid2model.o \
-		media_bin2model.o \
-		media_geometry3d.o \
-		media_read_file.o \
-		gd_info.o gd_t.o md_t.o wav_t.o \
-		bdry_t.o src_t.o io_funcs.o \
-		blk_t.o \
-		sv_eq1st_curv_col.o \
-		sv_eq1st_curv_col_ac_iso.o \
-		sv_eq1st_curv_col_el_iso.o \
-		sv_eq1st_curv_col_el_vti.o \
-		sv_eq1st_curv_col_el_aniso.o \
-		main_curv_col_ac_3d.o
-	$(CXX) -o $@ $^ $(LDFLAGS)
-
-main_cart_col_el_3d: \
-		cJSON.o sacLib.o fdlib_mem.o fdlib_math.o  \
-		fd_t.o par_t.o interp.o mympi_t.o \
-		media_utility.o \
-		media_layer2model.o \
-		media_grid2model.o \
-		media_bin2model.o \
-		media_geometry3d.o \
-		media_read_file.o \
-		gd_info.o gd_t.o md_t.o wav_t.o \
-		bdry_t.o src_t.o io_funcs.o \
-		blk_t.o \
-		sv_eq1st_cart_col.o \
-		sv_eq1st_cart_col_el_iso.o \
-		main_cart_col_el_3d.o
-	$(CXX) -o $@ $^ $(LDFLAGS)
-
-main_cart_stg_el_3d: \
-		cJSON.o sacLib.o fdlib_mem.o fdlib_math.o  \
-		fd_t.o par_t.o interp.o mympi_t.o \
-		media_utility.o \
-		media_layer2model.o \
-		media_grid2model.o \
-		media_bin2model.o \
-		media_geometry3d.o \
-		media_read_file.o \
-		gd_info.o gd_t.o md_t.o wav_t.o \
-		bdry_t.o src_t.o io_funcs.o \
-		blk_t.o \
-		sv_eq1st_cart_stg_el_iso.o \
-		main_cart_stg_el_3d.o
-	$(CXX) -o $@ $^ $(LDFLAGS)
-
-main_cart_stg_ac_3d: \
-		cJSON.o sacLib.o fdlib_mem.o fdlib_math.o  \
-		fd_t.o par_t.o interp.o mympi_t.o \
-		media_utility.o \
-		media_layer2model.o \
-		media_grid2model.o \
-		media_bin2model.o \
-		media_geometry3d.o \
-		media_read_file.o \
-		gd_info.o gd_t.o md_t.o wav_t.o \
-		bdry_t.o src_t.o io_funcs.o \
-		blk_t.o \
-		sv_eq1st_cart_stg_ac_iso.o \
-		main_cart_stg_ac_3d.o
 	$(CXX) -o $@ $^ $(LDFLAGS)
 
 media_geometry3d.o: media/media_geometry3d.cpp 
@@ -200,34 +120,12 @@ sv_eq1st_curv_col_el_vti.o: forward/sv_eq1st_curv_col_el_vti.c
 	${CC} -c -o $@ $(CFLAGS) $<
 sv_eq1st_curv_col_el_aniso.o: forward/sv_eq1st_curv_col_el_aniso.c
 	${CC} -c -o $@ $(CFLAGS) $<
-sv_eq1st_curv_col_ac_iso.o:   forward/sv_eq1st_curv_col_ac_iso.c
-	${CC} -c -o $@ $(CFLAGS) $<
-sv_eq1st_cart_col.o:          forward/sv_eq1st_cart_col.c
-	${CC} -c -o $@ $(CFLAGS) $<
-sv_eq1st_cart_col_el_iso.o:   forward/sv_eq1st_cart_col_el_iso.c
-	${CC} -c -o $@ $(CFLAGS) $<
-sv_eq1st_cart_stg_el_iso.o:   forward/sv_eq1st_cart_stg_el_iso.c
-	${CC} -c -o $@ $(CFLAGS) $<
-sv_eq1st_cart_stg_ac_iso.o:   forward/sv_eq1st_cart_stg_ac_iso.c
-	${CC} -c -o $@ $(CFLAGS) $<
 
 main_curv_col_el_3d.o: forward/main_curv_col_el_3d.c
-	${CC} -c -o $@ $(CFLAGS) $<
-main_curv_col_ac_3d.o: forward/main_curv_col_ac_3d.c
-	${CC} -c -o $@ $(CFLAGS) $<
-main_cart_col_el_3d.o: forward/main_cart_col_el_3d.c
-	${CC} -c -o $@ $(CFLAGS) $<
-main_cart_stg_el_3d.o: forward/main_cart_stg_el_3d.c
-	${CC} -c -o $@ $(CFLAGS) $<
-main_cart_stg_ac_3d.o: forward/main_cart_stg_ac_3d.c
 	${CC} -c -o $@ $(CFLAGS) $<
 
 cleanexe:
 	rm -f main_curv_col_el_3d
-	rm -f main_curv_col_ac_3d
-	rm -f main_cart_col_el_3d
-	rm -f main_cart_stg_el_3d
-	rm -f main_cart_stg_ac_3d
 cleanobj:
 	rm -f *.o
 cleanall: cleanexe cleanobj
