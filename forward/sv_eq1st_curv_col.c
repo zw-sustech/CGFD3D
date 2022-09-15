@@ -12,7 +12,6 @@
 #include "fdlib_math.h"
 #include "blk_t.h"
 #include "sv_eq1st_curv_col.h"
-#include "sv_eq1st_curv_col_ac_iso.h"
 #include "sv_eq1st_curv_col_el_iso.h"
 #include "sv_eq1st_curv_col_el_vti.h"
 #include "sv_eq1st_curv_col_el_aniso.h"
@@ -90,11 +89,8 @@ sv_eq1st_curv_col_allstep(
   // create snapshot nc output files
   if (myid==0 && verbose>0) fprintf(stdout,"prepare snap nc output ...\n"); 
   iosnap_nc_t  iosnap_nc;
-  if (md->medium_type == CONST_MEDIUM_ACOUSTIC_ISO) {
-    io_snap_nc_create_ac(iosnap, &iosnap_nc, topoid);
-  } else {
-    io_snap_nc_create(iosnap, &iosnap_nc, topoid);
-  }
+
+  io_snap_nc_create(iosnap, &iosnap_nc, topoid);
 
   // only x/y mpi
   int num_of_r_reqs = 4;
@@ -142,10 +138,6 @@ sv_eq1st_curv_col_allstep(
     else if (md->medium_type == CONST_MEDIUM_ELASTIC_ANISO)
     {
       sv_eq1st_curv_col_el_aniso_dvh2dvz(gdinfo,metric,md,bdry,verbose);
-    }
-    else if (md->medium_type == CONST_MEDIUM_ACOUSTIC_ISO)
-    {
-      // no need
     }
     else
     {
@@ -248,19 +240,6 @@ sv_eq1st_curv_col_allstep(
 
         case CONST_MEDIUM_ELASTIC_VTI : {
           sv_eq1st_curv_col_el_vti_onestage(
-              w_cur,w_rhs,wav,
-              gdinfo, metric, md, bdry, src,
-              fd->num_of_fdx_op, fd->pair_fdx_op[ipair][istage],
-              fd->num_of_fdy_op, fd->pair_fdy_op[ipair][istage],
-              fd->num_of_fdz_op, fd->pair_fdz_op[ipair][istage],
-              fd->fdz_max_len,
-              myid, verbose);
-
-          break;
-        }
-
-        case CONST_MEDIUM_ACOUSTIC_ISO : {
-          sv_eq1st_curv_col_ac_iso_onestage(
               w_cur,w_rhs,wav,
               gdinfo, metric, md, bdry, src,
               fd->num_of_fdx_op, fd->pair_fdx_op[ipair][istage],
@@ -473,13 +452,8 @@ sv_eq1st_curv_col_allstep(
 
     // snapshot
 
-    if (md->medium_type == CONST_MEDIUM_ACOUSTIC_ISO) {
-      io_snap_nc_put_ac(iosnap, &iosnap_nc, gdinfo, wav, 
+    io_snap_nc_put(iosnap, &iosnap_nc, gdinfo, md, wav, 
                      w_end, w_rhs, nt_total, it, t_end, 1,1,1);
-    } else {
-      io_snap_nc_put(iosnap, &iosnap_nc, gdinfo, md, wav, 
-                     w_end, w_rhs, nt_total, it, t_end, 1,1,1);
-    }
 
     // zero temp used w_rsh
     wav_zero_edge(gdinfo, wav, w_rhs);
