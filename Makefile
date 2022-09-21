@@ -61,10 +61,10 @@ main_curv_col_el_3d: \
 		gd_info.o gd_t.o md_t.o wav_t.o \
 		bdry_t.o src_t.o io_funcs.o \
 		blk_t.o \
-		sv_eq1st_curv_col.o \
-		sv_eq1st_curv_col_el_iso.o \
-		sv_eq1st_curv_col_el_vti.o \
-		sv_eq1st_curv_col_el_aniso.o \
+		drv_rk_curv_col.o \
+		sv_curv_col_el_iso.o \
+		sv_curv_col_el_vti.o \
+		sv_curv_col_el_aniso.o \
 		main_curv_col_el_3d.o
 	$(CXX) -o $@ $^ $(LDFLAGS)
 
@@ -112,13 +112,13 @@ io_funcs.o: forward/io_funcs.c
 	${CC} -c -o $@ $(CFLAGS) $<
 blk_t.o: forward/blk_t.c
 	${CC} -c -o $@ $(CFLAGS) $<
-sv_eq1st_curv_col.o:          forward/sv_eq1st_curv_col.c
+drv_rk_curv_col.o:          forward/drv_rk_curv_col.c
 	${CC} -c -o $@ $(CFLAGS) $<
-sv_eq1st_curv_col_el_iso.o:   forward/sv_eq1st_curv_col_el_iso.c
+sv_curv_col_el_iso.o:   forward/sv_curv_col_el_iso.c
 	${CC} -c -o $@ $(CFLAGS) $<
-sv_eq1st_curv_col_el_vti.o: forward/sv_eq1st_curv_col_el_vti.c
+sv_curv_col_el_vti.o: forward/sv_curv_col_el_vti.c
 	${CC} -c -o $@ $(CFLAGS) $<
-sv_eq1st_curv_col_el_aniso.o: forward/sv_eq1st_curv_col_el_aniso.c
+sv_curv_col_el_aniso.o: forward/sv_curv_col_el_aniso.c
 	${CC} -c -o $@ $(CFLAGS) $<
 
 main_curv_col_el_3d.o: forward/main_curv_col_el_3d.c

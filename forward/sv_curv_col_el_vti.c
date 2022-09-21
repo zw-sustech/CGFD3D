@@ -11,15 +11,15 @@
 #include "fdlib_mem.h"
 #include "fdlib_math.h"
 #include "blk_t.h"
-#include "sv_eq1st_curv_col_el_iso.h"
-#include "sv_eq1st_curv_col_el_vti.h"
+#include "sv_curv_col_el_iso.h"
+#include "sv_curv_col_el_vti.h"
 
 /*******************************************************************************
  * perform one stage calculation of rhs
  ******************************************************************************/
 
 void
-sv_eq1st_curv_col_el_vti_onestage(
+sv_curv_col_el_vti_onestage(
   float *restrict w_cur,
   float *restrict rhs, 
   wav_t  *wav,
@@ -120,7 +120,7 @@ sv_eq1st_curv_col_el_vti_onestage(
   fdz_inn_coef = fdz_op[num_of_fdz_op-1].coef;
 
   // inner points
-  sv_eq1st_curv_col_el_vti_rhs_inner(Vx,Vy,Vz,Txx,Tyy,Tzz,Txz,Tyz,Txy,
+  sv_curv_col_el_vti_rhs_inner(Vx,Vy,Vz,Txx,Tyy,Tzz,Txz,Tyz,Txy,
                                     hVx,hVy,hVz,hTxx,hTyy,hTzz,hTxz,hTyz,hTxy,
                                     xi_x, xi_y, xi_z, et_x, et_y, et_z, zt_x, zt_y, zt_z,
                                     c11,c13, c33, c55, c66, slw3d,
@@ -136,7 +136,7 @@ sv_eq1st_curv_col_el_vti_onestage(
   if (bdry->is_sides_free[2][1] == 1)
   {
     // tractiong
-    sv_eq1st_curv_col_el_iso_rhs_timg_z2(Txx,Tyy,Tzz,Txz,Tyz,Txy,hVx,hVy,hVz,
+    sv_curv_col_el_iso_rhs_timg_z2(Txx,Tyy,Tzz,Txz,Tyz,Txy,hVx,hVy,hVz,
                                         xi_x, xi_y, xi_z, et_x, et_y, et_z, zt_x, zt_y, zt_z,
                                         jac3d, slw3d,
                                         ni1,ni2,nj1,nj2,nk1,nk2,siz_line,siz_slice,
@@ -146,7 +146,7 @@ sv_eq1st_curv_col_el_vti_onestage(
                                         myid, verbose);
 
     // velocity: vlow
-    sv_eq1st_curv_col_el_vti_rhs_vlow_z2(Vx,Vy,Vz,hTxx,hTyy,hTzz,hTxz,hTyz,hTxy,
+    sv_curv_col_el_vti_rhs_vlow_z2(Vx,Vy,Vz,hTxx,hTyy,hTzz,hTxz,hTyz,hTxy,
                                         xi_x, xi_y, xi_z, et_x, et_y, et_z, zt_x, zt_y, zt_z,
                                         c11,c13, c33, c55, c66, slw3d,
                                         matVx2Vz,matVy2Vz,
@@ -160,7 +160,7 @@ sv_eq1st_curv_col_el_vti_onestage(
   // cfs-pml, loop face inside
   if (bdry->is_enable_pml == 1)
   {
-    sv_eq1st_curv_col_el_vti_rhs_cfspml(Vx,Vy,Vz,Txx,Tyy,Tzz,Txz,Tyz,Txy,
+    sv_curv_col_el_vti_rhs_cfspml(Vx,Vy,Vz,Txx,Tyy,Tzz,Txz,Tyz,Txy,
                                        hVx,hVy,hVz,hTxx,hTyy,hTzz,hTxz,hTyz,hTxy,
                                        xi_x, xi_y, xi_z, et_x, et_y, et_z, zt_x, zt_y, zt_z,
                                        c11,c13, c33, c55, c66, slw3d,
@@ -176,7 +176,7 @@ sv_eq1st_curv_col_el_vti_onestage(
   // add source term
   if (src->total_number > 0)
   {
-    sv_eq1st_curv_col_el_iso_rhs_src(hVx,hVy,hVz,hTxx,hTyy,hTzz,hTxz,hTyz,hTxy,
+    sv_curv_col_el_iso_rhs_src(hVx,hVy,hVz,hTxx,hTyy,hTzz,hTxz,hTyz,hTxy,
                                     jac3d, slw3d, 
                                     src,
                                     myid, verbose);
@@ -190,7 +190,7 @@ sv_eq1st_curv_col_el_vti_onestage(
  ******************************************************************************/
 
 void
-sv_eq1st_curv_col_el_vti_rhs_inner(
+sv_curv_col_el_vti_rhs_inner(
     float *restrict  Vx , float *restrict  Vy , float *restrict  Vz ,
     float *restrict  Txx, float *restrict  Tyy, float *restrict  Tzz,
     float *restrict  Txz, float *restrict  Tyz, float *restrict  Txy,
@@ -397,7 +397,7 @@ sv_eq1st_curv_col_el_vti_rhs_inner(
  */
 
 void
-sv_eq1st_curv_col_el_vti_rhs_vlow_z2(
+sv_curv_col_el_vti_rhs_vlow_z2(
     float *restrict  Vx , float *restrict  Vy , float *restrict  Vz ,
     float *restrict hTxx, float *restrict hTyy, float *restrict hTzz,
     float *restrict hTxz, float *restrict hTyz, float *restrict hTxy,
@@ -582,7 +582,7 @@ sv_eq1st_curv_col_el_vti_rhs_vlow_z2(
  */
 
 void
-sv_eq1st_curv_col_el_vti_rhs_cfspml(
+sv_curv_col_el_vti_rhs_cfspml(
     float *restrict  Vx , float *restrict  Vy , float *restrict  Vz ,
     float *restrict  Txx, float *restrict  Tyy, float *restrict  Tzz,
     float *restrict  Txz, float *restrict  Tyz, float *restrict  Txy,
@@ -1075,7 +1075,7 @@ sv_eq1st_curv_col_el_vti_rhs_cfspml(
  ******************************************************************************/
 
 int
-sv_eq1st_curv_col_el_vti_dvh2dvz(gdinfo_t        *gdinfo,
+sv_curv_col_el_vti_dvh2dvz(gdinfo_t        *gdinfo,
                                    gdcurv_metric_t *metric,
                                    md_t       *md,
                                    bdry_t      *bdryfree,

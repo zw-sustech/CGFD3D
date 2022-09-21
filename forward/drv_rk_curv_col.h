@@ -16,7 +16,7 @@
  *************************************************/
 
 void
-sv_eq1st_curv_col_allstep(
+drv_rk_curv_col_allstep(
   fd_t            *fd,
   gdinfo_t        *gdinfo,
   gdcurv_metric_t *metric,
@@ -38,6 +38,6 @@ sv_eq1st_curv_col_allstep(
   const int verbose);
 
 int
-sv_eq1st_curv_graves_Qs(float *w, int ncmp, float dt, gdinfo_t *gdinfo, md_t *md);
+sv_curv_graves_Qs(float *w, int ncmp, float dt, gdinfo_t *gdinfo, md_t *md);
 
 #endif

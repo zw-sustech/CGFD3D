@@ -20,7 +20,7 @@
 #include "blk_t.h"
 
 #include "media_discrete_model.h"
-#include "sv_eq1st_curv_col.h"
+#include "drv_rk_curv_col.h"
 
 int main(int argc, char** argv)
 {
@@ -730,7 +730,7 @@ int main(int argc, char** argv)
   
   time_t t_start = time(NULL);
   
-  sv_eq1st_curv_col_allstep(fd,gdinfo,gdcurv_metric,md,
+  drv_rk_curv_col_allstep(fd,gdinfo,gdcurv_metric,md,
                             src,bdry,
                             wav, mympi,
                             iorecv,ioline,ioslice,iosnap,

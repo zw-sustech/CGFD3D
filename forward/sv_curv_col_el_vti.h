@@ -1,5 +1,5 @@
-#ifndef SV_EQ1ST_CURV_COL_EL_VTI_H
-#define SV_EQ1ST_CURV_COL_EL_VTI_H
+#ifndef SV_CURV_COL_EL_VTI_H
+#define SV_CURV_COL_EL_VTI_H
 
 #include "fd_t.h"
 #include "gd_info.h"
@@ -16,7 +16,7 @@
  *************************************************/
 
 void
-sv_eq1st_curv_col_el_vti_onestage(
+sv_curv_col_el_vti_onestage(
   float *restrict w_cur,
   float *restrict rhs, 
   wav_t  *wav,
@@ -33,7 +33,7 @@ sv_eq1st_curv_col_el_vti_onestage(
   const int myid, const int verbose);
 
 void
-sv_eq1st_curv_col_el_vti_rhs_inner(
+sv_curv_col_el_vti_rhs_inner(
     float *restrict  Vx , float *restrict  Vy , float *restrict  Vz ,
     float *restrict  Txx, float *restrict  Tyy, float *restrict  Tzz,
     float *restrict  Txz, float *restrict  Tyz, float *restrict  Txy,
@@ -53,7 +53,7 @@ sv_eq1st_curv_col_el_vti_rhs_inner(
     const int myid, const int verbose);
 
 void
-sv_eq1st_curv_col_el_vti_rhs_vlow_z2(
+sv_curv_col_el_vti_rhs_vlow_z2(
     float *restrict  Vx , float *restrict  Vy , float *restrict  Vz ,
     float *restrict hTxx, float *restrict hTyy, float *restrict hTzz,
     float *restrict hTxz, float *restrict hTyz, float *restrict hTxy,
@@ -71,7 +71,7 @@ sv_eq1st_curv_col_el_vti_rhs_vlow_z2(
     const int myid, const int verbose);
 
 void
-sv_eq1st_curv_col_el_vti_rhs_cfspml(
+sv_curv_col_el_vti_rhs_cfspml(
     float *restrict  Vx , float *restrict  Vy , float *restrict  Vz ,
     float *restrict  Txx, float *restrict  Tyy, float *restrict  Tzz,
     float *restrict  Txz, float *restrict  Tyz, float *restrict  Txy,
@@ -91,7 +91,7 @@ sv_eq1st_curv_col_el_vti_rhs_cfspml(
     const int myid, const int verbose);
 
 int
-sv_eq1st_curv_col_el_vti_dvh2dvz(gdinfo_t        *gdinfo,
+sv_curv_col_el_vti_dvh2dvz(gdinfo_t        *gdinfo,
                                    gdcurv_metric_t *metric,
                                    md_t       *md,
                                    bdry_t      *bdryfree,

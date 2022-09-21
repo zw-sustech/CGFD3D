@@ -11,10 +11,10 @@
 #include "fdlib_mem.h"
 #include "fdlib_math.h"
 #include "blk_t.h"
-#include "sv_eq1st_curv_col.h"
-#include "sv_eq1st_curv_col_el_iso.h"
-#include "sv_eq1st_curv_col_el_vti.h"
-#include "sv_eq1st_curv_col_el_aniso.h"
+#include "drv_rk_curv_col.h"
+#include "sv_curv_col_el_iso.h"
+#include "sv_curv_col_el_vti.h"
+#include "sv_curv_col_el_aniso.h"
 
 //#define SV_ELISO1ST_CURV_MACDRP_DEBUG
 
@@ -24,7 +24,7 @@
  ******************************************************************************/
 
 void
-sv_eq1st_curv_col_allstep(
+drv_rk_curv_col_allstep(
   fd_t            *fd,
   gdinfo_t        *gdinfo,
   gdcurv_metric_t *metric,
@@ -129,15 +129,15 @@ sv_eq1st_curv_col_allstep(
   {
     if (md->medium_type == CONST_MEDIUM_ELASTIC_ISO)
     {
-      sv_eq1st_curv_col_el_iso_dvh2dvz(gdinfo,metric,md,bdry,verbose);
+      sv_curv_col_el_iso_dvh2dvz(gdinfo,metric,md,bdry,verbose);
     }
     else if (md->medium_type == CONST_MEDIUM_ELASTIC_VTI)
     {
-      sv_eq1st_curv_col_el_vti_dvh2dvz(gdinfo,metric,md,bdry,verbose);
+      sv_curv_col_el_vti_dvh2dvz(gdinfo,metric,md,bdry,verbose);
     }
     else if (md->medium_type == CONST_MEDIUM_ELASTIC_ANISO)
     {
-      sv_eq1st_curv_col_el_aniso_dvh2dvz(gdinfo,metric,md,bdry,verbose);
+      sv_curv_col_el_aniso_dvh2dvz(gdinfo,metric,md,bdry,verbose);
     }
     else
     {
@@ -213,7 +213,7 @@ sv_eq1st_curv_col_allstep(
       switch (md->medium_type)
       {
         case CONST_MEDIUM_ELASTIC_ISO : {
-          sv_eq1st_curv_col_el_iso_onestage(
+          sv_curv_col_el_iso_onestage(
               w_cur,w_rhs,wav,
               gdinfo, metric, md, bdry, src,
               fd->num_of_fdx_op, fd->pair_fdx_op[ipair][istage],
@@ -226,7 +226,7 @@ sv_eq1st_curv_col_allstep(
         }
 
         case CONST_MEDIUM_ELASTIC_ANISO : {
-          sv_eq1st_curv_col_el_aniso_onestage(
+          sv_curv_col_el_aniso_onestage(
               w_cur,w_rhs,wav,
               gdinfo, metric, md, bdry, src,
               fd->num_of_fdx_op, fd->pair_fdx_op[ipair][istage],
@@ -239,7 +239,7 @@ sv_eq1st_curv_col_allstep(
         }
 
         case CONST_MEDIUM_ELASTIC_VTI : {
-          sv_eq1st_curv_col_el_vti_onestage(
+          sv_curv_col_el_vti_onestage(
               w_cur,w_rhs,wav,
               gdinfo, metric, md, bdry, src,
               fd->num_of_fdx_op, fd->pair_fdx_op[ipair][istage],
@@ -268,7 +268,7 @@ sv_eq1st_curv_col_allstep(
 
         // apply Qs
         //if (md->visco_type == CONST_VISCO_GRAVES_QS) {
-        //  sv_eq1st_curv_graves_Qs(w_tmp, wave->ncmp, gdinfo, md);
+        //  sv_curv_graves_Qs(w_tmp, wave->ncmp, gdinfo, md);
         //}
 
         // pack and isend
@@ -318,7 +318,7 @@ sv_eq1st_curv_col_allstep(
 
         // apply Qs
         //if (md->visco_type == CONST_VISCO_GRAVES_QS) {
-        //  sv_eq1st_curv_graves_Qs(w_tmp, wave->ncmp, gdinfo, md);
+        //  sv_curv_graves_Qs(w_tmp, wave->ncmp, gdinfo, md);
         //}
 
         // pack and isend
@@ -367,7 +367,7 @@ sv_eq1st_curv_col_allstep(
 
         // apply Qs
         if (md->visco_type == CONST_VISCO_GRAVES_QS) {
-          sv_eq1st_curv_graves_Qs(w_end, wav->ncmp, dt, gdinfo, md);
+          sv_curv_graves_Qs(w_end, wav->ncmp, dt, gdinfo, md);
         }
         
         // pack and isend
@@ -500,7 +500,7 @@ sv_eq1st_curv_col_allstep(
 }
 
 int
-sv_eq1st_curv_graves_Qs(float *w, int ncmp, float dt, gdinfo_t *gdinfo, md_t *md)
+sv_curv_graves_Qs(float *w, int ncmp, float dt, gdinfo_t *gdinfo, md_t *md)
 {
   int ierr = 0;
 
