@@ -11,7 +11,7 @@
 #include "fdlib_mem.h"
 #include "fdlib_math.h"
 #include "blk_t.h"
-#include "sv_curv_col_el_iso.h"
+#include "sv_curv_col_el.h"
 #include "sv_curv_col_el_vti.h"
 
 /*******************************************************************************
@@ -136,7 +136,7 @@ sv_curv_col_el_vti_onestage(
   if (bdry->is_sides_free[2][1] == 1)
   {
     // tractiong
-    sv_curv_col_el_iso_rhs_timg_z2(Txx,Tyy,Tzz,Txz,Tyz,Txy,hVx,hVy,hVz,
+    sv_curv_col_el_rhs_timg_z2(Txx,Tyy,Tzz,Txz,Tyz,Txy,hVx,hVy,hVz,
                                         xi_x, xi_y, xi_z, et_x, et_y, et_z, zt_x, zt_y, zt_z,
                                         jac3d, slw3d,
                                         ni1,ni2,nj1,nj2,nk1,nk2,siz_line,siz_slice,
@@ -176,7 +176,7 @@ sv_curv_col_el_vti_onestage(
   // add source term
   if (src->total_number > 0)
   {
-    sv_curv_col_el_iso_rhs_src(hVx,hVy,hVz,hTxx,hTyy,hTzz,hTxz,hTyz,hTxy,
+    sv_curv_col_el_rhs_src(hVx,hVy,hVz,hTxx,hTyy,hTzz,hTxz,hTyz,hTxy,
                                     jac3d, slw3d, 
                                     src,
                                     myid, verbose);

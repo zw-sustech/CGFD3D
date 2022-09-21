@@ -37,7 +37,4 @@ drv_rk_curv_col_allstep(
   const int output_all, // qc all var
   const int verbose);
 
-int
-sv_curv_graves_Qs(float *w, int ncmp, float dt, gdinfo_t *gdinfo, md_t *md);
-
 #endif

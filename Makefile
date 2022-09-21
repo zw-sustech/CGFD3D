@@ -62,6 +62,7 @@ main_curv_col_el_3d: \
 		bdry_t.o src_t.o io_funcs.o \
 		blk_t.o \
 		drv_rk_curv_col.o \
+		sv_curv_col_el.o \
 		sv_curv_col_el_iso.o \
 		sv_curv_col_el_vti.o \
 		sv_curv_col_el_aniso.o \
@@ -113,6 +114,8 @@ io_funcs.o: forward/io_funcs.c
 blk_t.o: forward/blk_t.c
 	${CC} -c -o $@ $(CFLAGS) $<
 drv_rk_curv_col.o:          forward/drv_rk_curv_col.c
+	${CC} -c -o $@ $(CFLAGS) $<
+sv_curv_col_el.o:   forward/sv_curv_col_el.c
 	${CC} -c -o $@ $(CFLAGS) $<
 sv_curv_col_el_iso.o:   forward/sv_curv_col_el_iso.c
 	${CC} -c -o $@ $(CFLAGS) $<

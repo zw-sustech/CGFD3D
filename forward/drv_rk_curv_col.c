@@ -11,7 +11,7 @@
 #include "fdlib_mem.h"
 #include "fdlib_math.h"
 #include "blk_t.h"
-#include "drv_rk_curv_col.h"
+#include "sv_curv_col_el.h"
 #include "sv_curv_col_el_iso.h"
 #include "sv_curv_col_el_vti.h"
 #include "sv_curv_col_el_aniso.h"
@@ -367,7 +367,7 @@ drv_rk_curv_col_allstep(
 
         // apply Qs
         if (md->visco_type == CONST_VISCO_GRAVES_QS) {
-          sv_curv_graves_Qs(w_end, wav->ncmp, dt, gdinfo, md);
+          sv_curv_col_el_graves_Qs(w_end, wav->ncmp, dt, gdinfo, md);
         }
         
         // pack and isend
@@ -497,34 +497,4 @@ drv_rk_curv_col_allstep(
   io_snap_nc_close(&iosnap_nc);
 
   return;
-}
-
-int
-sv_curv_graves_Qs(float *w, int ncmp, float dt, gdinfo_t *gdinfo, md_t *md)
-{
-  int ierr = 0;
-
-  float coef = - PI * md->visco_Qs_freq * dt;
-
-  for (int icmp=0; icmp<ncmp; icmp++)
-  {
-    float *restrict var = w + icmp * gdinfo->siz_icmp;
-
-    for (int k = gdinfo->nk1; k <= gdinfo->nk2; k++)
-    {
-      for (int j = gdinfo->nj1; j <= gdinfo->nj2; j++)
-      {
-        for (int i = gdinfo->ni1; i <= gdinfo->ni2; i++)
-        {
-          size_t iptr = i + j * gdinfo->siz_iy + k * gdinfo->siz_iz;
-
-          float Qatt = expf( coef / md->Qs[iptr] );
-
-          var[iptr] *= Qatt;
-        }
-      }
-    }
-  }
-
-  return ierr;
 }
