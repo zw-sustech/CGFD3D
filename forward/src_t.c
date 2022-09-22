@@ -125,8 +125,8 @@ src_glob_ext_ishere(int si, int sj, int sk, int half_ext, gdinfo_t *gdinfo)
 int
 src_read_locate_file(gdinfo_t *gdinfo,
                      gd_t     *gd,
-                     md_t     *md,
                      src_t    *src,
+                     float    *restrict mu3d,
                      char     *in_src_file,
                      float     t0,
                      float     dt,
@@ -437,8 +437,9 @@ src_read_locate_file(gdinfo_t *gdinfo,
             sj = gd_info_ind_glphy2lcext_j(all_index[is][1], gdinfo);
             sk = gd_info_ind_glphy2lcext_k(all_index[is][2], gdinfo);
             size_t iptr = si + sj * siz_line + sk * siz_slice;
-            float *mu3d = md->mu;
-            float mu =  mu3d[iptr];
+            // mu < 0 means to use internal model mu value
+            float mu =  myz;
+            if (mu < 0.0) { mu =  mu3d[iptr]; }
             //mxz is D, mxy[it] is A,
             M0 += mu*mxz*mxy;
             src_muDA_to_moment(mxx,myy,mzz,mu,mxz,mxy,
@@ -477,8 +478,11 @@ src_read_locate_file(gdinfo_t *gdinfo,
               sj = gd_info_ind_glphy2lcext_j(all_index[is][1], gdinfo);
               sk = gd_info_ind_glphy2lcext_k(all_index[is][2], gdinfo);
               size_t iptr = si + sj * siz_line + sk * siz_slice;
-              float *mu3d = md->mu;
-              float mu =  mu3d[iptr];
+
+              // mu < 0 means to use internal model mu value
+              float mu =  m23[it];
+              if (mu < 0.0) { mu =  mu3d[iptr]; }
+
               //m13[it] is v, m12[it] is A,
               M0 += mu*m13[it]*in_stf_dt*m12[it];
               src_muDA_to_moment(m11[it],m22[it],m33[it],mu,m13[it],m12[it],

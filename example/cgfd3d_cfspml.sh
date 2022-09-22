@@ -79,7 +79,9 @@ ${EVTNM}
 0 1.0
 # flag for source component and mechanism format
 #  1st value: source components, 1(force), 2(momoment), 3(force+moment)
-#  2nd value: mechanism format for moment source: 0 moment, 1 angle + mu + D + A
+#  2nd value: mechanism format for moment source:
+#       0 : 6 moment components, 
+#       1 : 3 angles, mu, slip rate or D, A (mu <0 means to use internal mu value)
 2 0
 # flag for location
 #   1st value: 0 computational coordiate, 1 physical coordinate
