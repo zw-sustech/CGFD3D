@@ -1,0 +1,63 @@
+\chapter{The Structure of Code and Compilation}\label{chap_compile}
+%=============================================================
+\section{The Structure of Code} 
+%=============================================================
+CGFD3D-elastic package is download as a directory with the follow subdirectories.
+\renewcommand*\DTstylecomment{\rmfamily\color{blue}}
+\renewcommand*\DTstyle{\ttfamily\color{red}}
+\dirtree{%
+.1 CGFD3D-elastic.
+.2 doc/\DTcomment{This USER\_MANUAL can be found here}.
+.2 forward/\DTcomment{Source code for programs}.
+.2 Makefile.
+.2 mfiles/\DTcomment{Drawing code in MATLAB}.
+.2 run\_make.mars\DTcomment{The bash-script to run to make on mars server}.
+.2 test/\DTcomment{Code for test}.
+.2 example/\DTcomment{Code for preparing and running script}.
+.2 lib/\DTcomment{Library used by the programs}.
+.2 media/\DTcomment{Source code related to media}.
+.2 pyfiles/\DTcomment{Drawing code in Python}.
+.2 run\_make.server1\DTcomment{The bash-script to run to make on server1 server}.
+}
+%=============================================================
+\section{Compilation and Linking} \label{compile}
+%=============================================================
+CGFD3D-elastic package is written in C and C++, so makesure C and C++ compilers are installed on your system. And you need to install MPI and NETCDF. MATLAB is also needed for generating data and displaying the results. \\
+Make clean is suggested before making by typing \\
+~\\
+\verb|> make distclean| \\
+~\\
+Then set the ROOT variable. Here we provide the bash script \verb|run_make.server1| (Listing \ref{make}) for making code. You need to provide \verb|MPI_ROOT| and \verb|NETCDFROOT| in \verb|run_make.server1| to adapt to the system you are using, and add mpi \verb|bin| file to PATH. The  target executable is \verb|main_curv_col_el_3d|. 
+\begin{lstlisting}[language=json,
+	caption=run\_make.server1,
+	label={make},
+	frame=tb]
+#-- add mpi to PATH if module is not used, on server1
+MPI_ROOT=/share/apps/gnu-4.8.5/mpich-3.3/
+export PATH=$MPI_ROOT/bin:$PATH
+export NETCDFROOT=/share/apps/gnu-4.8.5/disable-netcdf-4.4.1
+	
+echo "mpicc and mpicxx will invoke:"
+mpicc -show
+mpicxx -show
+	
+echo
+echo "start to make ..."
+make -f Makefile
+\end{lstlisting}
+After setting ROOT variable, run the script with the command \\
+~\\
+\verb|> ./run_make.server1| \\
+~\\
+If module is used on your system, we provide another bash script \verb|run_make.mars|. Before running the script, you need to load compiler, mpi, netcdf and matlab first. After that, run the script\\
+~\\
+\verb|> ./run_make.mars| \\
+~\\
+The object files and executables will be generated.\\
+~\\
+Some useful make commands: \\
+\verb|make cleanall | : remove all object files and executables. \\
+\verb|make cleanexe | : remove all executables. \\
+\verb|make cleanobj | : remove all objects files. 
+
+

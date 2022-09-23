@@ -1,0 +1,293 @@
+\chapter{Output}\label{chap_output}
+The content of the output and the output path are set in the shell script. Grid, metric, medium, PGV/PGA/PGD, station, receiver, slice, snapshot ,check\_nan information can be selected for output or not. There are several key words in the running shell script.
+\begin{lstlisting}[language=bash,
+	caption=OUTPUT\_DIR,
+	label={outp},commentstyle=\color{codegreen},
+	frame=tb]
+#-- output and conf
+PROJDIR=~/work/cgfd3d-wave-el/cfspml 
+EVTNM=codetest
+... ...
+
+PAR_FILE=${PROJDIR}/test.json 
+GRID_DIR=${PROJDIR}/output 
+MEDIA_DIR=${PROJDIR}/output 
+SOURCE_DIR=${PROJDIR}/output 
+OUTPUT_DIR=${PROJDIR}/output 
+
+#RUN_SCRIPT_FILE=${PROJDIR}/runscript.sh
+RUN_SCRIPT_FILE=${PROJDIR}/runscript.lsf
+... ...
+
+#-- tmp dir should be in local, here is for test
+TMP_DIR=${PROJDIR}/scratch
+mkdir -p ${TMP_DIR}
+\end{lstlisting}
+\begin{itemize}
+	\item \verb|PROJDIR:| \\
+	total output directory, where you can find all the output file.
+	\item \verb|EVTNM:| \\
+	name of input source.
+	\item \verb|PAR_FILE:| \\
+	modeling parameter output file.
+	\item \verb|GRID_DIR:| \\
+	directory for grid and metrices export. 
+	\item \verb|MEDIA_DIR:| \\
+	directory for medium export .
+	\item \verb|SOURCE_DIR:| \\
+	directory for source export .
+	\item \verb|OUTPUT_DIR:| \\
+	directory for station, receiver\_line, slice, snapshot,check\_nan export.
+	\item \verb|RUN_SCRIPT_FILE:| \\
+	run script file showing the running information.
+\end{itemize}
+
+\begin{lstlisting}[language=json,
+	caption=Example of export,
+	label={outp},commentstyle=\color{codegreen},
+	frame=tb]
+"is_export_grid" : 1,
+"grid_export_dir"   : "$GRID_DIR",
+... ...
+
+"is_export_metric" : 1,
+... ...
+
+"is_export_media" : 1,
+"media_export_dir"  : "$MEDIA_DIR",
+... ...
+
+"is_export_source" : 1,
+"source_export_dir"  : "$SOURCE_DIR",
+\end{lstlisting}
+
+\begin{itemize}
+	\item \verb|is_export_grid:| \\
+	if export the coordinates of grid.\\
+	- 0: do not export, \\
+	- 1: export.
+	\item \verb|grid_export_dir:| \\
+	set the output dir for grid exporting if \verb|is_export_grid : 1|.
+	\item \verb|is_export_metric:| \\
+	if export metrices for curvilinear and cartesian grid transformation.
+	\item \verb|is_export_media:| \\
+	if export the  discreted medium parameters. 
+	\item \verb|media_export_dir:| \\
+	set the output dir for medium exporting if \verb|is_export_media : 1|.
+	\item \verb|is_export_source:| \\
+	if export the internal discreted source.
+	\item \verb|source_export_dir:| \\
+	set the output dir for source exporting if \verb|is_export_source : 1|.
+\end{itemize}
+For saving modeling results, we provide several choice. For saving information on several single stations, you can set \verb|station| in station file(Listing \ref{station}). For receivers equaldistant on a line, \verb|receiver_line|(Listing \ref{recv}) can be used. For several single slice, \verb|slice|(Listing \ref{slice}) can be used. If mang slices are needed and you want to save information of a volume, \verb|snapshot|(Listing\ref{snap}) can be used.
+\begin{lstlisting}[language=bash,
+	caption=Example of setting stations,
+	label={station},commentstyle=\color{codegreen},
+	frame=tb]
+create_station_file()
+{
+cat << ieof > $PROJDIR/test.station
+# number of station
+1
+# name is_grid_indx is_3dim_depth  x y z
+r1  0  1  1000 1000 0
+ieof
+	
+echo "+ created $PROJDIR/test.station"
+}
+\end{lstlisting}
+\begin{itemize}
+	\item \verb|test.station:| \\
+	the station file genarated for input.
+	\item \verb|number of station:| \\
+	total number of station.
+	\item \verb|name:| \\
+	set station name.
+	\item \verb|is_grid_indx:| \\
+	- 1: the station position \verb|x y z | is grid index. \\
+	- 0: the station position \verb|x y z | is physical distance.
+	\item \verb|is_3dim_depth:| \\
+	- 1: the station position \verb|z | is depth, which means that, station is at the surface when \verb|z| is 0.  \\
+	- 0: the station position \verb|z | is not calculated by depth.
+	\item \verb|x y z:|
+	set station position here.
+\end{itemize}
+\begin{lstlisting}[language=json,
+	caption=Example of setting receiver\_line,
+	label={recv},commentstyle=\color{codegreen},
+	frame=tb]	 
+"receiver_line" : [
+{
+	"name" : "line_x_1",
+	"grid_index_start"    : [  0, 49, 59 ],
+	"grid_index_incre"    : [  1,  0,  0 ],
+	"grid_index_count"    : 20
+},
+{
+	"name" : "line_y_1",
+	"grid_index_start"    : [ 19, 49, 59 ],
+	"grid_index_incre"    : [  0,  1,  0 ],
+	"grid_index_count"    : 20
+} 
+],
+\end{lstlisting}
+\begin{itemize}
+	\item \verb|name:| \\
+	set receiver\_line name.
+	\item \verb|grid_index_start:| \\
+	the \verb|x,y,z| of starting point of the receiver\_line, the number you enter should be grid\_index.
+	\item \verb|grid_index_incre:| \\
+	the increment of receiver\_grid\_index in \verb|x,y,z| direction, the example \verb|[ 1,0,0 ]| means receivers are arranged along the x direction, and the distance between receivers is 1 grid point.
+	\item \verb|grid_index_count:| \\
+	the number of receiver on the receiver line. 
+\end{itemize}
+More or less receiver\_line can be set by copying or deleting curly brackets\verb|{}| and what's inside them.
+\begin{lstlisting}[language=json,
+	caption=Example of setting slice,
+	label={slice},commentstyle=\color{codegreen},
+	frame=tb]	 
+"slice" : {
+	"x_index" : [ 90, 149 ],
+	"y_index" : [ 90, 149 ],
+	"z_index" : [ 30, 59 ]
+},
+\end{lstlisting}
+\begin{itemize}
+	\item \verb|x_index:| \\
+	set slice at x=\verb|x_index|, the number you enter should be grid\_index. The example \verb|[ 90, 149 ]| means setting two slices, one at 90th grid point and one at 149th grid point in x direction.
+	\item \verb|y_index:| \\
+	set slice at y=\verb|y_index|, the number you enter should be grid\_index.
+	\item \verb|z_index:| \\
+	set slice at z=\verb|z_index|, the number you enter should be grid\_index. 
+\end{itemize}
+\begin{lstlisting}[language=json,
+	caption=Example of setting snapshot,
+	label={snap},commentstyle=\color{codegreen},
+	frame=tb]
+"snapshot" : [
+{
+	"name" : "volume_vel",
+	"grid_index_start" : [ 0, 0, $(( NZ - 1 )) ],
+	"grid_index_count" : [ $NX, $NY, 1 ],
+	"grid_index_incre" : [  1, 1, 1 ],
+	"time_index_start" : 0,
+	"time_index_incre" : 1,
+	"save_velocity" : 1,
+	"save_stress"   : 1,
+	"save_strain"   : 0
+}
+],
+\end{lstlisting}	
+\begin{itemize}
+	\item \verb|name:| \\
+	set volume name.
+	\item \verb|grid_index_start:| \\
+	the \verb|x,y,z| of starting point of the volume, the number you enter should be grid\_index.
+	\item \verb|grid_index_count:| \\
+	set the size of volume, the number you enter should be grid\_index. The example \verb|[ $NX,$NY,1 ]| means the volume is NX grid points long in x direction, NY grid points long in y direction, and 1 grid point long in z direction.
+	\item \verb|grid_index_incre:| \\
+	the grid point interval of storing in \verb|x,y,z| direction, the number you enter should be grid\_index.
+	\item \verb|time_index_start:| \\
+	set the time to start stroing, the number you enter should be time\_index. 
+	\item \verb|time_index_incre:| \\
+	set time interval of stroing, the number you enter should be time\_index. The example \verb|1| means stroing once every \verb|1*|$\Delta t$.
+	\item \verb|save_velocity:| \\
+	save velocity information of volume.\\
+	-0: do not save velocity,\\
+	-1: save velocity.
+	\item \verb|save_stress:| \\
+	save stress information of volume.\\
+	-0: do not save stress,\\
+	-1: save stress.
+	\item \verb|save_strain:| \\
+	save strain information of volume.\\
+	-0: do not save strain,\\
+	-1: save strain.
+\end{itemize}
+\begin{lstlisting}[language=json,
+	caption=Example of output check\_nan,
+	label={nan},commentstyle=\color{codegreen},
+	frame=tb] 
+"check_nan_every_nummber_of_steps" : 0,
+"output_all" : 0 
+\end{lstlisting}
+\begin{itemize}
+	\item \verb|check_nan_every_number_of_steps:| \\
+	if check value nan at each step.\\
+	-0 : do not check value,\\
+	-1 : check value.
+	\item \verb|output_all:| \\
+	if export the all the information at all steps for cheaking.\\
+	-0 : do not export,\\
+	-1 : export.
+\end{itemize}
+After running, there are output files in the output dir you set in configuration file. Information on individual station and receiver line is stored in SAC format, the rest is stored in NETCDF format. Table\ref{out} shows the output filename corresponding to the output contents.
+\begin{table}[h!]
+	\centering
+	\begin{tabular}{|c|c|}
+		\hline
+		OUTPUT           &          OUTPUT\_FILENAME \\
+		\hline
+		\verb|Gird|      & \verb|coord_px|\textbf{\emph{mpi\_process\_number}}\verb|_py|\textbf{\emph{mpi\_process\_number}}\verb|.nc| \\
+		\verb|metrice|   & \verb|metric_px|\textbf{\emph{mpi\_process\_number}}\verb|_py|\textbf{\emph{mpi\_process\_number}}\verb|.nc| \\
+		\verb|media|     & \verb|media_px|\textbf{\emph{mpi\_process\_number}}\verb|_py|\textbf{\emph{mpi\_process\_number}}\verb|.nc|\\
+		\verb|PGV/A/D|   & \verb|PG_V_A_D_px|\textbf{\emph{mpi\_process\_number}}\verb|_py|\textbf{\emph{mpi\_process\_number}}\verb|.nc| \\
+		\verb|station|   & \textbf{\emph{source\_name}}\verb|.|\textbf{\emph{station\_name}}\verb|.|\textbf{\emph{variable}}\verb|.sac|\\
+		\verb|receiver_line|  & \textbf{\emph{source\_name}}\verb|.|\textbf{\emph{receiver\_line\_name}}\verb|.no|\textbf{\emph{grid\_index}}\verb|.|\textbf{\emph{variable}}\verb|.sac|\\
+		\verb|slice|     & \verb|slice|\textbf{\emph{x/y/z}}\verb|_|\textbf{\emph{i/j/k}}\textbf{\emph{slice\_index}}\verb|_px|\textbf{\emph{mpi\_process\_number}}\verb|_py|\textbf{\emph{mpi\_process\_number}}\verb|.nc|\\
+		\verb|snapshot|  & \textbf{\emph{snapshot\_name}}\verb|_px|\textbf{\emph{mpi\_process\_number}}\verb|_py|\textbf{\emph{mpi\_process\_number}}\verb|.nc|\\
+		\verb|check_nan| & \verb|w3d_|\textbf{\emph{mpi\_process\_number}}\verb|_|\textbf{\emph{mpi\_process\_number}}\verb|_it|\textbf{\emph{step}}\verb|.nc| \\
+		\hline
+	\end{tabular}
+	\caption{Output filename conrresponding to the output contents.}
+	\label{out}
+\end{table}
+%\begin{itemize}
+%In the Listing \ref{outp}, there are several key words needed attention. \\
+%	\item \verb|PROJDIR:| \\
+%	
+%	
+%\end{itemize}
+% The following simply introduces the contents of output file.
+%\begin{itemize}
+%\item \verb|Gird |:\\
+% 3d grid point information.
+%%FILENAME : \verb|coord_px|\textbf{\emph{mpi\_process\_number}}\verb|_py|\textbf{\emph{mpi\_process\_number}}\verb|.nc|
+%\item \verb|Metric |: \\
+%3d metrice information needed for curve grid and cartesian grid transformation,including $jacabian$,$\xi_x$,$\xi_y$,$\xi_z$,$\eta_x$,$\eta_y$,$\eta_z$,\\
+%$\zeta_x$,$\zeta_y$,$\zeta_z$. 
+%%FILENAME :
+%%\verb|metric_px|\textbf{\emph{mpi\_process\_number}}\verb|_py|\textbf{\emph{mpi\_process\_number}}\verb|.nc |
+%\item \verb|Media |: \\
+%3d media information including $\rho,\lambda,\mu$ for elastic-isotropic, $\rho,c_{11},c_{13},c_{33},c_{55},c_{66}$ for elastic-vti, $\rho,c_{11},c_{12},...,c_{66}$ for elastic-anisotropic, $\rho,\kappa$ for acoustic wave. 
+%%FILENAME :
+%%\verb|media_px|\textbf{\emph{mpi\_process\_number}}\verb|_py|\textbf{\emph{mpi\_process\_number}}\verb|.nc|
+%\item \verb|PGV/A/D |: \\
+%Peak Ground information including Peak Ground Velocity ($PGVx,PGVy,PGVz$), Peak Groud Acceleration ($PGAx$,\\
+%$PGAy,PGAz$), Peak Ground Displacement($PGDx,PGDy,PGDz$). 
+%%FILENAME :
+%%\verb|PG_V_A_D_px|\textbf{\emph{mpi\_process\_number}}\verb|_py|\textbf{\emph{mpi\_process\_number}}\verb|.nc|
+%\item \verb|Station |: \\
+%variable information station received, including $E_{xx}$,$E_{xy}$,$E_{xz}$,$E_{yy}$,$E_{yz}$,$E_{zz}$,$T_{xx}$,$T_{xy}$,$T_{xz}$,$T_{yy}$,$T_{yz}$,$T_{zz}$,$V_x$,$V_y$,$V_z$ for elastic wave, $V_x,V_y,V_z,P$ for acoustic wave. 
+%%FILENAME :
+%%\textbf{\emph{source\_name}}\verb|.|\textbf{\emph{station\_name}}\verb|.|\textbf{\emph{variable}}\verb|.sac|
+%\item \verb|Receiver_line |: \\
+%variable information receiver received, including $T_{xx}$,$T_{xy}$,$T_{xz}$,$T_{yy}$,$T_{yz}$,$T_{zz}$,$V_x$,$V_y$,$V_z$ for elastic wave, $V_x,V_y,V_z,P$ for acoustic wave.
+%%FILENAME :
+%%\textbf{\emph{source\_name}}\verb|.|\textbf{\emph{receiver\_line\_name}}\verb|.no|\textbf{\emph{grid\_index}}\verb|.|\textbf{\emph{variable}}\verb|.sac|
+%\item \verb|Slice |: \\
+%variable information of slice, including $T_{xx}$,$T_{xy}$,$T_{xz}$,$T_{yy}$,$T_{yz}$,$T_{zz}$,$V_x$,$V_y$,$V_z$ for elastic wave, $V_x,V_y,V_z,P$ for acoustic wave.
+%%FILENAME :
+%%\verb|slice|\textbf{\emph{x/y/z}}\verb|_|\textbf{\emph{i/j/k}}\textbf{\emph{slice\_index}}\verb|_px|\textbf{\emph{mpi\_process\_number}}\verb|_py|\textbf{\emph{mpi\_process\_number}}\verb|.nc|
+%\item \verb|Snapshot |: \\
+%variable information of snapshot,   including$E_{xx}$,$E_{xy}$,$E_{xz}$,$E_{yy}$,$E_{yz}$,$E_{zz}$, $T_{xx}$,$T_{xy}$,$T_{xz}$,$T_{yy}$,$T_{yz}$,$T_{zz}$,$V_x$,$V_y$,$V_z$ for elastic wave, $V_x,V_y,V_z,P$ for acoustic wave.
+%%FILENAME :
+%%\textbf{\emph{snapshot\_name}}\verb|_px|\textbf{\emph{mpi\_process\_number}}\verb|_py|\textbf{\emph{mpi\_process\_number}}\verb|.nc|
+%\item \verb|Check_nan |: \\
+%All variable information for all steps, including $T_{xx}$,$T_{xy}$,$T_{xz}$,$T_{yy}$,$T_{yz}$,$T_{zz}$,$V_x$,$V_y$,$V_z$ for elastic wave, $V_x,V_y,V_z,P$ for acoustic wave.
+%%FILENAME :
+%%\verb|w3d_|\textbf{\emph{mpi\_process\_number}}\verb|_|\textbf{\emph{mpi\_process\_number}}\verb|_it|\textbf{\emph{step}}\verb|.nc|
+%\end{itemize}
+
+
+

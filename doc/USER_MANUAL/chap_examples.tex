@@ -1,0 +1,69 @@
+\chapter{Examples}\label{chapter-examples}
+\section{SEAM Foothills}
+\section{Reverse time migration}
+The program can be used in reversed-time migration (RTM).  In this example the following steps are implemented to show how this works:
+\begin{itemize}
+\item Forward modeling with analytical sources, and store the snapshots of the up-going wavefield.
+\item Flip the gather in time axis and use it as the time-reversed source to compute and store the down-going wavefield. You can refer to gen \_ src \_ stfvalue.m in /example/prep \_ source for the generation of .src file.
+\item Cross-correlate the up-going and down-going wavefields at every point of the image. CGFD3D currently do not contain this function, so the imaging condition need to be further applied in your own program. 
+\end{itemize}
+Here as an example, a material model with 4 layers of elastic isotropic medium under collocated cartesian coordinates is adopted. The computational domain is taken to be $(x,y,z)\in[0,300]^{2}\times[0,150] $. The grid size is chosen to be $h=100m$ and the material properties in the different layers are described by 
+\begin{lstlisting}
+grid h=100 x=300 y=300 z=150
+layer Vp=1500 Vs=1000 rho=1000 Vp_grad=0.2 Vs_grad=0.2 den_grad=0.2
+layer Vp=3000 Vs=1500 rho=2000 Vp_grad=0 Vs_grad=0 den_grad=0
+layer Vp=5000 Vs=2500 rho=3000 Vp_grad=0 Vs_grad=0 den_grad=0
+layer Vp=8000 Vs=3000 rho=3500 Vp_grad=0 Vs_grad=0 den_grad=0
+\end{lstlisting}
+
+%Here is an example of the .src file that is composed of 3 time-reversed sources. The meaning of each row is explained in $chapter \ 3.2$. For simplicity, the demonstration only contains 3 sources and in reality it is the number of receivers.\\
+%Please also notice that the imaging condition is not applied in this program. 
+%
+%\begin{lstlisting}[language=bash, caption=Source input file using discrete STF, label={lst_stf_value},
+%   numbers=left, numbersep=5pt,numberstyle=\tiny\color{codegray}, commentstyle=\color{codegreen},
+%   frame=single]
+%# name_of_this_input_src
+%evt_1_time_reversed_source
+%# number of source
+%3
+%# meaning of the location: 0 computational coordinate, 1 physical coordinate
+%#     axis or depth of the third coordinate: 0 axis, 1 depth
+%0 1
+%# stf_input_type and time length info
+%#  0 4.0 : analytic and time window length of each stf
+%#  1 0.05 20  : 1 value and time_step num_of_step
+%1 0.02 300
+%# 1(force) 2(momoment) 3(force+moment)
+%#    mechanism type for moment source: 0 moment, 1 angle + mu + D + A
+%1 0
+%# meta data of each source
+%#   sx sy sz
+%80 49 0
+%80 50 0
+%80 51 0
+%# value data for the first source
+%#  t0
+%0.0 
+%# Fx,Fy,Fz
+%Fx1 Fy1 Fz1
+%Fx2 Fy2 Fz2
+%...
+%Fx300 Fy300 Fz300
+%# value data for the second source
+%#  t0
+%0.0 
+%# Fx,Fy,Fz
+%Fx1 Fy1 Fz1
+%Fx2 Fy2 Fz2
+%...
+%Fx300 Fy300 Fz300
+%# value data for the third source
+%#  t0
+%0.0 
+%# Fx,Fy,Fz
+%Fx1 Fy1 Fz1
+%Fx2 Fy2 Fz2
+%...
+%Fx300 Fy300 Fz300        
+%\end{lstlisting}
+

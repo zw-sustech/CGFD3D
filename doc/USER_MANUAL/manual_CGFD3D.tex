@@ -8,7 +8,7 @@
 %  \usepackage[T1]{fontenc}
 %  \usepackage[nomath]{lmodern}
 %\fi
-
+\usepackage{bm}
 \usepackage[T1]{fontenc}
 \usepackage[normalem]{ulem}
 \usepackage[letterpaper]{geometry}
@@ -118,6 +118,7 @@
 
 
 \usepackage{fancyhdr}
+\usepackage{dirtree}
 
 \graphicspath{{figure/}}
 
@@ -172,20 +173,21 @@
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %- structure of the manual
 
 %- introduction
 %--  describe the purpose of the code, major features
-%\include{chap_intro}
+\include{chap_intro}
 
 %- compilation
 %-- the structure of the code
 %-- how to compile
-%\include{chap_compile}
+\include{chap_compile}
 
 %- run the program
 %-- main configuration file, ref to later chapters for details
-%\include{chap_run}
+\include{chap_run}
 
 %- How to generate grid
 \include{chap_grid}
@@ -201,14 +203,28 @@
 %\include{chap_abs}
 
 %- Output
-%\include{chap_output}
+\include{chap_output}
 
 %- Postproc, how to show the results 
-%\include{chap_postproc}
+\include{chap_postproc}
 
 %- Examples
 %\include{chap_examples}
+\include{appd_equations}
+\include{appd_schemes}
+\include{copyright}
 
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% REFERENCES
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%in every chapter
+\bibliography{citation}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% APPENDIX
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%\appendix
+%\include{A_reference_frame}
 %- appendix A
 %-- governing equations used in the code
 %\include{appd_equations}
@@ -216,22 +232,5 @@
 %- appendix B
 %--- schemes used in the code
 %\include{appd_schemes}
-
-\include{copyright}
-
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%% REFERENCES
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\bibliography{citation}
-
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%% APPENDIX
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
-\appendix
-
-%\include{A_reference_frame}
-
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
 \end{document}

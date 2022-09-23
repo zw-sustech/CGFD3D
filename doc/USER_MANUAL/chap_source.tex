@@ -111,7 +111,9 @@ event_1
 0 1.0
 # flag for source component and mechanism format
 #  1st value: source components, 1(force), 2(momoment), 3(force+moment)
-#  2nd value: mechanism format for moment source: 0 moment, 1 angle + mu + D + A
+#  2nd value: mechanism format for moment source:
+#       0 : 6 moment components, 
+#       1 : 3 angles, mu, slip rate or D, A (mu <0 means to use internal mu value)
 2 0
 # flag for location
 #   1st value: meaning of the location: 0 computational coordinate, 1 physical coordinate
@@ -157,7 +159,7 @@ What we should set in the .src file are:
         The second value (Mechanism\_flag) determines how the mechanism is given if moment source is used:
         \begin{itemize}
             \item 0: values of the six components of the moment tensor;
-            \item 1: strke, dip and rake angels, plus $\mu$, $D$, and $A$.
+            \item 1: strke, dip and rake angels, plus $\mu$, $D$, and $A$.$\mu$ <0 means to use internal $\mu$ value.
         \end{itemize}
     \item two flags about the meaning of the location values (line 20).
         The first flag is the meaning of the location (LOC\_flag), 

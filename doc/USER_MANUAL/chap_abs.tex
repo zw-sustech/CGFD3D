@@ -1,0 +1,40 @@
+\chapter{Absorbing Boundaries}\label{chapter-abs}
+CGFD3D currently provides tow types of absorbing boundary layers: Auxillary Differential Equation Complex Frequency-shifted Perfectly Matched Layer (ADE CFS-PML) and sponge layer (ablexp). For the detail of ADE CFS-PML, please refer to \cite{zhang2010unsplit}. 
+\section{Ablexp} 
+	\begin{lstlisting}[language=json,
+		frame=tb]    
+		 "boundary_x_left" : {
+		 	"ablexp" : {
+		 		"number_of_layers" : 20,
+		 		"ref_vel"  : 7000.0
+		 		}
+			 },
+	\end{lstlisting}
+\begin{itemize}
+	\item number of layers
+	The number of the absorbing layers. 
+	\item ref_vel 
+	
+\end{itemize}
+\section{ADE CFS-PML} 
+\begin{lstlisting}[language=json,
+	frame=tb]    
+	"boundary_x_left" : {
+		"ablexp" : {
+			"number_of_layers" : 10,
+			"alpha_max" : 3.14,
+			"beta_max" : 2.0,
+			"ref_vel"  : 7000.0
+			}
+		},
+\end{lstlisting}
+\begin{itemize}
+	\item number of layers
+	The number of absorbing layers.
+	\item alpha_max
+	The auxiliary attenuation coefficients of frequency that affects the low-frequency waves.
+	\item beta_max
+	The auxiliary attenuation coefficients of stretching that affects the wave impinging the PML at near-grazing angles.
+	\item ref_vel
+	The reference velocity.
+\end{itemize}

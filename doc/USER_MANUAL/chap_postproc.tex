@@ -1,0 +1,43 @@
+\chapter{Visualization of the Results}\label{chapter-postproc}
+The plotting codes in both matlab and python are provided under directors mfiles\_ and pyfiles\_. The codes mainly contain the plotting of the coordinate, media configuration, metric, traces along receiver line and stations. 
+\section{Showing the results with matlab}
+\begin{itemize}
+\item \texttt{draw\_grid\_coord.m} Draw the grid and coordinates configuration.
+\item \texttt{draw\_media\_pcolor.m} Draw the media cross section using \text{pcolor}. The media parameters include the p wave velocity $V_p$ and the density $\rho$ for acoustic isotropic medium, and $V_p$, $\rho$, s wave velocity $V_s$, elastic parameters $\lambda$ and $\mu$ for elastic isotropic and elastic VTI medium.
+\item \texttt{draw\_media\_surf.m} Draw the media cross section using \text{surf}. 
+\item \texttt{draw\_media\_surf\_multi.m} Draw the three dimensional cross sections of the media. 
+%Medium type: ac_iso, el_iso, el_vti
+%Vp,Vs,rho,lambda,mu
+\item \texttt{draw\_metric\_pcolor.m} Draw the metric parameters with \text{pcolor}. 
+%'jac', 'xi_x', 'xi_y', 'xi_z', 'eta_x', 'eta_y', 'eta_z', 'zeta_x', 'zeta_y', 'zeta_z'
+\item \texttt{draw\_metric\_surf.m} Draw the metric parameters with \text{surf}.
+\item \texttt{draw\_metric\_surf\_multi.m} Draw the three dimensional cross sections of the metric parameters with \text{surf}.
+\item \texttt{draw\_PG\_V\_A\_D.m} Draw the particle ground motion intensity. The drawable parameters include peak velocity, acceleration and displacement.
+\item \texttt{draw\_seismo\_line.m} Draw the traces along the receiver line.
+\item \texttt{draw\_seismo\_recv.m} Draw the single trace at each receiver given a range of station ID.
+\item \texttt{draw\_slice\_pcolor.m} Draw the slice using \text{pcolor}. The slice id should be consistent with that in the main par file.
+\item \texttt{draw\_slice\_surf.m} Draw the slice using \text{surf}.
+\item \texttt{draw\_slice\_surf\_multi.m} Draw the three dimensional cross sections of the slice with \text{surf}.
+\item \texttt{draw\_snap\_pcolor.m} Draw the snapshot using \text{pcolor}. 
+\item \texttt{draw\_snap\_surf.m} Draw the snapshot using \text{surf}.
+\item \texttt{draw\_snap\_surf\_multi.m} Draw the three dimensional cross sections of the snapshot with \text{surf}.
+\end{itemize}
+\section{Showing the results with python}
+The python code provided with CGFD3D has the same functionality with the matlab code. The open source packages that are accessible in python will enrich your choices of data visualization, and you can make modifications based on the following programs.   
+\begin{enumerate}
+\item \texttt{draw\_grid\_coord.py} Draw the grid and coordinates configuration.
+\item \texttt{draw\_media\_pcolor.py} Draw the media cross section using \text{pcolor}. 
+\item \texttt{draw\_metric\_pcolor.py} Draw the metric parameters with \text{pcolor}.
+\item \texttt{draw\_seismo\_line.py} Draw the traces along the receiver line.
+\item \texttt{draw\_seismo\_station.py} Draw the single trace at each receiver given a range of station ID.
+\item \texttt{draw\_slice\_pcolor.py} Draw the slice using \text{pcolor}.
+\item \texttt{draw\_snap\_pcolor.py} Draw the snapshot using \text{pcolor}.
+\end{enumerate}
+\section{A general example of usage}
+The codes have similar structures. And here we have a general process of using the code.\\ 
+The inputs are all read from the jason file. To use the code, you need to first modify the path and name of the input .jason file and the output directory.\\ 
+Then you need to set the parameters which should also be consistent with the parameters in jason file, for example, the number of grid points and the unit of the parameters, or it may report errors.\\ 
+You can check the main parameter file to make sure that the content you want to plot is included in the output, for example, sometimes only part of the snapshots are output by the program.\\ 
+After the checking, you can begin to set the ploting parameters, for examle, which slice to plot while using \texttt{draw\_slice\_pcolor.m}.\\ 
+Finally you may want to choose whether to print and save the plot or not by switching the \texttt{flag} between 1 and 0. 
+  
