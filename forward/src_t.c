@@ -352,7 +352,9 @@ src_read_locate_file(gdinfo_t *gdinfo,
   {
     if (in_cmp_type == 1 || in_cmp_type == 3) {
       force_actived = 1;
-    } else if (in_cmp_type == 2 || in_cmp_type == 3) {
+    }
+
+    if (in_cmp_type == 2 || in_cmp_type == 3) {
       moment_actived = 1;
     } 
   }
