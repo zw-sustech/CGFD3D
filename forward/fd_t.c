@@ -180,8 +180,8 @@ fd_set_macdrp(fd_t *fd)
   //----------------------------------------------------------------------------
 
   fd->num_of_pairs = 8;
-  // BBB FFB FFF BBF
-  // BFB FBB FBF BFF
+  // FFF BBF BBB FFB
+  // FBF BFF BFB FBB
   int FD_Flags[8][CONST_NDIM] = // 8 pairs, x/y/z 3 dim
   {
     { 0,  0,  0 },
@@ -192,7 +192,7 @@ fd_set_macdrp(fd_t *fd)
     { 1,  0,  0 },
     { 1,  0,  1 },
     { 0,  1,  1 }
-  }; //  0(B) 1(F)
+  }; //  0(F) 1(B)
 
   fd->num_of_fdx_op = 1;
   fd->num_of_fdy_op = 1;
