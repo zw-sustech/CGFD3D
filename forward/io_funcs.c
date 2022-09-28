@@ -1931,14 +1931,15 @@ PG_slice_output(float *PG, gdinfo_t *gdinfo, char *output_dir, char *frame_coord
   int nj = gdinfo->nj;
   int gni1 = gdinfo->gni1; 
   int gnj1 = gdinfo->gnj1; 
-  char PG_cmp[CONST_NDIM_3][CONST_MAX_STRLEN] = {"PGVx","PGVy","PGVz","PGAx","PGAy","PGAz",
-                                      "PGDx","PGDy","PGDz"}; 
+  char PG_cmp[CONST_NDIM_5][CONST_MAX_STRLEN] = {"PGV","PGVh","PGVx","PGVy","PGVz",
+                                                 "PGA","PGAh","PGAx","PGAy","PGAz",
+                                                 "PGD","PGDh","PGDx","PGDy","PGDz"}; 
   char out_file[CONST_MAX_STRLEN];
   sprintf(out_file,"%s/%s_%s.nc",output_dir,"PG_V_A_D",frame_coords);
 
   // create PGV output file
   int dimid[2];
-  int varid[CONST_NDIM_3], ncid;
+  int varid[CONST_NDIM_5], ncid;
   int i,ierr;
   ierr = nc_create(out_file, NC_CLOBBER, &ncid);
   if (ierr != NC_NOERR){
@@ -1950,7 +1951,7 @@ PG_slice_output(float *PG, gdinfo_t *gdinfo, char *output_dir, char *frame_coord
   if(nc_def_dim(ncid, "i", nx, &dimid[1])) M_NCERR;
 
   // define vars
-  for(int i=0; i<CONST_NDIM_3; i++)
+  for(int i=0; i<CONST_NDIM_5; i++)
   {
     if(nc_def_var(ncid, PG_cmp[i], NC_FLOAT,2,dimid, &varid[i])) M_NCERR;
   }
@@ -1966,7 +1967,7 @@ PG_slice_output(float *PG, gdinfo_t *gdinfo, char *output_dir, char *frame_coord
   if(nc_enddef(ncid)) M_NCERR;
 
   // add vars
-  for(int i=0; i<CONST_NDIM_3; i++)
+  for(int i=0; i<CONST_NDIM_5; i++)
   {
   float *ptr = PG + i*nx*ny; 
   ierr = nc_put_var_float(ncid,varid[i],ptr);

@@ -103,14 +103,17 @@ drv_rk_curv_col_allstep(
   w_end = wav->v5d + wav->siz_ilevel * 3; // end level at n+1
 
   // set pml for rk
-  for (int idim=0; idim<CONST_NDIM; idim++) {
-    for (int iside=0; iside<2; iside++) {
-      if (bdry->is_sides_pml[idim][iside]==1) {
-        bdrypml_auxvar_t *auxvar = &(bdry->auxvar[idim][iside]);
-        auxvar->pre = auxvar->var + auxvar->siz_ilevel * 0;
-        auxvar->tmp = auxvar->var + auxvar->siz_ilevel * 1;
-        auxvar->rhs = auxvar->var + auxvar->siz_ilevel * 2;
-        auxvar->end = auxvar->var + auxvar->siz_ilevel * 3;
+  if(bdry->is_enable_pml == 1)
+  {
+    for (int idim=0; idim<CONST_NDIM; idim++) {
+      for (int iside=0; iside<2; iside++) {
+        if (bdry->is_sides_pml[idim][iside]==1) {
+          bdrypml_auxvar_t *auxvar = &(bdry->auxvar[idim][iside]);
+          auxvar->pre = auxvar->var + auxvar->siz_ilevel * 0;
+          auxvar->tmp = auxvar->var + auxvar->siz_ilevel * 1;
+          auxvar->rhs = auxvar->var + auxvar->siz_ilevel * 2;
+          auxvar->end = auxvar->var + auxvar->siz_ilevel * 3;
+        }
       }
     }
   }
@@ -121,7 +124,7 @@ drv_rk_curv_col_allstep(
   float *Dis_accu = NULL;
   if (bdry->is_sides_free[CONST_NDIM-1][1] == 1)
   {
-    PG = (float *) fdlib_mem_calloc_1d_float(CONST_NDIM_3*gdinfo->ny*gdinfo->nx,0.0,"PG malloc");
+    PG = (float *) fdlib_mem_calloc_1d_float(CONST_NDIM_5*gdinfo->ny*gdinfo->nx,0.0,"PG malloc");
     Dis_accu = (float *) fdlib_mem_calloc_1d_float(CONST_NDIM*gdinfo->ny*gdinfo->nx,0.0,"Dis_accu malloc");
   }
   // calculate conversion matrix for free surface
@@ -190,18 +193,24 @@ drv_rk_curv_col_allstep(
       // use pointer to avoid 1 copy for previous level value
       if (istage==0) {
         w_cur = w_pre;
-        for (int idim=0; idim<CONST_NDIM; idim++) {
-          for (int iside=0; iside<2; iside++) {
-            bdry->auxvar[idim][iside].cur = bdry->auxvar[idim][iside].pre;
+        if(bdry->is_enable_pml == 1)
+        {
+          for (int idim=0; idim<CONST_NDIM; idim++) {
+            for (int iside=0; iside<2; iside++) {
+              bdry->auxvar[idim][iside].cur = bdry->auxvar[idim][iside].pre;
+            }
           }
         }
       }
       else
       {
         w_cur = w_tmp;
-        for (int idim=0; idim<CONST_NDIM; idim++) {
-          for (int iside=0; iside<2; iside++) {
-            bdry->auxvar[idim][iside].cur = bdry->auxvar[idim][iside].tmp;
+        if(bdry->is_enable_pml == 1)
+        {
+          for (int idim=0; idim<CONST_NDIM; idim++) {
+            for (int iside=0; iside<2; iside++) {
+              bdry->auxvar[idim][iside].cur = bdry->auxvar[idim][iside].tmp;
+            }
           }
         }
       }
@@ -279,12 +288,15 @@ drv_rk_curv_col_allstep(
         MPI_Startall(num_of_s_reqs, mympi->pair_s_reqs[ipair_mpi][istage_mpi]);
 
         // pml_tmp
-        for (int idim=0; idim<CONST_NDIM; idim++) {
-          for (int iside=0; iside<2; iside++) {
-            if (bdry->is_sides_pml[idim][iside]==1) {
-              bdrypml_auxvar_t *auxvar = &(bdry->auxvar[idim][iside]);
-              for (size_t iptr=0; iptr < auxvar->siz_ilevel; iptr++) {
-                auxvar->tmp[iptr] = auxvar->pre[iptr] + coef_a * auxvar->rhs[iptr];
+        if(bdry->is_enable_pml == 1)
+        {
+          for (int idim=0; idim<CONST_NDIM; idim++) {
+            for (int iside=0; iside<2; iside++) {
+              if (bdry->is_sides_pml[idim][iside]==1) {
+                bdrypml_auxvar_t *auxvar = &(bdry->auxvar[idim][iside]);
+                for (size_t iptr=0; iptr < auxvar->siz_ilevel; iptr++) {
+                  auxvar->tmp[iptr] = auxvar->pre[iptr] + coef_a * auxvar->rhs[iptr];
+                }
               }
             }
           }
@@ -295,12 +307,15 @@ drv_rk_curv_col_allstep(
             w_end[iptr] = w_pre[iptr] + coef_b * w_rhs[iptr];
         }
         // pml_end
-        for (int idim=0; idim<CONST_NDIM; idim++) {
-          for (int iside=0; iside<2; iside++) {
-            if (bdry->is_sides_pml[idim][iside]==1) {
-              bdrypml_auxvar_t *auxvar = &(bdry->auxvar[idim][iside]);
-              for (size_t iptr=0; iptr < auxvar->siz_ilevel; iptr++) {
-                auxvar->end[iptr] = auxvar->pre[iptr] + coef_b * auxvar->rhs[iptr];
+        if(bdry->is_enable_pml == 1)
+        {
+          for (int idim=0; idim<CONST_NDIM; idim++) {
+            for (int iside=0; iside<2; iside++) {
+              if (bdry->is_sides_pml[idim][iside]==1) {
+                bdrypml_auxvar_t *auxvar = &(bdry->auxvar[idim][iside]);
+                for (size_t iptr=0; iptr < auxvar->siz_ilevel; iptr++) {
+                  auxvar->end[iptr] = auxvar->pre[iptr] + coef_b * auxvar->rhs[iptr];
+                }
               }
             }
           }
@@ -329,12 +344,15 @@ drv_rk_curv_col_allstep(
         MPI_Startall(num_of_s_reqs, mympi->pair_s_reqs[ipair_mpi][istage_mpi]);
 
         // pml_tmp
-        for (int idim=0; idim<CONST_NDIM; idim++) {
-          for (int iside=0; iside<2; iside++) {
-            if (bdry->is_sides_pml[idim][iside]==1) {
-              bdrypml_auxvar_t *auxvar = &(bdry->auxvar[idim][iside]);
-              for (size_t iptr=0; iptr < auxvar->siz_ilevel; iptr++) {
-                auxvar->tmp[iptr] = auxvar->pre[iptr] + coef_a * auxvar->rhs[iptr];
+        if(bdry->is_enable_pml == 1)
+        {
+          for (int idim=0; idim<CONST_NDIM; idim++) {
+            for (int iside=0; iside<2; iside++) {
+              if (bdry->is_sides_pml[idim][iside]==1) {
+                bdrypml_auxvar_t *auxvar = &(bdry->auxvar[idim][iside]);
+                for (size_t iptr=0; iptr < auxvar->siz_ilevel; iptr++) {
+                  auxvar->tmp[iptr] = auxvar->pre[iptr] + coef_a * auxvar->rhs[iptr];
+                }
               }
             }
           }
@@ -345,12 +363,15 @@ drv_rk_curv_col_allstep(
             w_end[iptr] += coef_b * w_rhs[iptr];
         }
         // pml_end
-        for (int idim=0; idim<CONST_NDIM; idim++) {
-          for (int iside=0; iside<2; iside++) {
-            if (bdry->is_sides_pml[idim][iside]==1) {
-              bdrypml_auxvar_t *auxvar = &(bdry->auxvar[idim][iside]);
-              for (size_t iptr=0; iptr < auxvar->siz_ilevel; iptr++) {
-                auxvar->end[iptr] += coef_b * auxvar->rhs[iptr];
+        if(bdry->is_enable_pml == 1)
+        {
+          for (int idim=0; idim<CONST_NDIM; idim++) {
+            for (int iside=0; iside<2; iside++) {
+              if (bdry->is_sides_pml[idim][iside]==1) {
+                bdrypml_auxvar_t *auxvar = &(bdry->auxvar[idim][iside]);
+                for (size_t iptr=0; iptr < auxvar->siz_ilevel; iptr++) {
+                  auxvar->end[iptr] += coef_b * auxvar->rhs[iptr];
+                }
               }
             }
           }
@@ -378,12 +399,15 @@ drv_rk_curv_col_allstep(
         MPI_Startall(num_of_s_reqs, mympi->pair_s_reqs[ipair_mpi][istage_mpi]);
 
         // pml_end
-        for (int idim=0; idim<CONST_NDIM; idim++) {
-          for (int iside=0; iside<2; iside++) {
-            if (bdry->is_sides_pml[idim][iside]==1) {
-              bdrypml_auxvar_t *auxvar = &(bdry->auxvar[idim][iside]);
-              for (size_t iptr=0; iptr < auxvar->siz_ilevel; iptr++) {
-                auxvar->end[iptr] += coef_b * auxvar->rhs[iptr];
+        if(bdry->is_enable_pml == 1)
+        {
+          for (int idim=0; idim<CONST_NDIM; idim++) {
+            for (int iside=0; iside<2; iside++) {
+              if (bdry->is_sides_pml[idim][iside]==1) {
+                bdrypml_auxvar_t *auxvar = &(bdry->auxvar[idim][iside]);
+                for (size_t iptr=0; iptr < auxvar->siz_ilevel; iptr++) {
+                  auxvar->end[iptr] += coef_b * auxvar->rhs[iptr];
+                }
               }
             }
           }
@@ -412,7 +436,6 @@ drv_rk_curv_col_allstep(
                          mympi->pair_siz_rbuff_y2[ipair_mpi][istage_mpi],
                          mympi->neighid);
      }
-
     } // RK stages
 
     //--------------------------------------------
@@ -427,8 +450,7 @@ drv_rk_curv_col_allstep(
     //--------------------------------------------
     // apply ablexp
     //--------------------------------------------
-    if (bdry->is_enable_ablexp) {
-      if (myid==0 && verbose>10) fprintf(stdout,"-> apply ablexp\n");
+    if (bdry->is_enable_ablexp == 1) {
        bdry_ablexp_apply(bdry, w_end, wav->ncmp, wav->siz_icmp);
     }
     
@@ -476,12 +498,15 @@ drv_rk_curv_col_allstep(
     // swap w_pre and w_end, avoid copying
     w_cur = w_pre; w_pre = w_end; w_end = w_cur;
 
-    for (int idim=0; idim<CONST_NDIM; idim++) {
-      for (int iside=0; iside<2; iside++) {
-        bdrypml_auxvar_t *auxvar = &(bdry->auxvar[idim][iside]);
-        auxvar->cur = auxvar->pre;
-        auxvar->pre = auxvar->end;
-        auxvar->end = auxvar->cur;
+    if(bdry->is_enable_pml == 1)
+    {
+      for (int idim=0; idim<CONST_NDIM; idim++) {
+        for (int iside=0; iside<2; iside++) {
+          bdrypml_auxvar_t *auxvar = &(bdry->auxvar[idim][iside]);
+          auxvar->cur = auxvar->pre;
+          auxvar->pre = auxvar->end;
+          auxvar->end = auxvar->cur;
+        }
       }
     }
 
