@@ -101,7 +101,7 @@ src_set_time(src_t *src, int it, int istage)
  */
 
 int
-src_glob_ext_ishere(int si, int sj, int sk, int half_ext, gdinfo_t *gdinfo)
+src_glob_ext_ishere(int si, int sj, int sk, int half_ext, gd_t *gdinfo)
 {
   int is_here = 0;
 
@@ -123,7 +123,7 @@ src_glob_ext_ishere(int si, int sj, int sk, int half_ext, gdinfo_t *gdinfo)
  */
 
 int
-src_read_locate_file(gdinfo_t *gdinfo,
+src_read_locate_file(
                      gd_t     *gd,
                      src_t    *src,
                      float    *restrict mu3d,
@@ -140,18 +140,18 @@ src_read_locate_file(gdinfo_t *gdinfo,
   int ierr = 0;
 
   // get grid info from gdinfo
-  int   ni1 = gdinfo->ni1;
-  int   ni2 = gdinfo->ni2;
-  int   nj1 = gdinfo->nj1;
-  int   nj2 = gdinfo->nj2;
-  int   nk1 = gdinfo->nk1;
-  int   nk2 = gdinfo->nk2;
-  int   nx  = gdinfo->nx ;
-  int   ny  = gdinfo->ny ;
-  int   nz  = gdinfo->nz ;
-  int   npoint_ghosts = gdinfo->npoint_ghosts;
-  size_t siz_line = gdinfo->siz_iy;
-  size_t siz_slice= gdinfo->siz_iz;
+  int   ni1 = gd->ni1;
+  int   ni2 = gd->ni2;
+  int   nj1 = gd->nj1;
+  int   nj2 = gd->nj2;
+  int   nk1 = gd->nk1;
+  int   nk2 = gd->nk2;
+  int   nx  = gd->nx ;
+  int   ny  = gd->ny ;
+  int   nz  = gd->nz ;
+  int   npoint_ghosts = gd->npoint_ghosts;
+  size_t siz_line = gd->siz_iy;
+  size_t siz_slice= gd->siz_iz;
 
   // get total elem of exted src region for a single point
   //    int max_ext = 7 * 7 * 7;
@@ -253,18 +253,18 @@ src_read_locate_file(gdinfo_t *gdinfo,
         {
           // if sz is depth, convert to axis when it is in this thread
           if (in_3coord_meaning == 1) {
-            gd_curv_depth_to_axis(gdinfo,gd,sx,sy,&sz,comm,myid);
+            gd_curv_depth_to_axis(gd,sx,sy,&sz,comm,myid);
           }
-          gd_curv_coord_to_glob_indx(gdinfo,gd,sx,sy,sz,comm,myid,
+          gd_curv_coord_to_glob_indx(gd,sx,sy,sz,comm,myid,
                                  &si_glob,&sj_glob,&sk_glob,&sx_inc,&sy_inc,&sz_inc);
         }
         else if (gd->type == GD_TYPE_CART)
         {
           // if sz is depth, convert to axis
           if (in_3coord_meaning == 1) {
-            sz = gd->z1d[gdinfo->nk2] - sz;
+            sz = gd->z1d[gd->nk2] - sz;
           }
-          gd_cart_coord_to_glob_indx(gdinfo,gd,sx,sy,sz,comm,myid,
+          gd_cart_coord_to_glob_indx(gd,sx,sy,sz,comm,myid,
                                  &si_glob,&sj_glob,&sk_glob,&sx_inc,&sy_inc,&sz_inc);
         }
         // keep index to avoid duplicat run
@@ -286,7 +286,7 @@ src_read_locate_file(gdinfo_t *gdinfo,
       {
         // if sz is relative to surface, convert to normal index
         if (in_3coord_meaning == 1) {
-          sz = gdinfo->gnk2 - sz;
+          sz = gd->gnk2 - sz;
         }
 
         // nearest integer index
@@ -308,7 +308,7 @@ src_read_locate_file(gdinfo_t *gdinfo,
     }
 
     // check if in this thread using index
-    if (src_glob_ext_ishere(si_glob,sj_glob,sk_glob,npoint_half_ext,gdinfo)==1)
+    if (src_glob_ext_ishere(si_glob,sj_glob,sk_glob,npoint_half_ext,gd)==1)
     {
       all_in_thread[is] = 1;
       num_of_src_here += 1;
@@ -435,9 +435,9 @@ src_read_locate_file(gdinfo_t *gdinfo,
           // convert uDA input into moment tensor
           if (moment_actived==1 && in_mechanism_type ==1)
           {
-            si = gd_info_ind_glphy2lcext_i(all_index[is][0], gdinfo);
-            sj = gd_info_ind_glphy2lcext_j(all_index[is][1], gdinfo);
-            sk = gd_info_ind_glphy2lcext_k(all_index[is][2], gdinfo);
+            si = gd_indx_glphy2lcext_i(all_index[is][0], gd);
+            sj = gd_indx_glphy2lcext_j(all_index[is][1], gd);
+            sk = gd_indx_glphy2lcext_k(all_index[is][2], gd);
             size_t iptr = si + sj * siz_line + sk * siz_slice;
             // mu < 0 means to use internal model mu value
             float mu =  myz;
@@ -476,9 +476,9 @@ src_read_locate_file(gdinfo_t *gdinfo,
             // convert uDA input into moment tensor
             if (moment_actived==1 && in_mechanism_type ==1)
             {
-              si = gd_info_ind_glphy2lcext_i(all_index[is][0], gdinfo);
-              sj = gd_info_ind_glphy2lcext_j(all_index[is][1], gdinfo);
-              sk = gd_info_ind_glphy2lcext_k(all_index[is][2], gdinfo);
+              si = gd_indx_glphy2lcext_i(all_index[is][0], gd);
+              sj = gd_indx_glphy2lcext_j(all_index[is][1], gd);
+              sk = gd_indx_glphy2lcext_k(all_index[is][2], gd);
               size_t iptr = si + sj * siz_line + sk * siz_slice;
 
               // mu < 0 means to use internal model mu value
@@ -499,9 +499,9 @@ src_read_locate_file(gdinfo_t *gdinfo,
     if (all_in_thread[is] == 1)
     {
       // convert global index to local index
-      si = gd_info_ind_glphy2lcext_i(all_index[is][0], gdinfo);
-      sj = gd_info_ind_glphy2lcext_j(all_index[is][1], gdinfo);
-      sk = gd_info_ind_glphy2lcext_k(all_index[is][2], gdinfo);
+      si = gd_indx_glphy2lcext_i(all_index[is][0], gd);
+      sj = gd_indx_glphy2lcext_j(all_index[is][1], gd);
+      sk = gd_indx_glphy2lcext_k(all_index[is][2], gd);
   
       // keep into src_t
       src->si[is_local] = si;
@@ -525,7 +525,7 @@ src_read_locate_file(gdinfo_t *gdinfo,
           {
             for (int i=si-npoint_half_ext; i<=si+npoint_half_ext; i++)
             {
-              if (gd_info_lindx_is_inner(i,j,k,gdinfo)==1)
+              if (gd_lindx_is_inner(i,j,k,gd)==1)
               {
                 // Note index need match coef
                 int iptr_grid = i + j * siz_line + k * siz_slice;
@@ -680,7 +680,7 @@ src_read_locate_file(gdinfo_t *gdinfo,
  */
 
 int
-src_dd_read2local(gdinfo_t *gdinfo,
+src_dd_read2local(
                   gd_t     *gd,
                   src_t    *src,
                   char     *in_file,
@@ -700,18 +700,18 @@ src_dd_read2local(gdinfo_t *gdinfo,
 {
   int ierr = 0;
 
-  // get grid info from gdinfo
-  int   ni1 = gdinfo->ni1;
-  int   ni2 = gdinfo->ni2;
-  int   nj1 = gdinfo->nj1;
-  int   nj2 = gdinfo->nj2;
-  int   nk1 = gdinfo->nk1;
-  int   nk2 = gdinfo->nk2;
-  int   nx  = gdinfo->nx ;
-  int   ny  = gdinfo->ny ;
-  int   nz  = gdinfo->nz ;
-  size_t siz_line = gdinfo->siz_iy;
-  size_t siz_slice= gdinfo->siz_iz;
+  // get grid info from gd
+  int   ni1 = gd->ni1;
+  int   ni2 = gd->ni2;
+  int   nj1 = gd->nj1;
+  int   nj2 = gd->nj2;
+  int   nk1 = gd->nk1;
+  int   nk2 = gd->nk2;
+  int   nx  = gd->nx ;
+  int   ny  = gd->ny ;
+  int   nz  = gd->nz ;
+  size_t siz_line = gd->siz_iy;
+  size_t siz_slice= gd->siz_iz;
 
   // set default values
   src->fp_vi  = NULL;
@@ -882,18 +882,18 @@ src_dd_read2local(gdinfo_t *gdinfo,
       {
         // if sz is depth, convert to axis when it is in this thread
         if (in_3coord_meaning == 1) {
-          gd_curv_depth_to_axis(gdinfo,gd,sx,sy,&sz,comm,myid);
+          gd_curv_depth_to_axis(gd,sx,sy,&sz,comm,myid);
         }
-        gd_curv_coord_to_glob_indx(gdinfo,gd,sx,sy,sz,comm,myid,
+        gd_curv_coord_to_glob_indx(gd,sx,sy,sz,comm,myid,
                                &si_glob,&sj_glob,&sk_glob,&sx_inc,&sy_inc,&sz_inc);
       }
       else if (gd->type == GD_TYPE_CART)
       {
         // if sz is depth, convert to axis
         if (in_3coord_meaning == 1) {
-          sz = gd->z1d[gdinfo->nk2] - sz;
+          sz = gd->z1d[gd->nk2] - sz;
         }
-        gd_cart_coord_to_glob_indx(gdinfo,gd,sx,sy,sz,comm,myid,
+        gd_cart_coord_to_glob_indx(gd,sx,sy,sz,comm,myid,
                                &si_glob,&sj_glob,&sk_glob,&sx_inc,&sy_inc,&sz_inc);
       }
       // keep index to avoid duplicat run
@@ -915,7 +915,7 @@ src_dd_read2local(gdinfo_t *gdinfo,
     {
       // if sz is relative to surface, convert to normal index
       if (in_3coord_meaning == 1) {
-        sz = gdinfo->gnk2 - sz;
+        sz = gd->gnk2 - sz;
       }
 
       // nearest integer index
@@ -936,7 +936,7 @@ src_dd_read2local(gdinfo_t *gdinfo,
     }
 
     // check if in this thread using index
-    if (src_glob_ext_ishere(si_glob,sj_glob,sk_glob,src->dd_smo_hlen,gdinfo)==1)
+    if (src_glob_ext_ishere(si_glob,sj_glob,sk_glob,src->dd_smo_hlen,gd)==1)
     {
       all_in_thread[is] = 1;
       num_of_src_here += 1;
@@ -1004,9 +1004,9 @@ src_dd_read2local(gdinfo_t *gdinfo,
       }
 
       // convert global index to local index
-      si = gd_info_ind_glphy2lcext_i(all_index[is][0], gdinfo);
-      sj = gd_info_ind_glphy2lcext_j(all_index[is][1], gdinfo);
-      sk = gd_info_ind_glphy2lcext_k(all_index[is][2], gdinfo);
+      si = gd_indx_glphy2lcext_i(all_index[is][0], gd);
+      sj = gd_indx_glphy2lcext_j(all_index[is][1], gd);
+      sk = gd_indx_glphy2lcext_k(all_index[is][2], gd);
   
       // keep into src_t
       src->dd_si[is_local] = si;

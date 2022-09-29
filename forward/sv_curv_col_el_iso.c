@@ -24,7 +24,7 @@ sv_curv_col_el_iso_onestage(
   float *restrict w_cur,
   float *restrict rhs, 
   wav_t  *wav,
-  gdinfo_t   *gdinfo,
+  gd_t   *gdinfo,
   gdcurv_metric_t  *metric,
   md_t *md,
   bdry_t  *bdry,
@@ -1233,7 +1233,7 @@ int sv_eliso1st_curv_macdrp_apply_ablexp(float *restrict w_cur,
  ******************************************************************************/
 
 int
-sv_curv_col_el_iso_dvh2dvz(gdinfo_t        *gdinfo,
+sv_curv_col_el_iso_dvh2dvz(gd_t        *gdinfo,
                                  gdcurv_metric_t *metric,
                                  md_t       *md,
                                  bdry_t      *bdryfree,

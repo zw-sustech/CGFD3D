@@ -25,7 +25,6 @@ blk_init(blk_t *blk,
   blk->fd            = (fd_t *)malloc(sizeof(fd_t));
   blk->fdstg         = (fdstg_t *)malloc(sizeof(fdstg_t));
   blk->mympi         = (mympi_t *)malloc(sizeof(mympi_t));
-  blk->gdinfo        = (gdinfo_t *)malloc(sizeof(gdinfo_t));
   blk->gd            = (gd_t        *)malloc(sizeof(gd_t     ));
   blk->gdcurv_metric = (gdcurv_metric_t *)malloc(sizeof(gdcurv_metric_t));
   blk->md            = (md_t      *)malloc(sizeof(md_t     ));
@@ -227,7 +226,7 @@ blk_colcent_mesg_init(mympi_t *mympi,
 
 void
 blk_colcent_pack_mesg(float *restrict w_cur,float *restrict sbuff,
-                 int num_of_vars, gdinfo_t *gdinfo,
+                 int num_of_vars, gd_t *gdinfo,
                  int   fdx_nghosts, int   fdy_nghosts)
 {
   int ni1 = gdinfo->ni1;
@@ -334,7 +333,7 @@ blk_colcent_pack_mesg(float *restrict w_cur,float *restrict sbuff,
 
 void
 blk_colcent_unpack_mesg(float *restrict rbuff,float *restrict w_cur,
-                 int num_of_vars, gdinfo_t *gdinfo,
+                 int num_of_vars, gd_t *gdinfo,
                  int   fdx_nghosts, int   fdy_nghosts)
 {
   int ni1 = gdinfo->ni1;
@@ -575,7 +574,7 @@ blk_macdrp_mesg_init(mympi_t *mympi,
 
 void
 blk_macdrp_pack_mesg(float *restrict w_cur,float *restrict sbuff,
-                 int num_of_vars, gdinfo_t *gdinfo,
+                 int num_of_vars, gd_t *gdinfo,
                  fd_op_t *fdx_op, fd_op_t *fdy_op)
 {
   int ni1 = gdinfo->ni1;
@@ -683,7 +682,7 @@ blk_macdrp_pack_mesg(float *restrict w_cur,float *restrict sbuff,
 
 void
 blk_macdrp_unpack_mesg(float *restrict rbuff,float *restrict w_cur,
-                 int num_of_vars, gdinfo_t *gdinfo,
+                 int num_of_vars, gd_t *gdinfo,
                  fd_op_t *fdx_op, fd_op_t *fdy_op,
                  size_t siz_x1, size_t siz_x2, size_t siz_y1, size_t siz_y2,
                  int *neighid)
@@ -924,7 +923,7 @@ blk_stg_el1st_mesg_init(mympi_t *mympi,
 }
 
 void
-blk_stg_el1st_pack_mesg_stress(fdstg_t *fd, gdinfo_t *gdinfo, wav_t *wav,
+blk_stg_el1st_pack_mesg_stress(fdstg_t *fd, gd_t *gdinfo, wav_t *wav,
       float *restrict sbuff)
 {
   int ni1 = gdinfo->ni1;
@@ -1274,7 +1273,7 @@ blk_stg_el1st_pack_mesg_stress(fdstg_t *fd, gdinfo_t *gdinfo, wav_t *wav,
 }
 
 void
-blk_stg_el1st_unpack_mesg_stress(fdstg_t *fd,mympi_t *mympi, gdinfo_t *gdinfo, wav_t *wav,
+blk_stg_el1st_unpack_mesg_stress(fdstg_t *fd,mympi_t *mympi, gd_t *gdinfo, wav_t *wav,
     float *restrict rbuff, size_t siz_rbuff)
 {
   int ni1 = gdinfo->ni1;
@@ -1713,7 +1712,7 @@ blk_stg_el1st_unpack_mesg_stress(fdstg_t *fd,mympi_t *mympi, gdinfo_t *gdinfo, w
 
 void
 blk_stg_el1st_pack_mesg_vel(fdstg_t *fd, 
-            gdinfo_t *gdinfo, wav_t *wav, float *restrict sbuff)
+            gd_t *gdinfo, wav_t *wav, float *restrict sbuff)
 {
   int ni1 = gdinfo->ni1;
   int ni2 = gdinfo->ni2;
@@ -1935,7 +1934,7 @@ blk_stg_el1st_pack_mesg_vel(fdstg_t *fd,
 }
 
 void
-blk_stg_el1st_unpack_mesg_vel(fdstg_t *fd,mympi_t *mympi, gdinfo_t *gdinfo, wav_t *wav,
+blk_stg_el1st_unpack_mesg_vel(fdstg_t *fd,mympi_t *mympi, gd_t *gdinfo, wav_t *wav,
       float *restrict rbuff, size_t siz_rbuff)
 {
   int ni1 = gdinfo->ni1;
@@ -2331,7 +2330,7 @@ blk_stg_ac_mesg_init(mympi_t *mympi,
 }
 
 void
-blk_stg_ac1st_pack_mesg_pressure(fdstg_t *fd, gdinfo_t *gdinfo, wav_t *wav,
+blk_stg_ac1st_pack_mesg_pressure(fdstg_t *fd, gd_t *gdinfo, wav_t *wav,
       float *restrict sbuff)
 {
   int ni1 = gdinfo->ni1;
@@ -2428,7 +2427,7 @@ blk_stg_ac1st_pack_mesg_pressure(fdstg_t *fd, gdinfo_t *gdinfo, wav_t *wav,
 }
 
 void
-blk_stg_ac1st_unpack_mesg_pressure(fdstg_t *fd,mympi_t *mympi, gdinfo_t *gdinfo, wav_t *wav,
+blk_stg_ac1st_unpack_mesg_pressure(fdstg_t *fd,mympi_t *mympi, gd_t *gdinfo, wav_t *wav,
     float *restrict rbuff, size_t siz_rbuff)
 {
   int ni1 = gdinfo->ni1;
@@ -2581,7 +2580,7 @@ blk_stg_ac1st_unpack_mesg_pressure(fdstg_t *fd,mympi_t *mympi, gdinfo_t *gdinfo,
 
 void
 blk_stg_ac1st_pack_mesg_vel(fdstg_t *fd, 
-            gdinfo_t *gdinfo, wav_t *wav, float *restrict sbuff)
+            gd_t *gdinfo, wav_t *wav, float *restrict sbuff)
 {
   int ni1 = gdinfo->ni1;
   int ni2 = gdinfo->ni2;
@@ -2680,7 +2679,7 @@ blk_stg_ac1st_pack_mesg_vel(fdstg_t *fd,
 }
 
 void
-blk_stg_ac1st_unpack_mesg_vel(fdstg_t *fd,mympi_t *mympi, gdinfo_t *gdinfo, wav_t *wav,
+blk_stg_ac1st_unpack_mesg_vel(fdstg_t *fd,mympi_t *mympi, gd_t *gdinfo, wav_t *wav,
       float *restrict rbuff, size_t siz_rbuff)
 {
   int ni1 = gdinfo->ni1;
@@ -2838,7 +2837,7 @@ blk_stg_ac1st_unpack_mesg_vel(fdstg_t *fd,mympi_t *mympi, gdinfo_t *gdinfo, wav_
  *********************************************************************/
 
 int
-blk_dt_esti_curv(gdinfo_t *gdinfo, gd_t *gdcurv, md_t *md,
+blk_dt_esti_curv(gd_t *gdcurv, md_t *md,
     float CFL, float *dtmax, float *dtmaxVp, float *dtmaxL,
     int *dtmaxi, int *dtmaxj, int *dtmaxk)
 {
@@ -2851,13 +2850,13 @@ blk_dt_esti_curv(gdinfo_t *gdinfo, gd_t *gdcurv, md_t *md,
   float *restrict y3d = gdcurv->y3d;
   float *restrict z3d = gdcurv->z3d;
 
-  for (int k = gdinfo->nk1; k <= gdinfo->nk2; k++)
+  for (int k = gdcurv->nk1; k <= gdcurv->nk2; k++)
   {
-    for (int j = gdinfo->nj1; j <= gdinfo->nj2; j++)
+    for (int j = gdcurv->nj1; j <= gdcurv->nj2; j++)
     {
-      for (int i = gdinfo->ni1; i <= gdinfo->ni2; i++)
+      for (int i = gdcurv->ni1; i <= gdcurv->ni2; i++)
       {
-        size_t iptr = i + j * gdinfo->siz_iy + k * gdinfo->siz_iz;
+        size_t iptr = i + j * gdcurv->siz_iy + k * gdcurv->siz_iz;
 
         if (md->medium_type == CONST_MEDIUM_ELASTIC_ISO) {
           Vp = sqrt( (md->lambda[iptr] + 2.0 * md->mu[iptr]) / md->rho[iptr] );
@@ -2882,12 +2881,12 @@ blk_dt_esti_curv(gdinfo_t *gdinfo, gd_t *gdcurv, md_t *md,
               if (ii != 0 && jj !=0 && kk != 0)
               {
                 float p1[] = { x3d[iptr-ii], y3d[iptr-ii], z3d[iptr-ii] };
-                float p2[] = { x3d[iptr-jj*gdinfo->siz_iy],
-                               y3d[iptr-jj*gdinfo->siz_iy],
-                               z3d[iptr-jj*gdinfo->siz_iy] };
-                float p3[] = { x3d[iptr-kk*gdinfo->siz_iz],
-                               y3d[iptr-kk*gdinfo->siz_iz],
-                               z3d[iptr-kk*gdinfo->siz_iz] };
+                float p2[] = { x3d[iptr-jj*gdcurv->siz_iy],
+                               y3d[iptr-jj*gdcurv->siz_iy],
+                               z3d[iptr-jj*gdcurv->siz_iy] };
+                float p3[] = { x3d[iptr-kk*gdcurv->siz_iz],
+                               y3d[iptr-kk*gdcurv->siz_iz],
+                               z3d[iptr-kk*gdcurv->siz_iz] };
 
                 float L = fdlib_math_dist_point2plane(p0, p1, p2, p3);
 
@@ -2920,7 +2919,7 @@ blk_dt_esti_curv(gdinfo_t *gdinfo, gd_t *gdcurv, md_t *md,
 }
 
 int
-blk_dt_esti_cart(gdinfo_t *gdinfo, gd_t *gdcart, md_t *md,
+blk_dt_esti_cart(gd_t *gdcart, md_t *md,
     float CFL, float *dtmax, float *dtmaxVp, float *dtmaxL,
     int *dtmaxi, int *dtmaxj, int *dtmaxk)
 {
@@ -2941,13 +2940,13 @@ blk_dt_esti_cart(gdinfo_t *gdinfo, gd_t *gdcart, md_t *md,
 
   float dtLe = fdlib_math_dist_point2plane(p0, p1, p2, p3);
 
-  for (int k = gdinfo->nk1; k <= gdinfo->nk2; k++)
+  for (int k = gdcart->nk1; k <= gdcart->nk2; k++)
   {
-    for (int j = gdinfo->nj1; j <= gdinfo->nj2; j++)
+    for (int j = gdcart->nj1; j <= gdcart->nj2; j++)
     {
-      for (int i = gdinfo->ni1; i <= gdinfo->ni2; i++)
+      for (int i = gdcart->ni1; i <= gdcart->ni2; i++)
       {
-        size_t iptr = i + j * gdinfo->siz_iy + k * gdinfo->siz_iz;
+        size_t iptr = i + j * gdcart->siz_iy + k * gdcart->siz_iz;
 
         if (md->medium_type == CONST_MEDIUM_ELASTIC_ISO) {
           Vp = sqrt( (md->lambda[iptr] + 2.0 * md->mu[iptr]) / md->rho[iptr] );

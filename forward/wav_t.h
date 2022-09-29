@@ -1,7 +1,7 @@
 #ifndef WF_EL_1ST_H
 #define WF_EL_1ST_H
 
-#include "gd_info.h"
+#include "gd_t.h"
 
 /*************************************************
  * structure
@@ -84,7 +84,7 @@ struct var5d_t
  *************************************************/
 
 int 
-wav_init(gdinfo_t *gdinfo,
+wav_init(gd_t *gdinfo,
                wav_t *V,
                int number_of_levels);
 
@@ -92,15 +92,15 @@ int
 wav_check_value(float *restrict w, wav_t *wav);
 
 int
-wav_zero_edge(gdinfo_t *gdinfo, wav_t *wav,
+wav_zero_edge(gd_t *gdinfo, wav_t *wav,
                                   float *restrict w4d);
 
 int 
-wav_ac_init(gdinfo_t *gdinfo,
+wav_ac_init(gd_t *gdinfo,
                wav_t *V,
                int number_of_levels);
 
 int
-PG_calcu(float *w_end, float *w_pre, gdinfo_t *gdinfo, float *PG, float *Dis_accu, float dt);
+PG_calcu(float *w_end, float *w_pre, gd_t *gdinfo, float *PG, float *Dis_accu, float dt);
 
 #endif

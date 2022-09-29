@@ -26,7 +26,7 @@
 void
 drv_rk_curv_col_allstep(
   fd_t            *fd,
-  gdinfo_t        *gdinfo,
+  gd_t        *gd,
   gdcurv_metric_t *metric,
   md_t      *md,
   src_t     *src,
@@ -83,7 +83,7 @@ drv_rk_curv_col_allstep(
   if (myid==0 && verbose>0) fprintf(stdout,"prepare slice nc output ...\n"); 
   ioslice_nc_t ioslice_nc;
   io_slice_nc_create(ioslice, wav->ncmp, wav->cmp_name,
-                     gdinfo->ni, gdinfo->nj, gdinfo->nk, topoid,
+                     gd->ni, gd->nj, gd->nk, topoid,
                      &ioslice_nc);
 
   // create snapshot nc output files
@@ -124,23 +124,23 @@ drv_rk_curv_col_allstep(
   float *Dis_accu = NULL;
   if (bdry->is_sides_free[CONST_NDIM-1][1] == 1)
   {
-    PG = (float *) fdlib_mem_calloc_1d_float(CONST_NDIM_5*gdinfo->ny*gdinfo->nx,0.0,"PG malloc");
-    Dis_accu = (float *) fdlib_mem_calloc_1d_float(CONST_NDIM*gdinfo->ny*gdinfo->nx,0.0,"Dis_accu malloc");
+    PG = (float *) fdlib_mem_calloc_1d_float(CONST_NDIM_5*gd->ny*gd->nx,0.0,"PG malloc");
+    Dis_accu = (float *) fdlib_mem_calloc_1d_float(CONST_NDIM*gd->ny*gd->nx,0.0,"Dis_accu malloc");
   }
   // calculate conversion matrix for free surface
   if (bdry->is_sides_free[CONST_NDIM-1][1] == 1)
   {
     if (md->medium_type == CONST_MEDIUM_ELASTIC_ISO)
     {
-      sv_curv_col_el_iso_dvh2dvz(gdinfo,metric,md,bdry,verbose);
+      sv_curv_col_el_iso_dvh2dvz(gd,metric,md,bdry,verbose);
     }
     else if (md->medium_type == CONST_MEDIUM_ELASTIC_VTI)
     {
-      sv_curv_col_el_vti_dvh2dvz(gdinfo,metric,md,bdry,verbose);
+      sv_curv_col_el_vti_dvh2dvz(gd,metric,md,bdry,verbose);
     }
     else if (md->medium_type == CONST_MEDIUM_ELASTIC_ANISO)
     {
-      sv_curv_col_el_aniso_dvh2dvz(gdinfo,metric,md,bdry,verbose);
+      sv_curv_col_el_aniso_dvh2dvz(gd,metric,md,bdry,verbose);
     }
     else
     {
@@ -224,7 +224,7 @@ drv_rk_curv_col_allstep(
         case CONST_MEDIUM_ELASTIC_ISO : {
           sv_curv_col_el_iso_onestage(
               w_cur,w_rhs,wav,
-              gdinfo, metric, md, bdry, src,
+              gd, metric, md, bdry, src,
               fd->num_of_fdx_op, fd->pair_fdx_op[ipair][istage],
               fd->num_of_fdy_op, fd->pair_fdy_op[ipair][istage],
               fd->num_of_fdz_op, fd->pair_fdz_op[ipair][istage],
@@ -237,7 +237,7 @@ drv_rk_curv_col_allstep(
         case CONST_MEDIUM_ELASTIC_ANISO : {
           sv_curv_col_el_aniso_onestage(
               w_cur,w_rhs,wav,
-              gdinfo, metric, md, bdry, src,
+              gd, metric, md, bdry, src,
               fd->num_of_fdx_op, fd->pair_fdx_op[ipair][istage],
               fd->num_of_fdy_op, fd->pair_fdy_op[ipair][istage],
               fd->num_of_fdz_op, fd->pair_fdz_op[ipair][istage],
@@ -250,7 +250,7 @@ drv_rk_curv_col_allstep(
         case CONST_MEDIUM_ELASTIC_VTI : {
           sv_curv_col_el_vti_onestage(
               w_cur,w_rhs,wav,
-              gdinfo, metric, md, bdry, src,
+              gd, metric, md, bdry, src,
               fd->num_of_fdx_op, fd->pair_fdx_op[ipair][istage],
               fd->num_of_fdy_op, fd->pair_fdy_op[ipair][istage],
               fd->num_of_fdz_op, fd->pair_fdz_op[ipair][istage],
@@ -277,11 +277,11 @@ drv_rk_curv_col_allstep(
 
         // apply Qs
         //if (md->visco_type == CONST_VISCO_GRAVES_QS) {
-        //  sv_curv_graves_Qs(w_tmp, wave->ncmp, gdinfo, md);
+        //  sv_curv_graves_Qs(w_tmp, wave->ncmp, gd, md);
         //}
 
         // pack and isend
-        blk_macdrp_pack_mesg(w_tmp, sbuff, wav->ncmp, gdinfo,
+        blk_macdrp_pack_mesg(w_tmp, sbuff, wav->ncmp, gd,
                          &(fd->pair_fdx_op[ipair_mpi][istage_mpi][fd->num_of_fdx_op-1]),
                          &(fd->pair_fdy_op[ipair_mpi][istage_mpi][fd->num_of_fdy_op-1]));
 
@@ -333,11 +333,11 @@ drv_rk_curv_col_allstep(
 
         // apply Qs
         //if (md->visco_type == CONST_VISCO_GRAVES_QS) {
-        //  sv_curv_graves_Qs(w_tmp, wave->ncmp, gdinfo, md);
+        //  sv_curv_graves_Qs(w_tmp, wave->ncmp, gd, md);
         //}
 
         // pack and isend
-        blk_macdrp_pack_mesg(w_tmp, sbuff, wav->ncmp, gdinfo,
+        blk_macdrp_pack_mesg(w_tmp, sbuff, wav->ncmp, gd,
                          &(fd->pair_fdx_op[ipair_mpi][istage_mpi][fd->num_of_fdx_op-1]),
                          &(fd->pair_fdy_op[ipair_mpi][istage_mpi][fd->num_of_fdy_op-1]));
 
@@ -388,11 +388,11 @@ drv_rk_curv_col_allstep(
 
         // apply Qs
         if (md->visco_type == CONST_VISCO_GRAVES_QS) {
-          sv_curv_col_el_graves_Qs(w_end, wav->ncmp, dt, gdinfo, md);
+          sv_curv_col_el_graves_Qs(w_end, wav->ncmp, dt, gd, md);
         }
         
         // pack and isend
-        blk_macdrp_pack_mesg(w_end, sbuff, wav->ncmp, gdinfo,
+        blk_macdrp_pack_mesg(w_end, sbuff, wav->ncmp, gd,
                          &(fd->pair_fdx_op[ipair_mpi][istage_mpi][fd->num_of_fdx_op-1]),
                          &(fd->pair_fdy_op[ipair_mpi][istage_mpi][fd->num_of_fdy_op-1]));
 
@@ -418,7 +418,7 @@ drv_rk_curv_col_allstep(
       MPI_Waitall(num_of_r_reqs, mympi->pair_r_reqs[ipair_mpi][istage_mpi], MPI_STATUS_IGNORE);
 
       if (istage != num_rk_stages-1) {
-        blk_macdrp_unpack_mesg(rbuff, w_tmp,  wav->ncmp, gdinfo,
+        blk_macdrp_unpack_mesg(rbuff, w_tmp,  wav->ncmp, gd,
                          &(fd->pair_fdx_op[ipair_mpi][istage_mpi][fd->num_of_fdx_op-1]),
                          &(fd->pair_fdy_op[ipair_mpi][istage_mpi][fd->num_of_fdy_op-1]),
                          mympi->pair_siz_rbuff_x1[ipair_mpi][istage_mpi],
@@ -427,7 +427,7 @@ drv_rk_curv_col_allstep(
                          mympi->pair_siz_rbuff_y2[ipair_mpi][istage_mpi],
                          mympi->neighid);
      } else {
-        blk_macdrp_unpack_mesg(rbuff, w_end,  wav->ncmp, gdinfo,
+        blk_macdrp_unpack_mesg(rbuff, w_end,  wav->ncmp, gd,
                          &(fd->pair_fdx_op[ipair_mpi][istage_mpi][fd->num_of_fdx_op-1]),
                          &(fd->pair_fdy_op[ipair_mpi][istage_mpi][fd->num_of_fdy_op-1]),
                          mympi->pair_siz_rbuff_x1[ipair_mpi][istage_mpi],
@@ -460,7 +460,7 @@ drv_rk_curv_col_allstep(
     // calculate PGV,PGA,PGD for each surface at each stage
     if (bdry->is_sides_free[CONST_NDIM-1][1] == 1)
     {
-        PG_calcu(w_end, w_pre, gdinfo, PG, Dis_accu, dt);
+        PG_calcu(w_end, w_pre, gd, PG, Dis_accu, dt);
     }
 
     //-- recv by interp
@@ -470,15 +470,15 @@ drv_rk_curv_col_allstep(
     io_line_keep(ioline, w_end, it, wav->ncmp, wav->siz_icmp);
 
     // write slice, use w_rhs as buff
-    io_slice_nc_put(ioslice,&ioslice_nc,gdinfo,w_end,w_rhs,it,t_end,0,wav->ncmp-1);
+    io_slice_nc_put(ioslice,&ioslice_nc,gd,w_end,w_rhs,it,t_end,0,wav->ncmp-1);
 
     // snapshot
 
-    io_snap_nc_put(iosnap, &iosnap_nc, gdinfo, md, wav, 
+    io_snap_nc_put(iosnap, &iosnap_nc, gd, md, wav, 
                      w_end, w_rhs, nt_total, it, t_end, 1,1,1);
 
     // zero temp used w_rsh
-    wav_zero_edge(gdinfo, wav, w_rhs);
+    wav_zero_edge(gd, wav, w_rhs);
 
     // debug output
     if (output_all==1)
@@ -489,10 +489,10 @@ drv_rk_curv_col_allstep(
                            wav->cmp_pos,
                            wav->cmp_name,
                            wav->ncmp,
-                           gdinfo->index_name,
-                           gdinfo->nx,
-                           gdinfo->ny,
-                           gdinfo->nz);
+                           gd->index_name,
+                           gd->nx,
+                           gd->ny,
+                           gd->nz);
     }
 
     // swap w_pre and w_end, avoid copying
@@ -515,7 +515,7 @@ drv_rk_curv_col_allstep(
   // postproc
   if (bdry->is_sides_free[CONST_NDIM-1][1] == 1)
   {
-    PG_slice_output(PG,gdinfo,output_dir, output_fname_part,topoid);
+    PG_slice_output(PG,gd,output_dir, output_fname_part,topoid);
   }
   // close nc
   io_slice_nc_close(&ioslice_nc);

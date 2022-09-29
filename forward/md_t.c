@@ -14,7 +14,7 @@
 #include "md_t.h"
 
 int
-md_init(gdinfo_t *gdinfo, md_t *md, int media_type, int visco_type)
+md_init(gd_t *gdinfo, md_t *md, int media_type, int visco_type)
 {
   int ierr = 0;
 
@@ -270,7 +270,7 @@ md_import(md_t *md, char *fname_coords, char *in_dir)
 }
 
 int
-md_export(gdinfo_t  *gdinfo,
+md_export(gd_t  *gdinfo,
                  md_t *md,
                  char *fname_coords,
                  char *output_dir)

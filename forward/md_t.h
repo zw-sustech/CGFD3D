@@ -1,7 +1,7 @@
 #ifndef MD_EL_ISO_H
 #define MD_EL_ISO_H
 
-#include "gd_info.h"
+#include "gd_t.h"
 
 /*************************************************
  * structure
@@ -68,13 +68,13 @@ typedef struct {
  *************************************************/
 
 int
-md_init(gdinfo_t *gdinfo, md_t *md, int media_type, int visco_type);
+md_init(gd_t *gdinfo, md_t *md, int media_type, int visco_type);
 
 int
 md_import(md_t *md, char *fname_coords, char *in_dir);
 
 int
-md_export(gdinfo_t  *gdinfo,
+md_export(gd_t  *gdinfo,
                  md_t *md,
                  char *fname_coords,
                  char *output_dir);

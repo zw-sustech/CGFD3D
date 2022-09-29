@@ -1,7 +1,6 @@
 #ifndef SV_CURV_COL_ISO_H
 #define SV_CURV_COL_ISO_H
 
-#include "gd_info.h"
 #include "gd_t.h"
 #include "md_t.h"
 #include "src_t.h"
@@ -45,6 +44,6 @@ sv_curv_col_el_rhs_srcdd(
     const int myid, const int verbose);
 
 int
-sv_curv_col_el_graves_Qs(float *w, int ncmp, float dt, gdinfo_t *gdinfo, md_t *md);
+sv_curv_col_el_graves_Qs(float *w, int ncmp, float dt, gd_t *gdinfo, md_t *md);
 
 #endif

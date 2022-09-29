@@ -2,7 +2,6 @@
 #define IO_FUNCS_H
 
 #include "constants.h"
-#include "gd_info.h"
 #include "gd_t.h"
 #include "io_funcs.h"
 #include "md_t.h"
@@ -184,7 +183,7 @@ io_var3d_export_nc(char   *ou_file,
                    int  nz);
 
 int
-io_recv_read_locate(gdinfo_t *gdinfo,
+io_recv_read_locate(
                     gd_t *gd,
                     iorecv_t  *iorecv,
                     int       nt_total,
@@ -195,7 +194,7 @@ io_recv_read_locate(gdinfo_t *gdinfo,
                     int       verbose);
 
 int
-io_line_locate(gdinfo_t *gdinfo,
+io_line_locate(
                gd_t *gd,
                ioline_t *ioline,
                int    num_of_vars,
@@ -207,7 +206,7 @@ io_line_locate(gdinfo_t *gdinfo,
                char **receiver_line_name);
 
 int
-io_slice_locate(gdinfo_t  *gdinfo,
+io_slice_locate(gd_t  *gdinfo,
                 ioslice_t *ioslice,
                 int  number_of_slice_x,
                 int  number_of_slice_y,
@@ -219,7 +218,7 @@ io_slice_locate(gdinfo_t  *gdinfo,
                 char *output_dir);
 
 void
-io_snapshot_locate(gdinfo_t *gdinfo,
+io_snapshot_locate(gd_t *gdinfo,
                    iosnap_t *iosnap,
                     int  number_of_snapshot,
                     char **snapshot_name,
@@ -246,7 +245,7 @@ io_snap_nc_create(iosnap_t *iosnap, iosnap_nc_t *iosnap_nc, int *topoid);
 int
 io_slice_nc_put(ioslice_t    *ioslice,
                 ioslice_nc_t *ioslice_nc,
-                gdinfo_t     *gdinfo,
+                gd_t     *gdinfo,
                 float *restrict w4d,
                 float *restrict buff,
                 int   it,
@@ -257,7 +256,7 @@ io_slice_nc_put(ioslice_t    *ioslice,
 int
 io_snap_nc_put(iosnap_t *iosnap,
                iosnap_nc_t *iosnap_nc,
-               gdinfo_t    *gdinfo,
+               gd_t    *gdinfo,
                md_t    *md,
                wav_t   *wav,
                float *restrict w4d,
@@ -275,7 +274,7 @@ io_snap_nc_create_ac(iosnap_t *iosnap, iosnap_nc_t *iosnap_nc, int *topoid);
 int
 io_snap_nc_put_ac(iosnap_t *iosnap,
                iosnap_nc_t *iosnap_nc,
-               gdinfo_t    *gdinfo,
+               gd_t    *gdinfo,
                wav_t   *wav,
                float *restrict w4d,
                float *restrict buff,
@@ -402,7 +401,7 @@ int
 iorecv_print(iorecv_t *iorecv);
 
 int
-PG_slice_output(float *PG,  gdinfo_t *gdinfo, char *output_dir, char *frame_coords, int* topoid);
+PG_slice_output(float *PG,  gd_t *gdinfo, char *output_dir, char *frame_coords, int* topoid);
 
 int
 io_get_nextline(FILE *fp, char *str, int length);

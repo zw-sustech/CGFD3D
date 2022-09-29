@@ -4,7 +4,6 @@
 #include <mpi.h>
 
 #include "constants.h"
-#include "gd_info.h"
 #include "gd_t.h"
 
 // cal force_vec_stf/moment_ten_rate 1d index for icmp,it,istage
@@ -104,7 +103,7 @@ typedef struct {
  *************************************************/
 
 int
-src_coord_to_glob_indx(gdinfo_t *gdinfo,
+src_coord_to_glob_indx(
                        gd_t *gdcurv,
                        float sx,
                        float sy,
@@ -116,10 +115,10 @@ src_coord_to_glob_indx(gdinfo_t *gdinfo,
                        float *restrict wrk3d);
 
 int
-src_glob_ext_ishere(int si, int sj, int sk, int half_ext, gdinfo_t *gdinfo);
+src_glob_ext_ishere(int si, int sj, int sk, int half_ext, gd_t *gdinfo);
 
 int
-src_coord_to_local_indx(gdinfo_t *gdinfo,
+src_coord_to_local_indx(
                         gd_t *gdcurv,
                         float sx, float sy, float sz,
                         int *si, int *sj, int *sk,
@@ -127,7 +126,7 @@ src_coord_to_local_indx(gdinfo_t *gdinfo,
                         float *restrict wrk3d);
 
 int
-src_read_locate_file(gdinfo_t *gdinfo,
+src_read_locate_file(
                      gd_t     *gd,
                      src_t    *src,
                      float    *restrict mu3d,
@@ -142,7 +141,7 @@ src_read_locate_file(gdinfo_t *gdinfo,
                      int       verbose);
 
 int
-src_dd_read2local(gdinfo_t *gdinfo,
+src_dd_read2local(
                      gd_t     *gd,
                      src_t    *src,
                      char     *in_file,

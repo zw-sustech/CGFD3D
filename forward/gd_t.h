@@ -4,7 +4,7 @@
 #include <mpi.h>
 
 #include "constants.h"
-#include "gd_info.h"
+#include "mympi_t.h"
 
 #define GD_TILE_NX 4
 #define GD_TILE_NY 4
@@ -28,8 +28,37 @@ typedef struct {
 
   gd_type_t type;
 
+  int ni;
+  int nj;
+  int nk;
+  int nx;
+  int ny;
+  int nz;
+  int ni1;
+  int ni2;
+  int nj1;
+  int nj2;
+  int nk1;
+  int nk2;
+
+  int npoint_ghosts;
+  int fdx_nghosts;
+  int fdy_nghosts;
+  int fdz_nghosts;
+
+  // global index
+  int gni1, gnj1, gnk1; // global index, do not accout ghost point
+  int gni2, gnj2, gnk2; // global index
+  // new naming
+  int ni1_to_glob_phys0;
+  int nj1_to_glob_phys0;
+  int nk1_to_glob_phys0;
+  int ni2_to_glob_phys0;
+  int nj2_to_glob_phys0;
+  int nk2_to_glob_phys0;
+
   int n1, n2, n3, n4;
-  int nx, ny, nz, ncmp;
+  int ncmp;
   float *v4d; // allocated var
 
   //to avoid ref x3d at different funcs
@@ -84,8 +113,15 @@ typedef struct {
   size_t siz_iz;
   size_t siz_icmp;
 
+  size_t siz_line;
+  size_t siz_slice;
+  size_t siz_volume; // number of points per var
+
   size_t *cmp_pos;
   char  **cmp_name;
+
+  // curvilinear coord name,
+  char **index_name;
 } gd_t;
 
 //  default means coordinate
@@ -143,25 +179,24 @@ typedef struct {
  *************************************************/
 
 void 
-gd_curv_init(gdinfo_t *gdinfo, gd_t *gdcurv);
+gd_curv_init(gd_t *gdcurv);
 
 void 
-gd_curv_metric_init(gdinfo_t        *gdinfo,
+gd_curv_metric_init(gd_t        *gdinfo,
                     gdcurv_metric_t *metric);
 void
-gd_curv_metric_cal(gdinfo_t        *gdinfo,
+gd_curv_metric_cal(
                    gd_t        *gdcurv,
                    gdcurv_metric_t *metric,
                    int fd_len, int *restrict fd_indx, float *restrict fd_coef);
 void
-gd_curv_metric_exchange(gdinfo_t        *gdinfo,
+gd_curv_metric_exchange(gd_t        *gdinfo,
                         gdcurv_metric_t *metric,
                         int             *neighid,
                         MPI_Comm        topocomm);
 
 void
 gd_curv_gen_cart(
-  gdinfo_t *gdinfo,
   gd_t *gdcurv,
   float dx, float x0,
   float dy, float y0,
@@ -175,20 +210,18 @@ gd_curv_coord_import(gd_t *gdcurv, char *fname_coords, char *import_dir);
 
 void
 gd_curv_coord_export(
-  gdinfo_t *gdinfo,
   gd_t *gdcurv,
   char *fname_coords,
   char *output_dir);
 
 void
 gd_cart_coord_export(
-  gdinfo_t *gdinfo,
   gd_t *gdcart,
   char *fname_coords,
   char *output_dir);
 
 void
-gd_curv_metric_export(gdinfo_t        *gdinfo,
+gd_curv_metric_export(gd_t        *gdinfo,
                       gdcurv_metric_t *metric,
                       char *fname_coords,
                       char *output_dir);
@@ -224,16 +257,16 @@ int gd_SPLine( int n, int end1, int end2,
 void gd_SPL(int n, float *x, float *y, int ni, float *xi, float *yi);
 
 void
-gd_curv_set_minmax(gdinfo_t *gdinfo, gd_t *gdcurv);
+gd_curv_set_minmax(gd_t *gdcurv);
 
 void 
-gd_cart_init_set(gdinfo_t *gdinfo, gd_t *gdcart,
+gd_cart_init_set(gd_t *gdcart,
   float dx, float x0_glob,
   float dy, float y0_glob,
   float dz, float z0_glob);
 
 int
-gd_cart_coord_to_glob_indx(gdinfo_t *gdinfo,
+gd_cart_coord_to_glob_indx(
                            gd_t *gdcart,
                            float sx,
                            float sy,
@@ -244,7 +277,7 @@ gd_cart_coord_to_glob_indx(gdinfo_t *gdinfo,
                            float *ou_sx_inc, float *ou_sy_inc, float *ou_sz_inc);
 
 int
-gd_curv_coord_to_glob_indx(gdinfo_t *gdinfo,
+gd_curv_coord_to_glob_indx(
                            gd_t *gdcurv,
                            float sx,
                            float sy,
@@ -256,7 +289,7 @@ gd_curv_coord_to_glob_indx(gdinfo_t *gdinfo,
 
 
 int
-gd_curv_coord_to_local_indx(gdinfo_t *gdinfo,
+gd_curv_coord_to_local_indx(
                         gd_t *gd,
                         float sx, float sy, float sz,
                         int *si, int *sj, int *sk,
@@ -305,7 +338,7 @@ gd_curv_coord2index_rdinterp(float sx, float sy, float sz,
     float *sk_curv);
 
 int
-gd_curv_depth_to_axis(gdinfo_t *gdinfo,
+gd_curv_depth_to_axis(
                       gd_t *gdcurv,
                       float sx,
                       float sy,
@@ -331,5 +364,50 @@ int face_normal(float (*hexa2d)[3], float *normal_unit);
 
 int
 gd_print(gd_t *gd, int verbose);
+
+int
+gd_indx_set(gd_t *const gd,
+            const mympi_t *const mympi,
+            const int number_of_total_grid_points_x,
+            const int number_of_total_grid_points_y,
+            const int number_of_total_grid_points_z,
+                  int abs_num_of_layers[][2],
+            const int fdx_nghosts,
+            int const fdy_nghosts,
+            const int fdz_nghosts,
+            const int verbose);
+
+int
+gd_lindx_is_inner(int i, int j, int k, gd_t *gdinfo);
+
+int
+gd_gindx_is_inner(int gi, int gj, int gk, gd_t *gdinfo);
+
+int
+gd_gindx_is_inner_i(int gi, gd_t *gdinfo);
+
+int
+gd_gindx_is_inner_j(int gj, gd_t *gdinfo);
+
+int
+gd_gindx_is_inner_k(int gk, gd_t *gdinfo);
+
+int
+gd_indx_glphy2lcext_i(int gi, gd_t *gdinfo);
+
+int
+gd_indx_glphy2lcext_j(int gj, gd_t *gdinfo);
+
+int
+gd_indx_glphy2lcext_k(int gk, gd_t *gdinfo);
+
+int
+gd_indx_lcext2glphy_i(int i, gd_t *gdinfo);
+
+int
+gd_indx_lcext2glphy_j(int j, gd_t *gdinfo);
+
+int
+gd_indx_lcext2glphy_k(int k, gd_t *gdinfo);
 
 #endif

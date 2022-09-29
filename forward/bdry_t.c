@@ -47,7 +47,7 @@ bdry_init(bdry_t *bdry, int nx, int ny, int nz)
  */
 
 int
-bdry_free_set(gdinfo_t    *gdinfo,
+bdry_free_set(gd_t    *gd,
               bdry_t      *bdryfree,
               int   *neighid, 
               int   in_is_sides[][2],
@@ -55,7 +55,7 @@ bdry_free_set(gdinfo_t    *gdinfo,
 {
   int ierr = 0;
 
-  size_t siz_slice  = gdinfo->siz_iz;
+  size_t siz_slice  = gd->siz_iz;
 
   // default disable
   bdryfree->is_enable_free = 0;
@@ -101,8 +101,7 @@ bdry_free_set(gdinfo_t    *gdinfo,
 
 
 void
-bdry_pml_set(gdinfo_t *gdinfo,
-             gd_t *gd,
+bdry_pml_set(gd_t *gd,
              wav_t *wav,
              bdry_t *bdrypml,
              int   *neighid, 
@@ -113,17 +112,17 @@ bdry_pml_set(gdinfo_t *gdinfo,
              float in_velocity[][2], //
              int verbose)
 {
-  int    ni1 = gdinfo->ni1;
-  int    ni2 = gdinfo->ni2;
-  int    nj1 = gdinfo->nj1;
-  int    nj2 = gdinfo->nj2;
-  int    nk1 = gdinfo->nk1;
-  int    nk2 = gdinfo->nk2;
-  int    nx  = gdinfo->nx ;
-  int    ny  = gdinfo->ny ;
-  int    nz  = gdinfo->nz ;
-  int    siz_line = gdinfo->siz_iy;
-  int    siz_slice = gdinfo->siz_iz;
+  int    ni1 = gd->ni1;
+  int    ni2 = gd->ni2;
+  int    nj1 = gd->nj1;
+  int    nj2 = gd->nj2;
+  int    nk1 = gd->nk1;
+  int    nk2 = gd->nk2;
+  int    nx  = gd->nx ;
+  int    ny  = gd->ny ;
+  int    nz  = gd->nz ;
+  int    siz_line = gd->siz_iy;
+  int    siz_slice = gd->siz_iz;
 
   // default disable
   bdrypml->is_enable_pml = 0;
@@ -500,8 +499,7 @@ bdry_cal_abl_len_dh(gd_t *gd,
  */
 
 int
-bdry_ablexp_set(gdinfo_t *gdinfo,
-             gd_t *gd,
+bdry_ablexp_set(gd_t *gd,
              wav_t *wav,
              bdry_t *bdry,
              int   *neighid, 
@@ -514,20 +512,20 @@ bdry_ablexp_set(gdinfo_t *gdinfo,
 {
   int    ierr = 0;
 
-  int    ni1 = gdinfo->ni1;
-  int    ni2 = gdinfo->ni2;
-  int    nj1 = gdinfo->nj1;
-  int    nj2 = gdinfo->nj2;
-  int    nk1 = gdinfo->nk1;
-  int    nk2 = gdinfo->nk2;
-  int    ni  = gdinfo->ni ;
-  int    nj  = gdinfo->nj ;
-  int    nk  = gdinfo->nk ;
-  int    nx  = gdinfo->nx ;
-  int    ny  = gdinfo->ny ;
-  int    nz  = gdinfo->nz ;
-  int    siz_line = gdinfo->siz_iy;
-  int    siz_slice = gdinfo->siz_iz;
+  int    ni1 = gd->ni1;
+  int    ni2 = gd->ni2;
+  int    nj1 = gd->nj1;
+  int    nj2 = gd->nj2;
+  int    nk1 = gd->nk1;
+  int    nk2 = gd->nk2;
+  int    ni  = gd->ni ;
+  int    nj  = gd->nj ;
+  int    nk  = gd->nk ;
+  int    nx  = gd->nx ;
+  int    ny  = gd->ny ;
+  int    nz  = gd->nz ;
+  int    siz_line = gd->siz_iy;
+  int    siz_slice = gd->siz_iz;
   int    abs_number[CONST_NDIM][2];
 
   int n;

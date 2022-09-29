@@ -3,7 +3,6 @@
 
 #include "constants.h"
 #include "fd_t.h"
-#include "gd_info.h"
 #include "mympi_t.h"
 #include "gd_t.h"
 #include "md_t.h"
@@ -31,9 +30,6 @@ typedef struct
   // mpi
   mympi_t *mympi;
 
-  // grid index info
-  gdinfo_t *gdinfo;
-  
   // coordnate: x3d, y3d, z3d
   gd_t *gd;
 
@@ -113,12 +109,12 @@ blk_colcent_mesg_init(mympi_t *mympi,
 
 void
 blk_colcent_pack_mesg(float *restrict w_cur,float *restrict sbuff,
-                 int num_of_vars, gdinfo_t *gdinfo,
+                 int num_of_vars, gd_t *gdinfo,
                  int   fdx_nghosts, int   fdy_nghosts);
 
 void
 blk_colcent_unpack_mesg(float *restrict rbuff,float *restrict w_cur,
-                 int num_of_vars, gdinfo_t *gdinfo,
+                 int num_of_vars, gd_t *gdinfo,
                  int   fdx_nghosts, int   fdy_nghosts);
 
 void
@@ -131,12 +127,12 @@ blk_macdrp_mesg_init(mympi_t *mympi,
 
 void
 blk_macdrp_pack_mesg(float *restrict w_cur,float *restrict sbuff,
-                 int num_of_vars, gdinfo_t *gdinfo,
+                 int num_of_vars, gd_t *gdinfo,
                  fd_op_t *fdx_op, fd_op_t *fdy_op);
 
 void
 blk_macdrp_unpack_mesg(float *restrict rbuff,float *restrict w_cur,
-                 int num_of_vars, gdinfo_t *gdinfo,
+                 int num_of_vars, gd_t *gdinfo,
                  fd_op_t *fdx_op, fd_op_t *fdy_op,
                  size_t siz_x1, size_t siz_x2, size_t siz_y1, size_t siz_y2,
                  int *neighid);
@@ -154,18 +150,18 @@ blk_stg_el1st_mesg_init(mympi_t *mympi,
 
 void
 blk_stg_el1st_pack_mesg_stress(fdstg_t *fd, 
-            gdinfo_t *gdinfo, wav_t *wav, float *restrict sbuff);
+            gd_t *gdinfo, wav_t *wav, float *restrict sbuff);
 
 void
-blk_stg_el1st_unpack_mesg_stress(fdstg_t *fd,mympi_t *mympi, gdinfo_t *gdinfo, wav_t *wav,
+blk_stg_el1st_unpack_mesg_stress(fdstg_t *fd,mympi_t *mympi, gd_t *gdinfo, wav_t *wav,
     float *restrict rbuff, size_t siz_rbuff);
 
 void
 blk_stg_el1st_pack_mesg_vel(fdstg_t *fd, 
-            gdinfo_t *gdinfo, wav_t *wav, float *restrict sbuff);
+            gd_t *gdinfo, wav_t *wav, float *restrict sbuff);
 
 void
-blk_stg_el1st_unpack_mesg_vel(fdstg_t *fd,mympi_t *mympi, gdinfo_t *gdinfo, wav_t *wav,
+blk_stg_el1st_unpack_mesg_vel(fdstg_t *fd,mympi_t *mympi, gd_t *gdinfo, wav_t *wav,
       float *restrict rbuff, size_t siz_rbuff);
 
 void
@@ -177,27 +173,27 @@ blk_stg_ac_mesg_init(mympi_t *mympi,
                 int fdy_nghosts);
 
 void
-blk_stg_ac1st_pack_mesg_pressure(fdstg_t *fd, gdinfo_t *gdinfo, wav_t *wav,
+blk_stg_ac1st_pack_mesg_pressure(fdstg_t *fd, gd_t *gdinfo, wav_t *wav,
       float *restrict sbuff);
 
 void
-blk_stg_ac1st_unpack_mesg_pressure(fdstg_t *fd,mympi_t *mympi, gdinfo_t *gdinfo, wav_t *wav,
+blk_stg_ac1st_unpack_mesg_pressure(fdstg_t *fd,mympi_t *mympi, gd_t *gdinfo, wav_t *wav,
     float *restrict rbuff, size_t siz_rbuff);
 
 void
 blk_stg_ac1st_pack_mesg_vel(fdstg_t *fd, 
-            gdinfo_t *gdinfo, wav_t *wav, float *restrict sbuff);
+            gd_t *gdinfo, wav_t *wav, float *restrict sbuff);
 
 void
-blk_stg_ac1st_unpack_mesg_vel(fdstg_t *fd,mympi_t *mympi, gdinfo_t *gdinfo, wav_t *wav,
+blk_stg_ac1st_unpack_mesg_vel(fdstg_t *fd,mympi_t *mympi, gd_t *gdinfo, wav_t *wav,
       float *restrict rbuff, size_t siz_rbuff);
 int
-blk_dt_esti_curv(gdinfo_t *gdinfo, gd_t *gdcurv, md_t *md,
+blk_dt_esti_curv(gd_t *gdcurv, md_t *md,
     float CFL, float *dtmax, float *dtmaxVp, float *dtmaxL,
     int *dtmaxi, int *dtmaxj, int *dtmaxk);
 
 int
-blk_dt_esti_cart(gdinfo_t *gdinfo, gd_t *gdcart, md_t *md,
+blk_dt_esti_cart(gd_t *gdcart, md_t *md,
     float CFL, float *dtmax, float *dtmaxVp, float *dtmaxL,
     int *dtmaxi, int *dtmaxj, int *dtmaxk);
 

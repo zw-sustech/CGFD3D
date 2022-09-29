@@ -58,7 +58,7 @@ main_curv_col_el_3d: \
 		media_bin2model.o \
 		media_geometry3d.o \
 		media_read_file.o \
-		gd_info.o gd_t.o md_t.o wav_t.o \
+		gd_t.o md_t.o wav_t.o \
 		bdry_t.o src_t.o io_funcs.o \
 		blk_t.o \
 		drv_rk_curv_col.o \
@@ -96,8 +96,6 @@ par_t.o: forward/par_t.c
 interp.o: forward/interp.c
 	${CC} -c -o $@ $(CFLAGS) $<
 mympi_t.o: forward/mympi_t.c
-	${CC} -c -o $@ $(CFLAGS) $<
-gd_info.o: forward/gd_info.c
 	${CC} -c -o $@ $(CFLAGS) $<
 gd_t.o: forward/gd_t.c
 	${CC} -c -o $@ $(CFLAGS) $<

@@ -12,7 +12,6 @@
 #include "fdlib_math.h"
 
 #include "fd_t.h"
-#include "gd_info.h"
 #include "mympi_t.h"
 #include "gd_t.h"
 #include "md_t.h"
@@ -538,7 +537,7 @@ sv_curv_col_el_rhs_srcdd(
  ******************************************************************************/
 
 int
-sv_curv_col_el_graves_Qs(float *w, int ncmp, float dt, gdinfo_t *gdinfo, md_t *md)
+sv_curv_col_el_graves_Qs(float *w, int ncmp, float dt, gd_t *gdinfo, md_t *md)
 {
   int ierr = 0;
 

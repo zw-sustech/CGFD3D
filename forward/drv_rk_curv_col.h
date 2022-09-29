@@ -2,7 +2,6 @@
 #define SV_EQ1ST_CURV_COL_H
 
 #include "fd_t.h"
-#include "gd_info.h"
 #include "mympi_t.h"
 #include "gd_t.h"
 #include "md_t.h"
@@ -18,7 +17,7 @@
 void
 drv_rk_curv_col_allstep(
   fd_t            *fd,
-  gdinfo_t        *gdinfo,
+  gd_t        *gdinfo,
   gdcurv_metric_t *metric,
   md_t      *md,
   src_t      *src,
