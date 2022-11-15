@@ -462,8 +462,8 @@ sv_curv_col_el_rhs_srcdd(
         hTxx[iptr] -= dd_mij_pt[0] * rjac;
         hTyy[iptr] -= dd_mij_pt[1] * rjac;
         hTzz[iptr] -= dd_mij_pt[2] * rjac;
-        hTxz[iptr] -= dd_mij_pt[3] * rjac;
-        hTyz[iptr] -= dd_mij_pt[4] * rjac;
+        hTyz[iptr] -= dd_mij_pt[3] * rjac;
+        hTxz[iptr] -= dd_mij_pt[4] * rjac;
         hTxy[iptr] -= dd_mij_pt[5] * rjac;
 
         dd_mij_pt += CONST_NDIM_2;
