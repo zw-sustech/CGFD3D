@@ -201,6 +201,11 @@ void read_interface_file(
                                           &(interfaces->vs[indx]       ),
                                           &(interfaces->vs_grad[indx]  ),
                                           &(interfaces->vs_pow[indx]   ) );
+                        if (interfaces->vp[indx] <= sqrt(2) * interfaces->vs[indx]) {
+                          fprintf(stderr, "Error: vp must larger than sqrt(2)*vs!\n");
+                          fprintf(stderr, "       please check md3lay file %s!\n", interface_file);
+                          fflush(stderr); exit(1);
+                        }
                         if (num_read < 10) {
                             fprintf(stderr, "Error: Insufficient data in %s.\n", interface_file);
                             fflush(stderr);
@@ -903,6 +908,12 @@ void read_grid_file(
                                 fflush(stderr);
                                 exit(1);
                             } 
+                            if (interfaces->vp[indx] <= sqrt(2) * interfaces->vs[indx]) {
+                              fprintf(stderr, "Error: vp must larger than sqrt(2)*vs!\n");
+                              fprintf(stderr, "       please check md3grd file %s!\n", grid_file);
+                              fflush(stderr);
+                              exit(1);
+                            }
                         } else { // read the data no used.
                             float tmp[4];
                             int u = fscanf(tmp_file, "%f %f %f %f\n", tmp, tmp+1, tmp+2, tmp+3);
