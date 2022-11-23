@@ -34,7 +34,8 @@ int media_layer2model_onecmp(float *var3d,
                              size_t nz,
                              int grid_type, 
                              const char *in_var_file,
-                             const char *average_method) // loc, har, ari
+                             const char *average_method,
+                             int myid) // loc, har, ari
 {
     inter_t interfaces;
 
@@ -51,11 +52,11 @@ int media_layer2model_onecmp(float *var3d,
     }
 
     if (strcmp(average_method, "loc") == 0) {
-        parametrization_layer_onecmp_loc(nx, ny, nz, x3d, y3d, z3d, grid_type, interfaces, var3d);
+        parametrization_layer_onecmp_loc(nx, ny, nz, x3d, y3d, z3d, grid_type, interfaces, var3d, myid);
     } else if (strcmp(average_method, "har") == 0) {      // harmonic
-        parametrization_layer_onecmp_har(nx, ny, nz, x3d, y3d, z3d, grid_type, interfaces, var3d);
+        parametrization_layer_onecmp_har(nx, ny, nz, x3d, y3d, z3d, grid_type, interfaces, var3d, myid);
     } else if (strcmp(average_method, "ari") == 0) {      //arithemtic
-        parametrization_layer_onecmp_ari(nx, ny, nz, x3d, y3d, z3d, grid_type, interfaces, var3d);
+        parametrization_layer_onecmp_ari(nx, ny, nz, x3d, y3d, z3d, grid_type, interfaces, var3d, myid);
     } else {                                                        // default = loc
         fprintf(stderr, "Error: Wrong average method %s for one_component. \n", average_method);        
         fflush(stderr);
@@ -78,7 +79,8 @@ int media_layer2model_ac_iso(
         size_t nz,
         int grid_type, 
         const char *in_3lay_file,
-        const char *equivalent_medium_method) 
+        const char *equivalent_medium_method,
+        int myid) 
 {
 
     inter_t interfaces;
@@ -97,13 +99,13 @@ int media_layer2model_ac_iso(
 
     if (strcmp(equivalent_medium_method, "loc") == 0) {
         parametrization_layer_ac_iso_loc(nx, ny, nz, x3d, y3d, z3d, grid_type, 
-            interfaces, kappa3d, rho3d);
+            interfaces, kappa3d, rho3d, myid);
     } else if (strcmp(equivalent_medium_method, "ari") == 0 ) {
         parametrization_layer_ac_iso_ari(nx, ny, nz, x3d, y3d, z3d, grid_type, 
-            interfaces, kappa3d, rho3d);
+            interfaces, kappa3d, rho3d, myid);
     } else if (strcmp(equivalent_medium_method, "har") == 0 ) {
         parametrization_layer_ac_iso_har(nx, ny, nz, x3d, y3d, z3d, grid_type, 
-            interfaces, kappa3d, rho3d);
+            interfaces, kappa3d, rho3d, myid);
     } else { 
         fprintf(stderr, "Error: Wrong average method %s for acoustic_isotropic media. \n",
                  equivalent_medium_method);        
@@ -128,7 +130,8 @@ int media_layer2model_el_iso(
         size_t nz,
         int grid_type, 
         const char *in_3lay_file,
-        const char *equivalent_medium_method) // 
+        const char *equivalent_medium_method,
+        int myid) // 
 {
 
     inter_t interfaces;
@@ -147,13 +150,13 @@ int media_layer2model_el_iso(
 
     if (strcmp(equivalent_medium_method, "loc") == 0) {
         parametrization_layer_el_iso_loc(nx, ny, nz, x3d, y3d, z3d, grid_type, 
-            interfaces, lam3d, mu3d, rho3d);
+            interfaces, lam3d, mu3d, rho3d, myid);
     } else if (strcmp(equivalent_medium_method, "har") == 0) {
         parametrization_layer_el_iso_har(nx, ny, nz, x3d, y3d, z3d, grid_type, 
-            interfaces, lam3d, mu3d, rho3d);
+            interfaces, lam3d, mu3d, rho3d, myid);
     } else if (strcmp(equivalent_medium_method, "ari") == 0) {
         parametrization_layer_el_iso_ari(nx, ny, nz, x3d, y3d, z3d, grid_type, 
-            interfaces, lam3d, mu3d, rho3d);
+            interfaces, lam3d, mu3d, rho3d, myid);
     } else { //default
         fprintf(stderr,"Error: Wrong parametrization method %s in media_layer2model_el_iso(), " \
                        "       if you want to use tti equivalent medium method, " \
@@ -182,7 +185,8 @@ int media_layer2model_el_vti(
         size_t nz,
         int grid_type, 
         const char *in_3lay_file, 
-        const char *equivalent_medium_method) 
+        const char *equivalent_medium_method,
+        int myid) 
 {
 
     inter_t interfaces;
@@ -203,13 +207,13 @@ int media_layer2model_el_vti(
 
     if (strcmp(equivalent_medium_method, "loc") == 0) {
         parametrization_layer_el_vti_loc(nx, ny, nz, x3d, y3d, z3d, grid_type, 
-            interfaces, c11, c33, c55, c66, c13, rho);
+            interfaces, c11, c33, c55, c66, c13, rho, myid);
     } else if (strcmp(equivalent_medium_method, "har") == 0) {
         parametrization_layer_el_vti_har(nx, ny, nz, x3d, y3d, z3d, grid_type, 
-            interfaces, c11, c33, c55, c66, c13, rho);
+            interfaces, c11, c33, c55, c66, c13, rho, myid);
     } else if (strcmp(equivalent_medium_method, "ari") == 0) {
         parametrization_layer_el_vti_ari(nx, ny, nz, x3d, y3d, z3d, grid_type, 
-            interfaces, c11, c33, c55, c66, c13, rho);
+            interfaces, c11, c33, c55, c66, c13, rho, myid);
     } else { //default
         fprintf(stderr,"Error: Wrong parametrization method %s in media_layer2model_el_vti(), " \
                        "       if you want to use tti equivalent medium method, " \
@@ -240,7 +244,8 @@ int media_layer2model_el_aniso(
         size_t nz,
         int grid_type, 
         const char *in_3lay_file,
-        const char *equivalent_medium_method) 
+        const char *equivalent_medium_method,
+        int myid) 
 {
 
     inter_t interfaces;
@@ -269,7 +274,7 @@ int media_layer2model_el_aniso(
     if (md_type == ELASTIC_ISOTROPIC) {
         if (strcmp(equivalent_medium_method, "loc") == 0) {
             parametrization_layer_el_iso_loc(nx, ny, nz, x3d, y3d, z3d, grid_type, 
-                interfaces, c13, c44, rho);
+                interfaces, c13, c44, rho, myid);
             for (size_t i = 0; i < siz_volume; ++i) {
                 c11[i] = c13[i] + 2.0*c44[i]; 
                 c22[i] = c11[i]; c33[i] = c11[i]; 
@@ -282,7 +287,7 @@ int media_layer2model_el_aniso(
             }
         } else if (strcmp(equivalent_medium_method, "har") == 0) {
             parametrization_layer_el_iso_har(nx, ny, nz, x3d, y3d, z3d, grid_type, 
-                interfaces, c13, c44, rho);
+                interfaces, c13, c44, rho, myid);
             for (size_t i = 0; i < siz_volume; ++i) {
                 c11[i] = c13[i] + 2.0*c44[i]; 
                 c22[i] = c11[i]; c33[i] = c11[i]; 
@@ -295,7 +300,7 @@ int media_layer2model_el_aniso(
             }
         } else if (strcmp(equivalent_medium_method, "ari") == 0) {
             parametrization_layer_el_iso_ari(nx, ny, nz, x3d, y3d, z3d, grid_type, 
-                interfaces, c13, c44, rho);
+                interfaces, c13, c44, rho, myid);
             for (size_t i = 0; i < siz_volume; ++i) {
                 c11[i] = c13[i] + 2.0*c44[i]; 
                 c22[i] = c11[i]; c33[i] = c11[i]; 
@@ -318,7 +323,7 @@ int media_layer2model_el_aniso(
 
         if (strcmp(equivalent_medium_method, "loc") == 0) {
             parametrization_layer_el_vti_loc(nx, ny, nz, x3d, y3d, z3d, grid_type, 
-                interfaces, c11, c33, c55, c66, c13, rho);
+                interfaces, c11, c33, c55, c66, c13, rho, myid);
             for (size_t i = 0; i < siz_volume; i++) {
                 c12[i] = c11[i]-2.0*c66[i];
                 c22[i] = c11[i];
@@ -332,7 +337,7 @@ int media_layer2model_el_aniso(
 
         } else if (strcmp(equivalent_medium_method, "har") == 0) {
             parametrization_layer_el_vti_har(nx, ny, nz, x3d, y3d, z3d, grid_type, 
-                interfaces, c11, c33, c55, c66, c13, rho);
+                interfaces, c11, c33, c55, c66, c13, rho, myid);
             for (size_t i = 0; i < siz_volume; i++) {
                 c12[i] = c11[i]-2.0*c66[i];
                 c22[i] = c11[i];
@@ -346,7 +351,7 @@ int media_layer2model_el_aniso(
 
         } else if (strcmp(equivalent_medium_method, "ari") == 0) {
             parametrization_layer_el_vti_ari(nx, ny, nz, x3d, y3d, z3d, grid_type, 
-                interfaces, c11, c33, c55, c66, c13, rho);
+                interfaces, c11, c33, c55, c66, c13, rho, myid);
 
             for (size_t i = 0; i < siz_volume; i++) {
                 c12[i] = c11[i]-2.0*c66[i];
@@ -370,15 +375,15 @@ int media_layer2model_el_aniso(
         if (strcmp(equivalent_medium_method, "loc") == 0) {
             parametrization_layer_el_aniso_loc(nx, ny, nz, x3d, y3d, z3d, grid_type, 
                 interfaces, c11, c12, c13, c14, c15, c16, c22, c23, c24, c25, c26, 
-                c33, c34, c35, c36, c44, c45, c46, c55, c56, c66, rho);
+                c33, c34, c35, c36, c44, c45, c46, c55, c56, c66, rho, myid);
         } else if (strcmp(equivalent_medium_method, "har") == 0) {
             parametrization_layer_el_aniso_har(nx, ny, nz, x3d, y3d, z3d, grid_type, 
                 interfaces, c11, c12, c13, c14, c15, c16, c22, c23, c24, c25, c26, 
-                c33, c34, c35, c36, c44, c45, c46, c55, c56, c66, rho);
+                c33, c34, c35, c36, c44, c45, c46, c55, c56, c66, rho, myid);
         } else if (strcmp(equivalent_medium_method, "ari") == 0) {
             parametrization_layer_el_aniso_ari(nx, ny, nz, x3d, y3d, z3d, grid_type, 
                 interfaces, c11, c12, c13, c14, c15, c16, c22, c23, c24, c25, c26, 
-                c33, c34, c35, c36, c44, c45, c46, c55, c56, c66, rho);
+                c33, c34, c35, c36, c44, c45, c46, c55, c56, c66, rho, myid);
         } else if(strcmp(equivalent_medium_method,"tti") == 0) {
 // TODO: tti equivalent medium for tti
         } else { //default
@@ -1214,7 +1219,8 @@ void parametrization_layer_onecmp_loc(
     const float *Gridz,
     int grid_type,
     inter_t &interfaces,
-    float *var3d)
+    float *var3d,
+    int myid)
 {
     size_t siz_line   = nx; 
     size_t siz_slice  = nx * ny; 
@@ -1259,7 +1265,8 @@ void parametrization_layer_ac_iso_loc(
     int grid_type, 
     inter_t &interfaces,
     float *kappa,
-    float *rho3d)
+    float *rho3d,
+    int myid)
 {
     size_t siz_line   = nx; 
     size_t siz_slice  = nx * ny; 
@@ -1309,7 +1316,8 @@ void parametrization_layer_el_iso_loc(
     inter_t &interfaces,
     float *lam3d,
     float *mu3d,
-    float *rho3d)
+    float *rho3d, 
+    int myid)
 {
     size_t siz_line   = nx; 
     size_t siz_slice  = nx * ny; 
@@ -1363,7 +1371,8 @@ void parametrization_layer_el_vti_loc(
     float *c55,
     float *c66,
     float *c13,
-    float *rho)
+    float *rho,
+    int myid)
 {
     size_t siz_line   = nx; 
     size_t siz_slice  = nx * ny; 
@@ -1431,7 +1440,8 @@ void parametrization_layer_el_aniso_loc(
     float *c55,
     float *c56,
     float *c66,
-    float *rho)
+    float *rho,
+    int myid)
 {
     size_t siz_line   = nx; 
     size_t siz_slice  = nx * ny; 
@@ -1573,7 +1583,8 @@ void parametrization_layer_onecmp_har(
     const float *Gridz,
     int grid_type,
     inter_t &interfaces,
-    float *var3d) 
+    float *var3d,
+    int myid) 
 {
 
     size_t siz_line = nx;
@@ -1584,7 +1595,7 @@ void parametrization_layer_onecmp_har(
 
     // assign the local value first.
     parametrization_layer_onecmp_loc(nx, ny, nz, Gridx, Gridy, Gridz,
-        grid_type, interfaces, var3d);
+        grid_type, interfaces, var3d, myid);
 
     float *Hx = nullptr, *Hy = nullptr, *Hz = nullptr; 
     GenerateHalfGrid(nx, ny, nz, grid_type, Gridx, Gridy, Gridz, &Hx, &Hy, &Hz); 
@@ -1595,9 +1606,11 @@ void parametrization_layer_onecmp_har(
     MarkInterfaceNumber(grid_type, Hx, Hy, Hz, 
         nx, ny, nz, MaterNum, interfaces);
 
-    std::cout <<"\n"; // for printing progress
+    if (myid == 0)
+        std::cout << "- equivalent medium parametrization (harmonic averaging):\n\n";
     for (size_t j = 1; j < ny-1; j++) {
-        printProgress(slowk*j);
+        if (myid == 0) printProgress(slowk*j);
+        
         for (size_t k = 1; k < nz-1; k++) {
             for (size_t i = 1; i < nx-1; i++) {
                 size_t indx =  i + j * siz_line + k * siz_slice; 
@@ -1661,7 +1674,8 @@ void parametrization_layer_onecmp_ari(
     const float *Gridz,
     int grid_type,
     inter_t &interfaces,
-    float *var3d) 
+    float *var3d,
+    int myid) 
 {
     size_t siz_line = nx;
     size_t siz_slice = ny * siz_line;
@@ -1671,7 +1685,7 @@ void parametrization_layer_onecmp_ari(
 
     // assign the local value first.
     parametrization_layer_onecmp_loc(nx, ny, nz, Gridx, Gridy, Gridz,
-        grid_type, interfaces, var3d);
+        grid_type, interfaces, var3d, myid);
 
     float *Hx = nullptr, *Hy = nullptr, *Hz = nullptr; 
     GenerateHalfGrid(nx, ny, nz, grid_type, Gridx, Gridy, Gridz, &Hx, &Hy, &Hz); 
@@ -1682,9 +1696,13 @@ void parametrization_layer_onecmp_ari(
     MarkInterfaceNumber(grid_type, Hx, Hy, Hz, 
         nx, ny, nz, MaterNum, interfaces);
 
-    std::cout <<"\n"; // for printing progress
+    // for printing progress
+    if (myid == 0)
+        std::cout << "- equivalent medium parametrization (arithmetic averaging):\n\n";
+
     for (size_t j = 1; j < ny-1; j++) {
-        printProgress(slowk*j);
+        if (myid == 0) printProgress(slowk*j);
+
         for (size_t k = 1; k < nz-1; k++) {
             for (size_t i = 1; i < nx-1; i++) {
                 size_t indx =  i + j * siz_line + k * siz_slice; 
@@ -1749,7 +1767,8 @@ void parametrization_layer_ac_iso_har(
     int grid_type,
     inter_t &interfaces,
     float *kappa, 
-    float *rho3d) 
+    float *rho3d,
+    int myid) 
 {
 
     size_t siz_line = nx;
@@ -1760,7 +1779,7 @@ void parametrization_layer_ac_iso_har(
 
     // assign the local value first.
     parametrization_layer_ac_iso_loc(nx, ny, nz, Gridx, Gridy, Gridz,
-        grid_type, interfaces, kappa, rho3d);
+        grid_type, interfaces, kappa, rho3d, myid);
 
     float *Hx = nullptr, *Hy = nullptr, *Hz = nullptr; 
     GenerateHalfGrid(nx, ny, nz, grid_type, Gridx, Gridy, Gridz, &Hx, &Hy, &Hz); 
@@ -1771,9 +1790,12 @@ void parametrization_layer_ac_iso_har(
     MarkInterfaceNumber(grid_type, Hx, Hy, Hz, 
         nx, ny, nz, MaterNum, interfaces);
 
-    std::cout <<"\n"; // for printing progress
+    if (myid == 0)
+        std::cout << "- equivalent medium parametrization (harmonic averaging):\n\n";
+
     for (size_t j = 1; j < ny-1; ++j) {
-        printProgress(slowk*j);
+        if (myid == 0) printProgress(slowk*j);
+
         for (size_t k = 1; k < nz-1; ++k) {
             for (size_t i = 1; i < nx-1; ++i) {
                 size_t indx =  i + j * siz_line + k * siz_slice; 
@@ -1842,7 +1864,8 @@ void parametrization_layer_ac_iso_ari(
     int grid_type,
     inter_t &interfaces,
     float *kappa, 
-    float *rho3d) 
+    float *rho3d,
+    int myid) 
 {
 
     size_t siz_line = nx;
@@ -1853,7 +1876,7 @@ void parametrization_layer_ac_iso_ari(
 
     // assign the local value first.
     parametrization_layer_ac_iso_loc(nx, ny, nz, Gridx, Gridy, Gridz,
-        grid_type, interfaces, kappa, rho3d);
+        grid_type, interfaces, kappa, rho3d, myid);
 
     float *Hx = nullptr, *Hy = nullptr, *Hz = nullptr; 
     GenerateHalfGrid(nx, ny, nz, grid_type, Gridx, Gridy, Gridz, &Hx, &Hy, &Hz); 
@@ -1864,9 +1887,12 @@ void parametrization_layer_ac_iso_ari(
     MarkInterfaceNumber(grid_type, Hx, Hy, Hz, 
         nx, ny, nz, MaterNum, interfaces);
 
-    std::cout <<"\n"; // for printing progress
+    if (myid == 0)
+        std::cout << "- equivalent medium parametrization (arithmetic averaging):\n\n";
+
     for (size_t j = 1; j < ny-1; j++) {
-        printProgress(slowk*j);
+        if (myid == 0) printProgress(slowk*j);
+
         for (size_t k = 1; k < nz-1; k++) {
             for (size_t i = 1; i < nx-1; i++) {
                 size_t indx =  i + j * siz_line + k * siz_slice; 
@@ -1940,7 +1966,8 @@ void parametrization_layer_el_iso_har(
     inter_t &interfaces,
     float *lam3d,
     float *mu3d,
-    float *rho3d) 
+    float *rho3d,
+    int myid) 
 {
 
     size_t siz_line = nx;
@@ -1952,7 +1979,7 @@ void parametrization_layer_el_iso_har(
 
     // assign the local value first.
     parametrization_layer_el_iso_loc(nx, ny, nz, Gridx, Gridy, Gridz,
-        grid_type, interfaces, lam3d, mu3d, rho3d);
+        grid_type, interfaces, lam3d, mu3d, rho3d, myid);
 
     float *Hx = nullptr, *Hy = nullptr, *Hz = nullptr; 
     GenerateHalfGrid(nx, ny, nz, grid_type, Gridx, Gridy, Gridz, &Hx, &Hy, &Hz); 
@@ -1963,9 +1990,12 @@ void parametrization_layer_el_iso_har(
     MarkInterfaceNumber(grid_type, Hx, Hy, Hz, 
         nx, ny, nz, MaterNum, interfaces);
 
-    std::cout <<"\n"; // for printing progress
+    if (myid == 0)
+        std::cout << "- volume arithmetic and harmonic averaging method:\n\n";
+
     for (size_t j = 1; j < ny-1; j++) {
-        printProgress(slowk*j);
+        if (myid == 0) printProgress(slowk*j);
+
         for (size_t k = 1; k < nz-1; k++) {
             for (size_t i = 1; i < nx-1; i++) {
                 size_t indx =  i + j * siz_line + k * siz_slice; 
@@ -2045,7 +2075,8 @@ void parametrization_layer_el_iso_ari(
     inter_t &interfaces,
     float *lam3d,
     float *mu3d,
-    float *rho3d) 
+    float *rho3d,
+    int myid) 
 {
 
     size_t siz_line = nx;
@@ -2056,7 +2087,7 @@ void parametrization_layer_el_iso_ari(
 
     // assign the local value first.
     parametrization_layer_el_iso_loc(nx, ny, nz, Gridx, Gridy, Gridz,
-        grid_type, interfaces, lam3d, mu3d, rho3d);
+        grid_type, interfaces, lam3d, mu3d, rho3d, myid);
 
     float *Hx = nullptr, *Hy = nullptr, *Hz = nullptr; 
     GenerateHalfGrid(nx, ny, nz, grid_type, Gridx, Gridy, Gridz, &Hx, &Hy, &Hz); 
@@ -2067,9 +2098,11 @@ void parametrization_layer_el_iso_ari(
     MarkInterfaceNumber(grid_type, Hx, Hy, Hz, 
         nx, ny, nz, MaterNum, interfaces);
 
-    std::cout <<"\n"; // for printing progress
+    if (myid == 0)
+        std::cout << "- equivalent medium parametrization (arithmetic averaging):\n\n";
     for (size_t j = 1; j < ny-1; j++) {
-        printProgress(slowk*j);
+        if (myid==0) printProgress(slowk*j);
+
         for (size_t k = 1; k < nz-1; k++) {
             for (size_t i = 1; i < nx-1; i++) {
                 size_t indx =  i + j * siz_line + k * siz_slice; 
@@ -2149,7 +2182,8 @@ void parametrization_layer_el_vti_har(
     float *c55,
     float *c66,
     float *c13,
-    float *rho) 
+    float *rho,
+    int myid) 
 {
 
     size_t siz_line = nx;
@@ -2162,7 +2196,7 @@ void parametrization_layer_el_vti_har(
 
     // assign the local value first.
     parametrization_layer_el_vti_loc(nx, ny, nz, Gridx, Gridy, Gridz,
-        grid_type, interfaces, c11, c33, c55, c66, c13, rho);
+        grid_type, interfaces, c11, c33, c55, c66, c13, rho, myid);
 
     float *Hx = nullptr, *Hy = nullptr, *Hz = nullptr; 
     GenerateHalfGrid(nx, ny, nz, grid_type, Gridx, Gridy, Gridz, &Hx, &Hy, &Hz); 
@@ -2173,9 +2207,11 @@ void parametrization_layer_el_vti_har(
     MarkInterfaceNumber(grid_type, Hx, Hy, Hz, 
         nx, ny, nz, MaterNum, interfaces);
 
-    std::cout <<"\n"; // for printing progress
+    if (myid == 0)
+        std::cout << "- equivalent medium parametrization (harmonic averaging):\n\n";
     for (size_t j = 1; j < ny-1; j++) {
-        printProgress(slowk*j);
+        if (myid == 0) printProgress(slowk*j);
+
         for (size_t k = 1; k < nz-1; k++) {
             for (size_t i = 1; i < nx-1; i++) {
                 size_t indx =  i + j * siz_line + k * siz_slice; 
@@ -2266,7 +2302,8 @@ void parametrization_layer_el_vti_ari(
     float *c55,
     float *c66,
     float *c13,
-    float *rho) 
+    float *rho,
+    int myid) 
 {
 
     size_t siz_line = nx;
@@ -2278,7 +2315,7 @@ void parametrization_layer_el_vti_ari(
 
     // assign the local value first.
     parametrization_layer_el_vti_loc(nx, ny, nz, Gridx, Gridy, Gridz,
-        grid_type, interfaces, c11, c33, c55, c66, c13, rho);
+        grid_type, interfaces, c11, c33, c55, c66, c13, rho, myid);
 
     float *Hx = nullptr, *Hy = nullptr, *Hz = nullptr; 
     GenerateHalfGrid(nx, ny, nz, grid_type, Gridx, Gridy, Gridz, &Hx, &Hy, &Hz); 
@@ -2289,9 +2326,12 @@ void parametrization_layer_el_vti_ari(
     MarkInterfaceNumber(grid_type, Hx, Hy, Hz, 
         nx, ny, nz, MaterNum, interfaces);
 
-    std::cout <<"\n"; // for printing progress
+    if (myid == 0)
+        std::cout << "- equivalent medium parametrization (arithmetic averaging):\n\n";
+
     for (size_t j = 1; j < ny-1; j++) {
-        printProgress(slowk*j);
+        if (myid == 0) printProgress(slowk*j);
+
         for (size_t k = 1; k < nz-1; k++) {
             for (size_t i = 1; i < nx-1; i++) {
                 size_t indx =  i + j * siz_line + k * siz_slice; 
@@ -2399,7 +2439,8 @@ void parametrization_layer_el_aniso_har(
     float *c55,
     float *c56,
     float *c66,
-    float *rho) 
+    float *rho,
+    int myid) 
 {
 
     size_t siz_line = nx;
@@ -2413,7 +2454,7 @@ void parametrization_layer_el_aniso_har(
     parametrization_layer_el_aniso_loc(nx, ny, nz, Gridx, Gridy, Gridz,
         grid_type, interfaces, c11, c12, c13, c14, c15, c16,
         c22, c23, c24, c25, c26, c33, c34, c35, c36, 
-        c44, c45, c46, c55, c56, c66, rho);
+        c44, c45, c46, c55, c56, c66, rho, myid);
 
     float *Hx = nullptr, *Hy = nullptr, *Hz = nullptr; 
     GenerateHalfGrid(nx, ny, nz, grid_type, Gridx, Gridy, Gridz, &Hx, &Hy, &Hz); 
@@ -2424,9 +2465,11 @@ void parametrization_layer_el_aniso_har(
     MarkInterfaceNumber(grid_type, Hx, Hy, Hz, 
         nx, ny, nz, MaterNum, interfaces);
 
-    std::cout <<"\n"; // for printing progress
+    if (myid == 0)
+        std::cout << "- equivalent medium parametrization (harmonic averaging):\n\n";
     for (size_t j = 1; j < ny-1; j++) {
-        printProgress(slowk*j);
+        if (myid == 0) printProgress(slowk*j);
+
         for (size_t k = 1; k < nz-1; k++) {
             for (size_t i = 1; i < nx-1; i++) {
                 size_t indx =  i + j * siz_line + k * siz_slice; 
@@ -2593,7 +2636,8 @@ void parametrization_layer_el_aniso_ari(
     float *c55,
     float *c56,
     float *c66,
-    float *rho) 
+    float *rho,
+    int myid) 
 {
 
     size_t siz_line = nx;
@@ -2607,7 +2651,7 @@ void parametrization_layer_el_aniso_ari(
     parametrization_layer_el_aniso_loc(nx, ny, nz, Gridx, Gridy, Gridz,
         grid_type, interfaces, c11, c12, c13, c14, c15, c16,
         c22, c23, c24, c25, c26, c33, c34, c35, c36, 
-        c44, c45, c46, c55, c56, c66, rho);
+        c44, c45, c46, c55, c56, c66, rho, myid);
 
     float *Hx = nullptr, *Hy = nullptr, *Hz = nullptr; 
     GenerateHalfGrid(nx, ny, nz, grid_type, Gridx, Gridy, Gridz, &Hx, &Hy, &Hz); 
@@ -2618,9 +2662,11 @@ void parametrization_layer_el_aniso_ari(
     MarkInterfaceNumber(grid_type, Hx, Hy, Hz, 
         nx, ny, nz, MaterNum, interfaces);
 
-    std::cout <<"\n"; // for printing progress
+    if (myid == 0)
+        std::cout << "- equivalent medium parametrization (arithmetic averaging):\n\n";
     for (size_t j = 1; j < ny-1; j++) {
-        printProgress(slowk*j);
+        if (myid == 0) printProgress(slowk*j);
+
         for (size_t k = 1; k < nz-1; k++) {
             for (size_t i = 1; i < nx-1; i++) {
                 size_t indx =  i + j * siz_line + k * siz_slice; 

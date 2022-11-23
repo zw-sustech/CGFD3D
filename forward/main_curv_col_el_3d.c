@@ -33,15 +33,15 @@ int main(int argc, char** argv)
 //-------------------------------------------------------------------------------
 
   // init MPI
-
-  int myid, mpi_size;
+  int myid, mpi_size, mpi_name_len;
+  char processor_name[MPI_MAX_PROCESSOR_NAME];
   MPI_Init(&argc, &argv);
   MPI_Comm comm = MPI_COMM_WORLD;
   MPI_Comm_rank(comm, &myid);
   MPI_Comm_size(comm, &mpi_size);
+  MPI_Get_processor_name(processor_name, &mpi_name_len);
 
   // get commond-line argument
-
   if (myid==0) 
   {
     // argc checking
@@ -68,8 +68,11 @@ int main(int argc, char** argv)
     MPI_Bcast(&verbose, 1, MPI_INT, 0, comm);
   }
 
-  if (myid==0 && verbose>0) fprintf(stdout,"comm=%d, size=%d\n", comm, mpi_size); 
-  if (myid==0 && verbose>0) fprintf(stdout,"par file =  %s\n", par_fname); 
+  if (myid==0 && verbose>0)  {
+    fprintf(stdout,"processor=%s comm=0x%08x, size=%d\n", 
+      processor_name, comm, mpi_size); 
+    fprintf(stdout,"par file =  %s\n", par_fname);
+  }
 
   // read par
 
@@ -211,7 +214,7 @@ int main(int argc, char** argv)
   } else {
     if (myid==0) fprintf(stdout,"do not export coord\n"); 
   }
-  fprintf(stdout, " --> done\n"); fflush(stdout);
+  if (myid == 0) fprintf(stdout, " --> done\n"); fflush(stdout);
 
   // cal metrics and output for QC
   switch (par->metric_method_itype)
@@ -249,11 +252,12 @@ int main(int argc, char** argv)
   } else {
     if (myid==0) fprintf(stdout,"do not export metric\n"); 
   }
-  if (myid==0 && verbose>0) { fprintf(stdout, " --> done\n"); fflush(stdout); }
-
   // print basic info for QC
-  fprintf(stdout,"gdcurv info at topoid=%d,%d\n", mympi->topoid[0],mympi->topoid[1]); 
+  if (verbose > 10)
+    fprintf(stdout,"gdcurv info at topoid=%d,%d\n", mympi->topoid[0],mympi->topoid[1]); 
   //gd_print(gdcurv, verbose);
+  MPI_Barrier(comm);
+  if (myid==0 && verbose>0) { fprintf(stdout, " --> done\n"); fflush(stdout); }
 
 //-------------------------------------------------------------------------------
 //-- media generation or import
@@ -308,7 +312,8 @@ int main(int argc, char** argv)
                                      gdcurv->nx, gdcurv->ny, gdcurv->nz,
                                      MEDIA_USE_CURV,
                                      par->media_input_file,
-                                     par->equivalent_medium_method);
+                                     par->equivalent_medium_method,
+                                     myid);
         }
         else if (md->medium_type == CONST_MEDIUM_ELASTIC_VTI)
         {
@@ -318,7 +323,9 @@ int main(int argc, char** argv)
                                      gdcurv->nx, gdcurv->ny, gdcurv->nz,
                                      MEDIA_USE_CURV,
                                      par->media_input_file,
-                                     par->equivalent_medium_method);
+                                     par->equivalent_medium_method,
+                                     myid);
+
         } else if (md->medium_type == CONST_MEDIUM_ELASTIC_ANISO)
         {
             media_layer2model_el_aniso(md->rho,
@@ -332,7 +339,7 @@ int main(int argc, char** argv)
                                      gdcurv->nx, gdcurv->ny, gdcurv->nz,
                                      MEDIA_USE_CURV,
                                      par->media_input_file,
-                                     par->equivalent_medium_method);
+                                     par->equivalent_medium_method,myid);
         }
 
         break;
@@ -351,7 +358,8 @@ int main(int argc, char** argv)
                                      gdcurv->ymin,gdcurv->ymax,
                                      MEDIA_USE_CURV,
                                      par->media_input_file,
-                                     par->equivalent_medium_method);
+                                     par->equivalent_medium_method,
+                                     myid);
         }
         else if (md->medium_type == CONST_MEDIUM_ELASTIC_VTI)
         {
@@ -363,7 +371,8 @@ int main(int argc, char** argv)
                                      gdcurv->ymin,gdcurv->ymax,
                                      MEDIA_USE_CURV,
                                      par->media_input_file,
-                                     par->equivalent_medium_method);
+                                     par->equivalent_medium_method,
+                                     myid);
         } else if (md->medium_type == CONST_MEDIUM_ELASTIC_ANISO)
         {
             media_grid2model_el_aniso(md->rho,
@@ -379,10 +388,11 @@ int main(int argc, char** argv)
                                      gdcurv->ymin,gdcurv->ymax,
                                      MEDIA_USE_CURV,
                                      par->media_input_file,
-                                     par->equivalent_medium_method);
+                                     par->equivalent_medium_method,
+                                     myid);
         }
         break;
-    } // md3grd
+    }  // md3grd
 
     case PAR_MEDIA_3BIN : {
 
@@ -490,6 +500,8 @@ int main(int argc, char** argv)
   } else {
     if (myid==0) fprintf(stdout,"do not export medium\n"); 
   }
+  MPI_Barrier(comm);
+  if (myid == 0) fprintf(stdout, "  --> done\n");
 
 //-------------------------------------------------------------------------------
 //-- estimate/check/set time step
