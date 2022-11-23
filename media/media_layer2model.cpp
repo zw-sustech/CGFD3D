@@ -508,6 +508,11 @@ void CalPointValue_layer(int media_type,
             var[1] = vp  + pow(dz, vp_pow)* vp_grad;
             var[2] = vs  + pow(dz, vs_pow)* vs_grad;
             var[0] = rho + pow(dz,rho_pow)*rho_grad;
+            if (var[1] <= var[2] * sqrt(2)) {
+              fprintf(stderr, "Error: vp must larger than sqrt(2)*vs!\n");
+              fprintf(stderr, "       please check the input md3lay file!\n");
+              fflush(stderr);  exit(1);
+            }
             if (isEqual(dz, 0.0)) {
                 mi = findFirstGreaterEqualIndex(A.z, elevation)-1;
                 if (mi >= 0) {
@@ -1610,7 +1615,7 @@ void parametrization_layer_onecmp_har(
         std::cout << "- equivalent medium parametrization (harmonic averaging):\n\n";
     for (size_t j = 1; j < ny-1; j++) {
         if (myid == 0) printProgress(slowk*j);
-        
+
         for (size_t k = 1; k < nz-1; k++) {
             for (size_t i = 1; i < nx-1; i++) {
                 size_t indx =  i + j * siz_line + k * siz_slice; 

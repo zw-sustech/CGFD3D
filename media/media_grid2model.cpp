@@ -548,6 +548,11 @@ void CalPointValue_grid(int media_type,
             var[1] = vp0  + (vp1-vp0)*dis_r;
             var[2] = vs0  + (vs1-vs0)*dis_r;
             var[0] = rho0 + (rho1-rho0)*dis_r;
+            if (var[1] <= sqrt(2) * var[2]) {
+              fprintf(stderr, "Error: vp must larger than sqrt(2)*vs!\n");
+              fprintf(stderr, "       please check the md3grd file!\n");
+              fflush(stderr); exit(1);
+            }
         }
     break;
 
