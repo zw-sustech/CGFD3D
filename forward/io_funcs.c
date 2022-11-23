@@ -266,7 +266,7 @@ io_recv_read_locate(
 
   int ir=0;
   int nr_this = 0; // in this thread
-  int flag_indx;
+  int flag_coord;
   int flag_depth;
 
   for (ir=0; ir<nr; ir++)
@@ -280,10 +280,10 @@ io_recv_read_locate(
 
     // get values
     sscanf(line, "%s %d %d %g %g %g", 
-              recvone[ir].name, &flag_indx, &flag_depth, &rx, &ry, &rz);
+              recvone[ir].name, &flag_coord, &flag_depth, &rx, &ry, &rz);
     
     // by grid index
-    if (flag_indx == 1)
+    if (flag_coord == 0)
     {
       // if sz is relative to surface, convert to normal index
       if (flag_depth == 1) {
@@ -346,7 +346,7 @@ io_recv_read_locate(
       int k_local = gd_indx_glphy2lcext_k(iz,gd);
 
       // get coord
-      if (flag_indx == 1)
+      if (flag_coord == 0)
       {
         rx = gd_coord_get_x(gd,i_local,j_local,k_local);
         ry = gd_coord_get_y(gd,i_local,j_local,k_local);

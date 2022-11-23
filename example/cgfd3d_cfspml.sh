@@ -138,7 +138,7 @@ cat << ieof > $PAR_FILE
   "check_stability" : 1,
 
   "boundary_x_left" : {
-      "ablexp" : {
+      "cfspml" : {
           "number_of_layers" : 10,
           "alpha_max" : 3.14,
           "beta_max" : 2.0,
@@ -146,7 +146,7 @@ cat << ieof > $PAR_FILE
           }
       },
   "boundary_x_right" : {
-      "ablexp" : {
+      "cfspml" : {
           "number_of_layers" : 10,
           "alpha_max" : 3.14,
           "beta_max" : 2.0,
@@ -154,7 +154,7 @@ cat << ieof > $PAR_FILE
           }
       },
   "boundary_y_front" : {
-      "ablexp" : {
+      "cfspml" : {
           "number_of_layers" : 10,
           "alpha_max" : 3.14,
           "beta_max" : 2.0,
@@ -162,7 +162,7 @@ cat << ieof > $PAR_FILE
           }
       },
   "boundary_y_back" : {
-      "ablexp" : {
+      "cfspml" : {
           "number_of_layers" : 10,
           "alpha_max" : 3.14,
           "beta_max" : 2.0,
@@ -170,7 +170,7 @@ cat << ieof > $PAR_FILE
           }
       },
   "boundary_z_bottom" : {
-      "ablexp" : {
+      "cfspml" : {
           "number_of_layers" : 10,
           "alpha_max" : 3.14,
           "beta_max" : 2.0,

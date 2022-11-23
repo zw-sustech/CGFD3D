@@ -1577,9 +1577,8 @@ float
 fun_ricker(float t, float fc, float t0)
 {
   //float pi = acos(-1.0);
-  float f0 = sqrtf(PI)/2.0;
   float u = (t-t0)*2.0*PI*fc;
-  float v = (u*u/4-0.5)*exp(-u*u/4)*f0;
+  float v = (1-u*u/2.0)*exp(-u*u/4.0);
 
   return v;
 }
@@ -1588,9 +1587,8 @@ float
 fun_ricker_deriv(float t, float fc, float t0)
 {
   //float pi = acos(-1.0);
-  float f0 = sqrtf(PI)/2.0;
   float u = (t-t0)*2.0*PI*fc;
-  float v = u*(1.5-u*u/4)*exp(-u*u/4)*f0*PI*fc;
+  float v = u*(-3+1/2*u*u)*exp(-u*u/4)*PI*fc;
 
   return v;
 }
