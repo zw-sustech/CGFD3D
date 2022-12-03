@@ -265,7 +265,7 @@ int main(int argc, char** argv)
 
   // allocate media vars
   if (myid==0 && verbose>0) {fprintf(stdout,"allocate media vars ...\n"); fflush(stdout);}
-  md_init(gdcurv, md, par->media_itype, par->visco_itype);
+  md_init(gdcurv, md, par->media_itype, par->visco_itype, par->nmaxwell);
 
   // read or discrete velocity model
   switch (par->media_input_itype)
@@ -288,6 +288,10 @@ int main(int argc, char** argv)
 
         if (md->visco_type == CONST_VISCO_GRAVES_QS) {
           md_gen_test_Qs(md, par->visco_Qs_freq);
+        }
+
+        if (md->visco_type == CONST_VISCO_GMB) {
+          md_gen_test_GMB(md);
         }
 
         break;
@@ -489,6 +493,10 @@ int main(int argc, char** argv)
 
   } // switch
 
+  if (par->visco_itype == CONST_VISCO_GMB){
+      md_vis_GMB_cal_Y(md,par->fr, par->fmin, par->fmax);
+  }
+
   // export grid media
   if (par->is_export_media==1)
   {
@@ -610,7 +618,7 @@ int main(int argc, char** argv)
 //-------------------------------------------------------------------------------
 
   if (myid==0 && verbose>0) fprintf(stdout,"allocate solver vars ...\n"); 
-  wav_init(gdcurv, wav, fd->num_rk_stages);
+  wav_init(gdcurv, wav, fd->num_rk_stages, par->visco_itype, par->nmaxwell);
 
 //-------------------------------------------------------------------------------
 //-- setup output, may require coord info
@@ -762,7 +770,7 @@ int main(int argc, char** argv)
 //-- save station and line seismo to sac
 //-------------------------------------------------------------------------------
 
-  io_recv_output_sac(iorecv,dt,wav->ncmp,wav->cmp_name,
+  io_recv_output_sac(iorecv,dt,wav->ncmp,wav->visco_type,wav->cmp_name,
                       src->evtnm,blk->output_dir,err_message);
 
   if(md->medium_type == CONST_MEDIUM_ELASTIC_ISO) {

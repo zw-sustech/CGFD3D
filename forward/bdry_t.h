@@ -125,6 +125,7 @@ typedef struct
   // top
   float *matVx2Vz2; // [j,i, dzVi, dxVi]
   float *matVy2Vz2;
+  float *matA; // DZ inversion for atten
 
   // bottom
   float *matVx2Vz1;
@@ -185,19 +186,6 @@ bdry_pml_set(
              float in_beta_max[][2], //
              float in_velocity[][2], //
              int verbose);
-
-void
-bdry_pml_set_stg(
-                 gd_t *gd,
-                 wav_t *wav,
-                 bdry_t *bdrypml,
-                 int   *neighid, 
-                 int   in_is_sides[][2],
-                 int   in_num_layers[][2],
-                 float in_alpha_max[][2], //
-                 float in_beta_max[][2], //
-                 float in_velocity[][2], //
-                 int verbose);
 
 // alloc auxvar
 void

@@ -345,6 +345,7 @@ int
 io_recv_output_sac(iorecv_t *iorecv,
                    float dt,
                    int num_of_vars,
+                   int visco_type,
                    char **cmp_name,
                    char *evtnm,
                    char *output_dir,

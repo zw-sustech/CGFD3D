@@ -229,8 +229,12 @@ cat << ieof > $PAR_FILE
   "media_export_dir"  : "$MEDIA_DIR",
 
   "#visco_config" : {
-      "type" : "graves_Qs",
-      "Qs_freq" : 1.0
+      "type" : "gmb",
+      "Qs_freq" : 1.0,
+      "number_of_maxwell" : 3,
+      "max_freq" : 10.0,
+      "min_freq" : 0.1,
+      "refer_freq" : 1.0
   },
 
   "in_source_file" : "$PROJDIR/test.src",

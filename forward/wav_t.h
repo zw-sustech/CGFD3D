@@ -16,7 +16,8 @@ typedef struct {
   float *v5d; // allocated var
 
   int n1, n2, n3, n4, n5;
-  int nx, ny, nz, ncmp, nlevel;
+  int nx, ny, nz, ncmp, nlevel, nmaxwell;
+  int visco_type;
 
   size_t siz_iy;
   size_t siz_iz;
@@ -48,9 +49,24 @@ typedef struct {
   size_t Txz_seq;
   size_t Txy_seq;
 
+  //attenuation
+  size_t *Jxx_pos;
+  size_t *Jyy_pos;
+  size_t *Jzz_pos;
+  size_t *Jxy_pos;
+  size_t *Jxz_pos;
+  size_t *Jyz_pos;
+
+  size_t *Jxx_seq;
+  size_t *Jyy_seq;
+  size_t *Jzz_seq;
+  size_t *Jxy_seq;
+  size_t *Jxz_seq;
+  size_t *Jyz_seq;
+
 } wav_t;
 
-struct fd_vel_t
+struct fd_hvel_t
 {
   float *Vx;
   float *Vy;
@@ -86,7 +102,9 @@ struct var5d_t
 int 
 wav_init(gd_t *gdinfo,
                wav_t *V,
-               int number_of_levels);
+               int number_of_levels,
+               int visco_type,
+               int nmaxwell);
 
 int
 wav_check_value(float *restrict w, wav_t *wav);

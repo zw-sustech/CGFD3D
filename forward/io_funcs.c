@@ -1631,6 +1631,7 @@ int
 io_recv_output_sac(iorecv_t *iorecv,
                    float dt,
                    int num_of_vars,
+                   int visco_type,
                    char **cmp_name,
                    char *evtnm,
                    char *output_dir,
@@ -1646,6 +1647,9 @@ io_recv_output_sac(iorecv_t *iorecv,
   for (int ir=0; ir < iorecv->total_number; ir++)
   {
     iorecv_one_t *this_recv = iorecv->recvone + ir;
+    
+    if (visco_type == CONST_VISCO_GMB)
+        num_of_vars = 9; // not output J for attenuation
 
     //fprintf(stdout,"=== Debug: num_of_vars=%d\n",num_of_vars);fflush(stdout);
     for (int icmp=0; icmp < num_of_vars; icmp++)
