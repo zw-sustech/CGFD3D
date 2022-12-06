@@ -211,7 +211,9 @@ int main(int argc, char** argv)
   } else {
     if (myid==0) fprintf(stdout,"do not export coord\n"); 
   }
-  fprintf(stdout, " --> done\n"); fflush(stdout);
+  if (myid==0 && verbose>0) {
+    fprintf(stdout, " --> gd export done\n"); fflush(stdout);
+  }
 
   // cal metrics and output for QC
   switch (par->metric_method_itype)
@@ -249,7 +251,10 @@ int main(int argc, char** argv)
   } else {
     if (myid==0) fprintf(stdout,"do not export metric\n"); 
   }
-  if (myid==0 && verbose>0) { fprintf(stdout, " --> done\n"); fflush(stdout); }
+  if (myid==0 && verbose>0) 
+  {   
+    fprintf(stdout, " --> metric export done\n"); fflush(stdout);
+  }
 
   // print basic info for QC
   fprintf(stdout,"gdcurv info at topoid=%d,%d\n", mympi->topoid[0],mympi->topoid[1]); 
