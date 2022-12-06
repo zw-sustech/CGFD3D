@@ -707,6 +707,16 @@ par_read_from_str(const char *str, par_t *par)
         {
           sprintf(par->bin_file_c66, "%s", thirditem->valuestring);
         }
+        // Qp file
+        if (thirditem = cJSON_GetObjectItem(subitem, "Qp"))
+        {
+          sprintf(par->bin_file_Qp, "%s", thirditem->valuestring);
+        }
+        // Qs file
+        if (thirditem = cJSON_GetObjectItem(subitem, "Qs"))
+        {
+          sprintf(par->bin_file_Qs, "%s", thirditem->valuestring);
+        }
         // need to add other model parameters
 
       } // find binfile
@@ -736,6 +746,8 @@ par_read_from_str(const char *str, par_t *par)
         sprintf(par->visco_type, "%s", subitem->valuestring);
         if (strcmp(par->visco_type, "graves_Qs")==0) {
           par->visco_itype = CONST_VISCO_GRAVES_QS;
+        } else if (strcmp(par->visco_type, "gmb")==0) {
+          par->visco_itype = CONST_VISCO_GMB;
         } else {
           fprintf(stderr,"ERROR: visco_type is unknown\n");
           MPI_Abort(MPI_COMM_WORLD,9);
@@ -743,6 +755,18 @@ par_read_from_str(const char *str, par_t *par)
     }
     if (subitem = cJSON_GetObjectItem(item, "Qs_freq")) {
         par->visco_Qs_freq = subitem->valuedouble;
+    }
+    if (subitem = cJSON_GetObjectItem(item, "number_of_maxwell")) {
+        par->nmaxwell = subitem->valueint;
+    }
+    if (subitem = cJSON_GetObjectItem(item, "max_freq")) {
+        par->fmax = subitem->valuedouble;
+    }
+    if (subitem = cJSON_GetObjectItem(item, "min_freq")) {
+        par->fmin = subitem->valuedouble;
+    }
+    if (subitem = cJSON_GetObjectItem(item, "refer_freq")) {
+        par->fr = subitem->valuedouble;
     }
   }
 
@@ -840,6 +864,7 @@ par_read_from_str(const char *str, par_t *par)
   }
 
   // slice
+  // default
   par->number_of_slice_x = 0;
   par->number_of_slice_y = 0;
   par->number_of_slice_z = 0;
@@ -1142,6 +1167,15 @@ par_print(par_t *par)
     fprintf(stdout, "-------------------------------------------------------\n");
     fprintf(stdout, " visco_type = %s\n", par->visco_type);
     fprintf(stdout, " visco_Qs_freq = %f\n", par->visco_Qs_freq);
+  } else if (par->visco_itype == CONST_VISCO_GMB) {
+    fprintf(stdout, "-------------------------------------------------------\n");
+    fprintf(stdout, "--> visco info.\n");
+    fprintf(stdout, "-------------------------------------------------------\n");
+    fprintf(stdout, " visco_type = %s\n", par->visco_type);
+    fprintf(stdout, " number_of_maxwell = %d\n", par->nmaxwell);
+    fprintf(stdout, " min_freq = %f\n", par->fmin);
+    fprintf(stdout, " max_freq = %f\n", par->fmax);
+    fprintf(stdout, " refer_freq = %f\n", par->fr);
   } else {
     fprintf(stdout, "--> no visco\n");
   }

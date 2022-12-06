@@ -24,5 +24,6 @@
 
 // visco type
 #define CONST_VISCO_GRAVES_QS  1
+#define CONST_VISCO_GMB 2
 
 #endif

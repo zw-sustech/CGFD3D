@@ -201,6 +201,7 @@ void read_interface_file(
                                           &(interfaces->vs[indx]       ),
                                           &(interfaces->vs_grad[indx]  ),
                                           &(interfaces->vs_pow[indx]   ) );
+
                         if (num_read < 10) {
                             fprintf(stderr, "Error: Insufficient data in %s.\n", interface_file);
                             fflush(stderr);

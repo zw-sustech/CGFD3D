@@ -66,6 +66,7 @@ main_curv_col_el_3d: \
 		sv_curv_col_el_iso.o \
 		sv_curv_col_el_vti.o \
 		sv_curv_col_el_aniso.o \
+		sv_curv_col_vis_iso.o \
 		main_curv_col_el_3d.o
 	$(CXX) -o $@ $^ $(LDFLAGS)
 
@@ -120,6 +121,8 @@ sv_curv_col_el_iso.o:   forward/sv_curv_col_el_iso.c
 sv_curv_col_el_vti.o: forward/sv_curv_col_el_vti.c
 	${CC} -c -o $@ $(CFLAGS) $<
 sv_curv_col_el_aniso.o: forward/sv_curv_col_el_aniso.c
+	${CC} -c -o $@ $(CFLAGS) $<
+sv_curv_col_vis_iso.o:   forward/sv_curv_col_vis_iso.c
 	${CC} -c -o $@ $(CFLAGS) $<
 
 main_curv_col_el_3d.o: forward/main_curv_col_el_3d.c

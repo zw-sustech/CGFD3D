@@ -15,6 +15,7 @@
 #include "sv_curv_col_el_iso.h"
 #include "sv_curv_col_el_vti.h"
 #include "sv_curv_col_el_aniso.h"
+#include "sv_curv_col_vis_iso.h"
 
 //#define SV_ELISO1ST_CURV_MACDRP_DEBUG
 
@@ -132,7 +133,12 @@ drv_rk_curv_col_allstep(
   {
     if (md->medium_type == CONST_MEDIUM_ELASTIC_ISO)
     {
-      sv_curv_col_el_iso_dvh2dvz(gd,metric,md,bdry,verbose);
+      if (md->visco_type == CONST_VISCO_GMB)
+        {
+          sv_curv_col_vis_iso_dvh2dvz(gd,metric,md,bdry,verbose);
+        } else {
+          sv_curv_col_el_iso_dvh2dvz(gd,metric,md,bdry,verbose);
+        }
     }
     else if (md->medium_type == CONST_MEDIUM_ELASTIC_VTI)
     {
@@ -222,14 +228,26 @@ drv_rk_curv_col_allstep(
       switch (md->medium_type)
       {
         case CONST_MEDIUM_ELASTIC_ISO : {
-          sv_curv_col_el_iso_onestage(
-              w_cur,w_rhs,wav,
-              gd, metric, md, bdry, src,
-              fd->num_of_fdx_op, fd->pair_fdx_op[ipair][istage],
-              fd->num_of_fdy_op, fd->pair_fdy_op[ipair][istage],
-              fd->num_of_fdz_op, fd->pair_fdz_op[ipair][istage],
-              fd->fdz_max_len,
-              myid, verbose);
+          if (md->visco_type == CONST_VISCO_GMB){
+              sv_curv_col_vis_iso_onestage(
+                  w_cur,w_rhs,wav,
+                  gd, metric, md, bdry, src,
+                  fd->num_of_fdx_op, fd->pair_fdx_op[ipair][istage],
+                  fd->num_of_fdy_op, fd->pair_fdy_op[ipair][istage],
+                  fd->num_of_fdz_op, fd->pair_fdz_op[ipair][istage],
+                  fd->fdz_max_len,
+                  myid, verbose);
+          }
+          else{       
+              sv_curv_col_el_iso_onestage(
+                  w_cur,w_rhs,wav,
+                  gd, metric, md, bdry, src,
+                  fd->num_of_fdx_op, fd->pair_fdx_op[ipair][istage],
+                  fd->num_of_fdy_op, fd->pair_fdy_op[ipair][istage],
+                  fd->num_of_fdz_op, fd->pair_fdz_op[ipair][istage],
+                  fd->fdz_max_len,
+                  myid, verbose);
+          }
 
           break;
         }

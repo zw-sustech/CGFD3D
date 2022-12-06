@@ -14,7 +14,9 @@
 int 
 wav_init(gd_t *gdinfo,
                wav_t *V,
-               int number_of_levels)
+               int number_of_levels,
+               int visco_type,
+               int nmaxwell)
 {
   int ierr = 0;
 
@@ -23,6 +25,12 @@ wav_init(gd_t *gdinfo,
   V->nz   = gdinfo->nz;
   V->ncmp = 9;
   V->nlevel = number_of_levels;
+  V->nmaxwell = nmaxwell;
+  V->visco_type = visco_type;
+
+  if (visco_type == CONST_VISCO_GMB) {
+      V->ncmp += 6*nmaxwell;
+  }
 
   V->siz_iy   = V->nx;
   V->siz_iz   = V->nx * V->ny;
@@ -39,7 +47,35 @@ wav_init(gd_t *gdinfo,
   // name of each var
   char **cmp_name = (char **) fdlib_mem_malloc_2l_char(
                       V->ncmp, CONST_MAX_STRLEN, "w3d_name, wf_el3d_1st");
-  
+  // position of each var
+  if (visco_type == CONST_VISCO_GMB) 
+  {
+    V->Jxx_pos = (size_t *) fdlib_mem_calloc_1d_sizet(
+                nmaxwell, 0, "Jxx_pos, wf_el3d_1st");
+    V->Jyy_pos = (size_t *) fdlib_mem_calloc_1d_sizet(
+                nmaxwell, 0, "Jyy_pos, wf_el3d_1st");
+    V->Jzz_pos = (size_t *) fdlib_mem_calloc_1d_sizet(
+                nmaxwell, 0, "Jzz_pos, wf_el3d_1st");
+    V->Jxy_pos = (size_t *) fdlib_mem_calloc_1d_sizet(
+                nmaxwell, 0, "Jxy_pos, wf_el3d_1st");
+    V->Jxz_pos = (size_t *) fdlib_mem_calloc_1d_sizet(
+                nmaxwell, 0, "Jxz_pos, wf_el3d_1st");
+    V->Jyz_pos = (size_t *) fdlib_mem_calloc_1d_sizet(
+                nmaxwell, 0, "Jyz_pos, wf_el3d_1st");
+    V->Jxx_seq = (size_t *) fdlib_mem_calloc_1d_sizet(
+                nmaxwell, 0, "Jxx_seq, wf_el3d_1st");
+    V->Jyy_seq = (size_t *) fdlib_mem_calloc_1d_sizet(
+                nmaxwell, 0, "Jyy_seq, wf_el3d_1st");
+    V->Jzz_seq = (size_t *) fdlib_mem_calloc_1d_sizet(
+                nmaxwell, 0, "Jzz_seq, wf_el3d_1st");
+    V->Jxy_seq = (size_t *) fdlib_mem_calloc_1d_sizet(
+                nmaxwell, 0, "Jxy_seq, wf_el3d_1st");
+    V->Jxz_seq = (size_t *) fdlib_mem_calloc_1d_sizet(
+                nmaxwell, 0, "Jxz_seq, wf_el3d_1st");
+    V->Jyz_seq = (size_t *) fdlib_mem_calloc_1d_sizet(
+                nmaxwell, 0, "Jyz_seq, wf_el3d_1st");
+  }
+
   // set value
   for (int icmp=0; icmp < V->ncmp; icmp++)
   {
@@ -98,6 +134,42 @@ wav_init(gd_t *gdinfo,
   V->Txy_pos = cmp_pos[icmp];
   V->Txy_seq = 8;
   icmp += 1;
+
+  if (visco_type == CONST_VISCO_GMB) 
+  {
+    for(int i=0; i < nmaxwell; i++)
+    {
+      sprintf(cmp_name[icmp],"%s%d","Jxx",i);
+      V->Jxx_pos[i] = cmp_pos[icmp];
+      V->Jxx_seq[i] = icmp;
+      icmp += 1;
+  
+      sprintf(cmp_name[icmp],"%s%d","Jyy",i);
+      V->Jyy_pos[i] = cmp_pos[icmp];
+      V->Jyy_seq[i] = icmp;
+      icmp += 1;
+  
+      sprintf(cmp_name[icmp],"%s%d","Jzz",i);
+      V->Jzz_pos[i] = cmp_pos[icmp];
+      V->Jzz_seq[i] = icmp;
+      icmp += 1;
+  
+      sprintf(cmp_name[icmp],"%s%d","Jyz",i);
+      V->Jyz_pos[i] = cmp_pos[icmp];
+      V->Jyz_seq[i] = icmp;
+      icmp += 1;
+  
+      sprintf(cmp_name[icmp],"%s%d","Jxz",i);
+      V->Jxz_pos[i] = cmp_pos[icmp];
+      V->Jxz_seq[i] = icmp;
+      icmp += 1;
+  
+      sprintf(cmp_name[icmp],"%s%d","Jxy",i);
+      V->Jxy_pos[i] = cmp_pos[icmp];
+      V->Jxy_seq[i] = icmp;
+      icmp += 1;
+    }
+  }
 
   // set pointer
   V->cmp_pos  = cmp_pos;

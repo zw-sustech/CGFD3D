@@ -18,7 +18,8 @@ int media_layer2model_onecmp(float *var3d,
                              size_t nz,
                              int grid_type, 
                              const char *in_var_file,
-                             const char *average_method);
+                             const char *average_method,
+                             int myid);
 
 //---- 1. elastic isotropic
 int media_layer2model_ac_iso(
@@ -32,7 +33,8 @@ int media_layer2model_ac_iso(
         size_t nz,
         int grid_type, 
         const char *in_3lay_file,
-        const char *equivalent_medium_method);
+        const char *equivalent_medium_method,
+        int myid);
 
 //----  2. elastic isotropic
 int media_layer2model_el_iso(
@@ -47,7 +49,8 @@ int media_layer2model_el_iso(
         size_t nz,
         int grid_type, 
         const char *in_3lay_file,
-        const char *equivalent_medium_method);
+        const char *equivalent_medium_method,
+        int myid);
 
 //--- 3. elastic vti
 int media_layer2model_el_vti(
@@ -65,7 +68,8 @@ int media_layer2model_el_vti(
         size_t nz,
         int grid_type, 
         const char *in_3lay_file, 
-        const char *equivalent_medium_method);
+        const char *equivalent_medium_method,
+        int myid);
 
 //--- 4. elastic anisotropic/TTI
 int media_layer2model_el_aniso(
@@ -85,7 +89,8 @@ int media_layer2model_el_aniso(
         size_t nz,
         int grid_type, 
         const char *in_3lay_file,
-        const char *equivalent_medium_method); 
+        const char *equivalent_medium_method,
+        int myid); 
 
 #ifdef __cplusplus
 }
@@ -122,7 +127,8 @@ void parametrization_layer_onecmp_loc(
     const float *Gridz,
     int grid_type,
     inter_t &interfaces,
-    float *var3d);
+    float *var3d,
+    int myid);
 
 //- 1. assign the parameter directly (use the local values): isotropic, acoustic 
 void parametrization_layer_ac_iso_loc(
@@ -135,7 +141,8 @@ void parametrization_layer_ac_iso_loc(
     int grid_type, 
     inter_t &interfaces,
     float *kappa,
-    float *rho3d);
+    float *rho3d,
+    int myid);
 
 //- 2. assign the parameter directly (use the local values): elastic isotropic 
 void parametrization_layer_el_iso_loc(
@@ -149,7 +156,8 @@ void parametrization_layer_el_iso_loc(
     inter_t &interfaces,
     float *lam3d,
     float *mu3d,
-    float *rho3d);
+    float *rho3d,
+    int myid);
 
 //- 3. Assign the parameter directly (use the local values): elastic vti
 void parametrization_layer_el_vti_loc(
@@ -166,7 +174,8 @@ void parametrization_layer_el_vti_loc(
     float *c55,
     float *c66,
     float *c13,
-    float *rho);
+    float *rho,
+    int myid);
 
 //- 4. Assign the parameter directly (use the local values): elastic tti
 void parametrization_layer_el_aniso_loc(
@@ -199,7 +208,8 @@ void parametrization_layer_el_aniso_loc(
     float *c55,
     float *c56,
     float *c66,
-    float *rho);
+    float *rho,
+    int myid);
 
 void MarkInterfaceNumber(
         int grid_type,
@@ -219,7 +229,8 @@ void parametrization_layer_onecmp_har(
     const float *Gridz,
     int grid_type,
     inter_t &interfaces,
-    float *var3d);
+    float *var3d,
+    int myid);
 
 //- 0.1 Assign the parameter by volume arithmetic averaging
 //- one component
@@ -232,7 +243,8 @@ void parametrization_layer_onecmp_ari(
     const float *Gridz,
     int grid_type,
     inter_t &interfaces,
-    float *var3d);
+    float *var3d,
+    int myid);
 
 //- 1.0 Assign the parameter by volume harmonic averaging (kappa)
 //- acoustic isortopic
@@ -246,7 +258,8 @@ void parametrization_layer_ac_iso_har(
     int grid_type,
     inter_t &interfaces,
     float *kappa, 
-    float *rho3d);
+    float *rho3d,
+    int myid);
 
 //- 1.1 Assign the parameter by volume arithmetic averaging (kappa)
 //- acoustic isortopic
@@ -260,7 +273,8 @@ void parametrization_layer_ac_iso_ari(
     int grid_type,
     inter_t &interfaces,
     float *kappa, 
-    float *rho3d);
+    float *rho3d,
+    int myid);
 
 //- 2.0 Assign the parameter by volume arithmetic and harmonic averaging method 
 //- elasic isotropic
@@ -277,7 +291,8 @@ void parametrization_layer_el_iso_har(
     inter_t &interfaces,
     float *lam3d,
     float *mu3d,
-    float *rho3d);
+    float *rho3d,
+    int myid);
 
 //- 2.1 Assign the parameter by volume arithmetic averaging method 
 //- elasic isotropic
@@ -292,7 +307,8 @@ void parametrization_layer_el_iso_ari(
     inter_t &interfaces,
     float *lam3d,
     float *mu3d,
-    float *rho3d);
+    float *rho3d,
+    int myid);
 
 //- 3.0 Assign the parameter by volume arithmetic and harmonic averaging method 
 //- elasic vti
@@ -310,7 +326,8 @@ void parametrization_layer_el_vti_har(
     float *c55,
     float *c66,
     float *c13,
-    float *rho);
+    float *rho,
+    int myid);
 
 //- 3.1 Assign the parameter by volume arithmetic averaging method 
 //- elasic vti
@@ -328,7 +345,8 @@ void parametrization_layer_el_vti_ari(
     float *c55,
     float *c66,
     float *c13,
-    float *rho);
+    float *rho,
+    int myid);
 
 //- 4.0 Assign the parameter by volume arithmetic and harmonic averaging method 
 //- elasic aniso
@@ -362,7 +380,8 @@ void parametrization_layer_el_aniso_har(
     float *c55,
     float *c56,
     float *c66,
-    float *rho);
+    float *rho,
+    int myid);
 
 //- 4.1 Assign the parameter by volume arithmetic averaging method 
 //- elasic tti
@@ -396,6 +415,7 @@ void parametrization_layer_el_aniso_ari(
     float *c55,
     float *c56,
     float *c66,
-    float *rho);
+    float *rho,
+    int myid);
 
 #endif /* __MEDID_LAYER2MODEL__ */
