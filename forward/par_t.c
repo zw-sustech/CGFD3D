@@ -791,6 +791,7 @@ par_read_from_str(const char *str, par_t *par)
   }
 
   //-- receiver line
+  par->number_of_receiver_line = 0;
   if (item = cJSON_GetObjectItem(root, "receiver_line"))
   {
     par->number_of_receiver_line = cJSON_GetArraySize(item);
@@ -839,6 +840,9 @@ par_read_from_str(const char *str, par_t *par)
   }
 
   // slice
+  par->number_of_slice_x = 0;
+  par->number_of_slice_y = 0;
+  par->number_of_slice_z = 0;
   if (item = cJSON_GetObjectItem(root, "slice"))
   {
     if (subitem = cJSON_GetObjectItem(item, "x_index"))
@@ -871,6 +875,7 @@ par_read_from_str(const char *str, par_t *par)
   }
 
   // snapshot
+  par->number_of_snapshot = 0;
   if (item = cJSON_GetObjectItem(root, "snapshot"))
   {
     par->number_of_snapshot = cJSON_GetArraySize(item);
