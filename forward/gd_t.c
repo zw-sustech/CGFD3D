@@ -730,7 +730,7 @@ gd_curv_coord_export(
   // close file
   ierr = nc_close(ncid);
   if (ierr != NC_NOERR){
-    fprintf(stderr,"nc error: %s\n", nc_strerror(ierr));
+    fprintf(stderr,"coord export nc error: %s\n", nc_strerror(ierr));
     exit(-1);
   }
 
@@ -761,13 +761,13 @@ gd_curv_coord_import(gd_t *gdcurv, char *fname_coords, char *import_dir)
 
     ierr = nc_inq_varid(ncid, gdcurv->cmp_name[ivar], &varid);
     if (ierr != NC_NOERR){
-      fprintf(stderr,"nc error: %s\n", nc_strerror(ierr));
+      fprintf(stderr,"coord read nc error: %s\n", nc_strerror(ierr));
       exit(-1);
     }
 
     ierr = nc_get_var(ncid, varid, ptr);
     if (ierr != NC_NOERR){
-      fprintf(stderr,"nc error: %s\n", nc_strerror(ierr));
+      fprintf(stderr,"coord read nc error: %s\n", nc_strerror(ierr));
       exit(-1);
     }
   }
@@ -775,7 +775,7 @@ gd_curv_coord_import(gd_t *gdcurv, char *fname_coords, char *import_dir)
   // close file
   ierr = nc_close(ncid);
   if (ierr != NC_NOERR){
-    fprintf(stderr,"nc error: %s\n", nc_strerror(ierr));
+    fprintf(stderr,"coord import nc error: %s\n", nc_strerror(ierr));
     exit(-1);
   }
 
@@ -929,7 +929,7 @@ gd_curv_metric_export(gd_t        *gdinfo,
   // close file
   ierr = nc_close(ncid);
   if (ierr != NC_NOERR){
-    fprintf(stderr,"nc error: %s\n", nc_strerror(ierr));
+    fprintf(stderr,"metric export nc error: %s\n", nc_strerror(ierr));
     exit(-1);
   }
 }
