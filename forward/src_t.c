@@ -576,7 +576,7 @@ src_read_locate_file(
             // time relative to start time of this source, considering diff from int conversion
             float t = it_to_it1 * dt + rk_stage_time[istage] * dt - t_shift;
 
-            float stf_val = src_cal_wavelet(t,wavelet_name,wavelet_coefs);
+            float stf_val = src_cal_wavelet(t,dt,wavelet_name,wavelet_coefs);
             if (force_actived==1) {
               src->Fx[iptr]  = stf_val * fx;
               src->Fy[iptr]  = stf_val * fy;
@@ -1511,7 +1511,7 @@ src_dd_accit_loadstf(src_t *src, int it, int myid)
  */
 
 float
-src_cal_wavelet(float t, char *wavelet_name, float *wavelet_coefs)
+src_cal_wavelet(float t, float dt, char *wavelet_name, float *wavelet_coefs)
 {
   float stf_val;
 
@@ -1530,9 +1530,14 @@ src_cal_wavelet(float t, char *wavelet_name, float *wavelet_coefs)
   } else if (strcmp(wavelet_name, "step")==0) {
     stf_val = fun_step(t);
   } else if (strcmp(wavelet_name, "delta")==0) {
-    stf_val = fun_delta(t, wavelet_coefs[0]);
+    stf_val = fun_delta(t, dt);
   } else if (strcmp(wavelet_name, "liuetal2006")==0) {
     stf_val = fun_liuetal2006(t, wavelet_coefs[0]);
+  } else if (strcmp(wavelet_name, "klauder")==0) {
+    stf_val = fun_klauder(t, wavelet_coefs[0], wavelet_coefs[1], wavelet_coefs[2], wavelet_coefs[3]);
+  } else if (strcmp(wavelet_name, "klauder_blackman")==0) {
+    stf_val = fun_klauder_blackman(t, wavelet_coefs[0], wavelet_coefs[1], 
+                                      wavelet_coefs[2], wavelet_coefs[3], dt);
   } else{
     fprintf(stderr,"wavelet_name=%s\n", wavelet_name); 
     fprintf(stderr,"   not implemented yet\n"); 
@@ -1676,6 +1681,54 @@ fun_delta(float t, float dt)
 
   return f;
 }
+
+float
+fun_klauder(float t, float tshift, float f1, float f2, float T)
+{
+  float f;
+
+  float K  = (f2-f1)/2.0;
+  float fM = (f2+f1)/2.0;
+
+  float t_zero = t - tshift;
+
+  // need to verify the exact eqn
+  // need to check if specil treatment is needed when t_zero close to 0
+  f = (sin( PI*K*t_zero * (T-t_zero)) * cos(2*PI*fM*t_zero)) / (PI*K*t_zero);
+
+  return f;
+}
+
+float
+fun_klauder_blackman(float t, float tshift, float f1, float f2, float T, float dt)
+{
+  float f;
+
+  f = fun_klauder(f,tshift,f1,f2,T);
+
+  float B = blackman_window(t,dt,tshift);
+
+  f = f * B;
+
+  return f;
+}
+
+float
+blackman_window(float t, float dt, float tshift)
+{
+    float B;
+    float i = t/dt;
+    float n = tshift/dt;
+
+    if (i<=2*n) {
+      B = 0.42-0.5*cos(2*PI*(i-1)/(2*n-1)) + 0.08*cos(4*PI*(i-1)/(2*n-1));
+    } else {
+      B = 0.0;
+    }
+
+    return B;
+}
+
 
 // eqn 7a in liu et al., 2006
 float

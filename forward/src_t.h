@@ -166,7 +166,7 @@ int
 src_dd_accit_loadstf(src_t *src, int it, int myid);
 
 float
-src_cal_wavelet(float t, char *wavelet_name, float *wavelet_coefs);
+src_cal_wavelet(float t, float dt, char *wavelet_name, float *wavelet_coefs);
 
 float 
 fun_ricker(float t, float fc, float t0);
@@ -194,6 +194,15 @@ fun_step(float t);
 
 float
 fun_delta(float t, float dt);
+
+float
+fun_klauder(float t, float tshift, float f1, float f2, float T);
+
+float
+fun_klauder_blackman(float t, float tshift, float f1, float f2, float T, float dt);
+
+float
+blackman_window(float t, float dt, float tshift);
 
 void 
 angle2moment(float strike, float dip, float rake, float* source_moment_tensor);
