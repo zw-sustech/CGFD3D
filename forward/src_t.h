@@ -183,6 +183,18 @@ fun_gauss_deriv(float t, float a, float t0);
 float
 fun_liuetal2006(float t, float tau);
 
+float
+fun_bell(float t, float riset);
+
+float
+fun_bell_deriv(float t, float riset);
+
+float
+fun_step(float t);
+
+float
+fun_delta(float t, float dt);
+
 void 
 angle2moment(float strike, float dip, float rake, float* source_moment_tensor);
 

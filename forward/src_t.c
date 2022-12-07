@@ -1523,6 +1523,14 @@ src_cal_wavelet(float t, char *wavelet_name, float *wavelet_coefs)
     stf_val = fun_ricker_deriv(t, wavelet_coefs[0], wavelet_coefs[1]);
   } else if (strcmp(wavelet_name, "gaussian_deriv")==0) {
     stf_val = fun_gauss_deriv(t, wavelet_coefs[0], wavelet_coefs[1]);
+  } else if (strcmp(wavelet_name, "bell")==0) {
+    stf_val = fun_bell(t, wavelet_coefs[0]);
+  } else if (strcmp(wavelet_name, "bell_deriv")==0) {
+    stf_val = fun_bell_deriv(t, wavelet_coefs[0]);
+  } else if (strcmp(wavelet_name, "step")==0) {
+    stf_val = fun_step(t);
+  } else if (strcmp(wavelet_name, "delta")==0) {
+    stf_val = fun_delta(t, wavelet_coefs[0]);
   } else if (strcmp(wavelet_name, "liuetal2006")==0) {
     stf_val = fun_liuetal2006(t, wavelet_coefs[0]);
   } else{
@@ -1608,6 +1616,64 @@ fun_gauss_deriv(float t, float a, float t0)
 {
   float f;
   f = exp(-(t-t0)*(t-t0)/(a*a))/(sqrtf(PI)*a)*(-2*(t-t0)/(a*a));
+  return f;
+}
+
+float
+fun_bell(float t, float riset)
+{
+  float f;
+
+  if (t>=0.0 & t <= riset) {
+    f = 2.0 * PI * sin(2*PI*t/riset) / riset;
+  } else {
+    f = 0.0;
+  }
+
+  return f;
+}
+
+float
+fun_bell_deriv(float t, float riset)
+{
+  float f;
+
+  if (t < 0.0) {
+    f = 0.0;
+  } else if (t <= riset) {
+    f = t / riset - sin(2.0*PI*t/riset) / (2.0*PI);
+  } else {
+    f = 1.0;
+  }
+
+  return f;
+}
+
+float
+fun_step(float t)
+{
+  float f;
+
+  if (t<0.0) {
+    f = 0.0;
+  } else {
+    f = 1.0;
+  }
+
+  return f;
+}
+
+float
+fun_delta(float t, float dt)
+{
+  float f;
+
+  if (t<0.0 | t > dt) {
+    f = 0.0;
+  } else {
+    f = 1.0 / dt;
+  }
+
   return f;
 }
 
