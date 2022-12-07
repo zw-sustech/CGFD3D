@@ -1523,6 +1523,8 @@ src_cal_wavelet(float t, char *wavelet_name, float *wavelet_coefs)
     stf_val = fun_ricker_deriv(t, wavelet_coefs[0], wavelet_coefs[1]);
   } else if (strcmp(wavelet_name, "gaussian_deriv")==0) {
     stf_val = fun_gauss_deriv(t, wavelet_coefs[0], wavelet_coefs[1]);
+  } else if (strcmp(wavelet_name, "liuetal2006")==0) {
+    stf_val = fun_liuetal2006(t, wavelet_coefs[0]);
   } else{
     fprintf(stderr,"wavelet_name=%s\n", wavelet_name); 
     fprintf(stderr,"   not implemented yet\n"); 
@@ -1606,6 +1608,29 @@ fun_gauss_deriv(float t, float a, float t0)
 {
   float f;
   f = exp(-(t-t0)*(t-t0)/(a*a))/(sqrtf(PI)*a)*(-2*(t-t0)/(a*a));
+  return f;
+}
+
+// eqn 7a in liu et al., 2006
+float
+fun_liuetal2006(float t, float tau)
+{
+  float f;
+
+  float tau_1 = 0.13 * tau;
+  float tau_2 = tau - tau_1;
+  float CN = PI / (1.4*PI*tau_1 + 1.2*tau_1 + 0.3*PI*tau_2);
+
+  if (t >=0.0 & t < tau_1) {
+    f = CN * (0.7 - 0.7 * cos(PI*t/tau_1) + 0.6 * sin(0.5*PI*t/tau_1));
+  } else if (t < 2.0 * tau_1) {
+    f = CN * (1.0 - 0.7 * cos(PI*t/tau_1) + 0.3 * cos(PI*(t-tau_1)/tau_2));
+  } else if (t < tau) {
+    f = CN * (0.3 + 0.3 * cos(PI*(t-tau_1) / tau_2));
+  } else {
+    f = 0.0;
+  }
+
   return f;
 }
 

@@ -180,6 +180,9 @@ fun_gauss(float t, float a, float t0);
 float
 fun_gauss_deriv(float t, float a, float t0);
 
+float
+fun_liuetal2006(float t, float tau);
+
 void 
 angle2moment(float strike, float dip, float rake, float* source_moment_tensor);
 
