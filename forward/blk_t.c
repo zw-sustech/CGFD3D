@@ -3008,11 +3008,10 @@ blk_keep_two_digi(float dt)
   char str[40];
   float dt_2;
 
-  sprintf(str, "%6.4e", dt);
+  sprintf(str, "%9.7e", dt);
 
-  str[3] = '0';
-  str[4] = '0';
-  str[5] = '0';
+  for (int i = 3; i < 9; i++)
+    str[i] = '0';
 
   sscanf(str, "%f", &dt_2);
   
