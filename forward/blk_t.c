@@ -190,7 +190,8 @@ blk_colcent_mesg_init(mympi_t *mympi,
   int siz_y = (ni * nk * fdy_nghosts) * num_of_vars;
 
   int siz_buff =(  ni * nk * fdy_nghosts * 2
-                    + nj * nk * fdx_nghosts * 2) * num_of_vars;
+                 + nj * nk * fdx_nghosts * 2) * num_of_vars;
+
   mympi->sbuff = (float *) fdlib_mem_malloc_1d(siz_buff * sizeof(MPI_FLOAT),"alloc sbuff");
   mympi->rbuff = (float *) fdlib_mem_malloc_1d(siz_buff * sizeof(MPI_FLOAT),"alloc rbuff");
   for (int iptr=0; iptr < siz_buff; iptr++) {
@@ -227,7 +228,7 @@ blk_colcent_mesg_init(mympi_t *mympi,
 void
 blk_colcent_pack_mesg(float *restrict w_cur,float *restrict sbuff,
                  int num_of_vars, gd_t *gdinfo,
-                 int   fdx_nghosts, int   fdy_nghosts)
+                 int fdx_nghosts, int fdy_nghosts)
 {
   int ni1 = gdinfo->ni1;
   int ni2 = gdinfo->ni2;
@@ -334,7 +335,7 @@ blk_colcent_pack_mesg(float *restrict w_cur,float *restrict sbuff,
 void
 blk_colcent_unpack_mesg(float *restrict rbuff,float *restrict w_cur,
                  int num_of_vars, gd_t *gdinfo,
-                 int   fdx_nghosts, int   fdy_nghosts)
+                 int fdx_nghosts, int fdy_nghosts)
 {
   int ni1 = gdinfo->ni1;
   int ni2 = gdinfo->ni2;
@@ -2993,6 +2994,12 @@ blk_dt_esti_cart(gd_t *gdcart, md_t *md,
   *dtmaxL = dtLe;
 
   return ierr;
+}
+
+float
+blk_keep_two_decimal(float dt)
+{
+  return floor(100*dt)/100;
 }
 
 float

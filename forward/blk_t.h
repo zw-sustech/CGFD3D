@@ -200,4 +200,7 @@ blk_dt_esti_cart(gd_t *gdcart, md_t *md,
 float
 blk_keep_two_digi(float dt);
 
+float
+blk_keep_two_decimal(float dt);
+
 #endif
