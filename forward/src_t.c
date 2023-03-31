@@ -1630,7 +1630,7 @@ fun_bell(float t, float riset)
   float f;
 
   if (t>=0.0 & t <= riset) {
-    f = 2.0 * PI * sin(2*PI*t/riset) / riset;
+    f = ( 1.0 - cos(2*PI*t/riset) ) / riset;
   } else {
     f = 0.0;
   }
@@ -1640,6 +1640,21 @@ fun_bell(float t, float riset)
 
 float
 fun_bell_deriv(float t, float riset)
+{
+  float f;
+
+  if (t>=0.0 & t <= riset) {
+    f = 2.0 * PI * sin(2*PI*t/riset) / riset;
+  } else {
+    f = 0.0;
+  }
+
+  return f;
+}
+
+// following is 2nd derivative of bell
+float
+fun_bell_deriv2(float t, float riset)
 {
   float f;
 
