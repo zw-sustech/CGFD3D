@@ -118,6 +118,9 @@ int
 src_glob_ext_ishere(int si, int sj, int sk, int half_ext, gd_t *gdinfo);
 
 int
+src_glob_ishere(int si, int sj, int sk, int half_ext, gd_t *gdinfo);
+
+int
 src_coord_to_local_indx(
                         gd_t *gdcurv,
                         float sx, float sy, float sz,

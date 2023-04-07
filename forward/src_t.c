@@ -119,6 +119,28 @@ src_glob_ext_ishere(int si, int sj, int sk, int half_ext, gd_t *gdinfo)
 }
 
 /*
+ * if global index in this thread without ghost points
+ */
+
+int
+src_glob_ishere(int si, int sj, int sk, int half_ext, gd_t *gd)
+{
+  int is_here = 0;
+
+  if (si <= gd->ni2_to_glob_phys0 && 
+      si >= gd->ni1_to_glob_phys0 && 
+      sj <= gd->nj2_to_glob_phys0 && 
+      sj >= gd->nj1_to_glob_phys0 &&
+      sk <= gd->nk2_to_glob_phys0 && 
+      sk >= gd->nk1_to_glob_phys0)
+  {
+    is_here = 1;
+  }
+
+  return is_here;
+}
+
+/*
  * read .src file and convert into internal structure
  */
 
@@ -235,6 +257,7 @@ src_read_locate_file(
   float **all_inc    = fdlib_mem_calloc_2l_float(in_num_source,CONST_NDIM,0.0,"all_inc");
   int   **all_index = fdlib_mem_calloc_2l_int(in_num_source,CONST_NDIM,0,"all_index");
   int    *all_in_thread = fdlib_mem_calloc_1d_int(in_num_source,0,"all_in_thread");
+  int *all_in_thread_without_ghost = (int *) fdlib_mem_calloc_1d_int(in_num_source,0, "source_in_this_thread");
 
   // read coords and determine if in this thread
   for (int is=0; is<in_num_source; is++)
@@ -312,6 +335,10 @@ src_read_locate_file(
     {
       all_in_thread[is] = 1;
       num_of_src_here += 1;
+    }
+    if (src_glob_ishere(si_glob,sj_glob,sk_glob,npoint_half_ext,gd)==1)
+    {
+      all_in_thread_without_ghost[is] = 1;
     }
   } // is loop
 
@@ -442,8 +469,11 @@ src_read_locate_file(
             // mu < 0 means to use internal model mu value
             float mu =  myz;
             if (mu < 0.0) { mu =  mu3d[iptr]; }
-            //mxz is D, mxy[it] is A,
-            M0 += mu*mxz*mxy;
+            if(all_in_thread_without_ghost[is] == 1)
+            {
+              //mxz is D, mxy[it] is A,
+              M0 += mu*mxz*mxy;
+            }
             src_muDA_to_moment(mxx,myy,mzz,mu,mxz,mxy,
                       &mxx,&myy,&mzz,&myz,&mxz,&mxy);
           }
@@ -484,9 +514,11 @@ src_read_locate_file(
               // mu < 0 means to use internal model mu value
               float mu =  m23[it];
               if (mu < 0.0) { mu =  mu3d[iptr]; }
-
-              //m13[it] is v, m12[it] is A,
-              M0 += mu*m13[it]*in_stf_dt*m12[it];
+              if(all_in_thread_without_ghost[is] == 1)
+              {
+                //m13[it] is v, m12[it] is A,
+                M0 += mu*m13[it]*in_stf_dt*m12[it];
+              }
               src_muDA_to_moment(m11[it],m22[it],m33[it],mu,m13[it],m12[it],
                                  m11+it ,m22+it ,m33+it ,m23+it ,m13+it ,m12+it);
             }
