@@ -109,8 +109,8 @@ create_station_file()
 cat << ieof > $PROJDIR/test.station
 # number of station
 1
-# name is_grid_indx is_3dim_depth  x y z
-r1  0  1  1000 1000 0
+# name is_physical_coord is_3dim_depth  x y z
+r1  1  1  1000 1000 0
 ieof
 
 echo "+ created $PROJDIR/test.station"
