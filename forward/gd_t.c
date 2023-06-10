@@ -2130,7 +2130,7 @@ gd_curv_coord_to_local_indx(
               }
 
               // is in this cell
-              if (isPointInHexahedron(sx,sy,sz,points_x,points_y,points_z) == true)
+              if (isPointInHexahedron_strict(sx,sy,sz,points_x,points_y,points_z) == true)
               {
                 is_here = 1;
 
