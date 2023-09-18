@@ -128,6 +128,8 @@ typedef struct{
   char media_export_dir[PAR_MAX_STRLEN];
   char media_import_dir[PAR_MAX_STRLEN];
   char media_input_file[PAR_MAX_STRLEN];
+  char Qp_input_file[PAR_MAX_STRLEN];
+  char Qs_input_file[PAR_MAX_STRLEN];
 
   // medium in bin file
   int bin_size[CONST_NDIM];

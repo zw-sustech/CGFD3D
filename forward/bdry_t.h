@@ -126,6 +126,7 @@ typedef struct
   float *matVx2Vz2; // [j,i, dzVi, dxVi]
   float *matVy2Vz2;
   float *matA; // DZ inversion for atten
+  float *matD; // DZ inversion for atten
 
   // bottom
   float *matVx2Vz1;

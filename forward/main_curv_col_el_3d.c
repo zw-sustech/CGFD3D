@@ -293,12 +293,11 @@ int main(int argc, char** argv)
           md_gen_test_el_aniso(md);
         }
 
+        if (md->medium_type == CONST_MEDIUM_VISCOELASTIC_ISO && md->visco_type == CONST_VISCO_GMB) {
+          md_gen_test_vis_iso(md);
+        }
         if (md->visco_type == CONST_VISCO_GRAVES_QS) {
           md_gen_test_Qs(md, par->visco_Qs_freq);
-        }
-
-        if (md->visco_type == CONST_VISCO_GMB) {
-          md_gen_test_GMB(md);
         }
 
         break;
@@ -401,6 +400,33 @@ int main(int argc, char** argv)
                                      par->media_input_file,
                                      par->equivalent_medium_method,
                                      myid);
+        } else if (md->medium_type == CONST_MEDIUM_VISCOELASTIC_ISO && md->visco_type == CONST_VISCO_GMB) 
+        {
+            media_grid2model_el_iso(md->rho,md->lambda, md->mu, 
+                                     gdcurv->x3d, gdcurv->y3d, gdcurv->z3d,
+                                     gdcurv->nx, gdcurv->ny, gdcurv->nz,
+                                     gdcurv->xmin,gdcurv->xmax,
+                                     gdcurv->ymin,gdcurv->ymax,
+                                     MEDIA_USE_CURV,
+                                     par->media_input_file,
+                                     par->equivalent_medium_method,
+                                     myid);
+            media_grid2model_onecmp(md->Qp, gdcurv->x3d, gdcurv->y3d, gdcurv->z3d,
+                                    gdcurv->nx, gdcurv->ny, gdcurv->nz,                          
+                                    gdcurv->xmin,gdcurv->xmax,                                 
+                                    gdcurv->ymin,gdcurv->ymax,
+                                    MEDIA_USE_CURV,
+                                    par->Qp_input_file,
+                                    par->equivalent_medium_method,
+                                    myid);
+            media_grid2model_onecmp(md->Qs, gdcurv->x3d, gdcurv->y3d, gdcurv->z3d,
+                                    gdcurv->nx, gdcurv->ny, gdcurv->nz,                          
+                                    gdcurv->xmin,gdcurv->xmax,                                 
+                                    gdcurv->ymin,gdcurv->ymax,
+                                    MEDIA_USE_CURV,
+                                    par->Qs_input_file,
+                                    par->equivalent_medium_method,
+                                    myid);
         }
         break;
     }  // md3grd
@@ -500,9 +526,9 @@ int main(int argc, char** argv)
 
   } // switch
 
-  if (par->visco_itype == CONST_VISCO_GMB){
-      md_vis_GMB_cal_Y(md,par->fr, par->fmin, par->fmax);
-  }
+//  if (par->visco_itype == CONST_VISCO_GMB){
+//      md_vis_GMB_cal_Y(md,par->fr, par->fmin, par->fmax);
+//  }
 
   // export grid media
   if (par->is_export_media==1)
@@ -515,6 +541,11 @@ int main(int argc, char** argv)
   } else {
     if (myid==0) fprintf(stdout,"do not export medium\n"); 
   }
+
+  if (par->visco_itype == CONST_VISCO_GMB){
+      md_vis_GMB_cal_Y(md,par->fr, par->fmin, par->fmax);
+  }
+
   MPI_Barrier(comm);
   if (myid == 0) fprintf(stdout, "  --> done\n");
 
@@ -780,7 +811,7 @@ int main(int argc, char** argv)
   io_recv_output_sac(iorecv,dt,wav->ncmp,wav->visco_type,wav->cmp_name,
                       src->evtnm,blk->output_dir,err_message);
 
-  if(md->medium_type == CONST_MEDIUM_ELASTIC_ISO) {
+  if(md->medium_type == CONST_MEDIUM_ELASTIC_ISO || md->medium_type == CONST_MEDIUM_VISCOELASTIC_ISO) {
     io_recv_output_sac_el_iso_strain(iorecv,md->lambda,md->mu,dt,
                       src->evtnm,blk->output_dir,err_message);
   }

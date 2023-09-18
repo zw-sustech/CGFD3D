@@ -35,7 +35,10 @@ md_init(gd_t *gdinfo, md_t *md, int media_type, int visco_type, int nmaxwell)
     md->ncmp = 3;
   } else if (media_type == CONST_MEDIUM_ELASTIC_VTI) {
     md->ncmp = 6; // 5 + rho
-  } else {
+  } else if (media_type == CONST_MEDIUM_VISCOELASTIC_ISO) {
+    md->nmaxwell = nmaxwell;
+    md->ncmp = 3 + 2*md->nmaxwell+2;
+  } else{
     md->ncmp = 22; // 21 + rho
   }
 
@@ -43,9 +46,6 @@ md_init(gd_t *gdinfo, md_t *md, int media_type, int visco_type, int nmaxwell)
   md->visco_type = visco_type;
   if (visco_type == CONST_VISCO_GRAVES_QS) {
    md->ncmp += 1;
-  } else if(visco_type == CONST_VISCO_GMB) {
-    md->nmaxwell = nmaxwell;
-    md->ncmp += 2*md->nmaxwell+2;
   }
 
   /*
@@ -219,15 +219,15 @@ md_init(gd_t *gdinfo, md_t *md, int media_type, int visco_type, int nmaxwell)
     md->c66 = md->v4d + cmp_pos[icmp];
   }
 
-  // plus Qs
-  if (visco_type == CONST_VISCO_GRAVES_QS) {
+  // vis_iso
+  if (media_type == CONST_MEDIUM_VISCOELASTIC_ISO) {
     icmp += 1;
-    sprintf(cmp_name[icmp],"%s","Qs");
-    md->Qs = md->v4d + cmp_pos[icmp];
-  }
-  
-  // plus Qp,Qs,Ylam,Ymu
-  if (visco_type == CONST_VISCO_GMB) {
+    sprintf(cmp_name[icmp],"%s","lambda");
+    md->lambda = md->v4d + cmp_pos[icmp];
+
+    icmp += 1;
+    sprintf(cmp_name[icmp],"%s","mu");
+    md->mu = md->v4d + cmp_pos[icmp];
     icmp += 1;
     sprintf(cmp_name[icmp],"%s","Qp");
     md->Qp = md->v4d + cmp_pos[icmp];
@@ -246,6 +246,13 @@ md_init(gd_t *gdinfo, md_t *md, int media_type, int visco_type, int nmaxwell)
       sprintf(cmp_name[icmp],"%s%d","Ymu",i+1);
       md->Ymu[i] = md->v4d + cmp_pos[icmp];
     }
+  }
+
+  // plus Qs
+  if (visco_type == CONST_VISCO_GRAVES_QS) {
+    icmp += 1;
+    sprintf(cmp_name[icmp],"%s","Qs");
+    md->Qs = md->v4d + cmp_pos[icmp];
   }
 
   // set pointer
@@ -894,7 +901,7 @@ md_visco_LS_mat_inv(float matrix[][VISCO_LS_MAXSIZE], float inverse[][VISCO_LS_M
 }
 
 int
-md_gen_test_GMB(md_t *md)
+md_gen_test_vis_iso(md_t *md)
 {
   int ierr = 0;
 
@@ -904,8 +911,17 @@ md_gen_test_GMB(md_t *md)
   int siz_line  = md->siz_iy;
   int siz_slice = md->siz_iz;
 
+  float *lam3d = md->lambda;
+  float  *mu3d = md->mu;
+  float *rho3d = md->rho;
   float *Qs = md->Qs;
   float *Qp = md->Qp;
+
+  float Vp=3000.0;
+  float Vs=2000.0;
+  float rho=1500.0;
+  float mu = Vs*Vs*rho;
+  float lam = Vp*Vp*rho - 2.0*mu;
 
   for (size_t k=0; k<nz; k++)
   {
@@ -914,6 +930,9 @@ md_gen_test_GMB(md_t *md)
       for (size_t i=0; i<nx; i++)
       {
         size_t iptr = i + j * siz_line + k * siz_slice;
+        lam3d[iptr] = lam;
+         mu3d[iptr] = mu;
+        rho3d[iptr] = rho;
         Qs[iptr] = 40;
         Qp[iptr] = 80;
       }

@@ -459,6 +459,8 @@ par_read_from_str(const char *str, par_t *par)
           par->media_itype = CONST_MEDIUM_ELASTIC_ANISO;
         } else if (strcmp(par->media_type, "acoustic_iso")==0) {
           par->media_itype = CONST_MEDIUM_ACOUSTIC_ISO;
+        } else if (strcmp(par->media_type, "viscoelastic_iso")==0) {
+          par->media_itype = CONST_MEDIUM_VISCOELASTIC_ISO;
         } else {
           fprintf(stderr,"ERROR: media_type=%s is unknown\n",par->media_type);
           MPI_Abort(MPI_COMM_WORLD,9);
@@ -507,7 +509,17 @@ par_read_from_str(const char *str, par_t *par)
       par->media_input_itype = PAR_MEDIA_3GRD;
       if (subitem = cJSON_GetObjectItem(item, "infile_grid"))
       {
-          sprintf(par->media_input_file, "%s", subitem->valuestring);
+        if (thirditem = cJSON_GetObjectItem(subitem, "VpVsrho")){
+          sprintf(par->media_input_file, "%s", thirditem->valuestring);
+        }
+        if (strcmp(par->media_type, "viscoelastic_iso")==0) {
+          if (thirditem = cJSON_GetObjectItem(subitem, "Qp")){
+            sprintf(par->Qp_input_file, "%s", thirditem->valuestring);
+          }
+          if (thirditem = cJSON_GetObjectItem(subitem, "Qs"));{
+            sprintf(par->Qs_input_file, "%s", thirditem->valuestring);
+          }
+        }
       }
     }
 

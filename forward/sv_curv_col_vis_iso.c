@@ -164,7 +164,6 @@ sv_curv_col_vis_iso_onestage(
                                     fdy_inn_len, fdy_inn_indx, fdy_inn_coef,
                                     fdz_inn_len, fdz_inn_indx, fdz_inn_coef,
                                     myid, verbose);
-
   // free, abs, source in turn
 
   // free surface at z2
@@ -180,20 +179,15 @@ sv_curv_col_vis_iso_onestage(
                                         fdz_inn_len, fdz_inn_indx, fdz_inn_coef,
                                         myid, verbose);
 
-    // velocity: vlow
-    sv_curv_col_vis_iso_rhs_vlow_z2(Vx,Vy,Vz,hTxx,hTyy,hTzz,hTxz,hTyz,hTxy,
-                                         Jxx,Jyy,Jzz,Jxy,Jxz,Jyz,
-                                         hJxx,hJyy,hJzz,hJxy,hJxz,hJyz,
-                                         xi_x, xi_y, xi_z, et_x, et_y, et_z, zt_x, zt_y, zt_z,
-                                         lam3d, mu3d, slw3d,
-                                         wl, Ylam, Ymu,
-                                         matVx2Vz,matVy2Vz,matA,
-                                         ni1,ni2,nj1,nj2,nk1,nk2,siz_line,siz_slice,
-                                         fdx_inn_len, fdx_inn_indx, fdx_inn_coef,
-                                         fdy_inn_len, fdy_inn_indx, fdy_inn_coef,
-                                         num_of_fdz_op,fdz_op,fdz_max_len,
-                                         nmaxwell,
-                                         myid, verbose);
+    sv_curv_col_el_iso_rhs_vlow_z2(Vx,Vy,Vz,hTxx,hTyy,hTzz,hTxz,hTyz,hTxy,
+                                      xi_x, xi_y, xi_z, et_x, et_y,et_z, zt_x, zt_y, zt_z,
+                                      lam3d, mu3d, slw3d,
+                                      matVx2Vz,matVy2Vz,
+                                      ni1,ni2,nj1,nj2,nk1,nk2,
+                                      siz_line,siz_slice,fdx_inn_len, fdx_inn_indx,
+                                      fdx_inn_coef,fdy_inn_len, fdy_inn_indx,
+                                      fdy_inn_coef,num_of_fdz_op,fdz_op,
+                                      fdz_max_len,myid, verbose);
   }
 
   // cfs-pml, loop face inside
@@ -210,7 +204,7 @@ sv_curv_col_vis_iso_onestage(
                                        bdry, 
                                        myid, verbose);
   }
-  
+
   sv_curv_col_vis_iso_atten(hTxx,hTyy,hTzz,hTxz,hTyz,hTxy,
                             Jxx,Jyy,Jzz,Jxy,Jxz,Jyz,
                             hJxx,hJyy,hJzz,hJxy,hJxz,hJyz,
@@ -240,259 +234,6 @@ sv_curv_col_vis_iso_onestage(
   // end func
 }
 
-/*******************************************************************************
- * free surface boundary
- ******************************************************************************/
-
-/*
- * implement vlow boundary
- */
-
-void
-sv_curv_col_vis_iso_rhs_vlow_z2(
-    float *restrict  Vx ,  float *restrict  Vy ,  float *restrict  Vz ,
-    float *restrict hTxx,  float *restrict hTyy,  float *restrict hTzz,
-    float *restrict hTxz,  float *restrict hTyz,  float *restrict hTxy,
-    float **restrict Jxx,  float **restrict Jyy,  float **restrict Jzz,
-    float **restrict Jxy,  float **restrict Jxz,  float **restrict Jyz,
-    float **restrict hJxx, float **restrict hJyy, float **restrict hJzz,
-    float **restrict hJxy, float **restrict hJxz, float **restrict hJyz,
-    float *restrict xi_x,  float *restrict xi_y,  float *restrict xi_z,
-    float *restrict et_x,  float *restrict et_y,  float *restrict et_z,
-    float *restrict zt_x,  float *restrict zt_y,  float *restrict zt_z,
-    float *restrict lam3d, float *restrict mu3d,  float *restrict slw3d,
-    float *restrict wl,    float **restrict Ylam, float **restrict Ymu,
-    float *restrict matVx2Vz, float *restrict matVy2Vz, float *restrict matA,
-    int ni1, int ni2, int nj1, int nj2, int nk1, int nk2,
-    size_t siz_line, size_t siz_slice,
-    int fdx_len, int *restrict fdx_indx, float *restrict fdx_coef,
-    int fdy_len, int *restrict fdy_indx, float *restrict fdy_coef,
-    int num_of_fdz_op, fd_op_t *fdz_op, int fdz_max_len,
-    int nmaxwell,
-    const int myid, const int verbose)
-{
-  // use local stack array for speedup
-  float  lfdx_coef [fdx_len];
-  int    lfdx_shift[fdx_len];
-  float  lfdy_coef [fdy_len];
-  int    lfdy_shift[fdy_len];
-
-  // allocate max_len because fdz may have different lens
-  float  lfdz_coef [fdz_max_len];
-  int    lfdz_shift[fdz_max_len];
-
-  // local var
-  int i,j,k;
-  int n_fd; // loop var for fd
-  int fdz_len;
-
-  // local var
-  float DxVx,DxVy,DxVz;
-  float DyVx,DyVy,DyVz;
-  float DzVx,DzVy,DzVz;
-  float lam,mu,lam2mu,slw;
-  float xix,xiy,xiz,etx,ety,etz,ztx,zty,ztz;
-  float mem_Txx,mem_Tyy,mem_Tzz,mem_Txy,mem_Txz,mem_Tyz;
-  float sum_Jxyz,sum_Jxx,sum_Jyy,sum_Jzz,sum_Jxy,sum_Jxz,sum_Jyz;
-
-  float A[3][3], M[3][3], AM[3][3];
-
-  // put fd op into local array
-  for (i=0; i < fdx_len; i++) {
-    lfdx_coef [i] = fdx_coef[i];
-    lfdx_shift[i] = fdx_indx[i];
-  }
-  for (j=0; j < fdy_len; j++) {
-    lfdy_coef [j] = fdy_coef[j];
-    lfdy_shift[j] = fdy_indx[j] * siz_line;
-  }
-
-  // loop near surface layers
-  //for (size_t n=0; n < 1; n++)
-  for (size_t n=0; n < num_of_fdz_op-1; n++)
-  {
-    // conver to k index, from surface to inner
-    k = nk2 - n;
-
-    // get pos and len for this point
-    int  lfdz_len  = fdz_op[n].total_len;
-    // point to indx/coef for this point
-    int   *p_fdz_indx  = fdz_op[n].indx;
-    float *p_fdz_coef  = fdz_op[n].coef;
-    for (n_fd = 0; n_fd < lfdz_len ; n_fd++) {
-      lfdz_shift[n_fd] = p_fdz_indx[n_fd] * siz_slice;
-      lfdz_coef[n_fd]  = p_fdz_coef[n_fd];
-    }
-
-    // for index
-    size_t iptr_k = k * siz_slice;
-
-    for (j=nj1; j<=nj2; j++)
-    {
-      size_t iptr_j = iptr_k + j * siz_line;
-
-      size_t iptr = iptr_j + ni1;
-
-      for (i=ni1; i<=ni2; i++)
-      {
-        // metric
-        xix = xi_x[iptr];
-        xiy = xi_y[iptr];
-        xiz = xi_z[iptr];
-        etx = et_x[iptr];
-        ety = et_y[iptr];
-        etz = et_z[iptr];
-        ztx = zt_x[iptr];
-        zty = zt_y[iptr];
-        ztz = zt_z[iptr];
-
-        // medium
-        lam = lam3d[iptr];
-        mu  =  mu3d[iptr];
-        slw = slw3d[iptr];
-        lam2mu = lam + 2.0 * mu;
-
-        // Vx derivatives
-        M_FD_SHIFT(DxVx, Vx, iptr, fdx_len, lfdx_shift, lfdx_coef, n_fd);
-        M_FD_SHIFT(DyVx, Vx, iptr, fdy_len, lfdy_shift, lfdy_coef, n_fd);
-
-        // Vy derivatives
-        M_FD_SHIFT(DxVy, Vy, iptr, fdx_len, lfdx_shift, lfdx_coef, n_fd);
-        M_FD_SHIFT(DyVy, Vy, iptr, fdy_len, lfdy_shift, lfdy_coef, n_fd);
-
-        // Vz derivatives
-        M_FD_SHIFT(DxVz, Vz, iptr, fdx_len, lfdx_shift, lfdx_coef, n_fd);
-        M_FD_SHIFT(DyVz, Vz, iptr, fdy_len, lfdy_shift, lfdy_coef, n_fd);
-
-        if (k==nk2) // at surface, convert
-        {
-          // sum of memory variable for attenuation
-          sum_Jxyz = 0.0;
-          sum_Jxx = 0.0;
-          sum_Jyy = 0.0;
-          sum_Jzz = 0.0;
-          sum_Jxy = 0.0;
-          sum_Jxz = 0.0;
-          sum_Jyz = 0.0;
-
-          for(int n=0; n<nmaxwell; n++)
-          {
-            sum_Jxyz += Ylam[n][iptr] * (Jxx[n][iptr]+Jyy[n][iptr]+Jzz[n][iptr]);
-            sum_Jxx  += Ymu[n][iptr]  * Jxx[n][iptr];
-            sum_Jyy  += Ymu[n][iptr]  * Jyy[n][iptr];
-            sum_Jzz  += Ymu[n][iptr]  * Jzz[n][iptr];
-            sum_Jxy  += Ymu[n][iptr]  * Jxy[n][iptr];
-            sum_Jxz  += Ymu[n][iptr]  * Jxz[n][iptr];
-            sum_Jyz  += Ymu[n][iptr]  * Jyz[n][iptr];
-          }
-    
-          mem_Txx = lam*sum_Jxyz + 2.0*mu*sum_Jxx;
-          mem_Tyy = lam*sum_Jxyz + 2.0*mu*sum_Jyy;
-          mem_Tzz = lam*sum_Jxyz + 2.0*mu*sum_Jzz;
-          mem_Txy = 2.0*mu*sum_Jxy;
-          mem_Txz = 2.0*mu*sum_Jxz;
-          mem_Tyz = 2.0*mu*sum_Jyz;
-
-          size_t ij = (i + j * siz_line)*9;
-
-          // coef cal. first dim: irow; sec dim: jcol, as Fortran code
-          A[0][0] = matA[ij+3+0+0]; 
-          A[0][1] = matA[ij+3+0+1]; 
-          A[0][2] = matA[ij+3+0+2]; 
-          A[1][0] = matA[ij+3+1+0]; 
-          A[1][1] = matA[ij+3+1+1]; 
-          A[1][2] = matA[ij+3+1+2]; 
-          A[2][0] = matA[ij+3+2+0]; 
-          A[2][1] = matA[ij+3+2+1]; 
-          A[2][2] = matA[ij+3+2+2]; 
-
-          M[0][0] = mem_Txx;
-          M[0][1] = mem_Txy;
-          M[0][2] = mem_Txz;
-          M[1][0] = mem_Txy;
-          M[1][1] = mem_Tyy;
-          M[1][2] = mem_Tyz;
-          M[2][0] = mem_Txz;
-          M[2][1] = mem_Tyz;
-          M[2][2] = mem_Tzz;
-          
-          fdlib_math_matmul3x3(A, M, AM);
-
-          DzVx = matVx2Vz[ij+3*0+0] * DxVx
-               + matVx2Vz[ij+3*0+1] * DxVy
-               + matVx2Vz[ij+3*0+2] * DxVz
-               + matVy2Vz[ij+3*0+0] * DyVx
-               + matVy2Vz[ij+3*0+1] * DyVy
-               + matVy2Vz[ij+3*0+2] * DyVz
-               + AM[0][0] * ztx
-               + AM[0][1] * zty
-               + AM[0][2] * ztz
-               ;
-
-          DzVy = matVx2Vz[ij+3*1+0] * DxVx
-               + matVx2Vz[ij+3*1+1] * DxVy
-               + matVx2Vz[ij+3*1+2] * DxVz
-               + matVy2Vz[ij+3*1+0] * DyVx
-               + matVy2Vz[ij+3*1+1] * DyVy
-               + matVy2Vz[ij+3*1+2] * DyVz
-               + AM[1][0] * ztx
-               + AM[1][1] * zty
-               + AM[1][2] * ztz
-               ;
-
-          DzVz = matVx2Vz[ij+3*2+0] * DxVx
-               + matVx2Vz[ij+3*2+1] * DxVy
-               + matVx2Vz[ij+3*2+2] * DxVz
-               + matVy2Vz[ij+3*2+0] * DyVx
-               + matVy2Vz[ij+3*2+1] * DyVy
-               + matVy2Vz[ij+3*2+2] * DyVz
-               + AM[2][0] * ztx
-               + AM[2][1] * zty
-               + AM[2][2] * ztz
-               ;
-        }
-        else // lower than surface, lower order
-        {
-          M_FD_SHIFT(DzVx, Vx, iptr, lfdz_len, lfdz_shift, lfdz_coef, n_fd);
-          M_FD_SHIFT(DzVy, Vy, iptr, lfdz_len, lfdz_shift, lfdz_coef, n_fd);
-          M_FD_SHIFT(DzVz, Vz, iptr, lfdz_len, lfdz_shift, lfdz_coef, n_fd);
-        }
-
-        // Hooke's equatoin
-        hTxx[iptr] =  lam2mu * ( xix*DxVx  +etx*DyVx + ztx*DzVx)
-                    + lam    * ( xiy*DxVy + ety*DyVy + zty*DzVy
-                                +xiz*DxVz + etz*DyVz + ztz*DzVz);
-
-        hTyy[iptr] = lam2mu * ( xiy*DxVy + ety*DyVy + zty*DzVy)
-                    +lam    * ( xix*DxVx + etx*DyVx + ztx*DzVx
-                               +xiz*DxVz + etz*DyVz + ztz*DzVz);
-
-        hTzz[iptr] = lam2mu * ( xiz*DxVz + etz*DyVz + ztz*DzVz)
-                    +lam    * ( xix*DxVx  +etx*DyVx  +ztx*DzVx
-                               +xiy*DxVy + ety*DyVy + zty*DzVy);
-
-        hTxy[iptr] = mu *(
-                     xiy*DxVx + xix*DxVy
-                    +ety*DyVx + etx*DyVy
-                    +zty*DzVx + ztx*DzVy
-                    );
-        hTxz[iptr] = mu *(
-                     xiz*DxVx + xix*DxVz
-                    +etz*DyVx + etx*DyVz
-                    +ztz*DzVx + ztx*DzVz
-                    );
-        hTyz[iptr] = mu *(
-                     xiz*DxVy + xiy*DxVz
-                    +etz*DyVy + ety*DyVz
-                    +ztz*DzVy + zty*DzVz
-                    );
-
-        iptr += 1;
-      }
-    }
-  }
-}
-
 
 /*******************************************************************************
  * add the attenuation term
@@ -517,12 +258,12 @@ sv_curv_col_vis_iso_atten(
   float sum_Jxyz,sum_Jxx,sum_Jyy,sum_Jzz,sum_Jxy,sum_Jxz,sum_Jyz;
   float EVxx,EVyy,EVzz,EVxy,EVxz,EVyz;
   float sum_hxyz;
+  float lamY,muY,mu2Y,lam2muY;
 
   // loop all points
   for (size_t k=nk1; k<=nk2; k++)
   {
     size_t iptr_k = k * siz_slice;
-
     for (size_t j=nj1; j<=nj2; j++)
     {
       size_t iptr_j = iptr_k + j * siz_line;
@@ -604,11 +345,14 @@ sv_curv_col_vis_iso_atten(
  ******************************************************************************/
 
 int
-sv_curv_col_vis_iso_dvh2dvz(gd_t        *gdinfo,
-                                 gdcurv_metric_t *metric,
-                                 md_t       *md,
-                                 bdry_t      *bdryfree,
-                                 const int verbose)
+sv_curv_col_vis_iso_dvh2dvz(gd_t            *gdinfo,
+                            gdcurv_metric_t *metric,
+                            md_t            *md,
+                            bdry_t          *bdryfree,
+                            int fd_len,
+                            int *restrict fd_indx,
+                            float *restrict fd_coef,
+                            const int verbose)
 {
   int ierr = 0;
 
@@ -626,6 +370,9 @@ sv_curv_col_vis_iso_dvh2dvz(gd_t        *gdinfo,
   size_t siz_volume = gdinfo->siz_icmp;
 
   // point to each var
+  float *restrict x3d  = gdinfo->x3d;
+  float *restrict y3d  = gdinfo->y3d;
+  float *restrict z3d  = gdinfo->z3d;
   float *restrict xi_x = metric->xi_x;
   float *restrict xi_y = metric->xi_y;
   float *restrict xi_z = metric->xi_z;
@@ -642,13 +389,27 @@ sv_curv_col_vis_iso_dvh2dvz(gd_t        *gdinfo,
   float *matVx2Vz = bdryfree->matVx2Vz2;
   float *matVy2Vz = bdryfree->matVy2Vz2;
   float *matA = bdryfree->matA;
+  float *matD = bdryfree->matD;
   
-  float A[3][3], B[3][3], C[3][3];
+  float A[3][3], B[3][3], C[3][3], D[3][3];
   float AB[3][3], AC[3][3];
 
-  float e11, e12, e13, e21, e22, e23, e31, e32, e33;
+  float xix, xiy, xiz, etx, ety, etz, ztx, zty, ztz;
   float lam2mu, lam, mu;
- 
+
+  float xet,yet,zet;
+  float e_n,e_m,e_nm;
+  int n_fd;
+
+  // use local stack array for speedup
+  float  lfd_coef [fd_len];
+  int    lfdy_shift[fd_len];
+  // put fd op into local array
+  for (int k=0; k < fd_len; k++) {
+    lfd_coef [k] = fd_coef[k];
+    lfdy_shift[k] = fd_indx[k] * siz_line ;
+  }
+
   int k = nk2;
 
   for (size_t j = nj1; j <= nj2; j++)
@@ -657,55 +418,74 @@ sv_curv_col_vis_iso_dvh2dvz(gd_t        *gdinfo,
     {
       size_t iptr = i + j * siz_line + k * siz_slice;
 
-      e11 = xi_x[iptr];
-      e12 = xi_y[iptr];
-      e13 = xi_z[iptr];
-      e21 = et_x[iptr];
-      e22 = et_y[iptr];
-      e23 = et_z[iptr];
-      e31 = zt_x[iptr];
-      e32 = zt_y[iptr];
-      e33 = zt_z[iptr];
+      xix = xi_x[iptr];
+      xiy = xi_y[iptr];
+      xiz = xi_z[iptr];
+      etx = et_x[iptr];
+      ety = et_y[iptr];
+      etz = et_z[iptr];
+      ztx = zt_x[iptr];
+      zty = zt_y[iptr];
+      ztz = zt_z[iptr];
+
+      xet = 0.0; yet = 0.0; zet = 0.0;
+
+      M_FD_SHIFT(xet, x3d, iptr, fd_len, lfdy_shift, lfd_coef, n_fd);
+      M_FD_SHIFT(yet, y3d, iptr, fd_len, lfdy_shift, lfd_coef, n_fd);
+      M_FD_SHIFT(zet, z3d, iptr, fd_len, lfdy_shift, lfd_coef, n_fd);
+
+      e_n = 1.0/sqrt(xet*xet+yet*yet+zet*zet);
+      e_m = 1.0/sqrt(ztx*ztx+zty*zty+ztz*ztz);
+      e_nm = e_n*e_m;
 
       lam    = lam3d[iptr];
       mu     =  mu3d[iptr];
       lam2mu = lam + 2.0f * mu;
 
       // first dim: irow; sec dim: jcol, as Fortran code
-      A[0][0] = lam2mu*e31*e31 + mu*(e32*e32+e33*e33);
-      A[0][1] = lam*e31*e32 + mu*e32*e31;
-      A[0][2] = lam*e31*e33 + mu*e33*e31;
-      A[1][0] = lam*e32*e31 + mu*e31*e32;
-      A[1][1] = lam2mu*e32*e32 + mu*(e31*e31+e33*e33);
-      A[1][2] = lam*e32*e33 + mu*e33*e32;
-      A[2][0] = lam*e33*e31 + mu*e31*e33;
-      A[2][1] = lam*e33*e32 + mu*e32*e33;
-      A[2][2] = lam2mu*e33*e33 + mu*(e31*e31+e32*e32);
+      A[0][0] = lam2mu*ztx*ztx + mu*(zty*zty+ztz*ztz);
+      A[0][1] = lam*ztx*zty + mu*zty*ztx;
+      A[0][2] = lam*ztx*ztz + mu*ztz*ztx;
+      A[1][0] = lam*zty*ztx + mu*ztx*zty;
+      A[1][1] = lam2mu*zty*zty + mu*(ztx*ztx+ztz*ztz);
+      A[1][2] = lam*zty*ztz + mu*ztz*zty;
+      A[2][0] = lam*ztz*ztx + mu*ztx*ztz;
+      A[2][1] = lam*ztz*zty + mu*zty*ztz;
+      A[2][2] = lam2mu*ztz*ztz + mu*(ztx*ztx+zty*zty);
       fdlib_math_invert3x3(A);
 
-      B[0][0] = -lam2mu*e31*e11 - mu*(e32*e12+e33*e13);
-      B[0][1] = -lam*e31*e12 - mu*e32*e11;
-      B[0][2] = -lam*e31*e13 - mu*e33*e11;
-      B[1][0] = -lam*e32*e11 - mu*e31*e12;
-      B[1][1] = -lam2mu*e32*e12 - mu*(e31*e11+e33*e13);
-      B[1][2] = -lam*e32*e13 - mu*e33*e12;
-      B[2][0] = -lam*e33*e11 - mu*e31*e13;
-      B[2][1] = -lam*e33*e12 - mu*e32*e13;
-      B[2][2] = -lam2mu*e33*e13 - mu*(e31*e11+e32*e12);
+      B[0][0] = -lam2mu*ztx*xix - mu*(zty*xiy+ztz*xiz);
+      B[0][1] = -lam*ztx*xiy - mu*zty*xix;
+      B[0][2] = -lam*ztx*xiz - mu*ztz*xix;
+      B[1][0] = -lam*zty*xix - mu*ztx*xiy;
+      B[1][1] = -lam2mu*zty*xiy - mu*(ztx*xix+ztz*xiz);
+      B[1][2] = -lam*zty*xiz - mu*ztz*xiy;
+      B[2][0] = -lam*ztz*xix - mu*ztx*xiz;
+      B[2][1] = -lam*ztz*xiy - mu*zty*xiz;
+      B[2][2] = -lam2mu*ztz*xiz - mu*(ztx*xix+zty*xiy);
 
-      C[0][0] = -lam2mu*e31*e21 - mu*(e32*e22+e33*e23);
-      C[0][1] = -lam*e31*e22 - mu*e32*e21;
-      C[0][2] = -lam*e31*e23 - mu*e33*e21;
-      C[1][0] = -lam*e32*e21 - mu*e31*e22;
-      C[1][1] = -lam2mu*e32*e22 - mu*(e31*e21+e33*e23);
-      C[1][2] = -lam*e32*e23 - mu*e33*e22;
-      C[2][0] = -lam*e33*e21 - mu*e31*e23;
-      C[2][1] = -lam*e33*e22 - mu*e32*e23;
-      C[2][2] = -lam2mu*e33*e23 - mu*(e31*e21+e32*e22);
+      C[0][0] = -lam2mu*ztx*etx - mu*(zty*ety+ztz*etz);
+      C[0][1] = -lam*ztx*ety - mu*zty*etx;
+      C[0][2] = -lam*ztx*etz - mu*ztz*etx;
+      C[1][0] = -lam*zty*etx - mu*ztx*ety;
+      C[1][1] = -lam2mu*zty*ety - mu*(ztx*etx+ztz*etz);
+      C[1][2] = -lam*zty*etz - mu*ztz*ety;
+      C[2][0] = -lam*ztz*etx - mu*ztx*etz;
+      C[2][1] = -lam*ztz*ety - mu*zty*etz;
+      C[2][2] = -lam2mu*ztz*etz - mu*(ztx*etx+zty*ety);
 
       fdlib_math_matmul3x3(A, B, AB);
       fdlib_math_matmul3x3(A, C, AC);
 
+      D[0][0] = (yet*ztz-zet*zty)*e_nm;
+      D[0][1] = (zet*ztx-xet*ztz)*e_nm;
+      D[0][2] = (xet*zty-yet*ztx)*e_nm;
+      D[1][0] = xet*e_n;
+      D[1][1] = yet*e_n;
+      D[1][2] = zet*e_n;
+      D[2][0] = ztx*e_m;
+      D[2][1] = zty*e_m;
+      D[2][2] = ztz*e_m;
       size_t ij = (j * siz_line + i) * 9;
 
       // save into mat
@@ -714,9 +494,131 @@ sv_curv_col_vis_iso_dvh2dvz(gd_t        *gdinfo,
           matVx2Vz[ij + irow*3 + jcol] = AB[irow][jcol];
           matVy2Vz[ij + irow*3 + jcol] = AC[irow][jcol];
           matA[ij + irow*3 + jcol] = A[irow][jcol]; //A is DZ invert
+          matD[ij + irow*3 + jcol] = D[irow][jcol]; //A is DZ invert
         }
     }
   }
 
   return ierr;
 }
+
+int
+sv_curv_col_vis_iso_free(float *restrict w_end,
+                         wav_t  *wav,
+                         gd_t   *gdinfo,
+                         gdcurv_metric_t  *metric,
+                         md_t *md,
+                         bdry_t      *bdryfree,const int myid, 
+                         const int verbose)
+{
+  int ierr = 0;
+
+  float *restrict Txx   = w_end + wav->Txx_pos;
+  float *restrict Tyy   = w_end + wav->Tyy_pos;
+  float *restrict Txy   = w_end + wav->Txy_pos;
+  float *restrict Tzz   = w_end + wav->Tzz_pos;
+  float *restrict Txz   = w_end + wav->Txz_pos;
+  float *restrict Tyz   = w_end + wav->Tyz_pos;
+
+  float *restrict zt_x  = metric->zeta_x;
+  float *restrict zt_y  = metric->zeta_y;
+  float *restrict zt_z  = metric->zeta_z;
+
+  float *restrict lam3d = md->lambda;
+  float *restrict  mu3d = md->mu;
+
+  float *matD = bdryfree->matD;
+
+  int ni1 = gdinfo->ni1;
+  int ni2 = gdinfo->ni2;
+  int nj1 = gdinfo->nj1;
+  int nj2 = gdinfo->nj2;
+  int nk2 = gdinfo->nk2;
+
+  size_t siz_line   = gdinfo->siz_line;
+  size_t siz_slice  = gdinfo->siz_slice;
+
+  float D[3][3], DT[3][3], Tl[3][3], DTl[3][3], Tg[3][3];
+  float d11,d12,d13,d21,d22,d23,d31,d32,d33;
+  float lam,mu,lam2mu;
+  float tzz;
+
+  size_t iptr_k = nk2 * siz_slice;
+  for (size_t j=nj1; j<=nj2; j++)
+  {
+      size_t iptr_j = iptr_k + j * siz_line;
+      size_t iptr = iptr_j + ni1;
+      for (size_t i=ni1; i<=ni2; i++)
+      {
+          size_t ij = (i + j * siz_line)*9;
+
+        lam = lam3d[iptr];
+        mu  =  mu3d[iptr];
+        lam2mu = lam + 2.0 * mu;
+
+          D[0][0] = matD[ij+3*0+0];
+          D[0][1] = matD[ij+3*0+1];
+          D[0][2] = matD[ij+3*0+2];
+          D[1][0] = matD[ij+3*1+0];
+          D[1][1] = matD[ij+3*1+1];
+          D[1][2] = matD[ij+3*1+2];
+          D[2][0] = matD[ij+3*2+0];
+          D[2][1] = matD[ij+3*2+1];
+          D[2][2] = matD[ij+3*2+2];
+
+          DT[0][0] = D[0][0];
+          DT[0][1] = D[1][0];
+          DT[0][2] = D[2][0];
+          DT[1][0] = D[0][1];
+          DT[1][1] = D[1][1];
+          DT[1][2] = D[2][1];
+          DT[2][0] = D[0][2];
+          DT[2][1] = D[1][2];
+          DT[2][2] = D[2][2];
+
+          d11 = D[0][0];
+          d12 = D[0][1];
+          d13 = D[0][2];
+          d21 = D[1][0];
+          d22 = D[1][1];
+          d23 = D[1][2];
+          d31 = D[2][0];
+          d32 = D[2][1];
+          d33 = D[2][2];
+
+          Tl[0][0] =    d11*d11*Txx[iptr] + d12*d12*Tyy[iptr] + d13*d13*Tzz[iptr]
+                   +2*(d11*d12*Txy[iptr] + d11*d13*Txz[iptr] + d12*d13*Tyz[iptr]);
+
+          Tl[0][1] =    d11*d21*Txx[iptr] + d12*d22*Tyy[iptr] + d13*d23*Tzz[iptr]
+                   +   (d11*d22+d12*d21)*Txy[iptr] + (d11*d23+d21*d13)*Txz[iptr] + (d12*d23+d22*d13)*Tyz[iptr];
+         
+          Tl[1][1] =    d21*d21*Txx[iptr] + d22*d22*Tyy[iptr] + d23*d23*Tzz[iptr]
+                   +2*(d21*d22*Txy[iptr] + d21*d23*Txz[iptr] + d22*d23*Tyz[iptr]);
+
+          Tl[1][0] = Tl[0][1];
+          Tl[0][2] = 0.0;
+          Tl[1][2] = 0.0;
+          Tl[2][0] = 0.0;
+          Tl[2][1] = 0.0;
+          Tl[2][2] = 0.0;
+
+          fdlib_math_matmul3x3(DT, Tl, DTl);
+          fdlib_math_matmul3x3(DTl, D, Tg);
+
+          Txx[iptr] = Tg[0][0];
+          Tyy[iptr] = Tg[1][1];
+          Tzz[iptr] = Tg[2][2];
+          Txy[iptr] = Tg[0][1];
+          Txz[iptr] = Tg[0][2];
+          Tyz[iptr] = Tg[1][2];
+          
+          iptr+=1;
+      }
+  }
+  return ierr;
+}
+
+
+               
+
+

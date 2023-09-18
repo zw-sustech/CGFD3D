@@ -119,5 +119,5 @@ int
 md_visco_LS_mat_inv(float matrix[][VISCO_LS_MAXSIZE], float inverse[][VISCO_LS_MAXSIZE], int n);
 
 int
-md_gen_test_GMB(md_t *md);
+md_gen_test_vis_iso(md_t *md);
 #endif

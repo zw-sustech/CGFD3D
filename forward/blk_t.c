@@ -2861,18 +2861,6 @@ blk_dt_esti_curv(gd_t *gdcurv, md_t *md,
 
         if (md->medium_type == CONST_MEDIUM_ELASTIC_ISO) {
           Vp = sqrt( (md->lambda[iptr] + 2.0 * md->mu[iptr]) / md->rho[iptr] );
-    // It seems not to be necessary 
-    //      if (md->visco_type == CONST_VISCO_GMB)
-    //      {
-    //          float Ymax = md->Ylam[0][iptr];
-    //          for (int n = 0; n < md->nmaxwell; n++)
-    //          {
-    //              Ymax = Ymax > md->Ylam[n][iptr] ? Ymax : md->Ylam[n][iptr];
-    //              Ymax = Ymax > md->Ymu[n][iptr] ? Ymu :md->Ymu[n][iptr];
-    //          }
-    //          float V_vis = Vp*(1+sqrt( md->nmaxwell*Ymax));
-    //          Vp = V_vis > Vp ? V_vis : Vp;
-    //      }
         } else if (md->medium_type == CONST_MEDIUM_ELASTIC_VTI) {
           float Vpv = sqrt( md->c33[iptr] / md->rho[iptr] );
           float Vph = sqrt( md->c11[iptr] / md->rho[iptr] );
@@ -2882,6 +2870,16 @@ blk_dt_esti_curv(gd_t *gdcurv, md_t *md,
           Vp = sqrt( md->c11[iptr] / md->rho[iptr] );
         } else if (md->medium_type == CONST_MEDIUM_ACOUSTIC_ISO) {
           Vp = sqrt( md->kappa[iptr] / md->rho[iptr] );
+        } else if (md->medium_type == CONST_MEDIUM_VISCOELASTIC_ISO) {
+          Vp = sqrt( (md->lambda[iptr] + 2.0 * md->mu[iptr]) / md->rho[iptr] );
+          float Ymax = md->Ylam[0][iptr];
+          for (int n = 0; n < md->nmaxwell; n++)
+            {
+                Ymax = Ymax > md->Ylam[n][iptr] ? Ymax : md->Ylam[n][iptr];
+                Ymax = Ymax > md->Ymu[n][iptr] ? Ymax : md->Ymu[n][iptr];
+            }
+            float V_vis = Vp*(1.0+sqrt( md->nmaxwell*Ymax));
+            Vp = V_vis > Vp ? V_vis : Vp;
         }
 
         float dtLe = 1.0e20;

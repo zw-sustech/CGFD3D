@@ -133,12 +133,7 @@ drv_rk_curv_col_allstep(
   {
     if (md->medium_type == CONST_MEDIUM_ELASTIC_ISO)
     {
-      if (md->visco_type == CONST_VISCO_GMB)
-        {
-          sv_curv_col_vis_iso_dvh2dvz(gd,metric,md,bdry,verbose);
-        } else {
-          sv_curv_col_el_iso_dvh2dvz(gd,metric,md,bdry,verbose);
-        }
+      sv_curv_col_el_iso_dvh2dvz(gd,metric,md,bdry,verbose);
     }
     else if (md->medium_type == CONST_MEDIUM_ELASTIC_VTI)
     {
@@ -147,6 +142,13 @@ drv_rk_curv_col_allstep(
     else if (md->medium_type == CONST_MEDIUM_ELASTIC_ANISO)
     {
       sv_curv_col_el_aniso_dvh2dvz(gd,metric,md,bdry,verbose);
+    }
+    else if (md->medium_type == CONST_MEDIUM_VISCOELASTIC_ISO)
+    {
+      if (md->visco_type == CONST_VISCO_GMB)
+        {
+          sv_curv_col_vis_iso_dvh2dvz(gd,metric,md,bdry,fd->fdc_len,fd->fdc_indx,fd->fdc_coef,verbose);
+        }
     }
     else
     {
@@ -228,26 +230,14 @@ drv_rk_curv_col_allstep(
       switch (md->medium_type)
       {
         case CONST_MEDIUM_ELASTIC_ISO : {
-          if (md->visco_type == CONST_VISCO_GMB){
-              sv_curv_col_vis_iso_onestage(
-                  w_cur,w_rhs,wav,
-                  gd, metric, md, bdry, src,
-                  fd->num_of_fdx_op, fd->pair_fdx_op[ipair][istage],
-                  fd->num_of_fdy_op, fd->pair_fdy_op[ipair][istage],
-                  fd->num_of_fdz_op, fd->pair_fdz_op[ipair][istage],
-                  fd->fdz_max_len,
-                  myid, verbose);
-          }
-          else{       
-              sv_curv_col_el_iso_onestage(
-                  w_cur,w_rhs,wav,
-                  gd, metric, md, bdry, src,
-                  fd->num_of_fdx_op, fd->pair_fdx_op[ipair][istage],
-                  fd->num_of_fdy_op, fd->pair_fdy_op[ipair][istage],
-                  fd->num_of_fdz_op, fd->pair_fdz_op[ipair][istage],
-                  fd->fdz_max_len,
-                  myid, verbose);
-          }
+          sv_curv_col_el_iso_onestage(
+              w_cur,w_rhs,wav,
+              gd, metric, md, bdry, src,
+              fd->num_of_fdx_op, fd->pair_fdx_op[ipair][istage],
+              fd->num_of_fdy_op, fd->pair_fdy_op[ipair][istage],
+              fd->num_of_fdz_op, fd->pair_fdz_op[ipair][istage],
+              fd->fdz_max_len,
+              myid, verbose);
 
           break;
         }
@@ -275,6 +265,19 @@ drv_rk_curv_col_allstep(
               fd->fdz_max_len,
               myid, verbose);
 
+          break;
+        }
+        case CONST_MEDIUM_VISCOELASTIC_ISO : {
+          if (md->visco_type == CONST_VISCO_GMB){
+              sv_curv_col_vis_iso_onestage(
+                  w_cur,w_rhs,wav,
+                  gd, metric, md, bdry, src,
+                  fd->num_of_fdx_op, fd->pair_fdx_op[ipair][istage],
+                  fd->num_of_fdy_op, fd->pair_fdy_op[ipair][istage],
+                  fd->num_of_fdz_op, fd->pair_fdz_op[ipair][istage],
+                  fd->fdz_max_len,
+                  myid, verbose);
+          }
           break;
         }
       }
@@ -428,6 +431,13 @@ drv_rk_curv_col_allstep(
                 }
               }
             }
+          }
+        }
+
+        if (md->medium_type == CONST_MEDIUM_VISCOELASTIC_ISO) {
+          if (bdry->is_sides_free[2][1] == 1) {
+            sv_curv_col_vis_iso_free(w_end,wav,gd,
+                                     metric,md,bdry,myid,verbose);
           }
         }
       }
