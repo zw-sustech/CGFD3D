@@ -222,6 +222,8 @@ cat << ieof > $PAR_FILE
       "#import" : "$MEDIA_DIR",
       "#infile_layer" : "${CUR_DIR}/prep_medium/basin_el_iso.md3lay",
       "#infile_grid" : "${CUR_DIR}/prep_medium/topolay_el_iso.md3grd",
+      "#Qp" : "${CUR_DIR}/prep_medium/topolay_vis_iso_Qp.md3grd",
+      "#Qs" : "${CUR_DIR}/prep_medium/topolay_vis_iso_Qs.md3grd",
       "equivalent_medium_method" : "loc",
       "#equivalent_medium_method" : "har"
   },
