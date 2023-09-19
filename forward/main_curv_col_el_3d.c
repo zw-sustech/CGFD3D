@@ -350,7 +350,31 @@ int main(int argc, char** argv)
                                      MEDIA_USE_CURV,
                                      par->media_input_file,
                                      par->equivalent_medium_method,myid);
-        }
+        }else if (md->medium_type == CONST_MEDIUM_VISCOELASTIC_ISO)
+	{
+            media_layer2model_el_iso(md->lambda, md->mu, md->rho,
+                                     gdcurv->x3d, gdcurv->y3d, gdcurv->z3d,
+                                     gdcurv->nx, gdcurv->ny, gdcurv->nz,
+                                     MEDIA_USE_CURV,
+                                     par->media_input_file,
+                                     par->equivalent_medium_method,
+                                     myid);
+	    media_layer2model_onecmp(md->Qp, 
+			             gdcurv->x3d, gdcurv->y3d,gdcurv->z3d,
+				     gdcurv->nx, gdcurv->ny, gdcurv->nz,
+				     MEDIA_USE_CURV,
+				     par->Qp_input_file,
+				     par->equivalent_medium_method,
+				     myid);
+	    media_layer2model_onecmp(md->Qs, 
+			             gdcurv->x3d, gdcurv->y3d,gdcurv->z3d,
+				     gdcurv->nx, gdcurv->ny, gdcurv->nz,
+				     MEDIA_USE_CURV,
+				     par->Qs_input_file,
+				     par->equivalent_medium_method,
+				     myid);
+
+	}
 
         break;
     }
@@ -526,10 +550,6 @@ int main(int argc, char** argv)
 
   } // switch
 
-//  if (par->visco_itype == CONST_VISCO_GMB){
-//      md_vis_GMB_cal_Y(md,par->fr, par->fmin, par->fmax);
-//  }
-
   // export grid media
   if (par->is_export_media==1)
   {
@@ -666,12 +686,13 @@ int main(int argc, char** argv)
 
   // receiver: need to do
   io_recv_read_locate(gdcurv, iorecv,
-                      nt_total, wav->ncmp, par->in_station_file,
+                      nt_total, wav->ncmp, md->medium_type, par->in_station_file,
                       comm, myid, verbose);
 
   // line
   io_line_locate(gdcurv, ioline,
                  wav->ncmp,
+		 md->medium_type,
                  nt_total,
                  par->number_of_receiver_line,
                  par->receiver_line_index_start,

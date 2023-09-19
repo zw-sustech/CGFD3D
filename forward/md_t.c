@@ -332,6 +332,9 @@ md_export(gd_t  *gdinfo,
   int  gni1 = gdinfo->ni1_to_glob_phys0;
   int  gnj1 = gdinfo->nj1_to_glob_phys0;
   int  gnk1 = gdinfo->nk1_to_glob_phys0;
+  if(md->medium_type == CONST_MEDIUM_VISCOELASTIC_ISO){
+    number_of_vars = 5; //Qp,Qs,not output coef
+  }
 
   // construct file name
   char ou_file[CONST_MAX_STRLEN];
@@ -695,8 +698,8 @@ md_vis_GMB_cal_Y(md_t *md, float freq, float fmin, float fmax)
       for(size_t i=0; i<nx; i++)
       {
         size_t iptr = i + j * siz_line + k * siz_slice;
-        QP1 = 1.0/Qp[iptr];
-        QS1 = 1.0/Qs[iptr];
+        QP1 = 1.0/round(Qp[iptr]);
+        QS1 = 1.0/round(Qs[iptr]);
         lam = lambda[iptr];
         muu = mu[iptr];
         for(size_t m=0; m<kmax; m++)
@@ -754,9 +757,14 @@ md_vis_GMB_cal_Y(md_t *md, float freq, float fmin, float fmax)
         md->lambda[iptr] = kappa-2*muunrelax;
     
         for(int n=0; n<nmaxwell; n++){
-            md->Ylam[n][iptr] = (1+2*md->mu[iptr]/md->lambda[iptr])*YP[n]
-                                -2*md->mu[iptr]/md->lambda[iptr]*YS[n];
-            md->Ymu[n][iptr]  = YS[n];
+          md->Ylam[n][iptr] = (1+2*md->mu[iptr]/md->lambda[iptr])*YP[n]
+                              -2*md->mu[iptr]/md->lambda[iptr]*YS[n];
+          md->Ymu[n][iptr]  = YS[n];
+	  if(md->Ylam[n][iptr] > 1 || md->Ymu[n][iptr] > 1){
+	    fprintf(stdout,"attention, the coef over the normal range!");
+            fprintf(stdout,"Ylam[%d][%d][%d][%d]=%f,Ymu[%d][%d][%d][%d]=%f\n",
+	      	      n,i,j,k,md->Ylam[n][iptr],n,i,j,k,md->Ymu[n][iptr]);
+	  }
         }
       }
     }

@@ -509,17 +509,7 @@ par_read_from_str(const char *str, par_t *par)
       par->media_input_itype = PAR_MEDIA_3GRD;
       if (subitem = cJSON_GetObjectItem(item, "infile_grid"))
       {
-        if (thirditem = cJSON_GetObjectItem(subitem, "VpVsrho")){
-          sprintf(par->media_input_file, "%s", thirditem->valuestring);
-        }
-        if (strcmp(par->media_type, "viscoelastic_iso")==0) {
-          if (thirditem = cJSON_GetObjectItem(subitem, "Qp")){
-            sprintf(par->Qp_input_file, "%s", thirditem->valuestring);
-          }
-          if (thirditem = cJSON_GetObjectItem(subitem, "Qs"));{
-            sprintf(par->Qs_input_file, "%s", thirditem->valuestring);
-          }
-        }
+        sprintf(par->media_input_file, "%s", subitem->valuestring);
       }
     }
 
@@ -733,6 +723,16 @@ par_read_from_str(const char *str, par_t *par)
 
       } // find binfile
     } // if binfile
+
+    if (strcmp(par->media_type, "viscoelastic_iso")==0) 
+    {
+      if (subitem = cJSON_GetObjectItem(item, "Qp")){
+        sprintf(par->Qp_input_file, "%s", subitem->valuestring);
+      }
+      if (subitem = cJSON_GetObjectItem(item, "Qs"));{
+        sprintf(par->Qs_input_file, "%s", subitem->valuestring);
+      }
+    }
 
     if (subitem = cJSON_GetObjectItem(item, "equivalent_medium_method")) {
         sprintf(par->equivalent_medium_method, "%s", subitem->valuestring);
