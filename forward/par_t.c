@@ -726,11 +726,14 @@ par_read_from_str(const char *str, par_t *par)
 
     if (strcmp(par->media_type, "viscoelastic_iso")==0) 
     {
-      if (subitem = cJSON_GetObjectItem(item, "Qp")){
-        sprintf(par->Qp_input_file, "%s", subitem->valuestring);
-      }
-      if (subitem = cJSON_GetObjectItem(item, "Qs"));{
-        sprintf(par->Qs_input_file, "%s", subitem->valuestring);
+      sprintf(par->media_input_way, "%s", subitem->valuestring);
+      if (par->media_input_itype == PAR_MEDIA_3LAY || par->media_input_itype == PAR_MEDIA_3GRD){
+        if (subitem = cJSON_GetObjectItem(item, "Qp")){
+          sprintf(par->Qp_input_file, "%s", subitem->valuestring);
+        }
+        if (subitem = cJSON_GetObjectItem(item, "Qs"));{
+          sprintf(par->Qs_input_file, "%s", subitem->valuestring);
+        }
       }
     }
 
