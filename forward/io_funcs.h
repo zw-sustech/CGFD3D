@@ -237,7 +237,7 @@ io_snapshot_locate(gd_t *gdinfo,
 
 int
 io_slice_nc_create(ioslice_t *ioslice, 
-                  int num_of_vars, char **w3d_name,
+                  int num_of_vars, int visco_type, char **w3d_name,
                   int ni, int nj, int nk,
                   int *topoid, ioslice_nc_t *ioslice_nc);
 

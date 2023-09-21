@@ -83,7 +83,7 @@ drv_rk_curv_col_allstep(
   // create slice nc output files
   if (myid==0 && verbose>0) fprintf(stdout,"prepare slice nc output ...\n"); 
   ioslice_nc_t ioslice_nc;
-  io_slice_nc_create(ioslice, wav->ncmp, wav->cmp_name,
+  io_slice_nc_create(ioslice, wav->ncmp, wav->visco_type, wav->cmp_name,
                      gd->ni, gd->nj, gd->nk, topoid,
                      &ioslice_nc);
 

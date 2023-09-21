@@ -778,7 +778,7 @@ io_snapshot_locate(gd_t *gdinfo,
 
 int
 io_slice_nc_create(ioslice_t *ioslice, 
-                  int num_of_vars, char **w3d_name,
+                  int num_of_vars, int visco_type, char **w3d_name,
                   int ni, int nj, int nk,
                   int *topoid, ioslice_nc_t *ioslice_nc)
 {
@@ -792,6 +792,10 @@ io_slice_nc_create(ioslice_t *ioslice,
   ioslice_nc->num_of_slice_y = num_of_slice_y;
   ioslice_nc->num_of_slice_z = num_of_slice_z;
   ioslice_nc->num_of_vars    = num_of_vars   ;
+  if (visco_type == CONST_VISCO_GMB){
+    num_of_vars = 9;
+    ioslice_nc->num_of_vars = 9;
+  }
 
   // malloc vars
   ioslice_nc->ncid_slx = (int *)malloc(num_of_slice_x*sizeof(int));
