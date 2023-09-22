@@ -296,6 +296,7 @@ int main(int argc, char** argv)
         if (md->medium_type == CONST_MEDIUM_VISCOELASTIC_ISO && md->visco_type == CONST_VISCO_GMB) {
           md_gen_test_vis_iso(md);
         }
+
         if (md->visco_type == CONST_VISCO_GRAVES_QS) {
           md_gen_test_Qs(md, par->visco_Qs_freq);
         }

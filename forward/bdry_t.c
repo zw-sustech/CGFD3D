@@ -93,11 +93,6 @@ bdry_free_set(gd_t    *gd,
                                       0.0,
                                       "bdry_free_set");
 
-  float *matA     = (float *)fdlib_mem_calloc_1d_float(
-                                      siz_slice * CONST_NDIM * CONST_NDIM,
-                                      0.0,
-                                      "bdry_free_set");
-
   float *matD     = (float *)fdlib_mem_calloc_1d_float(
                                       siz_slice * CONST_NDIM * CONST_NDIM,
                                       0.0,
@@ -105,7 +100,6 @@ bdry_free_set(gd_t    *gd,
 
   bdryfree->matVx2Vz2 = matVx2Vz;
   bdryfree->matVy2Vz2 = matVy2Vz;
-  bdryfree->matA      = matA;
   bdryfree->matD      = matD;
 
   return ierr;

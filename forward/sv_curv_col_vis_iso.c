@@ -127,7 +127,6 @@ sv_curv_col_vis_iso_onestage(
 
   float *matVx2Vz = bdry->matVx2Vz2;
   float *matVy2Vz = bdry->matVy2Vz2;
-  float *matA     = bdry->matA;
 
   // local fd op
   int              fdx_inn_len;
@@ -253,12 +252,11 @@ sv_curv_col_vis_iso_atten(
     int nmaxwell,
     const int myid, const int verbose)
 {
-  float lam,mu,lam2mu,slw;
+  float lam,mu;
   float mem_Txx,mem_Tyy,mem_Tzz,mem_Txy,mem_Txz,mem_Tyz;
   float sum_Jxyz,sum_Jxx,sum_Jyy,sum_Jzz,sum_Jxy,sum_Jxz,sum_Jyz;
   float EVxx,EVyy,EVzz,EVxy,EVxz,EVyz;
   float sum_hxyz;
-  float lamY,muY,mu2Y,lam2muY;
 
   // loop all points
   for (size_t k=nk1; k<=nk2; k++)
@@ -275,8 +273,6 @@ sv_curv_col_vis_iso_atten(
         // medium
         lam = lam3d[iptr];
         mu  =  mu3d[iptr];
-        slw = slw3d[iptr];
-        lam2mu = lam + 2.0 * mu;
 
         sum_hxyz = (hTxx[iptr]+hTyy[iptr]+hTzz[iptr])/(3*lam+2*mu);
 
@@ -388,7 +384,6 @@ sv_curv_col_vis_iso_dvh2dvz(gd_t            *gdinfo,
 
   float *matVx2Vz = bdryfree->matVx2Vz2;
   float *matVy2Vz = bdryfree->matVy2Vz2;
-  float *matA = bdryfree->matA;
   float *matD = bdryfree->matD;
   
   float A[3][3], B[3][3], C[3][3], D[3][3];
@@ -493,8 +488,7 @@ sv_curv_col_vis_iso_dvh2dvz(gd_t            *gdinfo,
         for(int jcol = 0; jcol < 3; jcol++){
           matVx2Vz[ij + irow*3 + jcol] = AB[irow][jcol];
           matVy2Vz[ij + irow*3 + jcol] = AC[irow][jcol];
-          matA[ij + irow*3 + jcol] = A[irow][jcol]; //A is DZ invert
-          matD[ij + irow*3 + jcol] = D[irow][jcol]; //A is DZ invert
+          matD[ij + irow*3 + jcol] = D[irow][jcol]; 
         }
     }
   }

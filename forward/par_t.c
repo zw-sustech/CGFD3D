@@ -731,7 +731,7 @@ par_read_from_str(const char *str, par_t *par)
         if (subitem = cJSON_GetObjectItem(item, "Qp")){
           sprintf(par->Qp_input_file, "%s", subitem->valuestring);
         }
-        if (subitem = cJSON_GetObjectItem(item, "Qs"));{
+        if (subitem = cJSON_GetObjectItem(item, "Qs")){
           sprintf(par->Qs_input_file, "%s", subitem->valuestring);
         }
       }
