@@ -431,7 +431,7 @@ io_line_locate(
   if(medium_type == CONST_MEDIUM_VISCOELASTIC_ISO)
   {
     ioline->ncmp = 9;//not output J
-    num_of_var = 9;
+    num_of_vars = 9;
   }
 
   // alloc as max num to keep nr and seq values, easy for second round

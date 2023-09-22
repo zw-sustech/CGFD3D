@@ -228,6 +228,7 @@ md_init(gd_t *gdinfo, md_t *md, int media_type, int visco_type, int nmaxwell)
     icmp += 1;
     sprintf(cmp_name[icmp],"%s","mu");
     md->mu = md->v4d + cmp_pos[icmp];
+
     icmp += 1;
     sprintf(cmp_name[icmp],"%s","Qp");
     md->Qp = md->v4d + cmp_pos[icmp];
