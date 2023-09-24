@@ -999,7 +999,8 @@ io_slice_nc_put(ioslice_t    *ioslice,
                 int   it,
                 float time,
                 int   i1_cmp,
-                int   i2_cmp)
+                int   i2_cmp,
+		int   visco_type)
 {
   int ierr = 0;
 
@@ -1017,7 +1018,9 @@ io_slice_nc_put(ioslice_t    *ioslice,
   size_t siz_icmp = gdinfo->siz_icmp;
 
   int  num_of_vars = ioslice_nc->num_of_vars;
-
+  if (visco_type == CONST_VISCO_GMB){
+    i2_cmp = 8;
+  }
   //-- slice x, 
   for (int n=0; n < ioslice_nc->num_of_slice_x; n++)
   {

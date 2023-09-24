@@ -498,7 +498,7 @@ drv_rk_curv_col_allstep(
     io_line_keep(ioline, w_end, it, wav->ncmp, wav->siz_icmp);
 
     // write slice, use w_rhs as buff
-    io_slice_nc_put(ioslice,&ioslice_nc,gd,w_end,w_rhs,it,t_end,0,wav->ncmp-1);
+    io_slice_nc_put(ioslice,&ioslice_nc,gd,w_end,w_rhs,it,t_end,0,wav->ncmp-1,wav->visco_type);
 
     // snapshot
 

@@ -253,7 +253,8 @@ io_slice_nc_put(ioslice_t    *ioslice,
                 int   it,
                 float time,
                 int   i1_cmp,
-                int   i2_cmp);
+                int   i2_cmp,
+		int   visco_type);
 
 int
 io_snap_nc_put(iosnap_t *iosnap,
