@@ -236,7 +236,6 @@ io_recv_read_locate(
                     iorecv_t  *iorecv,
                     int       nt_total,
                     int       num_of_vars,
-		    int       medium_type,
                     char *in_filenm,
                     MPI_Comm  comm,
                     int       myid,
@@ -393,11 +392,6 @@ io_recv_read_locate(
   iorecv->recvone      = recvone;
   iorecv->max_nt       = nt_total;
   iorecv->ncmp         = num_of_vars;
-  if(medium_type == CONST_MEDIUM_VISCOELASTIC_ISO)
-  {
-    iorecv->ncmp = 9;//not output J
-    num_of_vars  = 9;
-  }
 
   // malloc seismo
   for (int ir=0; ir < iorecv->total_number; ir++)
@@ -414,7 +408,6 @@ io_line_locate(
                gd_t *gd,
                ioline_t *ioline,
                int    num_of_vars,
-	       int    medium_type,
                int    nt_total,
                int    number_of_receiver_line,
                int   *receiver_line_index_start,
@@ -428,11 +421,6 @@ io_line_locate(
   ioline->num_of_lines  = 0;
   ioline->max_nt        = nt_total;
   ioline->ncmp          = num_of_vars;
-  if(medium_type == CONST_MEDIUM_VISCOELASTIC_ISO)
-  {
-    ioline->ncmp = 9;//not output J
-    num_of_vars = 9;
-  }
 
   // alloc as max num to keep nr and seq values, easy for second round
   ioline->line_nr  = (int *) malloc(number_of_receiver_line * sizeof(int));

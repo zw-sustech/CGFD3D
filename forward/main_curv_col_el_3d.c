@@ -687,13 +687,12 @@ int main(int argc, char** argv)
 
   // receiver: need to do
   io_recv_read_locate(gdcurv, iorecv,
-                      nt_total, wav->ncmp, md->medium_type, par->in_station_file,
+                      nt_total, wav->ncmp, par->in_station_file,
                       comm, myid, verbose);
 
   // line
   io_line_locate(gdcurv, ioline,
                  wav->ncmp,
-		 md->medium_type,
                  nt_total,
                  par->number_of_receiver_line,
                  par->receiver_line_index_start,
