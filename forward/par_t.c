@@ -726,7 +726,7 @@ par_read_from_str(const char *str, par_t *par)
 
     if (strcmp(par->media_type, "viscoelastic_iso")==0) 
     {
-      if (par->media_input_itype == PAR_MEDIA_3LAY || par->media_input_itype == PAR_MEDIA_3GRD){
+      if (par->media_input_itype == PAR_MEDIA_3LAY || par->media_input_itype == PAR_MEDIA_3GRD || par->media_input_itype == PAR_MEDIA_3BIN){
         if (subitem = cJSON_GetObjectItem(item, "Qp")){
           sprintf(par->Qp_input_file, "%s", subitem->valuestring);
         }

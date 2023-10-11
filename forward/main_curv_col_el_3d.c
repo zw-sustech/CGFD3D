@@ -476,6 +476,35 @@ int main(int argc, char** argv)
                                    par->bin_file_vp,
                                    par->bin_file_vs);
         }
+        else if (md->medium_type == CONST_MEDIUM_VISCOELASTIC_ISO)
+        {
+            media_bin2model_el_iso(md->rho,md->lambda, md->mu, 
+                                   gdcurv->x3d, gdcurv->y3d, gdcurv->z3d,
+                                   gdcurv->nx, gdcurv->ny, gdcurv->nz,
+                                   gdcurv->xmin,gdcurv->xmax,
+                                   gdcurv->ymin,gdcurv->ymax,
+                                   MEDIA_USE_CURV,
+                                   par->bin_order,
+                                   par->bin_size,
+                                   par->bin_spacing,
+                                   par->bin_origin,
+                                   par->bin_file_rho,
+                                   par->bin_file_vp,
+                                   par->bin_file_vs);
+            media_bin2model_vis_iso(md->Qp,md->Qs,
+                                   gdcurv->x3d, gdcurv->y3d, gdcurv->z3d,
+                                   gdcurv->nx, gdcurv->ny, gdcurv->nz,
+                                   gdcurv->xmin,gdcurv->xmax,
+                                   gdcurv->ymin,gdcurv->ymax,
+                                   MEDIA_USE_CURV,
+                                   par->bin_order,
+                                   par->bin_size,
+                                   par->bin_spacing,
+                                   par->bin_origin,
+                                   par->bin_file_Qp,
+                                   par->bin_file_Qs);
+                                    
+        }
         else if (md->medium_type == CONST_MEDIUM_ELASTIC_VTI)
         {
           fprintf(stdout,"error: not implement reading bin file for MEDIUM_ELASTIC_VTI\n");
