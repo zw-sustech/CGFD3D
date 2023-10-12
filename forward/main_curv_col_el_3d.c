@@ -360,20 +360,20 @@ int main(int argc, char** argv)
                                      par->media_input_file,
                                      par->equivalent_medium_method,
                                      myid);
-	    media_layer2model_onecmp(md->Qp, 
-			             gdcurv->x3d, gdcurv->y3d,gdcurv->z3d,
-				     gdcurv->nx, gdcurv->ny, gdcurv->nz,
-				     MEDIA_USE_CURV,
-				     par->Qp_input_file,
-				     par->equivalent_medium_method,
-				     myid);
-	    media_layer2model_onecmp(md->Qs, 
-			             gdcurv->x3d, gdcurv->y3d,gdcurv->z3d,
-				     gdcurv->nx, gdcurv->ny, gdcurv->nz,
-				     MEDIA_USE_CURV,
-				     par->Qs_input_file,
-				     par->equivalent_medium_method,
-				     myid);
+      	    media_layer2model_onecmp(md->Qp, 
+      			                     gdcurv->x3d, gdcurv->y3d,gdcurv->z3d,
+      				                 gdcurv->nx, gdcurv->ny, gdcurv->nz,
+      				                 MEDIA_USE_CURV,
+      				                 par->Qp_input_file,
+      				                 par->equivalent_medium_method,
+      				                 myid);
+      	    media_layer2model_onecmp(md->Qs, 
+      			                     gdcurv->x3d, gdcurv->y3d,gdcurv->z3d,
+      				                 gdcurv->nx, gdcurv->ny, gdcurv->nz,
+      				                 MEDIA_USE_CURV,
+      				                 par->Qs_input_file,
+      				                 par->equivalent_medium_method,
+      				                 myid);
 
 	}
 
@@ -501,8 +501,8 @@ int main(int argc, char** argv)
                                    par->bin_size,
                                    par->bin_spacing,
                                    par->bin_origin,
-                                   par->bin_file_Qp,
-                                   par->bin_file_Qs);
+                                   par->Qp_input_file,
+                                   par->Qs_input_file);
                                     
         }
         else if (md->medium_type == CONST_MEDIUM_ELASTIC_VTI)
