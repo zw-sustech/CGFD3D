@@ -5,8 +5,8 @@
 date
 
 #-- system related dir, from module env or manually set
-MPIDIR=/share/apps/gnu-4.8.5/mpich-3.3
-#MPIDIR=$MPI_ROOT
+#MPIDIR=/share/apps/gnu-4.8.5/mpich-3.3
+MPIDIR=$MPI_ROOT
 
 #-- program related dir
 CUR_DIR=`pwd`
@@ -16,7 +16,7 @@ EXEC_WAVE=${EXE_DIR}/main_curv_col_el_3d
 echo "EXEC_WAVE=$EXEC_WAVE"
 
 #-- output and conf
-PROJDIR=~/work/cgfd3d-wave-el/ablexp20c
+PROJDIR=~/work/cgfd3d-wave-el/pnc
 #PROJDIR=~/work/cgfd3d-wave-el/ablexp1test
 EVTNM=codetest
 echo "PROJDIR=${PROJDIR}"
@@ -172,33 +172,32 @@ cat << ieof > $PAR_FILE
       "free" : "timg"
       },
 
-  "grid_generation_method" : {
-      "#import" : "$GRID_DIR",
-      "cartesian" : {
-        "origin"  : [0.0, 0.0, -5900.0 ],
-        "inteval" : [ 100.0, 100.0, 100.0 ]
+
+  "#==": "set one and only one grid input method from following three ways",
+  "#grid_import_from_previous_run" : "$GRID_DIR",
+  "grid_generate_by_cartesian" : {
+      "origin"  : [0.0, 0.0, -5900.0 ],
+      "inteval" : [ 100.0, 100.0, 100.0 ]
       },
-      "#layer_interp" : {
-        "in_grid_layer_file" : "${CUR_DIR}/prep_grid/tangshan_area_topo.gdlay",
+  "#grid_generate_by_gdlay" : {
+        "file_name" : "${CUR_DIR}/prep_grid/tangshan_area_topo.gdlay",
         "refine_factor" : [ 1, 1, 1 ],
         "horizontal_start_index" : [ 3, 3 ],
         "vertical_last_to_top" : 0
-      }
   },
-  "is_export_grid" : 1,
-  "grid_export_dir"   : "$GRID_DIR",
+  "grid_export_to_dir"   : "$GRID_DIR",
 
-  "metric_calculation_method" : {
-      "#import" : "$GRID_DIR",
-      "calculate" : 1
-  },
-  "is_export_metric" : 1,
 
-  "medium" : {
-      "type" : "elastic_iso",
-      "input_way" : "code",
-      "#input_way" : "binfile",
-      "binfile" : {
+  "#metric_import_from_previous_run" : "$GRID_DIR",
+  "metric_export_to_dir"   : "$GRID_DIR",
+
+
+  "medium_type" : "elastic_iso",
+
+  "#==": "set one and only one medium input method from following five ways",
+  "#medium_import_from_previous_run" : "$MEDIA_DIR",
+  "medium_create_in_code" : "func_name_here",
+  "#medium_read_from_binfile" : {
         "size"    : [1101, 1447, 1252],
         "spacing" : [-10, 10, 10],
         "origin"  : [0.0,0.0,0.0],
@@ -209,15 +208,12 @@ cat << ieof > $PAR_FILE
         "Vs" : "${CUR_DIR}/prep_medium/seam_Vs.bin",
         "rho" : "${CUR_DIR}/prep_medium/seam_rho.bin"
       },
-      "code" : "func_name_here",
-      "#import" : "$MEDIA_DIR",
-      "#infile_layer" : "${CUR_DIR}/prep_medium/basin_el_iso.md3lay",
-      "#infile_grid" : "${CUR_DIR}/prep_medium/topolay_el_iso.md3grd",
-      "equivalent_medium_method" : "loc",
-      "#equivalent_medium_method" : "har"
-  },
-  "is_export_media" : 1,
-  "media_export_dir"  : "$MEDIA_DIR",
+  "#medium_read_from_mdlay" : "${CUR_DIR}/prep_medium/basin_el_iso.md3lay",
+  "#medium_read_from_mdgrd" : "${CUR_DIR}/prep_medium/basin_el_iso.md3grd",
+
+  "medium_equivalent_method" : "loc",
+  "#medium_equivalent_method" : "har",
+  "media_export_to_dir"  : "$MEDIA_DIR",
 
   "#visco_config" : {
       "type" : "gmb",
@@ -229,13 +225,9 @@ cat << ieof > $PAR_FILE
   },
 
   "in_source_file" : "$PROJDIR/test.src",
-  "is_export_source" : 1,
-  "source_export_dir"  : "$SOURCE_DIR",
+  "source_export_to_dir"  : "$SOURCE_DIR",
 
   "#in_ddsource_file" : "${CUR_DIR}/prep_source/event_3moment_srcdd.nc",
-
-  "output_dir" : "$OUTPUT_DIR",
-  "tmp_dir"    : "$TMP_DIR",
 
   "in_station_file" : "$PROJDIR/test.station",
 
@@ -254,7 +246,7 @@ cat << ieof > $PAR_FILE
     } 
   ],
 
-  "slice" : {
+  "#slice" : {
       "x_index" : [ 90, 149 ],
       "y_index" : [ 90, 149 ],
       "z_index" : [ 30, 59 ]
@@ -270,10 +262,15 @@ cat << ieof > $PAR_FILE
       "time_index_incre" : 1,
       "save_velocity" : 1,
       "save_stress"   : 1,
-      "save_strain"   : 0
+      "save_strain"   : 0,
+      "save_coord"    : 1
     }
   ],
 
+  "output_dir" : "$OUTPUT_DIR",
+  "tmp_dir"    : "$TMP_DIR",
+
+  "parallel_netcdf" : 1,
   "check_nan_every_nummber_of_steps" : 0,
   "output_all" : 0 
 }
@@ -303,6 +300,12 @@ cat << ieof > ${RUN_SCRIPT_FILE}
 ##BSUB -R "hname!=c013"
 #-- Merge stderr with stdout, %J is the job-id
 #BSUB -o stdout.%J
+
+#== load env for mars
+#module load intel/2020.1
+#module load mpi/mpich/3.4.1_intel_2019.5
+#module load hdf5/1.12.0
+#module load netcdf-c/4.7.4
 
 printf "\nUse $NPROCS CPUs on following nodes:\n"
 
@@ -393,9 +396,9 @@ create_source_file;
 create_station_file;
 
 #-- run with lsf
-#echo "sumbit to lsf ..."
-#create_script_lsf;
-#bsub < ${RUN_SCRIPT_FILE}
+echo "sumbit to lsf ..."
+create_script_lsf;
+bsub < ${RUN_SCRIPT_FILE}
 
 #-- run with pbs
 #echo "sumbit to pbs ..."
@@ -403,9 +406,9 @@ create_station_file;
 #qsub ${RUN_SCRIPT_FILE}
 
 #-- directly run
-echo "start run script ..."
-create_script_run;
-${RUN_SCRIPT_FILE}
+#echo "start run script ..."
+#create_script_run;
+#${RUN_SCRIPT_FILE}
 
 date
 

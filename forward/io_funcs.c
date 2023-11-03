@@ -8,6 +8,7 @@
 #include <string.h>
 
 #include "netcdf.h"
+#include "netcdf_par.h"
 #include "sacLib.h"
 
 #include "fdlib_math.h"
@@ -636,14 +637,17 @@ io_snapshot_locate(gd_t *gdinfo,
                     int *snapshot_save_velocity,
                     int *snapshot_save_stress,
                     int *snapshot_save_strain,
-                    char *output_fname_part,
+                    int *snapshot_save_coord,
                     char *output_dir)
 {
+  // keep total number for parallel netcdf
+  iosnap->num_snap_total  = number_of_snapshot;
+
   // malloc to max, num of snap will not be large
   if (number_of_snapshot > 0)
   {
-    iosnap->fname = (char **) fdlib_mem_malloc_2l_char(number_of_snapshot,
-                                    CONST_MAX_STRLEN,"snap_fname");
+    iosnap->fname_main = (char **) fdlib_mem_malloc_2l_char(number_of_snapshot,
+                                    CONST_MAX_STRLEN,"snap_fname_main");
     iosnap->i1 = (int *) malloc(number_of_snapshot * sizeof(int));
     iosnap->j1 = (int *) malloc(number_of_snapshot * sizeof(int));
     iosnap->k1 = (int *) malloc(number_of_snapshot * sizeof(int));
@@ -658,10 +662,16 @@ io_snapshot_locate(gd_t *gdinfo,
     iosnap->out_vel    = (int *) malloc(number_of_snapshot * sizeof(int));
     iosnap->out_stress = (int *) malloc(number_of_snapshot * sizeof(int));
     iosnap->out_strain = (int *) malloc(number_of_snapshot * sizeof(int));
+    iosnap->out_coord  = (int *) malloc(number_of_snapshot * sizeof(int));
 
     iosnap->i1_to_glob = (int *) malloc(number_of_snapshot * sizeof(int));
     iosnap->j1_to_glob = (int *) malloc(number_of_snapshot * sizeof(int));
     iosnap->k1_to_glob = (int *) malloc(number_of_snapshot * sizeof(int));
+
+    iosnap->in_this_proc = (int *) malloc(number_of_snapshot * sizeof(int));
+    iosnap->ni_total = (int *) malloc(number_of_snapshot * sizeof(int));
+    iosnap->nj_total = (int *) malloc(number_of_snapshot * sizeof(int));
+    iosnap->nk_total = (int *) malloc(number_of_snapshot * sizeof(int));
   }
 
   // init
@@ -673,6 +683,10 @@ io_snapshot_locate(gd_t *gdinfo,
   for (int n=0; n < number_of_snapshot; n++)
   {
     int iptr0 = n*CONST_NDIM;
+
+    iosnap->ni_total[n] = snapshot_index_count[iptr0+0];
+    iosnap->nj_total[n] = snapshot_index_count[iptr0+1];
+    iosnap->nk_total[n] = snapshot_index_count[iptr0+2];
 
     // scan output k-index in this proc
     int gk1 = -1; int ngk =  0; int k_in_nc = 0;
@@ -725,30 +739,33 @@ io_snapshot_locate(gd_t *gdinfo,
     // if in this proc
     if (ngi>0 && ngj>0 && ngk>0)
     {
-      iosnap->i1[isnap]  = gd_indx_glphy2lcext_i(gi1, gdinfo);
-      iosnap->j1[isnap]  = gd_indx_glphy2lcext_j(gj1, gdinfo);
-      iosnap->k1[isnap]  = gd_indx_glphy2lcext_k(gk1, gdinfo);
-      iosnap->ni[isnap]  = ngi;
-      iosnap->nj[isnap]  = ngj;
-      iosnap->nk[isnap]  = ngk;
-      iosnap->di[isnap]  = snapshot_index_incre[iptr0+0];
-      iosnap->dj[isnap]  = snapshot_index_incre[iptr0+1];
-      iosnap->dk[isnap]  = snapshot_index_incre[iptr0+2];
+      iosnap->in_this_proc[n] = 1;
 
-      iosnap->it1[isnap]  = snapshot_time_start[n];
-      iosnap->dit[isnap]  = snapshot_time_incre[n];
+      iosnap->i1[n]  = gd_indx_glphy2lcext_i(gi1, gdinfo);
+      iosnap->j1[n]  = gd_indx_glphy2lcext_j(gj1, gdinfo);
+      iosnap->k1[n]  = gd_indx_glphy2lcext_k(gk1, gdinfo);
+      iosnap->ni[n]  = ngi;
+      iosnap->nj[n]  = ngj;
+      iosnap->nk[n]  = ngk;
+      iosnap->di[n]  = snapshot_index_incre[iptr0+0];
+      iosnap->dj[n]  = snapshot_index_incre[iptr0+1];
+      iosnap->dk[n]  = snapshot_index_incre[iptr0+2];
 
-      iosnap->out_vel   [isnap] = snapshot_save_velocity[n];
-      iosnap->out_stress[isnap] = snapshot_save_stress[n];
-      iosnap->out_strain[isnap] = snapshot_save_strain[n];
+      iosnap->it1[n]  = snapshot_time_start[n];
+      iosnap->dit[n]  = snapshot_time_incre[n];
 
-      iosnap->i1_to_glob[isnap] = i_in_nc;
-      iosnap->j1_to_glob[isnap] = j_in_nc;
-      iosnap->k1_to_glob[isnap] = k_in_nc;
+      iosnap->out_vel   [n] = snapshot_save_velocity[n];
+      iosnap->out_stress[n] = snapshot_save_stress[n];
+      iosnap->out_strain[n] = snapshot_save_strain[n];
+      iosnap->out_coord [n] = snapshot_save_coord [n];
 
-      sprintf(iosnap->fname[isnap],"%s/%s_%s.nc",output_dir,
-                                                 snapshot_name[n],
-                                                 output_fname_part);
+      iosnap->i1_to_glob[n] = i_in_nc;
+      iosnap->j1_to_glob[n] = j_in_nc;
+      iosnap->k1_to_glob[n] = k_in_nc;
+
+      sprintf(iosnap->fname_main[n],"%s/%s",output_dir,
+                                                 snapshot_name[n]);
+                                                 
 
       // for max wrk
       size_t snap_siz =  ngi * ngj * ngk;
@@ -757,6 +774,10 @@ io_snapshot_locate(gd_t *gdinfo,
 
       isnap += 1;
     } // if in this
+    else
+    {
+      iosnap->in_this_proc[n] = 0;
+    }
   } // loop all snap
 
   iosnap->num_of_snap = isnap;
@@ -882,14 +903,34 @@ io_slice_nc_create(ioslice_t *ioslice,
 }
 
 int
-io_snap_nc_create(iosnap_t *iosnap, iosnap_nc_t *iosnap_nc, int *topoid)
+io_snap_nc_create(iosnap_t    *iosnap,
+                  iosnap_nc_t *iosnap_nc,
+                  gd_t        *gd,
+                  char *output_fname_part,
+                  float *buff,
+                  int is_parallel_netcdf,
+                  MPI_Comm comm, 
+                  int *topoid)
 {
   int ierr = 0;
 
-  int num_of_snap = iosnap->num_of_snap;
-  char **snap_fname = iosnap->fname;
+  size_t siz_line  = gd->siz_iy;
+  size_t siz_slice = gd->siz_iz;
+
+  float *x3d = gd->x3d;
+  float *y3d = gd->y3d;
+  float *z3d = gd->z3d;
+
+  //int num_of_snap = iosnap->num_of_snap; // only alloc valid snap
+  int num_of_snap = iosnap->num_snap_total; // alloc total num snap
 
   iosnap_nc->num_of_snap = num_of_snap;
+
+  iosnap_nc->in_this_proc = (int *)malloc(num_of_snap*sizeof(int));
+
+  iosnap_nc->fname = (char **) fdlib_mem_malloc_2l_char(num_of_snap,
+                                    CONST_MAX_STRLEN,"snap_fname");
+
   iosnap_nc->ncid = (int *)malloc(num_of_snap*sizeof(int));
   iosnap_nc->timeid = (int *)malloc(num_of_snap*sizeof(int));
 
@@ -903,14 +944,27 @@ io_snap_nc_create(iosnap_t *iosnap, iosnap_nc_t *iosnap_nc, int *topoid)
     iosnap_nc->cur_it[n] = 0;
   }
 
-  int *ncid   = iosnap_nc->ncid;
-  int *timeid = iosnap_nc->timeid;
+  // for parallel netcdf
+  iosnap_nc->start_i = (int *)malloc(num_of_snap*sizeof(int));
+  iosnap_nc->start_j = (int *)malloc(num_of_snap*sizeof(int));
+  iosnap_nc->start_k = (int *)malloc(num_of_snap*sizeof(int));
+
+  int *in_this_proc = iosnap_nc->in_this_proc;
+
+  int *ncid    = iosnap_nc->ncid;
+  int *timeid  = iosnap_nc->timeid;
   int *varid_V = iosnap_nc->varid_V;
   int *varid_T = iosnap_nc->varid_T;
   int *varid_E = iosnap_nc->varid_E;
+  int *start_i   = iosnap_nc->start_i;
+  int *start_j   = iosnap_nc->start_j;
+  int *start_k   = iosnap_nc->start_k;
+  int varid_x, varid_y, varid_z;
 
   for (int n=0; n<num_of_snap; n++)
   {
+    in_this_proc[n] = iosnap->in_this_proc[n];
+
     int dimid[4];
     int snap_i1  = iosnap->i1[n];
     int snap_j1  = iosnap->j1[n];
@@ -925,14 +979,54 @@ io_snap_nc_create(iosnap_t *iosnap, iosnap_nc_t *iosnap_nc, int *topoid)
     int snap_out_V = iosnap->out_vel[n];
     int snap_out_T = iosnap->out_stress[n];
     int snap_out_E = iosnap->out_strain[n];
+    int snap_out_coord = iosnap->out_coord[n];
 
-    if (nc_create(snap_fname[n], NC_CLOBBER, &ncid[n])) M_NCERR;
+    // default for out per proc
+    int snap_dim_ni = snap_ni;
+    int snap_dim_nj = snap_nj;
+    int snap_dim_nk = snap_nk;
+    start_i[n] = 0;
+    start_j[n] = 0;
+    start_k[n] = 0;
+
+    // if parallel nc
+    if (is_parallel_netcdf == 1)
+    {
+      sprintf(iosnap_nc->fname[n],"%s.nc", iosnap->fname_main[n]);
+      if (nc_create_par(iosnap_nc->fname[n], NC_CLOBBER | NC_NETCDF4, 
+                        comm, MPI_INFO_NULL, &ncid[n])) M_NCERR;
+      // reset ni,nj,nk to total
+      snap_dim_ni = iosnap->ni_total[n];
+      snap_dim_nj = iosnap->nj_total[n];
+      snap_dim_nk = iosnap->nk_total[n];
+      start_i[n] = iosnap->i1_to_glob[n];
+      start_j[n] = iosnap->j1_to_glob[n];
+      start_k[n] = iosnap->k1_to_glob[n];
+    } 
+    // if output one file per proc
+    else if (in_this_proc[n] == 1)
+    {
+      sprintf(iosnap_nc->fname[n],"%s_%s.nc", iosnap->fname_main[n], output_fname_part);
+      if (nc_create(iosnap_nc->fname[n], NC_CLOBBER, &ncid[n])) M_NCERR;
+    }
+    // output per proc and not in this proc, continue to next
+    else
+    {
+      continue;
+    }
+
     if (nc_def_dim(ncid[n], "time", NC_UNLIMITED, &dimid[0])) M_NCERR;
-    if (nc_def_dim(ncid[n], "k", snap_nk     , &dimid[1])) M_NCERR;
-    if (nc_def_dim(ncid[n], "j", snap_nj     , &dimid[2])) M_NCERR;
-    if (nc_def_dim(ncid[n], "i", snap_ni     , &dimid[3])) M_NCERR;
+    if (nc_def_dim(ncid[n], "k", snap_dim_nk    , &dimid[1])) M_NCERR;
+    if (nc_def_dim(ncid[n], "j", snap_dim_nj    , &dimid[2])) M_NCERR;
+    if (nc_def_dim(ncid[n], "i", snap_dim_ni    , &dimid[3])) M_NCERR;
     // time var
     if (nc_def_var(ncid[n], "time", NC_FLOAT, 1, dimid+0, &timeid[n])) M_NCERR;
+    // if coord
+    if (snap_out_coord==1) {
+       if (nc_def_var(ncid[n],"x",NC_FLOAT,CONST_NDIM,dimid+1,&varid_x)) M_NCERR;
+       if (nc_def_var(ncid[n],"y",NC_FLOAT,CONST_NDIM,dimid+1,&varid_y)) M_NCERR;
+       if (nc_def_var(ncid[n],"z",NC_FLOAT,CONST_NDIM,dimid+1,&varid_z)) M_NCERR;
+    }
     // other vars
     if (snap_out_V==1) {
        if (nc_def_var(ncid[n],"Vx",NC_FLOAT,4,dimid,&varid_V[n*CONST_NDIM+0])) M_NCERR;
@@ -955,24 +1049,50 @@ io_snap_nc_create(iosnap_t *iosnap, iosnap_nc_t *iosnap_nc, int *topoid)
        if (nc_def_var(ncid[n],"Eyz",NC_FLOAT,4,dimid,&varid_E[n*CONST_NDIM_2+4])) M_NCERR;
        if (nc_def_var(ncid[n],"Exy",NC_FLOAT,4,dimid,&varid_E[n*CONST_NDIM_2+5])) M_NCERR;
     }
+
     // attribute: index in output snapshot, index w ghost in thread
-    int g_start[] = { iosnap->i1_to_glob[n],
-                      iosnap->j1_to_glob[n],
-                      iosnap->k1_to_glob[n] };
-    nc_put_att_int(ncid[n],NC_GLOBAL,"first_index_to_snapshot_output",
-                   NC_INT,CONST_NDIM,g_start);
+    if (is_parallel_netcdf == 0)
+    {
+      int g_start[] = { iosnap->i1_to_glob[n],
+                        iosnap->j1_to_glob[n],
+                        iosnap->k1_to_glob[n] };
+      nc_put_att_int(ncid[n],NC_GLOBAL,"first_index_to_snapshot_output",
+                     NC_INT,CONST_NDIM,g_start);
 
-    int l_start[] = { snap_i1, snap_j1, snap_k1 };
-    nc_put_att_int(ncid[n],NC_GLOBAL,"first_index_in_this_thread_with_ghosts",
-                   NC_INT,CONST_NDIM,l_start);
+      int l_start[] = { snap_i1, snap_j1, snap_k1 };
+      nc_put_att_int(ncid[n],NC_GLOBAL,"first_index_in_this_thread_with_ghosts",
+                     NC_INT,CONST_NDIM,l_start);
 
-    int l_count[] = { snap_di, snap_dj, snap_dk };
-    nc_put_att_int(ncid[n],NC_GLOBAL,"index_stride_in_this_thread",
-                   NC_INT,CONST_NDIM,l_count);
-    nc_put_att_int(ncid[n],NC_GLOBAL,"coords_of_mpi_topo",
-                   NC_INT,2,topoid);
+      int l_count[] = { snap_di, snap_dj, snap_dk };
+      nc_put_att_int(ncid[n],NC_GLOBAL,"index_stride_in_this_thread",
+                     NC_INT,CONST_NDIM,l_count);
+      nc_put_att_int(ncid[n],NC_GLOBAL,"coords_of_mpi_topo",
+                     NC_INT,2,topoid);
+    }
 
     if (nc_enddef(ncid[n])) M_NCERR;
+
+    // write out coord if out coord
+    if (snap_out_coord==1)
+    {
+      size_t startp[] = { start_k[n], start_j[n], start_i[n] };
+      size_t countp[] = { iosnap->nk[n], iosnap->nj[n], iosnap->ni[n] };
+
+      io_snap_pack_buff(x3d,
+              siz_line,siz_slice,snap_i1,snap_ni,snap_di,snap_j1,snap_nj,
+              snap_dj,snap_k1,snap_nk,snap_dk,buff);
+      nc_put_vara_float(iosnap_nc->ncid[n],varid_x,startp,countp,buff);
+
+      io_snap_pack_buff(y3d,
+              siz_line,siz_slice,snap_i1,snap_ni,snap_di,snap_j1,snap_nj,
+              snap_dj,snap_k1,snap_nk,snap_dk,buff);
+      nc_put_vara_float(iosnap_nc->ncid[n],varid_y,startp,countp,buff);
+
+      io_snap_pack_buff(z3d,
+              siz_line,siz_slice,snap_i1,snap_ni,snap_di,snap_j1,snap_nj,
+              snap_dj,snap_k1,snap_nk,snap_dk,buff);
+      nc_put_vara_float(iosnap_nc->ncid[n],varid_z,startp,countp,buff);
+    }
   } // loop snap
 
   return ierr;
@@ -1117,12 +1237,22 @@ io_snap_nc_put(iosnap_t *iosnap,
 {
   int ierr = 0;
 
-  int num_of_snap = iosnap->num_of_snap;
+  //int num_of_snap = iosnap->num_of_snap;
+  int num_of_snap = iosnap->num_snap_total;
   size_t siz_line  = gdinfo->siz_iy;
   size_t siz_slice = gdinfo->siz_iz;
 
+  int *start_i   = iosnap_nc->start_i;
+  int *start_j   = iosnap_nc->start_j;
+  int *start_k   = iosnap_nc->start_k;
+
   for (int n=0; n<num_of_snap; n++)
   {
+    // skip if not in this proc
+    if (iosnap->in_this_proc[n] == 0) {
+      continue;
+    }
+
     int snap_i1  = iosnap->i1[n];
     int snap_j1  = iosnap->j1[n];
     int snap_k1  = iosnap->k1[n];
@@ -1148,7 +1278,8 @@ io_snap_nc_put(iosnap_t *iosnap,
 
     if (it>=snap_it1 && snap_it_num<=snap_nt_total && snap_it_mod==0)
     {
-      size_t startp[] = { iosnap_nc->cur_it[n], 0, 0, 0 };
+      //size_t startp[] = { iosnap_nc->cur_it[n], 0, 0, 0 };
+      size_t startp[] = { iosnap_nc->cur_it[n], start_k[n], start_j[n], start_i[n] };
       size_t countp[] = { 1, snap_nk, snap_nj, snap_ni };
       size_t start_tdim = iosnap_nc->cur_it[n];
 
@@ -1257,190 +1388,6 @@ io_snap_nc_put(iosnap_t *iosnap,
   return ierr;
 }
 
-int
-io_snap_nc_create_ac(iosnap_t *iosnap, iosnap_nc_t *iosnap_nc, int *topoid)
-{
-  int ierr = 0;
-
-  int num_of_snap = iosnap->num_of_snap;
-  char **snap_fname = iosnap->fname;
-
-  iosnap_nc->num_of_snap = num_of_snap;
-  iosnap_nc->ncid = (int *)malloc(num_of_snap*sizeof(int));
-  iosnap_nc->timeid = (int *)malloc(num_of_snap*sizeof(int));
-
-  iosnap_nc->varid_V = (int *)malloc(num_of_snap*CONST_NDIM*sizeof(int));
-  iosnap_nc->varid_T = (int *)malloc(num_of_snap*1*sizeof(int));
-  iosnap_nc->varid_E = (int *)malloc(num_of_snap*1*sizeof(int));
-
-  // will be used in put step
-  iosnap_nc->cur_it = (int *)malloc(num_of_snap*sizeof(int));
-  for (int n=0; n<num_of_snap; n++) {
-    iosnap_nc->cur_it[n] = 0;
-  }
-
-  int *ncid   = iosnap_nc->ncid;
-  int *timeid = iosnap_nc->timeid;
-  int *varid_V = iosnap_nc->varid_V;
-  int *varid_T = iosnap_nc->varid_T;
-  int *varid_E = iosnap_nc->varid_E;
-
-  for (int n=0; n<num_of_snap; n++)
-  {
-    int dimid[4];
-    int snap_i1  = iosnap->i1[n];
-    int snap_j1  = iosnap->j1[n];
-    int snap_k1  = iosnap->k1[n];
-    int snap_ni  = iosnap->ni[n];
-    int snap_nj  = iosnap->nj[n];
-    int snap_nk  = iosnap->nk[n];
-    int snap_di  = iosnap->di[n];
-    int snap_dj  = iosnap->dj[n];
-    int snap_dk  = iosnap->dk[n];
-
-    int snap_out_V = iosnap->out_vel[n];
-    int snap_out_T = iosnap->out_stress[n];
-    int snap_out_E = iosnap->out_strain[n];
-
-    if (nc_create(snap_fname[n], NC_CLOBBER, &ncid[n])) M_NCERR;
-    if (nc_def_dim(ncid[n], "time", NC_UNLIMITED, &dimid[0])) M_NCERR;
-    if (nc_def_dim(ncid[n], "k", snap_nk     , &dimid[1])) M_NCERR;
-    if (nc_def_dim(ncid[n], "j", snap_nj     , &dimid[2])) M_NCERR;
-    if (nc_def_dim(ncid[n], "i", snap_ni     , &dimid[3])) M_NCERR;
-    // time var
-    if (nc_def_var(ncid[n], "time", NC_FLOAT, 1, dimid+0, &timeid[n])) M_NCERR;
-    // other vars
-    if (snap_out_V==1) {
-       if (nc_def_var(ncid[n],"Vx",NC_FLOAT,4,dimid,&varid_V[n*CONST_NDIM+0])) M_NCERR;
-       if (nc_def_var(ncid[n],"Vy",NC_FLOAT,4,dimid,&varid_V[n*CONST_NDIM+1])) M_NCERR;
-       if (nc_def_var(ncid[n],"Vz",NC_FLOAT,4,dimid,&varid_V[n*CONST_NDIM+2])) M_NCERR;
-    }
-    if (snap_out_T==1) {
-       if (nc_def_var(ncid[n],"Tii",NC_FLOAT,4,dimid,&varid_T[n])) M_NCERR;
-    }
-    if (snap_out_E==1) {
-       if (nc_def_var(ncid[n],"Eii",NC_FLOAT,4,dimid,&varid_E[n])) M_NCERR;
-    }
-    // attribute: index in output snapshot, index w ghost in thread
-    int g_start[] = { iosnap->i1_to_glob[n],
-                      iosnap->j1_to_glob[n],
-                      iosnap->k1_to_glob[n] };
-    nc_put_att_int(ncid[n],NC_GLOBAL,"first_index_to_snapshot_output",
-                   NC_INT,CONST_NDIM,g_start);
-
-    int l_start[] = { snap_i1, snap_j1, snap_k1 };
-    nc_put_att_int(ncid[n],NC_GLOBAL,"first_index_in_this_thread_with_ghosts",
-                   NC_INT,CONST_NDIM,l_start);
-
-    int l_count[] = { snap_di, snap_dj, snap_dk };
-    nc_put_att_int(ncid[n],NC_GLOBAL,"index_stride_in_this_thread",
-                   NC_INT,CONST_NDIM,l_count);
-    nc_put_att_int(ncid[n],NC_GLOBAL,"coords_of_mpi_topo",
-                   NC_INT,2,topoid);
-
-    if (nc_enddef(ncid[n])) M_NCERR;
-  } // loop snap
-
-  return ierr;
-}
-
-int
-io_snap_nc_put_ac(iosnap_t *iosnap,
-               iosnap_nc_t *iosnap_nc,
-               gd_t    *gdinfo,
-               wav_t   *wav,
-               float *restrict w4d,
-               float *restrict buff,
-               int   nt_total,
-               int   it,
-               float time,
-               int is_run_out_vel,     // for stg, out vel and stress at sep call
-               int is_run_out_stress,  // 
-               int is_incr_cur_it)     // for stg, should output cur_it once
-{
-  int ierr = 0;
-
-  int num_of_snap = iosnap->num_of_snap;
-  size_t siz_line  = gdinfo->siz_iy;
-  size_t siz_slice = gdinfo->siz_iz;
-
-  for (int n=0; n<num_of_snap; n++)
-  {
-    int snap_i1  = iosnap->i1[n];
-    int snap_j1  = iosnap->j1[n];
-    int snap_k1  = iosnap->k1[n];
-    int snap_ni  = iosnap->ni[n];
-    int snap_nj  = iosnap->nj[n];
-    int snap_nk  = iosnap->nk[n];
-    int snap_di  = iosnap->di[n];
-    int snap_dj  = iosnap->dj[n];
-    int snap_dk  = iosnap->dk[n];
-
-    int snap_it1 = iosnap->it1[n];
-    int snap_dit = iosnap->dit[n];
-
-    int snap_out_V = iosnap->out_vel[n];
-    int snap_out_T = iosnap->out_stress[n];
-    int snap_out_E = iosnap->out_strain[n];
-
-    int snap_it_mod = (it - snap_it1) % snap_dit;
-    int snap_it_num = (it - snap_it1) / snap_dit;
-    int snap_nt_total = (nt_total - snap_it1) / snap_dit;
-
-    int snap_max_num = snap_ni * snap_nj * snap_nk;
-
-    if (it>=snap_it1 && snap_it_num<=snap_nt_total && snap_it_mod==0)
-    {
-      size_t startp[] = { iosnap_nc->cur_it[n], 0, 0, 0 };
-      size_t countp[] = { 1, snap_nk, snap_nj, snap_ni };
-      size_t start_tdim = iosnap_nc->cur_it[n];
-
-      // put time var
-      nc_put_var1_float(iosnap_nc->ncid[n],iosnap_nc->timeid[n],&start_tdim,&time);
-
-      // vel
-      if (is_run_out_vel == 1 && snap_out_V==1)
-      {
-        io_snap_pack_buff(w4d + wav->Vx_pos,
-              siz_line,siz_slice,snap_i1,snap_ni,snap_di,snap_j1,snap_nj,
-              snap_dj,snap_k1,snap_nk,snap_dk,buff);
-        nc_put_vara_float(iosnap_nc->ncid[n],iosnap_nc->varid_V[n*CONST_NDIM+0],
-              startp,countp,buff);
-
-        io_snap_pack_buff(w4d + wav->Vy_pos,
-              siz_line,siz_slice,snap_i1,snap_ni,snap_di,snap_j1,snap_nj,
-              snap_dj,snap_k1,snap_nk,snap_dk,buff);
-        nc_put_vara_float(iosnap_nc->ncid[n],iosnap_nc->varid_V[n*CONST_NDIM+1],
-              startp,countp,buff);
-
-        io_snap_pack_buff(w4d + wav->Vz_pos,
-              siz_line,siz_slice,snap_i1,snap_ni,snap_di,snap_j1,snap_nj,
-              snap_dj,snap_k1,snap_nk,snap_dk,buff);
-        nc_put_vara_float(iosnap_nc->ncid[n],iosnap_nc->varid_V[n*CONST_NDIM+2],
-              startp,countp,buff);
-      }
-      if (is_run_out_stress==1 && snap_out_T==1)
-      {
-        io_snap_pack_buff(w4d + wav->Txx_pos,
-              siz_line,siz_slice,snap_i1,snap_ni,snap_di,snap_j1,snap_nj,
-              snap_dj,snap_k1,snap_nk,snap_dk,buff);
-        nc_put_vara_float(iosnap_nc->ncid[n],iosnap_nc->varid_T[n],
-              startp,countp,buff);
-      }
-      if (is_run_out_stress==1 && snap_out_E==1)
-      {
-        // need to implement
-      }
-
-      if (is_incr_cur_it == 1) {
-        iosnap_nc->cur_it[n] += 1;
-      }
-
-    } // if it
-  } // loop snap
-
-  return ierr;
-}
 
 int
 io_snap_stress_to_strain_eliso(float *restrict lam3d,

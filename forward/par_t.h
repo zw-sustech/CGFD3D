@@ -118,7 +118,8 @@ typedef struct{
   // medium
   char media_type[PAR_MAX_STRLEN]; // iso, vti, or aniso
   int  media_itype; // iso, vti, or aniso
-  char media_input_way[PAR_MAX_STRLEN]; // in_code, import, file
+  //char media_input_way[PAR_MAX_STRLEN]; // in_code, import, file, not used
+  char media_code_fun_name[PAR_MAX_STRLEN]; // in_code fun name, need to implement
   int  media_input_itype;
   char media_input_cmptype[PAR_MAX_STRLEN]; // cij, thomson
   int  media_input_icmptype;
@@ -232,8 +233,10 @@ typedef struct{
   int *snapshot_save_velocity;
   int *snapshot_save_stress;
   int *snapshot_save_strain;
+  int *snapshot_save_coord;
 
   // misc
+  int is_parallel_netcdf;
   int check_nan_every_nummber_of_steps;
   int output_all;
 } par_t;

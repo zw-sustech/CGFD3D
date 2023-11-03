@@ -8,6 +8,12 @@
 
 # known issues:
 #  .h dependency is not included, use make cleanall
+#
+
+#-- for static link to parallel netcdf
+#LIBS="-L${NCDIR}/lib -lnetcdf -L${H5DIR}/lib -lhdf5_hl -lhdf5 -L${PNDIR} -lpnetcdf -L${ZDIR}/lib -lz -lm"
+#-- for dynamic link to parallel netcdf
+#LIBS="-L${NCDIR}/lib -lnetcdf"
 
 #-------------------------------------------------------------------------------
 # please set PATH and NETCDFROOT in run_make.sh
@@ -21,17 +27,17 @@ NETCDF :=  ${NETCDFROOT}
 CFLAGS := -I$(NETCDF)/include -I./lib/ -I./forward/ -I./media/  $(CFLAGS)
 
 #- debug
-#CFLAGS   := -g $(CFLAGS)
-#CPPFLAGS := -g -std=c++11 $(CPPFLAGS)
+CFLAGS   := -g $(CFLAGS)
+CPPFLAGS := -g -std=c++11 $(CPPFLAGS)
 #- O3
-CFLAGS   := -pipe -O3 $(CFLAGS)
-CPPFLAGS := -pipe -O3 -std=c++11 $(CPPFLAGS)
+#CFLAGS   := -pipe -O3 $(CFLAGS)
+#CPPFLAGS := -pipe -O3 -std=c++11 $(CPPFLAGS)
 
 #- static
 #LDFLAGS := $(NETCDF)/lib/libnetcdf.a -lm -static $(LDFLAGS)
-LDFLAGS := -lm $(NETCDF)/lib/libnetcdf.a -lm $(LDFLAGS)
+#LDFLAGS := -lm $(NETCDF)/lib/libnetcdf.a -lm $(LDFLAGS)
 #- dynamic
-#LDFLAGS := -L$(NETCDF)/lib -lnetcdf -lm $(LDFLAGS)
+LDFLAGS := -L$(NETCDF)/lib -lnetcdf -lm $(LDFLAGS)
 
 #- pg
 #CFLAGS   := -Wall -pg $(CFLAGS)

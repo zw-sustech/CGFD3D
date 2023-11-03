@@ -752,7 +752,7 @@ int main(int argc, char** argv)
                      par->snapshot_save_velocity,
                      par->snapshot_save_stress,
                      par->snapshot_save_strain,
-                     blk->output_fname_part,
+                     par->snapshot_save_coord,
                      blk->output_dir);
 
 //-------------------------------------------------------------------------------
@@ -844,6 +844,7 @@ int main(int argc, char** argv)
                             dt,nt_total,t0,
                             blk->output_fname_part,
                             blk->output_dir,
+                            par->is_parallel_netcdf,
                             par->check_nan_every_nummber_of_steps,
                             par->output_all,
                             verbose);

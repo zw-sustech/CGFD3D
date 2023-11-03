@@ -42,6 +42,7 @@ drv_rk_curv_col_allstep(
   float dt, int nt_total, float t0,
   char *output_fname_part,
   char *output_dir,
+  int is_parallel_netcdf,
   int qc_check_nan_num_of_step,
   const int output_all, // qc all var
   const int verbose)
@@ -91,7 +92,13 @@ drv_rk_curv_col_allstep(
   if (myid==0 && verbose>0) fprintf(stdout,"prepare snap nc output ...\n"); 
   iosnap_nc_t  iosnap_nc;
 
-  io_snap_nc_create(iosnap, &iosnap_nc, topoid);
+  io_snap_nc_create(iosnap, &iosnap_nc, gd,
+                    output_fname_part,
+                    wav->v5d,
+                    is_parallel_netcdf,
+                    comm, topoid);
+  // zero temp used w_rsh
+  wav_zero_edge(gd, wav, wav->v5d);
 
   // only x/y mpi
   int num_of_r_reqs = 4;

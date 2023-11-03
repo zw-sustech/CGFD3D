@@ -84,7 +84,10 @@ typedef struct
   // for esti size of working space var
   size_t siz_max_wrk;
 
-  int num_of_snap;
+  int num_snap_total; // num of snap form .json
+  int num_of_snap; // num of snap in this thread
+
+  int *in_this_proc; // if output in this proc
 
   int *i1;
   int *j1;
@@ -100,12 +103,18 @@ typedef struct
   int *out_vel;
   int *out_stress;
   int *out_strain;
+  int *out_coord;
 
   int *i1_to_glob;
   int *j1_to_glob;
   int *k1_to_glob;
 
-  char **fname;
+  // to switch parallel netcdf
+  int *ni_total;
+  int *nj_total;
+  int *nk_total;
+
+  char **fname_main;
 } iosnap_t;
 
 // for nc output
@@ -134,12 +143,22 @@ ioslice_nc_t;
 typedef struct
 {
   int num_of_snap;
+  int num_snap_total; // num of snap form .json
+
+  int *in_this_proc; // if output in this proc
+
   int *ncid;
   int *timeid;
   int *varid_V;  // [num_of_snap*CONST_NDIM];
   int *varid_T;  // [num_of_snap*CONST_NDIM_2];
   int *varid_E;  // [num_of_snap*CONST_NDIM_2];
   int *cur_it ;  // [num_of_snap];
+
+  int *start_i;
+  int *start_j;
+  int *start_k;
+
+  char **fname;
 }
 iosnap_nc_t;
 
@@ -230,7 +249,7 @@ io_snapshot_locate(gd_t *gdinfo,
                     int *snapshot_save_velocity,
                     int *snapshot_save_stress,
                     int *snapshot_save_strain,
-                    char *output_fname_part,
+                    int *snapshot_save_coord,
                     char *output_dir);
 
 int
@@ -240,7 +259,14 @@ io_slice_nc_create(ioslice_t *ioslice,
                   int *topoid, ioslice_nc_t *ioslice_nc);
 
 int
-io_snap_nc_create(iosnap_t *iosnap, iosnap_nc_t *iosnap_nc, int *topoid);
+io_snap_nc_create(iosnap_t *iosnap, 
+                  iosnap_nc_t *iosnap_nc,
+                  gd_t        *gdinfo,
+                  char *output_fname_part,
+                  float *buff,
+                  int is_parallel_netcdf,
+                  MPI_Comm comm, 
+                  int *topoid);
 
 int
 io_slice_nc_put(ioslice_t    *ioslice,
@@ -259,23 +285,6 @@ io_snap_nc_put(iosnap_t *iosnap,
                iosnap_nc_t *iosnap_nc,
                gd_t    *gdinfo,
                md_t    *md,
-               wav_t   *wav,
-               float *restrict w4d,
-               float *restrict buff,
-               int   nt_total,
-               int   it,
-               float time,
-               int is_run_out_vel,     // for stg, out vel and stress at sep call
-               int is_run_out_stress,  // 
-               int is_incr_cur_it);     // for stg, should output cur_it once
-
-int
-io_snap_nc_create_ac(iosnap_t *iosnap, iosnap_nc_t *iosnap_nc, int *topoid);
-
-int
-io_snap_nc_put_ac(iosnap_t *iosnap,
-               iosnap_nc_t *iosnap_nc,
-               gd_t    *gdinfo,
                wav_t   *wav,
                float *restrict w4d,
                float *restrict buff,
