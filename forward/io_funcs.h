@@ -59,25 +59,6 @@ typedef struct
   char   **line_name;
 } ioline_t;
 
-// slice output
-typedef struct
-{
-  // for esti size of working space var
-  size_t siz_max_wrk;
-
-  int num_of_slice_x;
-  int *restrict slice_x_indx;
-  char **restrict slice_x_fname;
-
-  int num_of_slice_y;
-  int *restrict slice_y_indx;
-  char **restrict slice_y_fname;
-
-  int num_of_slice_z;
-  int *restrict slice_z_indx;
-  char **restrict slice_z_fname;
-} ioslice_t;
-
 // snapshot output
 typedef struct
 {
@@ -118,27 +99,6 @@ typedef struct
 } iosnap_t;
 
 // for nc output
-
-typedef struct
-{
-  int num_of_slice_x;
-  int num_of_slice_y;
-  int num_of_slice_z;
-  int num_of_vars;
-
-  int *ncid_slx;
-  int *timeid_slx;
-  int *varid_slx;
-
-  int *ncid_sly;
-  int *timeid_sly;
-  int *varid_sly;
-
-  int *ncid_slz;
-  int *timeid_slz;
-  int *varid_slz;
-}
-ioslice_nc_t;
 
 typedef struct
 {
@@ -224,17 +184,6 @@ io_line_locate(
                int   *receiver_line_count,
                char **receiver_line_name);
 
-int
-io_slice_locate(gd_t  *gdinfo,
-                ioslice_t *ioslice,
-                int  number_of_slice_x,
-                int  number_of_slice_y,
-                int  number_of_slice_z,
-                int *slice_x_index,
-                int *slice_y_index,
-                int *slice_z_index,
-                char *output_fname_part,
-                char *output_dir);
 
 void
 io_snapshot_locate(gd_t *gdinfo,
@@ -253,12 +202,6 @@ io_snapshot_locate(gd_t *gdinfo,
                     char *output_dir);
 
 int
-io_slice_nc_create(ioslice_t *ioslice, 
-                  int num_of_vars, int visco_type, char **w3d_name,
-                  int ni, int nj, int nk,
-                  int *topoid, ioslice_nc_t *ioslice_nc);
-
-int
 io_snap_nc_create(iosnap_t *iosnap, 
                   iosnap_nc_t *iosnap_nc,
                   gd_t        *gdinfo,
@@ -267,18 +210,6 @@ io_snap_nc_create(iosnap_t *iosnap,
                   int is_parallel_netcdf,
                   MPI_Comm comm, 
                   int *topoid);
-
-int
-io_slice_nc_put(ioslice_t    *ioslice,
-                ioslice_nc_t *ioslice_nc,
-                gd_t     *gdinfo,
-                float *restrict w4d,
-                float *restrict buff,
-                int   it,
-                float time,
-                int   i1_cmp,
-                int   i2_cmp,
-		int   visco_type);
 
 int
 io_snap_nc_put(iosnap_t *iosnap,
@@ -336,9 +267,6 @@ io_snap_stress_to_strain_eliso(float *restrict lam3d,
                                int startk,
                                int countk,
                                int increk);
-
-int
-io_slice_nc_close(ioslice_nc_t *ioslice_nc);
 
 int
 io_snap_nc_close(iosnap_nc_t *iosnap_nc);
@@ -401,9 +329,6 @@ io_recv_output_sac_el_aniso_strain(iorecv_t *iorecv,
 int
 io_line_output_sac(ioline_t *ioline,
       float dt, char **cmp_name, char *evtnm, char *output_dir);
-
-int
-ioslice_print(ioslice_t *ioslice);
 
 int
 iosnap_print(iosnap_t *iosnap);

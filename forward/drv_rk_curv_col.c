@@ -36,7 +36,6 @@ drv_rk_curv_col_allstep(
   mympi_t    *mympi,
   iorecv_t   *iorecv,
   ioline_t   *ioline,
-  ioslice_t  *ioslice,
   iosnap_t   *iosnap,
   // time
   float dt, int nt_total, float t0,
@@ -80,13 +79,6 @@ drv_rk_curv_col_allstep(
   float t_end; // time after this loop for nc output
   // for mpi message
   int   ipair_mpi, istage_mpi;
-
-  // create slice nc output files
-  if (myid==0 && verbose>0) fprintf(stdout,"prepare slice nc output ...\n"); 
-  ioslice_nc_t ioslice_nc;
-  io_slice_nc_create(ioslice, wav->ncmp, wav->visco_type, wav->cmp_name,
-                     gd->ni, gd->nj, gd->nk, topoid,
-                     &ioslice_nc);
 
   // create snapshot nc output files
   if (myid==0 && verbose>0) fprintf(stdout,"prepare snap nc output ...\n"); 
@@ -504,8 +496,6 @@ drv_rk_curv_col_allstep(
     //-- line values
     io_line_keep(ioline, w_end, it, wav->ncmp, wav->siz_icmp);
 
-    // write slice, use w_rhs as buff
-    io_slice_nc_put(ioslice,&ioslice_nc,gd,w_end,w_rhs,it,t_end,0,wav->ncmp-1,wav->visco_type);
 
     // snapshot
 
@@ -553,7 +543,6 @@ drv_rk_curv_col_allstep(
     PG_slice_output(PG,gd,output_dir, output_fname_part,topoid);
   }
   // close nc
-  io_slice_nc_close(&ioslice_nc);
   io_snap_nc_close(&iosnap_nc);
 
   return;

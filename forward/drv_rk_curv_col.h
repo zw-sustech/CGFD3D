@@ -26,7 +26,6 @@ drv_rk_curv_col_allstep(
   mympi_t    *mympi,
   iorecv_t   *iorecv,
   ioline_t   *ioline,
-  ioslice_t  *ioslice,
   iosnap_t   *iosnap,
   // time
   float dt, int nt_total, float t0,

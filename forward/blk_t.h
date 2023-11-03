@@ -52,7 +52,6 @@ typedef struct
   iorecv_t  *iorecv;
   ioline_t  *ioline;
   iosnap_t  *iosnap;
-  ioslice_t *ioslice;
 
   // fname and dir
   char output_fname_part[CONST_MAX_STRLEN];

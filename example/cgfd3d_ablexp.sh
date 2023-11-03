@@ -246,12 +246,6 @@ cat << ieof > $PAR_FILE
     } 
   ],
 
-  "#slice" : {
-      "x_index" : [ 90, 149 ],
-      "y_index" : [ 90, 149 ],
-      "z_index" : [ 30, 59 ]
-  },
-
   "snapshot" : [
     {
       "name" : "volume_vel",

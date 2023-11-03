@@ -104,7 +104,6 @@ int main(int argc, char** argv)
   bdry_t          *bdry          = blk->bdry;
   iorecv_t        *iorecv        = blk->iorecv;
   ioline_t        *ioline        = blk->ioline;
-  ioslice_t       *ioslice       = blk->ioslice;
   iosnap_t        *iosnap        = blk->iosnap;
 
   // set up fd_t
@@ -729,16 +728,6 @@ int main(int argc, char** argv)
                  par->receiver_line_count,
                  par->receiver_line_name);
   
-  // slice
-  io_slice_locate(gdcurv, ioslice,
-                  par->number_of_slice_x,
-                  par->number_of_slice_y,
-                  par->number_of_slice_z,
-                  par->slice_x_index,
-                  par->slice_y_index,
-                  par->slice_z_index,
-                  blk->output_fname_part,
-                  blk->output_dir);
   
   // snapshot
   io_snapshot_locate(gdcurv, iosnap,
@@ -822,8 +811,6 @@ int main(int argc, char** argv)
 
   gd_print(gdcurv,verbose);
 
-  ioslice_print(ioslice);
-
   iosnap_print(iosnap);
 
 //-------------------------------------------------------------------------------
@@ -840,7 +827,7 @@ int main(int argc, char** argv)
   drv_rk_curv_col_allstep(fd,gdcurv,gdcurv_metric,md,
                             src,bdry,
                             wav, mympi,
-                            iorecv,ioline,ioslice,iosnap,
+                            iorecv,ioline,iosnap,
                             dt,nt_total,t0,
                             blk->output_fname_part,
                             blk->output_dir,

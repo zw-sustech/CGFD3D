@@ -33,7 +33,6 @@ blk_init(blk_t *blk,
   blk->bdry          = (bdry_t     *)malloc(sizeof(bdry_t ));
   blk->iorecv        = (iorecv_t   *)malloc(sizeof(iorecv_t ));
   blk->ioline        = (ioline_t   *)malloc(sizeof(ioline_t ));
-  blk->ioslice       = (ioslice_t  *)malloc(sizeof(ioslice_t ));
   blk->iosnap        = (iosnap_t   *)malloc(sizeof(iosnap_t ));
 
   sprintf(blk->name, "%s", "single");
