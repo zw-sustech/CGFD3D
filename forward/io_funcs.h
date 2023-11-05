@@ -104,6 +104,7 @@ typedef struct
 {
   int num_of_snap;
   int num_snap_total; // num of snap form .json
+  int is_parallel;
 
   int *in_this_proc; // if output in this proc
 
