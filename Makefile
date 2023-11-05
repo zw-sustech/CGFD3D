@@ -29,9 +29,9 @@ CPPFLAGS := -pipe -O3 -std=c++11 $(CPPFLAGS)
 
 #- static
 #LDFLAGS := $(NETCDF)/lib/libnetcdf.a -lm -static $(LDFLAGS)
-LDFLAGS := -lm $(NETCDF)/lib/libnetcdf.a -lm $(LDFLAGS)
+#LDFLAGS := -lm $(NETCDF)/lib/libnetcdf.a -lm $(LDFLAGS)
 #- dynamic
-#LDFLAGS := -L$(NETCDF)/lib -lnetcdf -lm $(LDFLAGS)
+LDFLAGS := -L$(NETCDF)/lib -lnetcdf -lm $(LDFLAGS)
 
 #- pg
 #CFLAGS   := -Wall -pg $(CFLAGS)
