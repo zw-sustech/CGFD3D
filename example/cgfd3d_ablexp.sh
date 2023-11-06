@@ -16,8 +16,7 @@ EXEC_WAVE=${EXE_DIR}/main_curv_col_el_3d
 echo "EXEC_WAVE=$EXEC_WAVE"
 
 #-- output and conf
-PROJDIR=~/work/cgfd3d-wave-el/pnc
-#PROJDIR=~/work/cgfd3d-wave-el/ablexp1test
+PROJDIR=~/work/cgfd3d/test
 EVTNM=codetest
 echo "PROJDIR=${PROJDIR}"
 echo "EVTNM=${EVTNM}"
@@ -47,7 +46,7 @@ mkdir -p ${TMP_DIR}
 #----------------------------------------------------------------------
 
 #-- total x grid points
-NX=300
+NX=200
 #-- total y grid points
 NY=300
 #-- total z grid points
@@ -135,7 +134,7 @@ cat << ieof > $PAR_FILE
   "#size_of_time_step" : 0.008,
   "#size_of_time_step" : 0.020,
   "#number_of_time_steps" : 500,
-  "time_window_length" : 6,
+  "time_window_length" : 5,
   "check_stability" : 1,
 
   "boundary_x_left" : {
@@ -248,9 +247,21 @@ cat << ieof > $PAR_FILE
 
   "snapshot" : [
     {
-      "name" : "volume_vel",
+      "name" : "snap_surf",
       "grid_index_start" : [ 0, 0, $(( NZ - 1 )) ],
       "grid_index_count" : [ $NX, $NY, 1 ],
+      "grid_index_incre" : [  1, 1, 1 ],
+      "time_index_start" : 0,
+      "time_index_incre" : 1,
+      "save_velocity" : 1,
+      "save_stress"   : 1,
+      "save_strain"   : 0,
+      "save_coord"    : 1
+    },
+    {
+      "name" : "snap_vol",
+      "grid_index_start" : [ 0, 0, 0 ],
+      "grid_index_count" : [ $NX, $NY, $NZ ],
       "grid_index_incre" : [  1, 1, 1 ],
       "time_index_start" : 0,
       "time_index_incre" : 1,
@@ -294,12 +305,6 @@ cat << ieof > ${RUN_SCRIPT_FILE}
 ##BSUB -R "hname!=c013"
 #-- Merge stderr with stdout, %J is the job-id
 #BSUB -o stdout.%J
-
-#== load env for mars
-#module load intel/2020.1
-#module load mpi/mpich/3.4.1_intel_2019.5
-#module load hdf5/1.12.0
-#module load netcdf-c/4.7.4
 
 printf "\nUse $NPROCS CPUs on following nodes:\n"
 
