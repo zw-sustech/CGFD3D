@@ -1,0 +1,199 @@
+% Draw seismic wavefield snapshot by using pcolor style
+% Author:       Yuanhang Huo
+% Email:        yhhuo@mail.ustc.edu.cn
+% Affiliation:  University of Science and Technology of China
+% Date:         2021.05.31
+
+clear all;
+addmypath
+% -------------------------- parameters input -------------------------- %
+
+%- slice output
+if 1
+  nc_file = '~/work/cgfd3d/test/output/snap_surf.nc'
+  count_read  = [-1,-1,1];     % '-1' to plot all points in this dimension
+  % following two are fixed for slice
+  start_read  = [1,1,1];      % start from index '1'
+  stride_read = [1,1,1];
+end
+
+%- volume output
+if 0
+  nc_file = '~/work/cgfd3d/test/output/snap_vol.nc'
+  
+  %-- z slice
+  %start_read  =[1,1,60];      % start from index '1'
+  %count_read  =[-1,-1,1];     % '-1' to plot all points in this dimension
+  %stride_read =[1,1,1];
+  
+  %-- y slice
+  %start_read  =[1,41,1];      % start from index '1'
+  %count_read  =[-1,1,-1];     % '-1' to plot all points in this dimension
+  %stride_read =[1,1,1];
+  
+  %-- x slice
+  start_read  =[81,1,1];      % start from index '1'
+  count_read  =[1,-1,-1];     % '-1' to plot all points in this dimension
+  stride_read =[1,1,1];
+end
+
+% variable and time to plot
+varnm='Vz';
+ns=10;
+ne=200;
+nt=10;
+
+
+% figure control parameters
+flag_km     = 1;
+flag_emlast = 1;
+flag_print  = 0;
+savegif = 0;
+% scl_caxis=[-1.0 1.0];
+filename1 = ['Vx.gif'];
+scl_daspect =[1 1 1];
+clrmp       = 'jetwr';
+taut=0.5;
+
+% ---------------------------------------------------------------------- %
+
+% load snapshot data
+%finfo = ncinfo(nc_file);
+%finfo.Dimensions(1).Length
+vinfo = ncinfo(nc_file, varnm);
+
+dim_size = vinfo.Size
+
+% reset count_read
+for n = 1 : 3
+  if count_read(n) == -1
+     count_read(n) = dim_size(n)
+  end
+end
+
+% get coordinate data
+x = ncread(nc_file, 'x', start_read, count_read, stride_read);
+y = ncread(nc_file, 'y', start_read, count_read, stride_read);
+z = ncread(nc_file, 'z', start_read, count_read, stride_read);
+
+nx=size(x,1);
+ny=size(x,2);
+nz=size(x,3);
+
+% coordinate unit
+str_unit='m';
+if flag_km
+   x=x/1e3;
+   y=y/1e3;
+   z=z/1e3;
+   str_unit='km';
+end
+
+% figure plot
+hid=figure;
+set(hid,'BackingStore','on');
+
+% snapshot show
+for nlayer=ns:nt:ne
+    
+    t = ncread(nc_file, 'time', nlayer, 1)
+    v = ncread(nc_file, varnm, [start_read,nlayer], [count_read,1], [stride_read,1]);
+    
+    disp([ '  draw ' num2str(nlayer) 'th time step (t=' num2str(t) ')']);
+    
+    if nx==1
+        if flag_emlast
+            sid=pcolor((flipud(permute(squeeze(y),[2 1]))), ...
+                (flipud(permute(squeeze(z),[2 1]))), ...
+                (flipud(permute(squeeze(v),[2 1]))));
+        else
+            sid=pcolor((permute(squeeze(y),[2 1])), ...
+                (permute(squeeze(z),[2 1])), ...
+                (permute(squeeze(v),[2 1])));
+        end
+        xlabel(['Y axis (' str_unit ')']);
+        ylabel(['Z axis (' str_unit ')']);
+        
+    elseif ny==1
+        if flag_emlast
+            sid=pcolor((flipud(permute(squeeze(x),[2 1]))), ...
+                (flipud(permute(squeeze(z),[2 1]))), ...
+                (flipud(permute(squeeze(v),[2 1]))));
+        else
+            sid=pcolor((permute(squeeze(x),[2 1])), ...
+                (permute(squeeze(z),[2 1])), ...
+                (permute(squeeze(v),[2 1])));
+        end
+        xlabel(['X axis (' str_unit ')']);
+        ylabel(['Z axis (' str_unit ')']);
+        
+    else
+        if flag_emlast
+            sid=pcolor((flipud(permute(squeeze(x),[2 1]))), ...
+                (flipud(permute(squeeze(y),[2 1]))), ...
+                (flipud(permute(squeeze(v),[2 1]))));
+        else
+            sid=pcolor((permute(squeeze(x),[2 1])), ...
+                (permute(squeeze(y),[2 1])), ...
+                (permute(squeeze(v),[2 1])));
+        end
+        xlabel(['X axis (' str_unit ')']);
+        ylabel(['Y axis (' str_unit ')']);
+    end
+    
+    set(gca,'layer','top');
+    set(gcf,'color','white','renderer','painters');
+
+    % axis image
+    % shading
+    % shading interp;
+    shading flat;
+    % colorbar range/scale
+    if exist('scl_caxis')
+        caxis(scl_caxis);
+    end
+    % axis daspect
+    if exist('scl_daspect')
+        daspect(scl_daspect);
+    end
+    % colormap and colorbar
+    if exist('clrmp')
+        colormap(clrmp);
+    end
+    colorbar('vert');
+    
+    %title
+    titlestr=['Snapshot of ' varnm ' at ' ...
+              '{\fontsize{12}{\bf ' ...
+              num2str((t),'%7.3f') ...
+              '}}s'];
+    title(titlestr);
+    
+    drawnow;
+    pause(taut);
+    %save gif
+    if savegif
+      im=frame2im(getframe(gcf));
+      [imind,map]=rgb2ind(im,256);
+      if nlayer==ns
+        imwrite(imind,map,filename1,'gif','LoopCount',Inf,'DelayTime',0.5);
+      else
+        imwrite(imind,map,filename1,'gif','WriteMode','append','DelayTime',0.5);
+      end
+    end
+    
+    % save and print figure
+    if flag_print==1
+        width= 500;
+        height=500;
+        set(gcf,'paperpositionmode','manual');
+        set(gcf,'paperunits','points');
+        set(gcf,'papersize',[width,height]);
+        set(gcf,'paperposition',[0,0,width,height]);
+        fnm_out=[varnm '_ndim_',num2str(nlayer,'%5.5i')];
+        print(gcf,[fnm_out '.png'],'-dpng');
+    end
+    
+end
+
+
