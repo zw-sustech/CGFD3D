@@ -589,6 +589,8 @@ int main(int argc, char** argv)
     if (myid==0) fprintf(stdout,"export discrete medium to file ...\n"); 
 
     md_export(gdcurv, md,
+              par->is_parallel_netcdf,
+              comm,
               blk->output_fname_part,
               blk->media_export_dir);
   } else {

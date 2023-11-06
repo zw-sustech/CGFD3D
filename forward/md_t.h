@@ -84,9 +84,11 @@ md_import(md_t *md, char *fname_coords, char *in_dir);
 
 int
 md_export(gd_t  *gdinfo,
-                 md_t *md,
-                 char *fname_coords,
-                 char *output_dir);
+          md_t *md,
+          int is_parallel_netcdf,
+          MPI_Comm comm, 
+          char *fname_coords,
+          char *output_dir);
 
 int
 md_gen_test_ac_iso(md_t *md);
