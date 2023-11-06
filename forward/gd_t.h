@@ -213,11 +213,19 @@ gd_curv_gen_cart(
   float dy, float y0,
   float dz, float z0);
 
-void
-gd_curv_metric_import(gdcurv_metric_t *metric, char *fname_coords, char *import_dir);
+int
+gd_curv_metric_import(gd_t        *gdcurv,
+                      gdcurv_metric_t *metric,
+                      int is_parallel_netcdf,
+                      MPI_Comm comm, 
+                      char *fname_coords, char *import_dir);
 
-void
-gd_curv_coord_import(gd_t *gdcurv, char *fname_coords, char *import_dir);
+int
+gd_curv_coord_import(gd_t *gdcurv,
+                     int is_parallel_netcdf,
+                     MPI_Comm comm, 
+                     char *fname_coords,
+                     char *import_dir);
 
 int
 gd_curv_coord_export(

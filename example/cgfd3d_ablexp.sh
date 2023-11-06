@@ -16,15 +16,16 @@ EXEC_WAVE=${EXE_DIR}/main_curv_col_el_3d
 echo "EXEC_WAVE=$EXEC_WAVE"
 
 #-- output and conf
-PROJDIR=~/work/cgfd3d/test
+PROJDIR=~/work/cgfd3d/test6
 EVTNM=codetest
 echo "PROJDIR=${PROJDIR}"
 echo "EVTNM=${EVTNM}"
 
 PAR_FILE=${PROJDIR}/test.json
-GRID_DIR=${PROJDIR}/output
-MEDIA_DIR=${PROJDIR}/output
-SOURCE_DIR=${PROJDIR}/output
+GRID_DIR=${PROJDIR}/grid
+METRIC_DIR=${PROJDIR}/grid
+MEDIA_DIR=${PROJDIR}/medium
+SOURCE_DIR=${PROJDIR}/src
 OUTPUT_DIR=${PROJDIR}/output
 
 #RUN_SCRIPT_FILE=${PROJDIR}/runscript.sh
@@ -35,7 +36,9 @@ echo "RUN_SCRIPT_FILE=${RUN_SCRIPT_FILE}"
 mkdir -p $PROJDIR
 mkdir -p $OUTPUT_DIR
 mkdir -p $GRID_DIR
+mkdir -p $METRIC_DIR
 mkdir -p $MEDIA_DIR
+mkdir -p $SOURCE_DIR
 
 #-- tmp dir should be in local, here is for test
 TMP_DIR=${PROJDIR}/scratch
@@ -187,8 +190,8 @@ cat << ieof > $PAR_FILE
   "grid_export_to_dir"   : "$GRID_DIR",
 
 
-  "#metric_import_from_previous_run" : "$GRID_DIR",
-  "metric_export_to_dir"   : "$GRID_DIR",
+  "#metric_import_from_previous_run" : "$METRIC_DIR",
+  "metric_export_to_dir"   : "$METRIC_DIR",
 
 
   "medium_type" : "elastic_iso",

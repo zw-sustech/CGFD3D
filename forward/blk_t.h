@@ -59,6 +59,8 @@ typedef struct
   char output_dir[CONST_MAX_STRLEN];
   // seperate grid output to save grid for repeat simulation
   char grid_export_dir[CONST_MAX_STRLEN];
+  // seperate metric output to save grid for repeat simulation
+  char metric_export_dir[CONST_MAX_STRLEN];
   // seperate medium output to save medium for repeat simulation
   char media_export_dir[CONST_MAX_STRLEN];
 
@@ -94,6 +96,7 @@ blk_set_output(blk_t *blk,
                mympi_t *mympi,
                char *output_dir,
                char *grid_export_dir,
+               char *metric_export_dir,
                char *media_export_dir,
                const int verbose);
 

@@ -16,11 +16,11 @@
 #include "par_t.h"
 
 #ifndef M_NCRET
-#define M_NCRET(ierr) {fprintf(stderr,"io nc error: %s\n", nc_strerror(ierr)); exit(1);}
+#define M_NCRET(ierr) {fprintf(stderr,"md nc error: %s\n", nc_strerror(ierr)); exit(1);}
 #endif
 
 #ifndef M_NCERR
-#define M_NCERR {fprintf(stderr,"io nc error\n"); exit(1);}
+#define M_NCERR {fprintf(stderr,"md nc error\n"); exit(1);}
 #endif
 
 int
@@ -277,42 +277,69 @@ md_init(gd_t *gdinfo, md_t *md, int media_type, int visco_type, int nmaxwell)
 //
 
 int
-md_import(md_t *md, char *fname_coords, char *in_dir)
+md_import(gd_t *gd,
+          md_t *md,
+          int is_parallel_netcdf,
+          MPI_Comm comm, 
+          char *fname_coords, char *in_dir)
 {
   int ierr = 0;
 
+  int  nx = gd->nx;
+  int  ny = gd->ny;
+  int  nz = gd->nz;
+
+  // construct file name
   char in_file[CONST_MAX_STRLEN];
   
   int ncid, varid;
-  
-  // construct file name
-  sprintf(in_file, "%s/media_%s.nc", in_dir, fname_coords);
-  
-  // read in nc
-  ierr = nc_open(in_file, NC_NOWRITE, &ncid);
-  if (ierr != NC_NOERR){
-    fprintf(stderr,"nc error: %s\n", nc_strerror(ierr));
-    exit(-1);
+
+  // default for seperated nc
+  int start_i  = 0;
+  int start_j  = 0;
+  int start_k  = 0;
+
+  if (is_parallel_netcdf == 1)
+  {
+    sprintf(in_file, "%s/media.nc", in_dir);
+
+    if (ierr=nc_open_par(in_file, NC_NOWRITE | NC_NETCDF4, 
+                      comm, MPI_INFO_NULL, &ncid)) M_NCRET(ierr);
+
+    start_i  = gd->nx1_to_glob_halo0;
+    start_j  = gd->ny1_to_glob_halo0;
+    start_k  = gd->nz1_to_glob_halo0;
+  }
+  else
+  {
+    sprintf(in_file, "%s/media_%s.nc", in_dir, fname_coords);
+
+    if (ierr = nc_open(in_file, NC_NOWRITE, &ncid)) M_NCRET(ierr);
   }
   
-  for (int icmp=0; icmp < md->ncmp; icmp++) {
-      ierr = nc_inq_varid(ncid, md->cmp_name[icmp], &varid);
-      if (ierr != NC_NOERR){
-        fprintf(stderr,"nc error: %s\n", nc_strerror(ierr));
-        exit(-1);
-      }
+  for (int icmp=0; icmp < md->ncmp; icmp++)
+  {
+    float *ptr = md->v4d + md->cmp_pos[icmp];
+    size_t startp[] = { start_k, start_j, start_i };
+    size_t countp[] = { nz, ny, nx };
+
+    ierr = nc_inq_varid(ncid, md->cmp_name[icmp], &varid);
+    if (ierr != NC_NOERR){
+      fprintf(stderr,"md nc inq error: %s\n", nc_strerror(ierr));
+      exit(-1);
+    }
   
-      ierr = nc_get_var_float(ncid,varid,md->v4d + md->cmp_pos[icmp]);
-      if (ierr != NC_NOERR){
-        fprintf(stderr,"nc error: %s\n", nc_strerror(ierr));
-        exit(-1);
-      }
+    ierr = nc_get_vara_float(ncid, varid,startp,countp,ptr);
+    if (ierr != NC_NOERR){
+      fprintf(stderr,"md nc get var error: %s\n", nc_strerror(ierr));
+      exit(-1);
+    }
   }
   
   // close file
   ierr = nc_close(ncid);
   if (ierr != NC_NOERR){
-    fprintf(stderr,"nc error: %s\n", nc_strerror(ierr));
+    fprintf(stderr,"md nc close error: %s\n", nc_strerror(ierr));
     exit(-1);
   }
 

@@ -46,6 +46,7 @@ blk_set_output(blk_t *blk,
                mympi_t *mympi,
                char *output_dir,
                char *grid_export_dir,
+               char *metric_export_dir,
                char *media_export_dir,
                const int verbose)
 {
@@ -58,6 +59,7 @@ blk_set_output(blk_t *blk,
   // output
   sprintf(blk->output_dir, "%s", output_dir);
   sprintf(blk->grid_export_dir, "%s", grid_export_dir);
+  sprintf(blk->metric_export_dir, "%s", metric_export_dir);
   sprintf(blk->media_export_dir, "%s", media_export_dir);
 
   return 0;

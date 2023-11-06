@@ -134,6 +134,7 @@ int main(int argc, char** argv)
   blk_set_output(blk, mympi,
                  par->output_dir,
                  par->grid_export_dir,
+                 par->metric_export_dir,
                  par->media_export_dir,
                  verbose);
 
@@ -171,7 +172,10 @@ int main(int argc, char** argv)
     case PAR_GRID_IMPORT :
 
         if (myid==0) fprintf(stdout,"import grid vars ...\n"); 
-        gd_curv_coord_import(gdcurv, blk->output_fname_part, par->grid_import_dir);
+        gd_curv_coord_import(gdcurv,
+                             par->is_parallel_netcdf,
+                             comm,
+                             blk->output_fname_part, par->grid_import_dir);
 
         break;
 
@@ -239,7 +243,12 @@ int main(int argc, char** argv)
     case PAR_METRIC_IMPORT :
 
         if (myid==0) fprintf(stdout,"import metric file ...\n"); 
-        gd_curv_metric_import(gdcurv_metric, blk->output_fname_part, par->grid_import_dir);
+        gd_curv_metric_import(gdcurv,
+                              gdcurv_metric,
+                              par->is_parallel_netcdf,
+                              comm,
+                              blk->output_fname_part,
+                              par->grid_import_dir);
 
         break;
   }
@@ -253,7 +262,7 @@ int main(int argc, char** argv)
                           par->is_parallel_netcdf,
                           comm,
                           blk->output_fname_part,
-                          blk->grid_export_dir);
+                          blk->metric_export_dir);
   } else {
     if (myid==0) fprintf(stdout,"do not export metric\n"); 
   }
@@ -310,7 +319,10 @@ int main(int argc, char** argv)
     case PAR_MEDIA_IMPORT : {
 
         if (myid==0) fprintf(stdout,"import discrete medium file ...\n"); 
-        md_import(md, blk->output_fname_part, par->media_import_dir);
+        md_import(gdcurv, md,
+                  par->is_parallel_netcdf,
+                  comm,
+                  blk->output_fname_part, par->media_import_dir);
 
         break;
     }
