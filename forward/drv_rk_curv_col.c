@@ -80,18 +80,6 @@ drv_rk_curv_col_allstep(
   // for mpi message
   int   ipair_mpi, istage_mpi;
 
-  // create snapshot nc output files
-  if (myid==0 && verbose>0) fprintf(stdout,"prepare snap nc output ...\n"); 
-  iosnap_nc_t  iosnap_nc;
-
-  io_snap_nc_create(iosnap, &iosnap_nc, gd,
-                    output_fname_part,
-                    wav->v5d,
-                    is_parallel_netcdf,
-                    comm, topoid);
-  // zero temp used w_rsh
-  wav_zero_edge(gd, wav, wav->v5d);
-
   // only x/y mpi
   int num_of_r_reqs = 4;
   int num_of_s_reqs = 4;
@@ -101,6 +89,18 @@ drv_rk_curv_col_allstep(
   w_tmp = wav->v5d + wav->siz_ilevel * 1; // intermidate value
   w_rhs = wav->v5d + wav->siz_ilevel * 2; // for rhs
   w_end = wav->v5d + wav->siz_ilevel * 3; // end level at n+1
+
+  // create snapshot nc output files
+  if (myid==0 && verbose>0) fprintf(stdout,"prepare snap nc output ...\n"); 
+  iosnap_nc_t  iosnap_nc;
+
+  io_snap_nc_create(iosnap, &iosnap_nc, gd,
+                    output_fname_part,
+                    w_rhs,
+                    is_parallel_netcdf,
+                    comm, topoid);
+  // zero temp used w_rsh
+  wav_zero_edge(gd, wav, w_rhs);
 
   // set pml for rk
   if(bdry->is_enable_pml == 1)
