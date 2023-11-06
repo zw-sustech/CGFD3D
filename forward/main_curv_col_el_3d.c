@@ -208,6 +208,8 @@ int main(int argc, char** argv)
   {
     if (myid==0) fprintf(stdout,"export coord to file ...\n"); 
     gd_curv_coord_export(gdcurv,
+                         par->is_parallel_netcdf,
+                         comm,
                          blk->output_fname_part,
                          blk->grid_export_dir);
   } else {
