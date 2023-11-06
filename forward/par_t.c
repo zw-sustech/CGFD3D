@@ -740,6 +740,13 @@ par_read_from_str(const char *str, par_t *par)
      sprintf(par->media_export_dir,"%s",item->valuestring);
   }
 
+  // check if only one grid method is set
+  if (num_medium_input_way != 1) {
+     fprintf(stderr,"ERROR: num_medium_input_way=%d, no medium or more than one medium were set\n", 
+             num_medium_input_way); fflush(stderr);
+     MPI_Abort(MPI_COMM_WORLD,9);
+  }
+
   //
   //-- visco
   //
