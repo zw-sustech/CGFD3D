@@ -537,13 +537,15 @@ drv_rk_curv_col_allstep(
 
   } // time loop
 
+  // close nc
+  io_snap_nc_close(&iosnap_nc);
+
   // postproc
   if (bdry->is_sides_free[CONST_NDIM-1][1] == 1)
   {
-    PG_slice_output(PG,gd,output_dir, output_fname_part,topoid);
+    PG_slice_output(PG,gd,w_rhs,is_parallel_netcdf,comm, 
+                    output_dir, output_fname_part,topoid);
   }
-  // close nc
-  io_snap_nc_close(&iosnap_nc);
 
   return;
 }

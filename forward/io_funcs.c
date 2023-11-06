@@ -1587,65 +1587,166 @@ iorecv_print(iorecv_t *iorecv)
 }
 
 int
-PG_slice_output(float *PG, gd_t *gdinfo, char *output_dir, char *frame_coords, int *topoid)
+PG_slice_output(float *PG, gd_t *gd,
+                float *buff,
+                int is_parallel_netcdf,
+                MPI_Comm comm, 
+                char *output_dir, char *frame_coords, int *topoid)
 {
+  int ierr = 0;
+
   // output one time z slice
   // used for PGV PGA and PGD
   // cmp is PGV PGA PGD, component x, y, z
-  int nx = gdinfo->nx; 
-  int ny = gdinfo->ny;
-  int ni = gdinfo->ni; 
-  int nj = gdinfo->nj;
-  int gni1 = gdinfo->gni1; 
-  int gnj1 = gdinfo->gnj1; 
+  int nx = gd->nx; 
+  int ny = gd->ny;
+  int ni = gd->ni; 
+  int nj = gd->nj;
+  int gni1 = gd->gni1; 
+  int gnj1 = gd->gnj1; 
+
+  // for parallel nc ourput coord
+  size_t siz_line  = gd->siz_iy;
+  size_t siz_slice = gd->siz_iz;
+  float *x3d = gd->x3d;
+  float *y3d = gd->y3d;
+  float *z3d = gd->z3d;
+
   char PG_cmp[CONST_NDIM_5][CONST_MAX_STRLEN] = {"PGV","PGVh","PGVx","PGVy","PGVz",
                                                  "PGA","PGAh","PGAx","PGAy","PGAz",
                                                  "PGD","PGDh","PGDx","PGDy","PGDz"}; 
   char out_file[CONST_MAX_STRLEN];
-  sprintf(out_file,"%s/%s_%s.nc",output_dir,"PG_V_A_D",frame_coords);
+
+  // default dim size as seperated nc
+  int dimx_siz = nx;
+  int dimy_siz = ny;
+  int start_i  = 0;
+  int start_j  = 0;
 
   // create PGV output file
   int dimid[2];
   int varid[CONST_NDIM_5], ncid;
-  int i,ierr;
-  ierr = nc_create(out_file, NC_CLOBBER, &ncid);
-  if (ierr != NC_NOERR){
-      fprintf(stderr,"creat PGV nc error: %s\n", nc_strerror(ierr));
-      exit(-1);
-     }
+  int varid_x, varid_y, varid_z;
 
-  if(nc_def_dim(ncid, "j", ny, &dimid[0])) M_NCERR;
-  if(nc_def_dim(ncid, "i", nx, &dimid[1])) M_NCERR;
+  if (is_parallel_netcdf == 1)
+  {
+    sprintf(out_file,"%s/%s.nc",output_dir,"PG_V_A_D");
+
+    if (ierr=nc_create_par(out_file, NC_CLOBBER | NC_NETCDF4, 
+                      comm, MPI_INFO_NULL, &ncid)) M_NCRET(ierr);
+
+    // reset dimx_siz etc
+    dimx_siz = gd->glob_ni;
+    dimy_siz = gd->glob_nj;
+    start_i  = gd->ni1_to_glob_phys0;
+    start_j  = gd->nj1_to_glob_phys0;
+  }
+  else
+  {
+    sprintf(out_file,"%s/%s_%s.nc",output_dir,"PG_V_A_D",frame_coords);
+    ierr = nc_create(out_file, NC_CLOBBER, &ncid);
+    if (ierr != NC_NOERR)
+    {
+        fprintf(stderr,"creat PGV nc error: %s\n", nc_strerror(ierr));
+        exit(-1);
+    }
+  }
+
+  // define dim
+  if(nc_def_dim(ncid, "j", dimy_siz, &dimid[0])) M_NCERR;
+  if(nc_def_dim(ncid, "i", dimx_siz, &dimid[1])) M_NCERR;
 
   // define vars
   for(int i=0; i<CONST_NDIM_5; i++)
   {
     if(nc_def_var(ncid, PG_cmp[i], NC_FLOAT,2,dimid, &varid[i])) M_NCERR;
   }
-  int g_start[2] = {gni1,gnj1}; 
-  int phy_size[2] = {ni,nj}; 
-  if(nc_put_att_int(ncid,NC_GLOBAL,"global_index_of_first_physical_points",
-                    NC_INT,2,g_start)) M_NCERR;
-  if(nc_put_att_int(ncid,NC_GLOBAL,"count_index_of_physical_points",
-                    NC_INT,2,phy_size)) M_NCERR;
-  if(nc_put_att_int(ncid,NC_GLOBAL,"coords_of_mpi_topo",
-                    NC_INT,2,topoid)) M_NCERR;
+  // define coord for parallel nc
+  if (is_parallel_netcdf==1) {
+    if (nc_def_var(ncid,"x",NC_FLOAT,CONST_NDIM-1,dimid,&varid_x)) M_NCERR;
+    if (nc_def_var(ncid,"y",NC_FLOAT,CONST_NDIM-1,dimid,&varid_y)) M_NCERR;
+    if (nc_def_var(ncid,"z",NC_FLOAT,CONST_NDIM-1,dimid,&varid_z)) M_NCERR;
+  }
+
+  // attribute: index in output nc
+  if (is_parallel_netcdf == 0)
+  {
+    int g_start[2] = {gni1,gnj1}; 
+    int phy_size[2] = {ni,nj}; 
+    if(nc_put_att_int(ncid,NC_GLOBAL,"global_index_of_first_physical_points",
+                      NC_INT,2,g_start)) M_NCERR;
+    if(nc_put_att_int(ncid,NC_GLOBAL,"count_index_of_physical_points",
+                      NC_INT,2,phy_size)) M_NCERR;
+    if(nc_put_att_int(ncid,NC_GLOBAL,"coords_of_mpi_topo",
+                      NC_INT,2,topoid)) M_NCERR;
+  }
 
   if(nc_enddef(ncid)) M_NCERR;
 
   // add vars
   for(int i=0; i<CONST_NDIM_5; i++)
   {
-  float *ptr = PG + i*nx*ny; 
-  ierr = nc_put_var_float(ncid,varid[i],ptr);
+    float *ptr = PG + i*nx*ny; 
+    size_t startp[] = { start_j, start_i };
+    size_t countp[] = { nj, ni };
+
+    int snap_i1 = gd->ni1;
+    int snap_ni = gd->ni;
+    int snap_di = 1;
+    int snap_j1 = gd->nj1;
+    int snap_nj = gd->nj;
+    int snap_dj = 1;
+    int snap_k1 = 0;
+    int snap_nk = 1;
+    int snap_dk = 1;
+
+    io_snap_pack_buff(ptr,
+            siz_line,0,snap_i1,snap_ni,snap_di,snap_j1,snap_nj,
+            snap_dj,snap_k1,snap_nk,snap_dk,buff);
+
+    if (nc_put_vara_float(ncid,varid[i],startp,countp,buff)) M_NCERR;
   }
+
+  if (is_parallel_netcdf==1)
+  {
+    size_t startp[] = { start_j, start_i };
+    size_t countp[] = { nj, ni };
+    int snap_i1 = gd->ni1;
+    int snap_ni = gd->ni;
+    int snap_di = 1;
+    int snap_j1 = gd->nj1;
+    int snap_nj = gd->nj;
+    int snap_dj = 1;
+    int snap_k1 = gd->nk2;
+    int snap_nk = 1;
+    int snap_dk = 1;
+
+    io_snap_pack_buff(x3d,
+            siz_line,siz_slice,snap_i1,snap_ni,snap_di,snap_j1,snap_nj,
+            snap_dj,snap_k1,snap_nk,snap_dk,buff);
+    //fprintf(stdout,"-- 31\n"); fflush(stdout);
+    if (nc_put_vara_float(ncid,varid_x,startp,countp,buff)) M_NCERR;
+    //fprintf(stdout,"-- 32\n"); fflush(stdout);
+
+    io_snap_pack_buff(y3d,
+            siz_line,siz_slice,snap_i1,snap_ni,snap_di,snap_j1,snap_nj,
+            snap_dj,snap_k1,snap_nk,snap_dk,buff);
+    if (nc_put_vara_float(ncid,varid_y,startp,countp,buff)) M_NCERR;
+
+    io_snap_pack_buff(z3d,
+            siz_line,siz_slice,snap_i1,snap_ni,snap_di,snap_j1,snap_nj,
+            snap_dj,snap_k1,snap_nk,snap_dk,buff);
+    if (nc_put_vara_float(ncid,varid_z,startp,countp,buff)) M_NCERR;
+  }
+
   // close file
   ierr = nc_close(ncid);
   if(ierr != NC_NOERR){
     fprintf(stderr,"nc error: %s\n", nc_strerror(ierr));
     exit(-1);
     }
-  return 0;
+
+  return ierr;
 }
 
 /*

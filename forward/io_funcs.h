@@ -338,7 +338,11 @@ int
 iorecv_print(iorecv_t *iorecv);
 
 int
-PG_slice_output(float *PG,  gd_t *gdinfo, char *output_dir, char *frame_coords, int* topoid);
+PG_slice_output(float *PG,  gd_t *gdinfo, 
+                float *buff,
+                int is_parallel_netcdf,
+                MPI_Comm comm, 
+      char *output_dir, char *frame_coords, int* topoid);
 
 int
 io_get_nextline(FILE *fp, char *str, int length);
