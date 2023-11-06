@@ -233,9 +233,11 @@ gd_cart_coord_export(
   char *fname_coords,
   char *output_dir);
 
-void
+int
 gd_curv_metric_export(gd_t        *gdinfo,
                       gdcurv_metric_t *metric,
+                      int is_parallel_netcdf,
+                      MPI_Comm comm, 
                       char *fname_coords,
                       char *output_dir);
 

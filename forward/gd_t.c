@@ -903,12 +903,15 @@ gd_cart_coord_export(
   return;
 }
 
-void
+int
 gd_curv_metric_export(gd_t        *gdinfo,
                       gdcurv_metric_t *metric,
+                      int is_parallel_netcdf,
+                      MPI_Comm comm, 
                       char *fname_coords,
                       char *output_dir)
 {
+  int ierr = 0;
   size_t *restrict g3d_pos   = metric->cmp_pos;
   char  **restrict g3d_name  = metric->cmp_name;
   int  number_of_vars = metric->ncmp;
@@ -927,23 +930,51 @@ gd_curv_metric_export(gd_t        *gdinfo,
 
   // construct file name
   char ou_file[CONST_MAX_STRLEN];
-  sprintf(ou_file, "%s/metric_%s.nc", output_dir, fname_coords);
   
   // read in nc
   int ncid;
   int varid[number_of_vars];
   int dimid[CONST_NDIM];
 
-  int ierr = nc_create(ou_file, NC_CLOBBER | NC_64BIT_OFFSET, &ncid);
-  if (ierr != NC_NOERR){
-    fprintf(stderr,"creat coord nc error: %s\n", nc_strerror(ierr));
-    exit(-1);
+
+  // default dim size as seperated nc
+  int dimx_siz = nx;
+  int dimy_siz = ny;
+  int dimz_siz = nz;
+  int start_i  = 0;
+  int start_j  = 0;
+  int start_k  = 0;
+
+  if (is_parallel_netcdf == 1)
+  {
+    sprintf(ou_file, "%s/metric.nc", output_dir);
+
+    if (ierr=nc_create_par(ou_file, NC_CLOBBER | NC_NETCDF4, 
+                      comm, MPI_INFO_NULL, &ncid)) M_NCRET(ierr);
+
+    // reset dimx_siz etc
+    dimx_siz = gdinfo->glob_nx;
+    dimy_siz = gdinfo->glob_ny;
+    dimz_siz = gdinfo->glob_nz;
+    start_i  = gdinfo->nx1_to_glob_halo0;
+    start_j  = gdinfo->ny1_to_glob_halo0;
+    start_k  = gdinfo->nz1_to_glob_halo0;
+  }
+  else
+  {
+    sprintf(ou_file, "%s/metric_%s.nc", output_dir, fname_coords);
+
+    ierr = nc_create(ou_file, NC_CLOBBER | NC_64BIT_OFFSET, &ncid);
+    if (ierr != NC_NOERR){
+      fprintf(stderr,"creat coord nc error: %s\n", nc_strerror(ierr));
+      exit(-1);
+    }
   }
 
   // define dimension
-  ierr = nc_def_dim(ncid, "i", nx, &dimid[2]);
-  ierr = nc_def_dim(ncid, "j", ny, &dimid[1]);
-  ierr = nc_def_dim(ncid, "k", nz, &dimid[0]);
+  ierr = nc_def_dim(ncid, "i", dimx_siz, &dimid[2]);
+  ierr = nc_def_dim(ncid, "j", dimy_siz, &dimid[1]);
+  ierr = nc_def_dim(ncid, "k", dimz_siz, &dimid[0]);
 
   // define vars
   for (int ivar=0; ivar<number_of_vars; ivar++) {
@@ -951,25 +982,31 @@ gd_curv_metric_export(gd_t        *gdinfo,
   }
 
   // attribute: index in output snapshot, index w ghost in thread
-  int l_start[] = { ni1, nj1, nk1 };
-  nc_put_att_int(ncid,NC_GLOBAL,"local_index_of_first_physical_points",
-                   NC_INT,CONST_NDIM,l_start);
+  if (is_parallel_netcdf == 0)
+  {
+    int l_start[] = { ni1, nj1, nk1 };
+    nc_put_att_int(ncid,NC_GLOBAL,"local_index_of_first_physical_points",
+                     NC_INT,CONST_NDIM,l_start);
 
-  int g_start[] = { gni1, gnj1, gnk1 };
-  nc_put_att_int(ncid,NC_GLOBAL,"global_index_of_first_physical_points",
-                   NC_INT,CONST_NDIM,g_start);
+    int g_start[] = { gni1, gnj1, gnk1 };
+    nc_put_att_int(ncid,NC_GLOBAL,"global_index_of_first_physical_points",
+                     NC_INT,CONST_NDIM,g_start);
 
-  int l_count[] = { ni, nj, nk };
-  nc_put_att_int(ncid,NC_GLOBAL,"count_of_physical_points",
-                   NC_INT,CONST_NDIM,l_count);
+    int l_count[] = { ni, nj, nk };
+    nc_put_att_int(ncid,NC_GLOBAL,"count_of_physical_points",
+                     NC_INT,CONST_NDIM,l_count);
+  }
 
   // end def
-  ierr = nc_enddef(ncid);
+  if (ierr = nc_enddef(ncid)) M_NCRET(ierr);
 
   // add vars
-  for (int ivar=0; ivar<number_of_vars; ivar++) {
+  for (int ivar=0; ivar<number_of_vars; ivar++)
+  {
     float *ptr = metric->v4d + g3d_pos[ivar];
-    ierr = nc_put_var_float(ncid, varid[ivar],ptr);
+    size_t startp[] = { start_k, start_j, start_i };
+    size_t countp[] = { nz, ny, nx };
+    ierr = nc_put_vara_float(ncid, varid[ivar],startp,countp,ptr);
   }
   
   // close file
@@ -978,6 +1015,8 @@ gd_curv_metric_export(gd_t        *gdinfo,
     fprintf(stderr,"metric export nc error: %s\n", nc_strerror(ierr));
     exit(-1);
   }
+
+  return ierr;
 }
 
 void

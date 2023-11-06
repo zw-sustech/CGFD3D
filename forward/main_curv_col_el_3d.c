@@ -250,6 +250,8 @@ int main(int argc, char** argv)
   {
     if (myid==0) fprintf(stdout,"export metric to file ...\n"); 
     gd_curv_metric_export(gdcurv,gdcurv_metric,
+                          par->is_parallel_netcdf,
+                          comm,
                           blk->output_fname_part,
                           blk->grid_export_dir);
   } else {
