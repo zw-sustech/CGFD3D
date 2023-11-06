@@ -1217,7 +1217,7 @@ io_snap_pack_buff(float *restrict var,
                   int increk,
                   float *restrict buff)
 {
-  int iptr_snap=0;
+  size_t iptr_snap=0;
   for (int n3=0; n3<countk; n3++)
   {
     size_t k = startk + n3 * increk;
