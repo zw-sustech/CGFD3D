@@ -1104,7 +1104,8 @@ io_recv_read_locate(gd_t     *gd,
   iorecv->nt_per_out    = nt_per_out;
 
   // init values
-  iorecv->it_to_this = -1; // for += in _keep func
+  iorecv->it_to_this   = -1; // for += in _keep func
+  iorecv->it0_to_start =  0; // for nc put
 
   // reset nt_per_out if nt_total is very small
   if (nt_per_out < 0 || nt_per_out > nt_total) {
@@ -1438,8 +1439,10 @@ io_recv_keep(iorecv_t *iorecv, float *restrict w4d,
   iorecv->it_to_this += 1;
 
   // reset it_to_this if overflow
-  if (iorecv->it_to_this >= iorecv->nt_this_out) {
-    iorecv->it_to_this = 0;
+  if (iorecv->it_to_this >= iorecv->nt_this_out)
+  {
+    iorecv->it_to_this   = 0;
+    iorecv->it0_to_start = it;
 
     // reset nt_this_out if no eough it left
     if (iorecv->nt_per_out > iorecv->max_nt - it) {
@@ -1522,8 +1525,11 @@ io_recv_nc_put(iorecv_t *iorecv,
     return(ierr);
   }
 
+  fprintf(stdout,"--- it=%d,it_to_this=%d,nt_this_out=%d,it0_to_start=%d\n", 
+                      it,iorecv->it_to_this, iorecv->nt_this_out,iorecv->it0_to_start); fflush(stdout);
+
   // write vars
-  size_t startp[] = { 0, 0                   };
+  size_t startp[] = { 0, iorecv->it0_to_start};
   size_t countp[] = { 1, iorecv->nt_this_out };
   int ncid = iorecv->ncid;
   int siz_1cmp =     iorecv->nt_per_out;

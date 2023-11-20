@@ -48,7 +48,7 @@ typedef struct
   int nt_per_out;  // time block size
   int nt_this_out;  //time block size of this output
   int it_to_this;   // cur it relative to it0 of cur output
-  int it_to_start ;   // cur it relative to begin
+  int it0_to_start ;   // cur it relative to begin
 
   // for netcdf
   int ncid;
