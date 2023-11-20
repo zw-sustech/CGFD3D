@@ -230,183 +230,6 @@ io_var3d_export_nc(char   *ou_file,
 //  return(0);
 //}
 
-/*
- * read in station list file and locate station
- */
-
-int
-io_recv_read_locate(
-                    gd_t *gd,
-                    iorecv_t  *iorecv,
-                    int       nt_total,
-                    int       num_of_vars,
-                    char *in_filenm,
-                    MPI_Comm  comm,
-                    int       myid,
-                    int       verbose)
-{
-  FILE *fp;
-  char line[500];
-
-  if (!(fp = fopen (in_filenm, "rt")))
-	{
-	    fprintf (stdout, "Cannot open input file %s\n", in_filenm);
-	    fflush (stdout);
-	    return(1);
-	}
-
-  // number of station
-  int nr;
-
-  io_get_nextline(fp, line, 500);
-  sscanf(line, "%d", &nr);
-
-  //fprintf(stdout, "-- nr=%d\n", nr);
-
-  // check fail in the future
-  iorecv_one_t *recvone = (iorecv_one_t *)malloc(nr * sizeof(iorecv_one_t));
-
-  // read coord and locate
-
-  int ir=0;
-  int nr_this = 0; // in this thread
-  int flag_coord;
-  int flag_depth;
-
-  for (ir=0; ir<nr; ir++)
-  {
-    float rx, ry, rz;
-    float rx_inc, ry_inc, rz_inc; // shift in computational space grid
-    int ix, iy, iz; // global index
-
-    // read one line
-    io_get_nextline(fp, line, 500);
-
-    // get values
-    sscanf(line, "%s %d %d %g %g %g", 
-              recvone[ir].name, &flag_coord, &flag_depth, &rx, &ry, &rz);
-    
-    // by grid index
-    if (flag_coord == 0)
-    {
-      // if sz is relative to surface, convert to normal index
-      if (flag_depth == 1) {
-        rz = gd->gnk2 - rz;
-      }
-
-      // do not take nearest value, but use smaller value
-      ix = (int) (rx + 0.0);
-      iy = (int) (ry + 0.0);
-      iz = (int) (rz + 0.0);
-      rx_inc = rx - ix;
-      ry_inc = ry - iy;
-      rz_inc = rz - iz;
-    }
-    // by axis
-    else
-    {
-      // convert coord to global index
-      if (gd->type == GD_TYPE_CURV)
-      {
-        // if rz is depth, convert to axis when it is in this thread
-        if (flag_depth == 1) {
-          gd_curv_depth_to_axis(gd,rx,ry,&rz,comm,myid);
-        }
-        gd_curv_coord_to_glob_indx(gd,rx,ry,rz,comm,myid,
-                               &ix,&iy,&iz,&rx_inc,&ry_inc,&rz_inc);
-      }
-      else if (gd->type == GD_TYPE_CART)
-      {
-        // if sz is depth, convert to axis
-        if (flag_depth == 1) {
-          rz = gd->z1d[gd->nk2] - rz;
-        }
-        gd_cart_coord_to_glob_indx(gd,rx,ry,rz,comm,myid,
-                               &ix,&iy,&iz,&rx_inc,&ry_inc,&rz_inc);
-      }
-
-      // conver minus shift to plus to use linear interp with all grid in this thread
-      //    there may be problem if the receiver is located just bewteen two mpi block
-      //    we should exchange data first then before save receiver waveform
-      if (rx_inc < 0.0) {
-        rx_inc = 1.0 + rx_inc;
-        ix -= 1;
-      }
-      if (ry_inc < 0.0) {
-        ry_inc = 1.0 + ry_inc;
-        iy -= 1;
-      }
-      if (rz_inc < 0.0) {
-        rz_inc = 1.0 + rz_inc;
-        iz -= 1;
-      }
-    }
-
-    if (gd_gindx_is_inner(ix,iy,iz,gd) == 1)
-    {
-      // convert to local index w ghost
-      int i_local = gd_indx_glphy2lcext_i(ix,gd);
-      int j_local = gd_indx_glphy2lcext_j(iy,gd);
-      int k_local = gd_indx_glphy2lcext_k(iz,gd);
-
-      // get coord
-      if (flag_coord == 0)
-      {
-        rx = gd_coord_get_x(gd,i_local,j_local,k_local);
-        ry = gd_coord_get_y(gd,i_local,j_local,k_local);
-        rz = gd_coord_get_z(gd,i_local,j_local,k_local);
-      }
-
-      int ptr_this = nr_this * CONST_NDIM;
-      iorecv_one_t *this_recv = recvone + nr_this;
-
-      sprintf(this_recv->name, "%s", recvone[ir].name);
-
-      // get coord
-      this_recv->x = rx;
-      this_recv->y = ry;
-      this_recv->z = rz;
-      // set point and shift
-      this_recv->i=i_local;
-      this_recv->j=j_local;
-      this_recv->k=k_local;
-      this_recv->di = rx_inc;
-      this_recv->dj = ry_inc;
-      this_recv->dk = rz_inc;
-
-      this_recv->indx1d[0] = i_local   + j_local     * gd->siz_iy + k_local * gd->siz_iz;
-      this_recv->indx1d[1] = i_local+1 + j_local     * gd->siz_iy + k_local * gd->siz_iz;
-      this_recv->indx1d[2] = i_local   + (j_local+1) * gd->siz_iy + k_local * gd->siz_iz;
-      this_recv->indx1d[3] = i_local+1 + (j_local+1) * gd->siz_iy + k_local * gd->siz_iz;
-      this_recv->indx1d[4] = i_local   + j_local     * gd->siz_iy + (k_local+1) * gd->siz_iz;
-      this_recv->indx1d[5] = i_local+1 + j_local     * gd->siz_iy + (k_local+1) * gd->siz_iz;
-      this_recv->indx1d[6] = i_local   + (j_local+1) * gd->siz_iy + (k_local+1) * gd->siz_iz;
-      this_recv->indx1d[7] = i_local+1 + (j_local+1) * gd->siz_iy + (k_local+1) * gd->siz_iz;
-
-      //fprintf(stdout,"== ir_this=%d,name=%s,i=%d,j=%d,k=%d\n",
-      //      nr_this,sta_name[nr_this],i_local,j_local,k_local); fflush(stdout);
-
-      nr_this += 1;
-    }
-  }
-
-  fclose(fp);
-
-  iorecv->total_number = nr_this;
-  iorecv->recvone      = recvone;
-  iorecv->max_nt       = nt_total;
-  iorecv->ncmp         = num_of_vars;
-
-  // malloc seismo
-  for (int ir=0; ir < iorecv->total_number; ir++)
-  {
-    recvone = iorecv->recvone + ir;
-    recvone->seismo = (float *) malloc(num_of_vars * nt_total * sizeof(float));
-  }
-
-  return(0);
-}
-
 int
 io_line_locate(
                gd_t *gd,
@@ -1251,13 +1074,381 @@ io_snap_nc_close(iosnap_nc_t *iosnap_nc)
   return(ierr);
 }
 
+
+/*******************************************************************************
+ * station output
+ *******************************************************************************/
+
+int
+io_recv_read_locate(gd_t     *gd,
+                    iorecv_t *iorecv,
+                    int       nt_total,
+                    int       nt_per_out,
+                    int       save_velocity,
+                    int       save_stress,
+                    int       save_strain,
+                    char     *in_filenm,
+                    MPI_Comm  comm,
+                    int       myid,
+                    int       verbose)
+{
+
+  int file_type_sac = 0; // for test purpose, hard coded to output nc now
+
+  // keep par
+  iorecv->file_type_sac = file_type_sac;
+  iorecv->save_velocity = save_velocity;
+  iorecv->save_stress   = save_stress;
+  iorecv->save_strain   = save_strain;
+  iorecv->max_nt        = nt_total;
+  iorecv->nt_per_out    = nt_per_out;
+
+  // init values
+  iorecv->it_to_this = -1; // for += in _keep func
+
+  // reset nt_per_out if nt_total is very small
+  if (nt_per_out < 0 || nt_per_out > nt_total) {
+    iorecv->nt_per_out = nt_total;
+  }
+
+  // reset nt_per_out for sac as sac is written only once
+  if (file_type_sac == 1) {
+    iorecv->nt_per_out = nt_total;
+  }
+
+  // default value
+  iorecv->nt_this_out = iorecv->nt_per_out;
+
+  // open input file and read
+  FILE *fp;
+  if (!(fp = fopen (in_filenm, "rt")))
+	{
+	    fprintf (stdout, "Cannot open input file %s\n", in_filenm);
+	    fflush (stdout);
+	    return(1);
+	}
+
+  // number of station
+  int nr;
+  char line[500];
+
+  io_get_nextline(fp, line, 500);
+  sscanf(line, "%d", &nr);
+
+  //fprintf(stdout, "-- nr=%d\n", nr);
+  iorecv->total_number = nr;
+
+  // alloc all, check fail in the future
+  iorecv_one_t *recvone      = (iorecv_one_t *)malloc(nr * sizeof(iorecv_one_t));
+
+  // read coord and locate
+
+  int ir=0;
+  int nr_this = 0; // in this thread
+  int flag_coord;
+  int flag_depth;
+
+  for (ir=0; ir<nr; ir++)
+  {
+    float rx, ry, rz;
+    float rx_inc, ry_inc, rz_inc; // shift in computational space grid
+    int ix, iy, iz; // global index
+
+    // read one line
+    io_get_nextline(fp, line, 500);
+
+    // get values
+    sscanf(line, "%s %d %d %g %g %g", 
+              recvone[ir].name, &flag_coord, &flag_depth, &rx, &ry, &rz);
+    
+    // by grid index
+    if (flag_coord == 0)
+    {
+      // if sz is relative to surface, convert to normal index
+      if (flag_depth == 1) {
+        rz = gd->gnk2 - rz;
+      }
+
+      // do not take nearest value, but use smaller value
+      ix = (int) (rx + 0.0);
+      iy = (int) (ry + 0.0);
+      iz = (int) (rz + 0.0);
+      rx_inc = rx - ix;
+      ry_inc = ry - iy;
+      rz_inc = rz - iz;
+    }
+    // by axis
+    else
+    {
+      // convert coord to global index
+      if (gd->type == GD_TYPE_CURV)
+      {
+        // if rz is depth, convert to axis when it is in this thread
+        if (flag_depth == 1) {
+          gd_curv_depth_to_axis(gd,rx,ry,&rz,comm,myid);
+        }
+        gd_curv_coord_to_glob_indx(gd,rx,ry,rz,comm,myid,
+                               &ix,&iy,&iz,&rx_inc,&ry_inc,&rz_inc);
+      }
+      else if (gd->type == GD_TYPE_CART)
+      {
+        // if sz is depth, convert to axis
+        if (flag_depth == 1) {
+          rz = gd->z1d[gd->nk2] - rz;
+        }
+        gd_cart_coord_to_glob_indx(gd,rx,ry,rz,comm,myid,
+                               &ix,&iy,&iz,&rx_inc,&ry_inc,&rz_inc);
+      }
+
+      // conver minus shift to plus to use linear interp with all grid in this thread
+      //    there may be problem if the receiver is located just bewteen two mpi block
+      //    we should exchange data first then before save receiver waveform
+      if (rx_inc < 0.0) {
+        rx_inc = 1.0 + rx_inc;
+        ix -= 1;
+      }
+      if (ry_inc < 0.0) {
+        ry_inc = 1.0 + ry_inc;
+        iy -= 1;
+      }
+      if (rz_inc < 0.0) {
+        rz_inc = 1.0 + rz_inc;
+        iz -= 1;
+      }
+    }
+
+    if (gd_gindx_is_inner(ix,iy,iz,gd) == 1)
+    {
+      // convert to local index w ghost
+      int i_local = gd_indx_glphy2lcext_i(ix,gd);
+      int j_local = gd_indx_glphy2lcext_j(iy,gd);
+      int k_local = gd_indx_glphy2lcext_k(iz,gd);
+
+      // get coord
+      if (flag_coord == 0)
+      {
+        rx = gd_coord_get_x(gd,i_local,j_local,k_local);
+        ry = gd_coord_get_y(gd,i_local,j_local,k_local);
+        rz = gd_coord_get_z(gd,i_local,j_local,k_local);
+      }
+
+      //-- same for coord?
+      //int ptr_this = nr_this * CONST_NDIM;
+
+      iorecv_one_t *this_recv = recvone + nr_this;
+
+      sprintf(this_recv->name, "%s", recvone[ir].name);
+
+      // set seq_id
+      this_recv->seq_id = ir;
+      // get coord
+      this_recv->x = rx;
+      this_recv->y = ry;
+      this_recv->z = rz;
+      // set point and shift
+      this_recv->i=i_local;
+      this_recv->j=j_local;
+      this_recv->k=k_local;
+      this_recv->di = rx_inc;
+      this_recv->dj = ry_inc;
+      this_recv->dk = rz_inc;
+
+      this_recv->indx1d[0] = i_local   + j_local     * gd->siz_iy + k_local * gd->siz_iz;
+      this_recv->indx1d[1] = i_local+1 + j_local     * gd->siz_iy + k_local * gd->siz_iz;
+      this_recv->indx1d[2] = i_local   + (j_local+1) * gd->siz_iy + k_local * gd->siz_iz;
+      this_recv->indx1d[3] = i_local+1 + (j_local+1) * gd->siz_iy + k_local * gd->siz_iz;
+      this_recv->indx1d[4] = i_local   + j_local     * gd->siz_iy + (k_local+1) * gd->siz_iz;
+      this_recv->indx1d[5] = i_local+1 + j_local     * gd->siz_iy + (k_local+1) * gd->siz_iz;
+      this_recv->indx1d[6] = i_local   + (j_local+1) * gd->siz_iy + (k_local+1) * gd->siz_iz;
+      this_recv->indx1d[7] = i_local+1 + (j_local+1) * gd->siz_iy + (k_local+1) * gd->siz_iz;
+
+      //fprintf(stdout,"== ir_this=%d,name=%s,i=%d,j=%d,k=%d\n",
+      //      nr_this,sta_name[nr_this],i_local,j_local,k_local); fflush(stdout);
+
+      nr_this += 1;
+    }
+  }
+
+  fclose(fp);
+
+  iorecv->nr_here = nr_this;
+  iorecv->recvone = recvone;
+
+  // malloc seismo
+  for (int ir=0; ir < iorecv->nr_here; ir++)
+  {
+    recvone = iorecv->recvone + ir;
+    if (save_velocity==1) {
+      recvone->vi = (float *) malloc(CONST_NDIM * iorecv->nt_per_out * sizeof(float));
+    }
+    if (save_stress==1 || save_strain==1) {
+      recvone->tij = (float *) malloc(CONST_NDIM_2 * iorecv->nt_per_out * sizeof(float));
+    }
+  }
+
+  return(0);
+}
+
+int
+io_recv_nc_create(iorecv_t *iorecv,
+                  float stept,
+                  int is_parallel_netcdf,
+                  MPI_Comm comm, 
+                  int myid,
+                  char *fname_mpi,
+                  char *output_dir)
+{
+  int ierr = 0;
+
+  // file name
+  char ou_file[CONST_MAX_STRLEN];
+
+  // dim size and index
+  int ncid;
+  int dimnr_siz;
+  int start_ir;
+
+  if (is_parallel_netcdf == 1)
+  {
+    sprintf(ou_file, "%s/station.nc", output_dir);
+
+    if (ierr=nc_create_par(ou_file, NC_CLOBBER | NC_NETCDF4, 
+                      comm, MPI_INFO_NULL, &ncid)) M_NCRET(ierr);
+
+    // set dim and index
+    dimnr_siz = iorecv->total_number;
+  }
+  else
+  {
+    sprintf(ou_file, "%s/station_%s.nc", output_dir, fname_mpi);
+
+    ierr = nc_create(ou_file, NC_CLOBBER | NC_64BIT_OFFSET, &ncid);
+    if (ierr != NC_NOERR){
+      fprintf(stderr,"station creat nc error: %s\n", nc_strerror(ierr));
+      exit(-1);
+    }
+
+    dimnr_siz = iorecv->nr_here;
+  }
+
+  // define dimension
+  int dimid[2];
+  int dimid_nmlen;
+  ierr = nc_def_dim(ncid, "time", iorecv->max_nt, &dimid[1]); // time varies fastest
+  ierr = nc_def_dim(ncid, "nr"  , dimnr_siz,      &dimid[0]);
+  ierr = nc_def_dim(ncid, "name_length", CONST_MAX_NMLEN, &dimid_nmlen);
+
+  // dim for station name as char array
+  int dimid_stanm[] = { dimid[0], dimid_nmlen };
+
+  // define const vars
+  int v_tid;
+  int v_seqid;
+  int v_stanmid;
+  if (ierr=nc_def_var(ncid,"time"         ,NC_FLOAT,1,dimid+1,&v_tid))   M_NCRET(ierr);
+  if (ierr=nc_def_var(ncid,"seq_no"       ,NC_INT  ,1,dimid+0,&v_seqid)) M_NCRET(ierr);
+  if (ierr=nc_def_var(ncid,"station_name" ,NC_CHAR ,2,dimid_stanm,&v_stanmid)) M_NCRET(ierr);
+
+  // define vars
+  if (iorecv->save_velocity == 1)
+  {
+    if (nc_def_var(ncid,"Vx",NC_FLOAT,2,dimid,iorecv->varid_vi+0)) M_NCERR;
+    if (nc_def_var(ncid,"Vy",NC_FLOAT,2,dimid,iorecv->varid_vi+1)) M_NCERR;
+    if (nc_def_var(ncid,"Vz",NC_FLOAT,2,dimid,iorecv->varid_vi+2)) M_NCERR;
+  }
+
+  if (iorecv->save_stress == 1)
+  {
+    if (nc_def_var(ncid,"Txx",NC_FLOAT,2,dimid,iorecv->varid_tij+0)) M_NCERR;
+    if (nc_def_var(ncid,"Tyy",NC_FLOAT,2,dimid,iorecv->varid_tij+1)) M_NCERR;
+    if (nc_def_var(ncid,"Tzz",NC_FLOAT,2,dimid,iorecv->varid_tij+2)) M_NCERR;
+    if (nc_def_var(ncid,"Tyz",NC_FLOAT,2,dimid,iorecv->varid_tij+3)) M_NCERR;
+    if (nc_def_var(ncid,"Txz",NC_FLOAT,2,dimid,iorecv->varid_tij+4)) M_NCERR;
+    if (nc_def_var(ncid,"Txy",NC_FLOAT,2,dimid,iorecv->varid_tij+5)) M_NCERR;
+  }
+
+  if (iorecv->save_strain == 1)
+  {
+    if (nc_def_var(ncid,"Exx",NC_FLOAT,2,dimid,iorecv->varid_eij+0)) M_NCERR;
+    if (nc_def_var(ncid,"Eyy",NC_FLOAT,2,dimid,iorecv->varid_eij+1)) M_NCERR;
+    if (nc_def_var(ncid,"Ezz",NC_FLOAT,2,dimid,iorecv->varid_eij+2)) M_NCERR;
+    if (nc_def_var(ncid,"Eyz",NC_FLOAT,2,dimid,iorecv->varid_eij+3)) M_NCERR;
+    if (nc_def_var(ncid,"Exz",NC_FLOAT,2,dimid,iorecv->varid_eij+4)) M_NCERR;
+    if (nc_def_var(ncid,"Exy",NC_FLOAT,2,dimid,iorecv->varid_eij+5)) M_NCERR;
+  }
+
+  if (nc_enddef(ncid)) M_NCERR;
+
+  // write time var
+  if (is_parallel_netcdf == 0 || myid==0)
+  {
+    size_t start_tdim;
+    float  time;
+    for (int it=0; it<iorecv->max_nt; it++) {
+      time       = it * stept;
+      start_tdim = it;
+      if (ierr=nc_put_var1_float(ncid,v_tid,&start_tdim,&time)) M_NCRET(ierr);
+    }
+  }
+
+  // write other const vars
+  size_t startp[] = { 0, 0               };
+  size_t countp[] = { 1, CONST_MAX_NMLEN };
+  size_t start1d;
+  char stanm[CONST_MAX_NMLEN];
+
+  for (int ir=0; ir < iorecv->nr_here; ir++)
+  {
+    iorecv_one_t *this_recv = iorecv->recvone + ir;
+
+    if (is_parallel_netcdf == 1) {
+      start1d = this_recv->seq_id;
+      startp[0] = this_recv->seq_id;
+    } else {
+      start1d   = ir;
+      startp[0] = ir;
+    }
+
+    // seq no
+    if (ierr=nc_put_var1_int(ncid,v_seqid,&start1d,&(this_recv->seq_id))) M_NCRET(ierr);
+
+    // station name
+    sprintf(stanm,"%s",this_recv->name);
+    for (int j=strlen(stanm); j<CONST_MAX_NMLEN; j++) {
+      stanm[j] = '\0';
+    }
+    if (ierr=nc_put_vara_text(ncid,v_stanmid,startp,countp,stanm)) M_NCRET(ierr);
+  }
+
+  // save to iorecv
+  iorecv->ncid = ncid;
+
+  return(ierr);
+}
+
 int
 io_recv_keep(iorecv_t *iorecv, float *restrict w4d,
-             int it, int ncmp, int siz_icmp)
+             int it, int siz_icmp)
 {
+  int ierr = 0;
+
   float Lx1, Lx2, Ly1, Ly2, Lz1, Lz2;
 
-  for (int n=0; n < iorecv->total_number; n++)
+  // increase it_to_this
+  iorecv->it_to_this += 1;
+
+  // reset it_to_this if overflow
+  if (iorecv->it_to_this >= iorecv->nt_this_out) {
+    iorecv->it_to_this = 0;
+
+    // reset nt_this_out if no eough it left
+    if (iorecv->nt_per_out > iorecv->max_nt - it) {
+      iorecv->nt_this_out = iorecv->max_nt - it;
+    }
+  }
+  // if it_to_this == nt_per_out - 1, should output after this func
+
+  for (int n=0; n < iorecv->nr_here; n++)
   {
     iorecv_one_t *this_recv = iorecv->recvone + n;
     int *indx1d = this_recv->indx1d;
@@ -1266,30 +1457,130 @@ io_recv_keep(iorecv_t *iorecv, float *restrict w4d,
     Lx2 = this_recv->di; Lx1 = 1.0 - Lx2;
     Ly2 = this_recv->dj; Ly1 = 1.0 - Ly2;
     Lz2 = this_recv->dk; Lz1 = 1.0 - Lz2;
-    for (int icmp=0; icmp < ncmp; icmp++)
+
+    if (iorecv->save_velocity==1)
     {
-      int iptr_sta = icmp * iorecv->max_nt + it;
-      size_t iptr_cmp = icmp * siz_icmp;
-      this_recv->seismo[iptr_sta] = 
-          w4d[iptr_cmp + indx1d[0]] * Lx1 * Ly1 * Lz1
-        + w4d[iptr_cmp + indx1d[1]] * Lx2 * Ly1 * Lz1
-        + w4d[iptr_cmp + indx1d[2]] * Lx1 * Ly2 * Lz1
-        + w4d[iptr_cmp + indx1d[3]] * Lx2 * Ly2 * Lz1
-        + w4d[iptr_cmp + indx1d[5]] * Lx1 * Ly1 * Lz2
-        + w4d[iptr_cmp + indx1d[5]] * Lx2 * Ly1 * Lz2
-        + w4d[iptr_cmp + indx1d[6]] * Lx1 * Ly2 * Lz2
-        + w4d[iptr_cmp + indx1d[7]] * Lx2 * Ly2 * Lz2;
+      for (int icmp=0; icmp < CONST_NDIM; icmp++)
+      {
+        int iptr_sta = icmp * iorecv->nt_per_out + iorecv->it_to_this;
+        size_t iptr_cmp = icmp * siz_icmp;
+        this_recv->vi[iptr_sta] = 
+            w4d[iptr_cmp + indx1d[0]] * Lx1 * Ly1 * Lz1
+          + w4d[iptr_cmp + indx1d[1]] * Lx2 * Ly1 * Lz1
+          + w4d[iptr_cmp + indx1d[2]] * Lx1 * Ly2 * Lz1
+          + w4d[iptr_cmp + indx1d[3]] * Lx2 * Ly2 * Lz1
+          + w4d[iptr_cmp + indx1d[5]] * Lx1 * Ly1 * Lz2
+          + w4d[iptr_cmp + indx1d[5]] * Lx2 * Ly1 * Lz2
+          + w4d[iptr_cmp + indx1d[6]] * Lx1 * Ly2 * Lz2
+          + w4d[iptr_cmp + indx1d[7]] * Lx2 * Ly2 * Lz2;
+      }
     }
 
-    // need to implement interp, flollowing just take value
+    if (iorecv->save_stress==1 || iorecv->save_strain==1)
+    {
+      // save stress
+      for (int icmp=0; icmp < CONST_NDIM_2; icmp++)
+      {
+        int iptr_sta = icmp * iorecv->nt_per_out + iorecv->it_to_this;
+        size_t iptr_cmp = (icmp + CONST_NDIM) * siz_icmp; // to icmp in wav_t
+        this_recv->tij[iptr_sta] = 
+            w4d[iptr_cmp + indx1d[0]] * Lx1 * Ly1 * Lz1
+          + w4d[iptr_cmp + indx1d[1]] * Lx2 * Ly1 * Lz1
+          + w4d[iptr_cmp + indx1d[2]] * Lx1 * Ly2 * Lz1
+          + w4d[iptr_cmp + indx1d[3]] * Lx2 * Ly2 * Lz1
+          + w4d[iptr_cmp + indx1d[5]] * Lx1 * Ly1 * Lz2
+          + w4d[iptr_cmp + indx1d[5]] * Lx2 * Ly1 * Lz2
+          + w4d[iptr_cmp + indx1d[6]] * Lx1 * Ly2 * Lz2
+          + w4d[iptr_cmp + indx1d[7]] * Lx2 * Ly2 * Lz2;
+      }
+      // strain will be convered when ouput
+    }
+
+    // take nearest value
     //for (int icmp=0; icmp < ncmp; icmp++) {
     //  int iptr_sta = icmp * iorecv->max_nt + it;
     //  this_recv->seismo[iptr_sta] = w4d[icmp*siz_icmp + iptr];
     //}
-    
   }
 
-  return(0);
+  return(ierr);
+}
+
+//
+// save to nc if it_to_this full, should be used after io_recv_keep, where it_to_this increases
+//
+int
+io_recv_nc_put(iorecv_t *iorecv,
+               int it,
+               int is_parallel_netcdf)
+{
+  int ierr = 0;
+
+  // not save if it_to_this less than nt_this_out - 1
+  //  nc_keep will reset it_to_this to zero
+  if (iorecv->it_to_this < iorecv->nt_this_out-1) {
+    return(ierr);
+  }
+
+  // write vars
+  size_t startp[] = { 0, 0                   };
+  size_t countp[] = { 1, iorecv->nt_this_out };
+  int ncid = iorecv->ncid;
+  int siz_1cmp =     iorecv->nt_per_out;
+  int siz_2cmp = 2 * iorecv->nt_per_out;
+
+  for (int ir=0; ir < iorecv->nr_here; ir++)
+  {
+    iorecv_one_t *this_recv = iorecv->recvone + ir;
+
+    if (is_parallel_netcdf == 1) {
+      startp[0] = this_recv->seq_id;
+    } else {
+      startp[0] = ir;
+    }
+
+    if (iorecv->save_velocity == 1)
+    {
+      float *vi = this_recv->vi;
+      for (int i=0; i < CONST_NDIM; i++) {
+        if (ierr=nc_put_vara_float(ncid,iorecv->varid_vi[i],startp,countp,vi+i*siz_1cmp)) M_NCRET(ierr);
+      }
+    }
+
+    if (iorecv->save_stress == 1)
+    {
+      float *tij = this_recv->tij;
+      for (int i=0; i < CONST_NDIM_2; i++) {
+        if (ierr=nc_put_vara_float(ncid,iorecv->varid_tij[i],startp,countp,tij+siz_1cmp*i)) M_NCRET(ierr);
+      }
+    }
+
+    //if (iorecv->save_strain == 1)
+    //{
+    //  float *tij = this_recv->tij;
+    //  io_stress2strain(tij,md,i,j,k,nt);
+    //  if (ierr=nc_put_vara_float(ncid,iorecv->varid_exx,startp,countp,tij           )) M_NCRET(ierr);
+    //  if (ierr=nc_put_vara_float(ncid,iorecv->varid_eyy,startp,countp,tij+siz_1cmp  )) M_NCRET(ierr);
+    //  if (ierr=nc_put_vara_float(ncid,iorecv->varid_ezz,startp,countp,tij+siz_1cmp*2)) M_NCRET(ierr);
+    //  if (ierr=nc_put_vara_float(ncid,iorecv->varid_eyz,startp,countp,tij+siz_1cmp*3)) M_NCRET(ierr);
+    //  if (ierr=nc_put_vara_float(ncid,iorecv->varid_exz,startp,countp,tij+siz_1cmp*4)) M_NCRET(ierr);
+    //  if (ierr=nc_put_vara_float(ncid,iorecv->varid_exy,startp,countp,tij+siz_1cmp*5)) M_NCRET(ierr);
+    //}
+  }
+
+  return(ierr);
+}
+
+int
+io_recv_nc_close(iorecv_t *iorecv, int is_parallel_netcdf)
+{
+  int ierr = 0;
+
+  if (is_parallel_netcdf==1 || iorecv->nr_here>0) {
+    if (ierr=nc_close(iorecv->ncid)) M_NCRET(ierr);
+  }
+
+  return(ierr);
 }
 
 int
@@ -1331,7 +1622,7 @@ io_recv_output_sac(iorecv_t *iorecv,
   float evt_d = 0.0;
   char ou_file[CONST_MAX_STRLEN];
 
-  for (int ir=0; ir < iorecv->total_number; ir++)
+  for (int ir=0; ir < iorecv->nr_here; ir++)
   {
     iorecv_one_t *this_recv = iorecv->recvone + ir;
     
@@ -1381,7 +1672,7 @@ io_recv_output_sac_el_iso_strain(iorecv_t *iorecv,
   float evt_d = 0.0;
   char ou_file[CONST_MAX_STRLEN];
 
-  for (int ir=0; ir < iorecv->total_number; ir++)
+  for (int ir=0; ir < iorecv->nr_here; ir++)
   {
     iorecv_one_t *this_recv = iorecv->recvone + ir;
     int iptr = this_recv->indx1d[0];

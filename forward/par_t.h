@@ -207,6 +207,10 @@ typedef struct{
   // output
   // receiver
   char in_station_file[PAR_MAX_STRLEN];
+  int  station_nt_per_out;
+  int  station_save_velocity;
+  int  station_save_stress;
+  int  station_save_strain;
   // line
   int number_of_receiver_line;
   int *receiver_line_index_start;

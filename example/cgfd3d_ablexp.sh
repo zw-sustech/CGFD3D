@@ -16,16 +16,16 @@ EXEC_WAVE=${EXE_DIR}/main_curv_col_el_3d
 echo "EXEC_WAVE=$EXEC_WAVE"
 
 #-- output and conf
-PROJDIR=~/work/cgfd3d/test6
+PROJDIR=~/work/cgfd3d/sta
 EVTNM=codetest
 echo "PROJDIR=${PROJDIR}"
 echo "EVTNM=${EVTNM}"
 
 PAR_FILE=${PROJDIR}/test.json
-GRID_DIR=${PROJDIR}/grid
-METRIC_DIR=${PROJDIR}/grid
-MEDIA_DIR=${PROJDIR}/medium
-SOURCE_DIR=${PROJDIR}/src
+GRID_DIR=${PROJDIR}/fd_grid
+METRIC_DIR=${PROJDIR}/fd_grid
+MEDIA_DIR=${PROJDIR}/fd_medium
+SOURCE_DIR=${PROJDIR}/fd_src
 OUTPUT_DIR=${PROJDIR}/output
 
 #RUN_SCRIPT_FILE=${PROJDIR}/runscript.sh
@@ -111,9 +111,13 @@ create_station_file()
 {
 cat << ieof > $PROJDIR/test.station
 # number of station
-1
+5
 # name is_physical_coord is_3dim_depth  x y z
 r1  1  1  1000 1000 0
+r2  1  1  2000 2000 0
+r3  1  1  3000 3000 0
+r4  1  1  4000 4000 0
+r5  1  1  5000 5000 0
 ieof
 
 echo "+ created $PROJDIR/test.station"
@@ -231,8 +235,15 @@ cat << ieof > $PAR_FILE
 
   "#in_ddsource_file" : "${CUR_DIR}/prep_source/event_3moment_srcdd.nc",
 
-  "in_station_file" : "$PROJDIR/test.station",
+  "receiver_station" : {
+      "in_file"       : "$PROJDIR/test.station",
+      "save_velocity" : 1,
+      "save_stress"   : 1,
+      "save_strain"   : 0,
+      "time_step_per_save" : 1024
+  },
 
+  "!-- line type coded to save velocity and stress" : "--!",
   "#receiver_line" : [
     {
       "name" : "line_x_1",

@@ -9,6 +9,7 @@
 #define CONST_NDIM_5 15 // 3 * ndim
 #define CONST_2_NDIM 8  // 2^3 = 8
 #define CONST_MAX_STRLEN 1024
+#define CONST_MAX_NMLEN  128 // for station name etc
 
 #ifndef M_PI
 #define PI 3.14159265358979323846264338327950288419716939937510

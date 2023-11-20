@@ -819,9 +819,31 @@ par_read_from_str(const char *str, par_t *par)
       sprintf(par->output_dir,"%s",item->valuestring);
   }
 
-  //-- receiver
-  if (item = cJSON_GetObjectItem(root, "in_station_file")) {
-    sprintf(par->in_station_file, "%s", item->valuestring);
+  //-- station
+  par->station_save_velocity = 1;
+  par->station_save_stress   = 0;
+  par->station_save_strain   = 0;
+  par->station_nt_per_out    = -1; // all nt
+  if (item = cJSON_GetObjectItem(root, "receiver_station"))
+  {
+    // in file name
+    if (subitem = cJSON_GetObjectItem(item, "in_file")) {
+      sprintf(par->in_station_file, "%s", subitem->valuestring);
+    }
+    // flags
+    if (subitem = cJSON_GetObjectItem(item, "save_velocity")) {
+        par->station_save_velocity = subitem->valueint;
+    }
+    if (subitem = cJSON_GetObjectItem(item, "save_stress")) {
+        par->station_save_stress = subitem->valueint;
+    }
+    if (subitem = cJSON_GetObjectItem(item, "save_strain")) {
+        par->station_save_strain = subitem->valueint;
+    }
+    // nt_per_out
+    if (subitem = cJSON_GetObjectItem(item, "time_step_per_save")) {
+        par->station_nt_per_out = subitem->valueint;
+    }
   }
 
   //-- receiver line

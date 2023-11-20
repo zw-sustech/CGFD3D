@@ -90,6 +90,10 @@ drv_rk_curv_col_allstep(
   w_rhs = wav->v5d + wav->siz_ilevel * 2; // for rhs
   w_end = wav->v5d + wav->siz_ilevel * 3; // end level at n+1
 
+  // create recv nc
+  io_recv_nc_create(iorecv,dt,is_parallel_netcdf,comm,myid,output_fname_part,output_dir);
+  //io_line_nc_create(ioline,stept,is_parallel_netcdf,comm,myid,output_fname_part,output_dir);
+
   // create snapshot nc output files
   if (myid==0 && verbose>0) fprintf(stdout,"prepare snap nc output ...\n"); 
   iosnap_nc_t  iosnap_nc;
@@ -491,7 +495,8 @@ drv_rk_curv_col_allstep(
     }
 
     //-- recv by interp
-    io_recv_keep(iorecv, w_end, it, wav->ncmp, wav->siz_icmp);
+    io_recv_keep(iorecv, w_end, it, wav->siz_icmp);
+    io_recv_nc_put(iorecv,it,is_parallel_netcdf);
 
     //-- line values
     io_line_keep(ioline, w_end, it, wav->ncmp, wav->siz_icmp);

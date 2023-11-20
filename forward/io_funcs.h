@@ -27,15 +27,37 @@ typedef struct
   int   k;
   int   indx1d[CONST_2_NDIM];
   float *seismo;
-  char  name[CONST_MAX_STRLEN];
+  float *vi;
+  float *tij;
+  int   seq_id; // seqential id, 0-based
+  char  name[CONST_MAX_NMLEN];
 } iorecv_one_t;
 
 typedef struct
 {
-  int                 total_number;
-  int                 max_nt;
-  int                 ncmp;
+  int  file_type_sac;
+  int  total_number; // total nr from input
+  int  nr_here; // in this thread
+  int  max_nt;
+
+  int  save_velocity;
+  int  save_stress;
+  int  save_strain;
+
+  // for block output
+  int nt_per_out;  // time block size
+  int nt_this_out;  //time block size of this output
+  int it_to_this;   // cur it relative to it0 of cur output
+  int it_to_start ;   // cur it relative to begin
+
+  // for netcdf
+  int ncid;
+  int varid_vi[CONST_NDIM]; // vel var
+  int varid_tij[CONST_NDIM_2]; // stress var
+  int varid_eij[CONST_NDIM_2]; // strain var
+
   iorecv_one_t *recvone;
+
 } iorecv_t;
 
 // line output
@@ -163,15 +185,26 @@ io_var3d_export_nc(char   *ou_file,
                    int  nz);
 
 int
-io_recv_read_locate(
-                    gd_t *gd,
-                    iorecv_t  *iorecv,
+io_recv_read_locate(gd_t     *gd,
+                    iorecv_t *iorecv,
                     int       nt_total,
-                    int       num_of_vars,
-                    char *in_filenm,
+                    int       nt_per_out,
+                    int       save_velocity,
+                    int       save_stress,
+                    int       save_strain,
+                    char     *in_filenm,
                     MPI_Comm  comm,
                     int       myid,
                     int       verbose);
+
+int
+io_recv_nc_create(iorecv_t *iorecv,
+                  float stept,
+                  int is_parallel_netcdf,
+                  MPI_Comm comm, 
+                  int myid,
+                  char *fname_mpi,
+                  char *output_dir);
 
 int
 io_line_locate(
@@ -274,7 +307,15 @@ io_snap_nc_close(iosnap_nc_t *iosnap_nc);
 
 int
 io_recv_keep(iorecv_t *iorecv, float *restrict w4d,
-             int it, int ncmp, int siz_icmp);
+             int it, int siz_icmp);
+
+int
+io_recv_nc_put(iorecv_t *iorecv,
+               int it,
+               int is_parallel_netcdf);
+
+int
+io_recv_nc_close(iorecv_t *iorecv, int is_parallel_netcdf);
 
 int
 io_line_keep(ioline_t *ioline, float *restrict w4d,
