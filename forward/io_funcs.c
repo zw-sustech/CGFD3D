@@ -2003,6 +2003,7 @@ io_line_keep(ioline_t *ioline, float *restrict w4d,
 
 int
 io_line_nc_put(ioline_t *ioline,
+               md_t     *md,
                int it,
                int is_parallel_netcdf)
 {
@@ -2053,17 +2054,19 @@ io_line_nc_put(ioline_t *ioline,
         }
       }
 
-      //if (iorecv->save_strain == 1)
-      //{
-      //  float *tij = this_recv->tij;
-      //  io_stress2strain(tij,md,i,j,k,nt);
-      //  if (ierr=nc_put_vara_float(ncid,iorecv->varid_exx,startp,countp,tij           )) M_NCRET(ierr);
-      //  if (ierr=nc_put_vara_float(ncid,iorecv->varid_eyy,startp,countp,tij+siz_1cmp  )) M_NCRET(ierr);
-      //  if (ierr=nc_put_vara_float(ncid,iorecv->varid_ezz,startp,countp,tij+siz_1cmp*2)) M_NCRET(ierr);
-      //  if (ierr=nc_put_vara_float(ncid,iorecv->varid_eyz,startp,countp,tij+siz_1cmp*3)) M_NCRET(ierr);
-      //  if (ierr=nc_put_vara_float(ncid,iorecv->varid_exz,startp,countp,tij+siz_1cmp*4)) M_NCRET(ierr);
-      //  if (ierr=nc_put_vara_float(ncid,iorecv->varid_exy,startp,countp,tij+siz_1cmp*5)) M_NCRET(ierr);
-      //}
+      if (ioline->save_strain == 1)
+      {
+        // convert stress to strain
+        int   iptr = this_line->recv_iptr[ir];
+        float *tij = this_line->tij + ir * CONST_NDIM_2 * ioline->nt_per_out;
+
+        md_stress2strain_trace(tij, ioline->nt_per_out, md, iptr);
+
+        for (int i=0; i < CONST_NDIM_2; i++) {
+          if (ierr=nc_put_vara_float(ncid,this_line->varid_eij[i],startp,countp,tij+siz_1cmp*i)) M_NCRET(ierr);
+        }
+
+      }
     } // loop ir
   } // loop lines
 

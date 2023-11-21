@@ -507,7 +507,7 @@ drv_rk_curv_col_allstep(
 
     //-- line values
     io_line_keep(ioline, w_end, it, wav->siz_icmp);
-    io_line_nc_put(ioline,it,is_parallel_netcdf);
+    io_line_nc_put(ioline,md,it,is_parallel_netcdf);
 
 
     // snapshot

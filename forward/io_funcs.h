@@ -392,6 +392,7 @@ io_line_keep(ioline_t *ioline, float *restrict w4d,
 
 int
 io_line_nc_put(ioline_t *ioline,
+               md_t     *md,
                int it,
                int is_parallel_netcdf);
 
