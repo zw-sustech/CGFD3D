@@ -16,7 +16,7 @@ EXEC_WAVE=${EXE_DIR}/main_curv_col_el_3d
 echo "EXEC_WAVE=$EXEC_WAVE"
 
 #-- output and conf
-PROJDIR=~/work/cgfd3d/sta
+PROJDIR=~/work/cgfd3d/line2
 EVTNM=codetest
 echo "PROJDIR=${PROJDIR}"
 echo "EVTNM=${EVTNM}"
@@ -240,24 +240,33 @@ cat << ieof > $PAR_FILE
       "save_velocity" : 1,
       "save_stress"   : 1,
       "save_strain"   : 0,
-      "time_step_per_save" : 1024
+      "time_step_per_save" : 10
   },
 
   "!-- line type coded to save velocity and stress" : "--!",
-  "#receiver_line" : [
-    {
-      "name" : "line_x_1",
-      "grid_index_start"    : [  0, 49, 59 ],
-      "grid_index_incre"    : [  1,  0,  0 ],
-      "grid_index_count"    : 20
-    },
-    {
-      "name" : "line_y_1",
-      "grid_index_start"    : [ 19, 49, 59 ],
-      "grid_index_incre"    : [  0,  1,  0 ],
-      "grid_index_count"    : 20
-    } 
-  ],
+  "receiver" : {
+      "save_velocity" : 1,
+      "save_stress"   : 1,
+      "save_strain"   : 0,
+      "time_step_per_save" : 10,
+
+      "station_file"       : "$PROJDIR/test.station",
+
+      "receiver_line" : [
+        {
+          "name" : "line_x_1",
+          "grid_index_start"    : [  0, 49, 59 ],
+          "grid_index_incre"    : [  10,  0,  0 ],
+          "grid_index_count"    : 20
+        },
+        {
+          "name" : "line_y_1",
+          "grid_index_start"    : [ 19, 0, 59 ],
+          "grid_index_incre"    : [  0, 10,  0 ],
+          "grid_index_count"    : 30
+        } 
+      ]
+  },
 
   "snapshot" : [
     {

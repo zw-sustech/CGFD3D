@@ -19,7 +19,9 @@
 #include "io_funcs.h"
 
 #ifndef M_NCRET
-#define M_NCRET(ierr) {fprintf(stderr,"io nc error: %s\n", nc_strerror(ierr)); exit(1);}
+#define M_NCRET(ierr) { \
+  fprintf(stderr,"io nc error: %s [%s:%d]\n", \
+    nc_strerror(ierr),  __FILE__, __LINE__); exit(1);}
 #endif
 
 #ifndef M_NCERR
@@ -55,50 +57,6 @@ io_build_fname_time(char *out_dir,
                     char *ou_fname)
 {
   sprintf(ou_fname,"%s/%s_%d_%d_it%d%s",out_dir,prefix,topoid[0],topoid[1],it,sufix);
-}
-
-void
-io_snapshot_export_binary(char *fname,
-                   float *restrict var,
-                   int nx,
-                   int ny,
-                   int nz,
-                   int *snap_indx,
-                   int verbose)
-{
-  FILE *fp=fopen(fname,"wb");
-  if (fp == NULL) {
-    fprintf(stderr,"Error: can't create : %s\n", fname);
-    exit(1);
-  }
-
-  // index triple
-  int i1 = snap_indx[0];
-  int j1 = snap_indx[1];
-  int k1 = snap_indx[2];
-  int ic = snap_indx[3];
-  int jc = snap_indx[4];
-  int kc = snap_indx[5];
-  int di = snap_indx[6];
-  int dj = snap_indx[7];
-  int dk = snap_indx[8];
-
-  for (int n3=0; n3<kc; n3++)
-  {
-    int k = k1 + n3 * dk;
-    for (int n2=0; n2<jc; n2++)
-    {
-      int j = j1 + n2 * dj;
-      for (int n1=0; n1<ic; n1++)
-      {
-        int i = i1 + n1 * di;
-        int iptr = i + j * nx + k * nx * ny;
-        fwrite(var+iptr, 1, sizeof(float), fp);
-      }
-    }
-  }
-
-  fclose(fp);
 }
 
 /*
@@ -171,180 +129,82 @@ io_var3d_export_nc(char   *ou_file,
 }
 
 /*
- * read in station list file, prototype, not finished
+ * get next non-comment line
  */
 
-//int
-//io_read_station_list(char *in_filenm, int *sta_num, char ***p_sta_name, float **p_sta_xyz)
-//{
-//  FILE *fp;
-//  char line[500];
-//
-//  if (!(fp = fopen (in_filenm, "rt")))
-//	{
-//	    fprintf (stdout, "Cannot open input file %s\n", in_filenm);
-//	    fflush (stdout);
-//	    return(1);
-//	}
-//
-//  // first round: get valid num
-//  int sta_num = 0;
-//  // scan line
-//  while ( fgets(line,500,fp) )
-//  {
-//    // skip comment
-//    if (line[0]=='#') continue;
-//    sta_num += 1;
-//  }
-//
-//  // alloc
-//  char **sta_name;
-//  float *sta_xyz;
-//
-//  sta_name = (char **) fdlib_mem_malloc_2l_char(sta_num,CONST_MAX_STRLEN,"io_read_station_list");
-//  sta_xyz  = (float *) fdlib_mem_malloc_1d(sta_num*CONST_NDIM*sizeof(float),"io_read_station_list");
-//
-//  // second round: read values
-//
-//  fseek(fp, 0, SEEK_SET);
-//
-//  int ir=0;
-//  while ( fgets(line,500,fp) )
-//  {
-//    // skip comment
-//    if (line[0]=='#') continue;
-//
-//    sscanf(line, "%s %f %f %f", sta_name[ir],
-//                      sta_xzy+ir*CONST_NDIM,
-//                      sta_xzy+ir*CONST_NDIM+1,
-//                      sta_xzy+ir*CONST_NDIM+2);
-//    ir += 1;
-//  }
-//
-//  fclose(fp);
-//
-//  *p_sta_num  = sta_num;
-//  *p_sta_xyz  = sta_xyz;
-//  *p_sta_name = sta_name;
-//
-//  return(0);
-//}
-
 int
-io_line_locate(
-               gd_t *gd,
-               ioline_t *ioline,
-               int    num_of_vars,
-               int    nt_total,
-               int    number_of_receiver_line,
-               int   *receiver_line_index_start,
-               int   *receiver_line_index_incre,
-               int   *receiver_line_count,
-               char **receiver_line_name)
+io_get_nextline(FILE *fp, char *str, int length)
 {
   int ierr = 0;
 
-  // init
-  ioline->num_of_lines  = 0;
-  ioline->max_nt        = nt_total;
-  ioline->ncmp          = num_of_vars;
-
-  // alloc as max num to keep nr and seq values, easy for second round
-  ioline->line_nr  = (int *) malloc(number_of_receiver_line * sizeof(int));
-  ioline->line_seq = (int *) malloc(number_of_receiver_line * sizeof(int));
-
-  // first run to count line and nr
-  for (int n=0; n < number_of_receiver_line; n++)
+  do
   {
-    int nr = 0;
-    for (int ipt=0; ipt<receiver_line_count[n]; ipt++)
+    if (fgets(str, length, fp) == NULL)
     {
-      int gi = receiver_line_index_start[n*CONST_NDIM+0] 
-                 + ipt * receiver_line_index_incre[n*CONST_NDIM  ];
-      int gj = receiver_line_index_start[n*CONST_NDIM+1] 
-                 + ipt * receiver_line_index_incre[n*CONST_NDIM+1];
-      int gk = receiver_line_index_start[n*CONST_NDIM+2] 
-                 + ipt * receiver_line_index_incre[n*CONST_NDIM+2];
-
-      if (gd_gindx_is_inner(gi,gj,gk,gd) == 1)
-      {
-        nr += 1;
-      }
+      ierr = 1;
+      return ierr;
     }
+  } while (str[0] == '#' || str[0] == '\n');
 
-    // if any receiver of this line in this thread
-    if (nr>0)
-    {
-      ioline->line_nr [ ioline->num_of_lines ] = nr;
-      ioline->line_seq[ ioline->num_of_lines ] = n;
-      ioline->num_of_lines += 1;
-    }
+  // remove newline char
+  int len = strlen(str);
+
+  if (len > 0 && str[len-1] == '\n') {
+    str[len-1] = '\0';
   }
 
-  // alloc
-  if (ioline->num_of_lines>0)
-  {
-    ioline->line_name   = (char **)fdlib_mem_malloc_2l_char(ioline->num_of_lines,
-                                    CONST_MAX_STRLEN, "io_line_locate");
-
-    ioline->recv_seq    = (int **) malloc(ioline->num_of_lines * sizeof(int*));
-    //ioline->recv_indx   = (int **) malloc(ioline->num_of_lines * sizeof(int*));
-    ioline->recv_iptr   = (int **) malloc(ioline->num_of_lines * sizeof(int*));
-    ioline->recv_x  = (float **) malloc(ioline->num_of_lines * sizeof(float*));
-    ioline->recv_y  = (float **) malloc(ioline->num_of_lines * sizeof(float*));
-    ioline->recv_z  = (float **) malloc(ioline->num_of_lines * sizeof(float*));
-    ioline->recv_seismo = (float **) malloc(ioline->num_of_lines * sizeof(float*));
-
-    for (int n=0; n < ioline->num_of_lines; n++)
-    {
-      int nr = ioline->line_nr[n];
-      //ioline->recv_indx[n] = (int *)malloc(nr * CONST_NDIM * sizeof(int)); 
-      ioline->recv_seq [n]  = (int *)malloc( nr * sizeof(int) ); 
-      ioline->recv_iptr[n]  = (int *)malloc( nr * sizeof(int) ); 
-      ioline->recv_x[n] = (float *)malloc( nr * sizeof(float) );
-      ioline->recv_y[n] = (float *)malloc( nr * sizeof(float) );
-      ioline->recv_z[n] = (float *)malloc( nr * sizeof(float) );
-      ioline->recv_seismo[n] = (float *)malloc(
-                                nr * num_of_vars * nt_total * sizeof(float) );
-    }
-  }
-
-  // second run for value
-  //  only loop lines in this thread
-  for (int m=0; m < ioline->num_of_lines; m++)
-  {
-    int n = ioline->line_seq[m];
-
-    sprintf(ioline->line_name[m], "%s", receiver_line_name[n]);
-
-    int ir = 0;
-    for (int ipt=0; ipt<receiver_line_count[n]; ipt++)
-    {
-      int gi = receiver_line_index_start[n*CONST_NDIM+0] + ipt * receiver_line_index_incre[n*CONST_NDIM  ];
-      int gj = receiver_line_index_start[n*CONST_NDIM+1] + ipt * receiver_line_index_incre[n*CONST_NDIM+1];
-      int gk = receiver_line_index_start[n*CONST_NDIM+2] + ipt * receiver_line_index_incre[n*CONST_NDIM+2];
-
-      if (gd_gindx_is_inner(gi,gj,gk,gd) == 1)
-      {
-        int i = gd_indx_glphy2lcext_i(gi,gd);
-        int j = gd_indx_glphy2lcext_j(gj,gd);
-        int k = gd_indx_glphy2lcext_k(gk,gd);
-
-        int iptr = i + j * gd->siz_iy + k * gd->siz_iz;
-
-        ioline->recv_seq [m][ir] = ipt;
-        ioline->recv_iptr[m][ir] = iptr;
-
-        ioline->recv_x[m][ir] = gd_coord_get_x(gd,i,j,k);
-        ioline->recv_y[m][ir] = gd_coord_get_y(gd,i,j,k);
-        ioline->recv_z[m][ir] = gd_coord_get_z(gd,i,j,k);
-
-        ir += 1;
-      }
-    }
-  }
+  // for debug:
+  //fprintf(stdout," --return: %s\n", str);
 
   return ierr;
+}
+
+/*******************************************************************************
+ * snapshot output
+ *******************************************************************************/
+
+void
+io_snapshot_export_binary(char *fname,
+                   float *restrict var,
+                   int nx,
+                   int ny,
+                   int nz,
+                   int *snap_indx,
+                   int verbose)
+{
+  FILE *fp=fopen(fname,"wb");
+  if (fp == NULL) {
+    fprintf(stderr,"Error: can't create : %s\n", fname);
+    exit(1);
+  }
+
+  // index triple
+  int i1 = snap_indx[0];
+  int j1 = snap_indx[1];
+  int k1 = snap_indx[2];
+  int ic = snap_indx[3];
+  int jc = snap_indx[4];
+  int kc = snap_indx[5];
+  int di = snap_indx[6];
+  int dj = snap_indx[7];
+  int dk = snap_indx[8];
+
+  for (int n3=0; n3<kc; n3++)
+  {
+    int k = k1 + n3 * dk;
+    for (int n2=0; n2<jc; n2++)
+    {
+      int j = j1 + n2 * dj;
+      for (int n1=0; n1<ic; n1++)
+      {
+        int i = i1 + n1 * di;
+        int iptr = i + j * nx + k * nx * ny;
+        fwrite(var+iptr, 1, sizeof(float), fp);
+      }
+    }
+  }
+
+  fclose(fp);
 }
 
 void
@@ -1074,10 +934,95 @@ io_snap_nc_close(iosnap_nc_t *iosnap_nc)
   return(ierr);
 }
 
+int
+iosnap_print(iosnap_t *iosnap)
+{    
+  fprintf(stdout, "--> num_of_snap = %d\n", iosnap->num_of_snap);
+  fprintf(stdout, "--> num_snap_total = %d\n", iosnap->num_snap_total);
+  fprintf(stdout, "#  ishere i0 j0 k0 ni nj nk di dj dk it0 dit vel stress strain gi1 gj1 gk1\n");
+  for (int n=0; n < iosnap->num_snap_total; n++)
+  {
+    fprintf(stdout, "%d %d %d %d %d %d %d %d %d %d %d %d %d %d %d %d %d %d %d\n",
+              n,
+              iosnap->in_this_proc[n],
+              iosnap->i1[n], iosnap->j1[n], iosnap->k1[n],
+              iosnap->ni[n], iosnap->nj[n], iosnap->nk[n],
+              iosnap->di[n], iosnap->dj[n], iosnap->dk[n],
+              iosnap->it1[n], iosnap->dit[n], 
+              iosnap->out_vel[n],
+              iosnap->out_stress[n],
+              iosnap->out_strain[n],
+              iosnap->i1_to_glob[n],
+              iosnap->j1_to_glob[n],
+              iosnap->k1_to_glob[n]);
+  }
+
+  return(0);
+}
 
 /*******************************************************************************
  * station output
  *******************************************************************************/
+
+/*
+ * read in station list file, prototype, not finished
+ */
+
+//int
+//io_read_station_list(char *in_filenm, int *sta_num, char ***p_sta_name, float **p_sta_xyz)
+//{
+//  FILE *fp;
+//  char line[500];
+//
+//  if (!(fp = fopen (in_filenm, "rt")))
+//	{
+//	    fprintf (stdout, "Cannot open input file %s\n", in_filenm);
+//	    fflush (stdout);
+//	    return(1);
+//	}
+//
+//  // first round: get valid num
+//  int sta_num = 0;
+//  // scan line
+//  while ( fgets(line,500,fp) )
+//  {
+//    // skip comment
+//    if (line[0]=='#') continue;
+//    sta_num += 1;
+//  }
+//
+//  // alloc
+//  char **sta_name;
+//  float *sta_xyz;
+//
+//  sta_name = (char **) fdlib_mem_malloc_2l_char(sta_num,CONST_MAX_STRLEN,"io_read_station_list");
+//  sta_xyz  = (float *) fdlib_mem_malloc_1d(sta_num*CONST_NDIM*sizeof(float),"io_read_station_list");
+//
+//  // second round: read values
+//
+//  fseek(fp, 0, SEEK_SET);
+//
+//  int ir=0;
+//  while ( fgets(line,500,fp) )
+//  {
+//    // skip comment
+//    if (line[0]=='#') continue;
+//
+//    sscanf(line, "%s %f %f %f", sta_name[ir],
+//                      sta_xzy+ir*CONST_NDIM,
+//                      sta_xzy+ir*CONST_NDIM+1,
+//                      sta_xzy+ir*CONST_NDIM+2);
+//    ir += 1;
+//  }
+//
+//  fclose(fp);
+//
+//  *p_sta_num  = sta_num;
+//  *p_sta_xyz  = sta_xyz;
+//  *p_sta_name = sta_name;
+//
+//  return(0);
+//}
 
 int
 io_recv_read_locate(gd_t     *gd,
@@ -1343,12 +1288,12 @@ io_recv_nc_create(iorecv_t *iorecv,
   int dimid_stanm[] = { dimid[0], dimid_nmlen };
 
   // define const vars
-  int v_tid;
-  int v_seqid;
-  int v_stanmid;
-  if (ierr=nc_def_var(ncid,"time"         ,NC_FLOAT,1,dimid+1,&v_tid))   M_NCRET(ierr);
-  if (ierr=nc_def_var(ncid,"seq_no"       ,NC_INT  ,1,dimid+0,&v_seqid)) M_NCRET(ierr);
-  if (ierr=nc_def_var(ncid,"station_name" ,NC_CHAR ,2,dimid_stanm,&v_stanmid)) M_NCRET(ierr);
+  int varid_t;
+  int varid_seq;
+  int varid_stanm;
+  if (ierr=nc_def_var(ncid,"time"         ,NC_FLOAT,1,dimid+1,&varid_t))   M_NCRET(ierr);
+  if (ierr=nc_def_var(ncid,"seq_no"       ,NC_INT  ,1,dimid+0,&varid_seq)) M_NCRET(ierr);
+  if (ierr=nc_def_var(ncid,"station_name" ,NC_CHAR ,2,dimid_stanm,&varid_stanm)) M_NCRET(ierr);
 
   // define vars
   if (iorecv->save_velocity == 1)
@@ -1388,7 +1333,7 @@ io_recv_nc_create(iorecv_t *iorecv,
     for (int it=0; it<iorecv->max_nt; it++) {
       time       = it * stept;
       start_tdim = it;
-      if (ierr=nc_put_var1_float(ncid,v_tid,&start_tdim,&time)) M_NCRET(ierr);
+      if (ierr=nc_put_var1_float(ncid,varid_t,&start_tdim,&time)) M_NCRET(ierr);
     }
   }
 
@@ -1411,14 +1356,14 @@ io_recv_nc_create(iorecv_t *iorecv,
     }
 
     // seq no
-    if (ierr=nc_put_var1_int(ncid,v_seqid,&start1d,&(this_recv->seq_id))) M_NCRET(ierr);
+    if (ierr=nc_put_var1_int(ncid,varid_seq,&start1d,&(this_recv->seq_id))) M_NCRET(ierr);
 
     // station name
     sprintf(stanm,"%s",this_recv->name);
     for (int j=strlen(stanm); j<CONST_MAX_NMLEN; j++) {
       stanm[j] = '\0';
     }
-    if (ierr=nc_put_vara_text(ncid,v_stanmid,startp,countp,stanm)) M_NCRET(ierr);
+    if (ierr=nc_put_vara_text(ncid,varid_stanm,startp,countp,stanm)) M_NCRET(ierr);
   }
 
   // save to iorecv
@@ -1587,28 +1532,6 @@ io_recv_nc_close(iorecv_t *iorecv, int is_parallel_netcdf)
   }
 
   return(ierr);
-}
-
-int
-io_line_keep(ioline_t *ioline, float *restrict w4d,
-             int it, int ncmp, int siz_icmp)
-{
-  for (int n=0; n < ioline->num_of_lines; n++)
-  {
-    int   *this_line_iptr   = ioline->recv_iptr[n];
-    float *this_line_seismo = ioline->recv_seismo[n];
-  
-    for (int ir=0; ir < ioline->line_nr[n]; ir++)
-    {
-      int iptr = this_line_iptr[ir];
-      float *this_seismo = this_line_seismo + ir * ioline->max_nt * ncmp;
-      for (int icmp=0; icmp < ncmp; icmp++)
-      {
-        int iptr_seismo = icmp * ioline->max_nt + it;
-        this_seismo[iptr_seismo] = w4d[icmp*siz_icmp + iptr];
-      }
-    }
-  }
 }
 
 int
@@ -1788,73 +1711,6 @@ io_recv_output_sac_el_aniso_strain(iorecv_t *iorecv,
 }
 
 int
-io_line_output_sac(ioline_t *ioline,
-      float dt, char **cmp_name, char *evtnm, char *output_dir)
-{
-  // use fake evt_x etc. since did not implement gather evt_x by mpi
-  float evt_x = 0.0;
-  float evt_y = 0.0;
-  float evt_z = 0.0;
-  float evt_d = 0.0;
-  char ou_file[CONST_MAX_STRLEN];
-  char err_message[CONST_MAX_STRLEN];
-  
-  for (int n=0; n < ioline->num_of_lines; n++)
-  {
-    int   *this_line_iptr   = ioline->recv_iptr[n];
-    float *this_line_seismo = ioline->recv_seismo[n];
-
-    for (int ir=0; ir < ioline->line_nr[n]; ir++)
-    {
-      float *this_seismo = this_line_seismo + ir * ioline->max_nt * ioline->ncmp;
-
-      for (int icmp=0; icmp < ioline->ncmp; icmp++)
-      {
-        float *this_trace = this_seismo + icmp * ioline->max_nt;
-
-        sprintf(ou_file,"%s/%s.%s.no%d.%s.sac", output_dir,evtnm,
-                  ioline->line_name[n],ioline->recv_seq[n][ir],
-                  cmp_name[icmp]);
-
-        sacExport1C1R(ou_file,
-              this_trace,
-              evt_x, evt_y, evt_z, evt_d,
-              ioline->recv_x[n][ir],
-              ioline->recv_y[n][ir],
-              ioline->recv_z[n][ir],
-              dt, dt, ioline->max_nt, err_message);
-      } // icmp
-    } // ir
-  } // line
-}
-
-int
-iosnap_print(iosnap_t *iosnap)
-{    
-  fprintf(stdout, "--> num_of_snap = %d\n", iosnap->num_of_snap);
-  fprintf(stdout, "--> num_snap_total = %d\n", iosnap->num_snap_total);
-  fprintf(stdout, "#  ishere i0 j0 k0 ni nj nk di dj dk it0 dit vel stress strain gi1 gj1 gk1\n");
-  for (int n=0; n < iosnap->num_snap_total; n++)
-  {
-    fprintf(stdout, "%d %d %d %d %d %d %d %d %d %d %d %d %d %d %d %d %d %d %d\n",
-              n,
-              iosnap->in_this_proc[n],
-              iosnap->i1[n], iosnap->j1[n], iosnap->k1[n],
-              iosnap->ni[n], iosnap->nj[n], iosnap->nk[n],
-              iosnap->di[n], iosnap->dj[n], iosnap->dk[n],
-              iosnap->it1[n], iosnap->dit[n], 
-              iosnap->out_vel[n],
-              iosnap->out_stress[n],
-              iosnap->out_strain[n],
-              iosnap->i1_to_glob[n],
-              iosnap->j1_to_glob[n],
-              iosnap->k1_to_glob[n]);
-  }
-
-  return(0);
-}
-
-int
 iorecv_print(iorecv_t *iorecv)
 {    
   //fprintf(stdout, "\n");
@@ -1882,6 +1738,469 @@ iorecv_print(iorecv_t *iorecv)
 
   return(0);
 }
+
+/*******************************************************************************
+ * line output
+ *******************************************************************************/
+
+int
+io_line_locate(gd_t     *gd,
+               ioline_t *ioline,
+               int       nt_total,
+               int       nt_per_out,
+               int       save_velocity,
+               int       save_stress,
+               int       save_strain,
+               int    number_of_receiver_line,
+               int   *receiver_line_index_start,
+               int   *receiver_line_index_incre,
+               int   *receiver_line_count,
+               char **receiver_line_name)
+{
+  int ierr = 0;
+
+  // keep par
+  ioline->save_velocity = save_velocity;
+  ioline->save_stress   = save_stress;
+  ioline->save_strain   = save_strain;
+  ioline->max_nt        = nt_total;
+  ioline->nt_per_out    = nt_per_out;
+
+  // init
+  ioline->it_to_this   = -1; // for += in _keep func
+  ioline->it0_to_start =  0; // for nc put
+
+  // reset nt_per_out if nt_total is very small
+  if (nt_per_out < 0 || nt_per_out > nt_total) {
+    ioline->nt_per_out = nt_total;
+  }
+
+  // default value
+  ioline->nt_this_out = ioline->nt_per_out;
+
+  ioline->num_of_lines_total = number_of_receiver_line;
+  ioline->num_of_lines_here  = 0;
+
+  // alloc all, check fail in the future
+  ioline_one_t *lineone  = (ioline_one_t *)malloc(number_of_receiver_line * sizeof(ioline_one_t));
+
+  // locate line and nr, alloc
+  for (int n=0; n < number_of_receiver_line; n++)
+  {
+    int nr = 0;
+
+    ioline_one_t *this_line  = lineone + n;
+
+    // total receiver this line
+    this_line->total_number = receiver_line_count[n];
+
+    // count nr in this proc
+    for (int ipt=0; ipt<receiver_line_count[n]; ipt++)
+    {
+      int gi = receiver_line_index_start[n*CONST_NDIM+0] 
+                 + ipt * receiver_line_index_incre[n*CONST_NDIM  ];
+      int gj = receiver_line_index_start[n*CONST_NDIM+1] 
+                 + ipt * receiver_line_index_incre[n*CONST_NDIM+1];
+      int gk = receiver_line_index_start[n*CONST_NDIM+2] 
+                 + ipt * receiver_line_index_incre[n*CONST_NDIM+2];
+
+      if (gd_gindx_is_inner(gi,gj,gk,gd) == 1)
+      {
+        nr += 1;
+      }
+    }
+
+    // num receiver in this thread
+    this_line->nr_here  = nr;
+    this_line->line_seq = n;
+
+    // set name
+    sprintf(this_line->name, "%s", receiver_line_name[n]);
+
+    // if any receiver of this line in this thread
+    if (nr>0)
+    {
+      // alloc
+      this_line->recv_seq  = (int    *) malloc(nr * sizeof(int   ));
+      this_line->recv_iptr = (size_t *) malloc(nr * sizeof(size_t));
+      this_line->recv_x    = (float  *) malloc(nr * sizeof(float ));
+      this_line->recv_y    = (float  *) malloc(nr * sizeof(float ));
+      this_line->recv_z    = (float  *) malloc(nr * sizeof(float ));
+
+      if (save_velocity==1) {
+       this_line->vi = (float *) malloc(nr * CONST_NDIM * ioline->nt_per_out * sizeof(float));
+      }
+
+      if (save_stress==1 || save_strain==1) {
+       this_line->tij= (float *) malloc(nr * CONST_NDIM_2 * ioline->nt_per_out * sizeof(float));
+      }
+
+      // reloc to set values
+      int ir = 0;
+      for (int ipt=0; ipt<receiver_line_count[n]; ipt++)
+      {
+        int gi = receiver_line_index_start[n*CONST_NDIM+0] 
+                   + ipt * receiver_line_index_incre[n*CONST_NDIM  ];
+        int gj = receiver_line_index_start[n*CONST_NDIM+1] 
+                   + ipt * receiver_line_index_incre[n*CONST_NDIM+1];
+        int gk = receiver_line_index_start[n*CONST_NDIM+2] 
+                   + ipt * receiver_line_index_incre[n*CONST_NDIM+2];
+
+        if (gd_gindx_is_inner(gi,gj,gk,gd) == 1)
+        {
+          int i = gd_indx_glphy2lcext_i(gi,gd);
+          int j = gd_indx_glphy2lcext_j(gj,gd);
+          int k = gd_indx_glphy2lcext_k(gk,gd);
+
+          size_t iptr = i + j * gd->siz_iy + k * gd->siz_iz;
+
+          this_line->recv_seq [ir] = ipt;
+          this_line->recv_iptr[ir] = iptr;
+
+          this_line->recv_x[ir] = gd_coord_get_x(gd,i,j,k);
+          this_line->recv_y[ir] = gd_coord_get_y(gd,i,j,k);
+          this_line->recv_z[ir] = gd_coord_get_z(gd,i,j,k);
+
+          ir += 1;
+        }
+      }
+
+      ioline->num_of_lines_here += 1;
+
+    } // if nr > 0
+  } // loop lines
+
+  ioline->lineone = lineone;
+
+  return ierr;
+}
+
+int
+io_line_nc_create(ioline_t *ioline,
+                  float stept,
+                  int is_parallel_netcdf,
+                  MPI_Comm comm, 
+                  int myid,
+                  char *fname_mpi,
+                  char *output_dir)
+{
+  int ierr = 0;
+
+  // file name
+  char ou_file[CONST_MAX_STRLEN];
+
+  for (int n=0; n < ioline->num_of_lines_total; n++)
+  {
+    // dim size and index
+    int ncid;
+    int dimnr_siz;
+    int start_ir;
+
+    ioline_one_t *this_line  = ioline->lineone + n;
+
+    // do not output here
+    if (is_parallel_netcdf == 0 && this_line->nr_here == 0) {
+      continue;
+    }
+
+    if (is_parallel_netcdf == 1)
+    {
+      sprintf(ou_file, "%s/%s.nc", output_dir, this_line->name);
+
+      fprintf(stdout,"--- line para nc ou_file : %s\n", ou_file); fflush(stdout);
+
+      if (ierr=nc_create_par(ou_file, NC_CLOBBER | NC_NETCDF4, 
+                        comm, MPI_INFO_NULL, &ncid)) M_NCRET(ierr);
+
+      // set dim and index
+      dimnr_siz = this_line->total_number;
+    }
+    else
+    {
+      sprintf(ou_file, "%s/%s_%s.nc", output_dir, this_line->name, fname_mpi);
+
+      fprintf(stdout,"--- line nc ou_file : %s\n", ou_file); fflush(stdout);
+
+      ierr = nc_create(ou_file, NC_CLOBBER | NC_64BIT_OFFSET, &ncid);
+      if (ierr != NC_NOERR){
+        fprintf(stderr,"station creat nc error: %s\n", nc_strerror(ierr));
+        exit(-1);
+      }
+
+      dimnr_siz = this_line->nr_here;
+    }
+
+    // define dimension
+    int dimid[2];
+    ierr = nc_def_dim(ncid, "time", ioline->max_nt, &dimid[1]); // time varies fastest
+    ierr = nc_def_dim(ncid, "nr"  , dimnr_siz,      &dimid[0]);
+
+    // define const vars
+    int varid_t;
+    int varid_seq;
+    if (ierr=nc_def_var(ncid,"time"         ,NC_FLOAT,1,dimid+1,&varid_t))   M_NCRET(ierr);
+    if (ierr=nc_def_var(ncid,"seq_no"       ,NC_INT  ,1,dimid+0,&varid_seq)) M_NCRET(ierr);
+
+    // define vars
+    if (ioline->save_velocity == 1)
+    {
+      if (nc_def_var(ncid,"Vx",NC_FLOAT,2,dimid,this_line->varid_vi+0)) M_NCERR;
+      if (nc_def_var(ncid,"Vy",NC_FLOAT,2,dimid,this_line->varid_vi+1)) M_NCERR;
+      if (nc_def_var(ncid,"Vz",NC_FLOAT,2,dimid,this_line->varid_vi+2)) M_NCERR;
+    }
+
+    if (ioline->save_stress == 1)
+    {
+      if (nc_def_var(ncid,"Txx",NC_FLOAT,2,dimid,this_line->varid_tij+0)) M_NCERR;
+      if (nc_def_var(ncid,"Tyy",NC_FLOAT,2,dimid,this_line->varid_tij+1)) M_NCERR;
+      if (nc_def_var(ncid,"Tzz",NC_FLOAT,2,dimid,this_line->varid_tij+2)) M_NCERR;
+      if (nc_def_var(ncid,"Tyz",NC_FLOAT,2,dimid,this_line->varid_tij+3)) M_NCERR;
+      if (nc_def_var(ncid,"Txz",NC_FLOAT,2,dimid,this_line->varid_tij+4)) M_NCERR;
+      if (nc_def_var(ncid,"Txy",NC_FLOAT,2,dimid,this_line->varid_tij+5)) M_NCERR;
+    }
+
+    if (ioline->save_strain == 1)
+    {
+      if (nc_def_var(ncid,"Exx",NC_FLOAT,2,dimid,this_line->varid_eij+0)) M_NCERR;
+      if (nc_def_var(ncid,"Eyy",NC_FLOAT,2,dimid,this_line->varid_eij+1)) M_NCERR;
+      if (nc_def_var(ncid,"Ezz",NC_FLOAT,2,dimid,this_line->varid_eij+2)) M_NCERR;
+      if (nc_def_var(ncid,"Eyz",NC_FLOAT,2,dimid,this_line->varid_eij+3)) M_NCERR;
+      if (nc_def_var(ncid,"Exz",NC_FLOAT,2,dimid,this_line->varid_eij+4)) M_NCERR;
+      if (nc_def_var(ncid,"Exy",NC_FLOAT,2,dimid,this_line->varid_eij+5)) M_NCERR;
+    }
+
+    if (nc_enddef(ncid)) M_NCERR;
+
+    // write time var
+    if (is_parallel_netcdf == 0 || myid==0)
+    {
+      size_t start_tdim;
+      float  time;
+      for (int it=0; it<ioline->max_nt; it++) {
+        time       = it * stept;
+        start_tdim = it;
+        if (ierr=nc_put_var1_float(ncid,varid_t,&start_tdim,&time)) M_NCRET(ierr);
+      }
+    }
+
+    // write other const vars
+    size_t start1d;
+
+    for (int ir=0; ir < this_line->nr_here; ir++)
+    {
+      if (is_parallel_netcdf == 1) {
+        start1d = this_line->recv_seq[ir];
+      } else {
+        start1d   = ir;
+      }
+
+      // seq no
+      //if (ierr=nc_put_var1_int(ncid,varid_seq,&start1d,&(this_line->recv_seq[ir]))) M_NCRET(ierr);
+      if (ierr=nc_put_var1_int(ncid,varid_seq,&start1d,&(this_line->recv_seq[ir]))) {
+        fprintf(stderr,"== myid=%d,line=%d,nr_total=%d,nr_here=%d,ir=%d,recv_seq=%d,start1d=%d\n",
+                  myid,n,this_line->total_number,this_line->nr_here,ir,
+                  this_line->recv_seq[ir],start1d); fflush(stderr);
+      }
+    }
+
+    // save to line
+    this_line->ncid = ncid;
+  }
+
+  return(ierr);
+}
+
+int
+io_line_keep(ioline_t *ioline, float *restrict w4d,
+             int it, int siz_icmp)
+{
+  int ierr = 0;
+
+  // increase it_to_this
+  ioline->it_to_this += 1;
+
+  // reset it_to_this if overflow
+  if (ioline->it_to_this >= ioline->nt_this_out)
+  {
+    ioline->it_to_this   = 0;
+    ioline->it0_to_start = it;
+
+    // reset nt_this_out if no eough it left
+    if (ioline->nt_per_out > ioline->max_nt - it) {
+      ioline->nt_this_out = ioline->max_nt - it;
+    }
+  }
+  // if it_to_this == nt_per_out - 1, should output after this func
+
+  for (int n=0; n < ioline->num_of_lines_total; n++)
+  {
+    ioline_one_t *this_line  = ioline->lineone + n;
+
+    // avoid compare in loop
+    if (ioline->save_velocity==1)
+    {
+      for (int ir=0; ir < this_line->nr_here; ir++)
+      {
+        // shift to this recv
+        float *vi = this_line->vi + ir * CONST_NDIM * ioline->nt_per_out;
+        for (int icmp=0; icmp < CONST_NDIM; icmp++)
+        {
+          int    iptr_sta = icmp * ioline->nt_per_out + ioline->it_to_this;
+          size_t iptr_cmp = icmp * siz_icmp;
+          vi[iptr_sta] = w4d[iptr_cmp + this_line->recv_iptr[ir]];
+        }
+      }
+    } // vel
+
+    if (ioline->save_stress==1 || ioline->save_strain==1)
+    {
+      for (int ir=0; ir < this_line->nr_here; ir++)
+      {
+        // shift to this recv
+        float *tij = this_line->tij + ir * CONST_NDIM_2 * ioline->nt_per_out;
+        for (int icmp=0; icmp < CONST_NDIM_2; icmp++)
+        {
+          int    iptr_sta = icmp * ioline->nt_per_out + ioline->it_to_this;
+          size_t iptr_cmp = (icmp + CONST_NDIM) * siz_icmp;
+          tij[iptr_sta] = w4d[iptr_cmp + this_line->recv_iptr[ir]];
+        }
+      }
+    } // vel
+
+  } // loop lines
+
+  return ierr;
+}
+
+int
+io_line_nc_put(ioline_t *ioline,
+               int it,
+               int is_parallel_netcdf)
+{
+  int ierr = 0;
+
+  // not save if it_to_this less than nt_this_out - 1
+  //  nc_keep will reset it_to_this to zero
+  if (ioline->it_to_this < ioline->nt_this_out-1) {
+    return(ierr);
+  }
+
+  fprintf(stdout,"--- line: it=%d,it_to_this=%d,nt_this_out=%d,it0_to_start=%d\n", 
+                      it,ioline->it_to_this, ioline->nt_this_out,ioline->it0_to_start); fflush(stdout);
+
+  for (int n=0; n < ioline->num_of_lines_total; n++)
+  {
+    ioline_one_t *this_line  = ioline->lineone + n;
+
+    // write vars
+    size_t startp[] = { 0, ioline->it0_to_start};
+    size_t countp[] = { 1, ioline->nt_this_out };
+    int siz_1cmp =     ioline->nt_per_out;
+    int siz_2cmp = 2 * ioline->nt_per_out;
+
+    int ncid = this_line->ncid;
+
+    for (int ir=0; ir < this_line->nr_here; ir++)
+    {
+      if (is_parallel_netcdf == 1) {
+        startp[0] = this_line->recv_seq[ir];
+      } else {
+        startp[0] = ir;
+      }
+
+      if (ioline->save_velocity == 1)
+      {
+        float *vi = this_line->vi + ir * CONST_NDIM * ioline->nt_per_out;
+        for (int i=0; i < CONST_NDIM; i++) {
+          if (ierr=nc_put_vara_float(ncid,this_line->varid_vi[i],startp,countp,vi+i*siz_1cmp)) M_NCRET(ierr);
+        }
+      }
+
+      if (ioline->save_stress == 1)
+      {
+        float *tij = this_line->tij + ir * CONST_NDIM_2 * ioline->nt_per_out;
+        for (int i=0; i < CONST_NDIM_2; i++) {
+          if (ierr=nc_put_vara_float(ncid,this_line->varid_tij[i],startp,countp,tij+siz_1cmp*i)) M_NCRET(ierr);
+        }
+      }
+
+      //if (iorecv->save_strain == 1)
+      //{
+      //  float *tij = this_recv->tij;
+      //  io_stress2strain(tij,md,i,j,k,nt);
+      //  if (ierr=nc_put_vara_float(ncid,iorecv->varid_exx,startp,countp,tij           )) M_NCRET(ierr);
+      //  if (ierr=nc_put_vara_float(ncid,iorecv->varid_eyy,startp,countp,tij+siz_1cmp  )) M_NCRET(ierr);
+      //  if (ierr=nc_put_vara_float(ncid,iorecv->varid_ezz,startp,countp,tij+siz_1cmp*2)) M_NCRET(ierr);
+      //  if (ierr=nc_put_vara_float(ncid,iorecv->varid_eyz,startp,countp,tij+siz_1cmp*3)) M_NCRET(ierr);
+      //  if (ierr=nc_put_vara_float(ncid,iorecv->varid_exz,startp,countp,tij+siz_1cmp*4)) M_NCRET(ierr);
+      //  if (ierr=nc_put_vara_float(ncid,iorecv->varid_exy,startp,countp,tij+siz_1cmp*5)) M_NCRET(ierr);
+      //}
+    } // loop ir
+  } // loop lines
+
+  return(ierr);
+}
+
+int
+io_line_nc_close(ioline_t *ioline, int is_parallel_netcdf)
+{
+  int ierr = 0;
+
+  for (int n=0; n < ioline->num_of_lines_total; n++)
+  {
+    ioline_one_t *this_line  = ioline->lineone + n;
+    if (is_parallel_netcdf==1 || this_line->nr_here>0) {
+      if (ierr=nc_close(this_line->ncid)) M_NCRET(ierr);
+    }
+  }
+
+  return(ierr);
+}
+
+//int
+//io_line_output_sac(ioline_t *ioline,
+//      float dt, char **cmp_name, char *evtnm, char *output_dir)
+//{
+//  // use fake evt_x etc. since did not implement gather evt_x by mpi
+//  float evt_x = 0.0;
+//  float evt_y = 0.0;
+//  float evt_z = 0.0;
+//  float evt_d = 0.0;
+//  char ou_file[CONST_MAX_STRLEN];
+//  char err_message[CONST_MAX_STRLEN];
+//  
+//  for (int n=0; n < ioline->num_of_lines; n++)
+//  {
+//    int   *this_line_iptr   = ioline->recv_iptr[n];
+//    float *this_line_seismo = ioline->recv_seismo[n];
+//
+//    for (int ir=0; ir < ioline->line_nr[n]; ir++)
+//    {
+//      float *this_seismo = this_line_seismo + ir * ioline->max_nt * ioline->ncmp;
+//
+//      for (int icmp=0; icmp < ioline->ncmp; icmp++)
+//      {
+//        float *this_trace = this_seismo + icmp * ioline->max_nt;
+//
+//        sprintf(ou_file,"%s/%s.%s.no%d.%s.sac", output_dir,evtnm,
+//                  ioline->line_name[n],ioline->recv_seq[n][ir],
+//                  cmp_name[icmp]);
+//
+//        sacExport1C1R(ou_file,
+//              this_trace,
+//              evt_x, evt_y, evt_z, evt_d,
+//              ioline->recv_x[n][ir],
+//              ioline->recv_y[n][ir],
+//              ioline->recv_z[n][ir],
+//              dt, dt, ioline->max_nt, err_message);
+//      } // icmp
+//    } // ir
+//  } // line
+//}
+
+/*******************************************************************************
+ * PG output
+ *******************************************************************************/
 
 int
 PG_slice_output(float *PG, gd_t *gd,
@@ -2046,33 +2365,3 @@ PG_slice_output(float *PG, gd_t *gd,
   return ierr;
 }
 
-/*
- * get next non-comment line
- */
-
-int
-io_get_nextline(FILE *fp, char *str, int length)
-{
-  int ierr = 0;
-
-  do
-  {
-    if (fgets(str, length, fp) == NULL)
-    {
-      ierr = 1;
-      return ierr;
-    }
-  } while (str[0] == '#' || str[0] == '\n');
-
-  // remove newline char
-  int len = strlen(str);
-
-  if (len > 0 && str[len-1] == '\n') {
-    str[len-1] = '\0';
-  }
-
-  // for debug:
-  //fprintf(stdout," --return: %s\n", str);
-
-  return ierr;
-}

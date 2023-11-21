@@ -819,81 +819,86 @@ par_read_from_str(const char *str, par_t *par)
       sprintf(par->output_dir,"%s",item->valuestring);
   }
 
-  //-- station
-  par->station_save_velocity = 1;
-  par->station_save_stress   = 0;
-  par->station_save_strain   = 0;
-  par->station_nt_per_out    = -1; // all nt
-  if (item = cJSON_GetObjectItem(root, "receiver_station"))
+  //-- receiver
+
+  // default
+  par->recv_save_velocity = 1;
+  par->recv_save_stress   = 0;
+  par->recv_save_strain   = 0;
+  par->recv_nt_per_out    = -1; // all nt
+  par->number_of_receiver_line = 0;
+
+  if (item = cJSON_GetObjectItem(root, "receiver"))
   {
-    // in file name
-    if (subitem = cJSON_GetObjectItem(item, "in_file")) {
-      sprintf(par->in_station_file, "%s", subitem->valuestring);
-    }
     // flags
     if (subitem = cJSON_GetObjectItem(item, "save_velocity")) {
-        par->station_save_velocity = subitem->valueint;
+        par->recv_save_velocity = subitem->valueint;
     }
     if (subitem = cJSON_GetObjectItem(item, "save_stress")) {
-        par->station_save_stress = subitem->valueint;
+        par->recv_save_stress = subitem->valueint;
     }
     if (subitem = cJSON_GetObjectItem(item, "save_strain")) {
-        par->station_save_strain = subitem->valueint;
+        par->recv_save_strain = subitem->valueint;
     }
     // nt_per_out
     if (subitem = cJSON_GetObjectItem(item, "time_step_per_save")) {
-        par->station_nt_per_out = subitem->valueint;
+        par->recv_nt_per_out = subitem->valueint;
     }
-  }
 
-  //-- receiver line
-  par->number_of_receiver_line = 0;
-  if (item = cJSON_GetObjectItem(root, "receiver_line"))
-  {
-    par->number_of_receiver_line = cJSON_GetArraySize(item);
-    par->receiver_line_index_start  = (int *)malloc(par->number_of_receiver_line*sizeof(int)*CONST_NDIM);
-    par->receiver_line_index_incre  = (int *)malloc(par->number_of_receiver_line*sizeof(int)*CONST_NDIM);
-    par->receiver_line_count  = (int *)malloc(par->number_of_receiver_line*sizeof(int));
-    //par->receiver_line_time_interval  = (int *)malloc(par->number_of_receiver_line*sizeof(int));
-    par->receiver_line_name = (char **)malloc(par->number_of_receiver_line*sizeof(char*));
-    for (int n=0; n<par->number_of_receiver_line; n++) {
-      par->receiver_line_name[n] = (char *)malloc(PAR_MAX_STRLEN*sizeof(char));
+    //-- station in file name
+    if (subitem = cJSON_GetObjectItem(item, "station_file")) {
+      sprintf(par->in_station_file, "%s", subitem->valuestring);
     }
-    // each line
-    for (int i=0; i < cJSON_GetArraySize(item) ; i++)
+
+    //-- receiver line
+    if (subitem = cJSON_GetObjectItem(item, "receiver_line"))
     {
-      lineitem = cJSON_GetArrayItem(item, i);
-
-      if (subitem = cJSON_GetObjectItem(lineitem, "name"))
-      {
-        sprintf(par->receiver_line_name[i],"%s",subitem->valuestring);
+      par->number_of_receiver_line = cJSON_GetArraySize(subitem);
+      par->receiver_line_index_start  = (int *)malloc(par->number_of_receiver_line*sizeof(int)*CONST_NDIM);
+      par->receiver_line_index_incre  = (int *)malloc(par->number_of_receiver_line*sizeof(int)*CONST_NDIM);
+      par->receiver_line_count  = (int *)malloc(par->number_of_receiver_line*sizeof(int));
+      //par->receiver_line_time_interval  = (int *)malloc(par->number_of_receiver_line*sizeof(int));
+      par->receiver_line_name = (char **)malloc(par->number_of_receiver_line*sizeof(char*));
+      for (int n=0; n<par->number_of_receiver_line; n++) {
+        par->receiver_line_name[n] = (char *)malloc(PAR_MAX_STRLEN*sizeof(char));
       }
-
-      if (subitem = cJSON_GetObjectItem(lineitem, "grid_index_start"))
+      // each line
+      for (int i=0; i < cJSON_GetArraySize(subitem) ; i++)
       {
-        for (int j = 0; j < CONST_NDIM; j++) {
-          par->receiver_line_index_start[i*CONST_NDIM+j] = cJSON_GetArrayItem(subitem, j)->valueint;
+        lineitem = cJSON_GetArrayItem(subitem, i);
+
+        if (thirditem = cJSON_GetObjectItem(lineitem, "name"))
+        {
+          sprintf(par->receiver_line_name[i],"%s",thirditem->valuestring);
         }
-      }
 
-      if (subitem = cJSON_GetObjectItem(lineitem, "grid_index_incre"))
-      {
-        for (int j = 0; j < CONST_NDIM; j++) {
-          par->receiver_line_index_incre[i*CONST_NDIM+j] = cJSON_GetArrayItem(subitem, j)->valueint;
+        if (thirditem = cJSON_GetObjectItem(lineitem, "grid_index_start"))
+        {
+          for (int j = 0; j < CONST_NDIM; j++) {
+            par->receiver_line_index_start[i*CONST_NDIM+j] = cJSON_GetArrayItem(thirditem, j)->valueint;
+          }
         }
-      }
 
-      if (subitem = cJSON_GetObjectItem(lineitem, "grid_index_count"))
-      {
-         par->receiver_line_count[i] = subitem->valueint;
-      }
+        if (thirditem = cJSON_GetObjectItem(lineitem, "grid_index_incre"))
+        {
+          for (int j = 0; j < CONST_NDIM; j++) {
+            par->receiver_line_index_incre[i*CONST_NDIM+j] = cJSON_GetArrayItem(thirditem, j)->valueint;
+          }
+        }
 
-      //if (subitem = cJSON_GetObjectItem(lineitem, "t_index_interval"))
-      //{
-      //   par->receiver_line_tinterval[i] = cJSON_GetArrayItem(subitem, j)->valueint;
-      //}
+        if (thirditem = cJSON_GetObjectItem(lineitem, "grid_index_count"))
+        {
+           par->receiver_line_count[i] = thirditem->valueint;
+        }
+
+        //if (thirditem = cJSON_GetObjectItem(lineitem, "t_index_interval"))
+        //{
+        //   par->receiver_line_tinterval[i] = cJSON_GetArrayItem(thirditem, j)->valueint;
+        //}
+      }
     }
   }
+
 
   // slice
   // default

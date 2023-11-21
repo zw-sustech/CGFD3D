@@ -63,22 +63,59 @@ typedef struct
 // line output
 typedef struct
 {
-  int     num_of_lines; 
-  int     max_nt;
-  int     ncmp;
+  int    line_seq; // line number, for name from input file
+  int    total_number; // total nr of this line
+  int    nr_here; // in this thread
 
-  int    *line_nr; // number of receivers, for name from input file
-  int    *line_seq; // line number, for name from input file
-  //int    **recv_ir;
-  //int    **recv_jr;
-  //int    **recv_kr;
-  int    **recv_seq; // recv seq in this line
-  int    **recv_iptr;
-  float  **recv_x; // for sac output
-  float  **recv_y; // for sac output
-  float  **recv_z; // for sac output
-  float  **recv_seismo;
-  char   **line_name;
+  int     *recv_seq; // recv seq in this line
+  size_t  *recv_iptr;
+  float  *recv_x; // for sac output
+  float  *recv_y; // for sac output
+  float  *recv_z; // for sac output
+
+  float  *vi;
+  float  *tij;
+
+  char   name[CONST_MAX_NMLEN];
+
+  // for netcdf
+  int ncid;
+  int varid_vi[CONST_NDIM]; // vel var
+  int varid_tij[CONST_NDIM_2]; // stress var
+  int varid_eij[CONST_NDIM_2]; // strain var
+
+} ioline_one_t;
+
+typedef struct
+{
+  int     num_of_lines_total; 
+  int     num_of_lines_here; 
+  int     max_nt;
+
+  int  save_velocity;
+  int  save_stress;
+  int  save_strain;
+
+  // for block output
+  int nt_per_out;  // time block size
+  int nt_this_out;  //time block size of this output
+  int it_to_this;   // cur it relative to it0 of cur output
+  int it0_to_start ;   // cur it relative to begin
+
+  ioline_one_t *lineone;
+
+  //int    *line_nr; // number of receivers, for name from input file
+  //int    *line_seq; // line number, for name from input file
+  ////int    **recv_ir;
+  ////int    **recv_jr;
+  ////int    **recv_kr;
+  //int    **recv_seq; // recv seq in this line
+  //int    **recv_iptr;
+  //float  **recv_x; // for sac output
+  //float  **recv_y; // for sac output
+  //float  **recv_z; // for sac output
+  //float  **recv_seismo;
+  //char   **line_name;
 } ioline_t;
 
 // snapshot output
@@ -164,14 +201,8 @@ io_build_fname_time(char *out_dir,
                     int  it,
                     char *ou_fname);
 
-void
-io_snapshot_export_binary(char *fname,
-                   float *restrict var,
-                   int nx,
-                   int ny,
-                   int nz,
-                   int *snap_indx,
-                   int verbose);
+int
+io_get_nextline(FILE *fp, char *str, int length);
 
 void
 io_var3d_export_nc(char   *ou_file,
@@ -184,39 +215,14 @@ io_var3d_export_nc(char   *ou_file,
                    int  ny,
                    int  nz);
 
-int
-io_recv_read_locate(gd_t     *gd,
-                    iorecv_t *iorecv,
-                    int       nt_total,
-                    int       nt_per_out,
-                    int       save_velocity,
-                    int       save_stress,
-                    int       save_strain,
-                    char     *in_filenm,
-                    MPI_Comm  comm,
-                    int       myid,
-                    int       verbose);
-
-int
-io_recv_nc_create(iorecv_t *iorecv,
-                  float stept,
-                  int is_parallel_netcdf,
-                  MPI_Comm comm, 
-                  int myid,
-                  char *fname_mpi,
-                  char *output_dir);
-
-int
-io_line_locate(
-               gd_t *gd,
-               ioline_t *ioline,
-               int    num_of_vars,
-               int    nt_total,
-               int    number_of_receiver_line,
-               int   *receiver_line_index_start,
-               int   *receiver_line_index_incre,
-               int   *receiver_line_count,
-               char **receiver_line_name);
+void
+io_snapshot_export_binary(char *fname,
+                   float *restrict var,
+                   int nx,
+                   int ny,
+                   int nz,
+                   int *snap_indx,
+                   int verbose);
 
 
 void
@@ -306,6 +312,32 @@ int
 io_snap_nc_close(iosnap_nc_t *iosnap_nc);
 
 int
+iosnap_print(iosnap_t *iosnap);
+
+
+int
+io_recv_read_locate(gd_t     *gd,
+                    iorecv_t *iorecv,
+                    int       nt_total,
+                    int       nt_per_out,
+                    int       save_velocity,
+                    int       save_stress,
+                    int       save_strain,
+                    char     *in_filenm,
+                    MPI_Comm  comm,
+                    int       myid,
+                    int       verbose);
+
+int
+io_recv_nc_create(iorecv_t *iorecv,
+                  float stept,
+                  int is_parallel_netcdf,
+                  MPI_Comm comm, 
+                  int myid,
+                  char *fname_mpi,
+                  char *output_dir);
+
+int
 io_recv_keep(iorecv_t *iorecv, float *restrict w4d,
              int it, int siz_icmp);
 
@@ -316,10 +348,6 @@ io_recv_nc_put(iorecv_t *iorecv,
 
 int
 io_recv_nc_close(iorecv_t *iorecv, int is_parallel_netcdf);
-
-int
-io_line_keep(ioline_t *ioline, float *restrict w4d,
-             int it, int ncmp, int siz_icmp);
 
 int
 io_recv_output_sac(iorecv_t *iorecv,
@@ -369,14 +397,46 @@ io_recv_output_sac_el_aniso_strain(iorecv_t *iorecv,
                         char *err_message);
 
 int
+iorecv_print(iorecv_t *iorecv);
+
+int
+io_line_locate(gd_t     *gd,
+               ioline_t *ioline,
+               int       nt_total,
+               int       nt_per_out,
+               int       save_velocity,
+               int       save_stress,
+               int       save_strain,
+               int    number_of_receiver_line,
+               int   *receiver_line_index_start,
+               int   *receiver_line_index_incre,
+               int   *receiver_line_count,
+               char **receiver_line_name);
+
+int
+io_line_nc_create(ioline_t *ioline,
+                  float stept,
+                  int is_parallel_netcdf,
+                  MPI_Comm comm, 
+                  int myid,
+                  char *fname_mpi,
+                  char *output_dir);
+
+int
+io_line_keep(ioline_t *ioline, float *restrict w4d,
+             int it, int siz_icmp);
+
+int
+io_line_nc_put(ioline_t *ioline,
+               int it,
+               int is_parallel_netcdf);
+
+int
+io_line_nc_close(ioline_t *ioline, int is_parallel_netcdf);
+
+int
 io_line_output_sac(ioline_t *ioline,
       float dt, char **cmp_name, char *evtnm, char *output_dir);
-
-int
-iosnap_print(iosnap_t *iosnap);
-
-int
-iorecv_print(iorecv_t *iorecv);
 
 int
 PG_slice_output(float *PG,  gd_t *gdinfo, 
@@ -384,8 +444,5 @@ PG_slice_output(float *PG,  gd_t *gdinfo,
                 int is_parallel_netcdf,
                 MPI_Comm comm, 
       char *output_dir, char *frame_coords, int* topoid);
-
-int
-io_get_nextline(FILE *fp, char *str, int length);
 
 #endif

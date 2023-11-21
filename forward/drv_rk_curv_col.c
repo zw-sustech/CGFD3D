@@ -91,8 +91,11 @@ drv_rk_curv_col_allstep(
   w_end = wav->v5d + wav->siz_ilevel * 3; // end level at n+1
 
   // create recv nc
+  if (myid==0 && verbose>0) fprintf(stdout,"prepare recv nc output ...\n"); 
   io_recv_nc_create(iorecv,dt,is_parallel_netcdf,comm,myid,output_fname_part,output_dir);
-  //io_line_nc_create(ioline,stept,is_parallel_netcdf,comm,myid,output_fname_part,output_dir);
+
+  if (myid==0 && verbose>0) fprintf(stdout,"prepare line nc output ...\n"); 
+  io_line_nc_create(ioline,dt,is_parallel_netcdf,comm,myid,output_fname_part,output_dir);
 
   // create snapshot nc output files
   if (myid==0 && verbose>0) fprintf(stdout,"prepare snap nc output ...\n"); 
@@ -499,7 +502,8 @@ drv_rk_curv_col_allstep(
     io_recv_nc_put(iorecv,it,is_parallel_netcdf);
 
     //-- line values
-    io_line_keep(ioline, w_end, it, wav->ncmp, wav->siz_icmp);
+    io_line_keep(ioline, w_end, it, wav->siz_icmp);
+    io_line_nc_put(ioline,it,is_parallel_netcdf);
 
 
     // snapshot
@@ -544,6 +548,8 @@ drv_rk_curv_col_allstep(
 
   // close nc
   io_snap_nc_close(&iosnap_nc);
+  io_recv_nc_close(iorecv,is_parallel_netcdf);
+  io_line_nc_close(ioline,is_parallel_netcdf);
 
   // postproc
   if (bdry->is_sides_free[CONST_NDIM-1][1] == 1)
