@@ -1022,7 +1022,9 @@ md_gen_test_vis_iso(md_t *md)
   return ierr;
 }
 
-// stress 2 strain for single trace, the input is also output
+/*******************************************************************************
+ * stress 2 strain for single trace, the input is also output
+ *******************************************************************************/
 
 int
 md_stress2strain_trace(float *tij, // time fastest, then cmp
@@ -1126,3 +1128,120 @@ md_stress2strain_trace_el_aniso(float *tij, int nt,
 
   return 0;
 }
+
+/*******************************************************************************
+ * stress 2 strain for snapshot, pack to contineous mem
+ *******************************************************************************/
+
+int
+md_stress2strain_snap_pack(md_t *md,
+                           float *restrict Txx,
+                           float *restrict Tyy,
+                           float *restrict Tzz,
+                           float *restrict Tyz,
+                           float *restrict Txz,
+                           float *restrict Txy,
+                           float *restrict Exx,
+                           float *restrict Eyy,
+                           float *restrict Ezz,
+                           float *restrict Eyz,
+                           float *restrict Exz,
+                           float *restrict Exy,
+                           size_t siz_line,
+                           size_t siz_slice,
+                           int starti,
+                           int counti,
+                           int increi,
+                           int startj,
+                           int countj,
+                           int increj,
+                           int startk,
+                           int countk,
+                           int increk)
+{
+  int ierr = 0;
+
+  if (md->medium_type == CONST_MEDIUM_ELASTIC_ISO)
+  {
+    md_stress2strain_snap_pack_eliso(md->lambda,md->mu,Txx,Tyy,Tzz,Tyz,Txz,Txy,Exx,Eyy,Ezz,Eyz,Exz,Exy,
+          siz_line,siz_slice,starti,counti,increi, startj,countj,increj, startk,countk,increk);
+  }
+  else
+  {
+    fprintf(stdout, "--- warning: stress2strain snap for medium_type=%d has not been implemented\n",
+           md->medium_type); fflush(stdout);
+  }
+
+  return ierr;
+}
+
+int
+md_stress2strain_snap_pack_eliso(float *restrict lam3d,
+                               float *restrict mu3d,
+                               float *restrict Txx,
+                               float *restrict Tyy,
+                               float *restrict Tzz,
+                               float *restrict Tyz,
+                               float *restrict Txz,
+                               float *restrict Txy,
+                               float *restrict Exx,
+                               float *restrict Eyy,
+                               float *restrict Ezz,
+                               float *restrict Eyz,
+                               float *restrict Exz,
+                               float *restrict Exy,
+                               size_t siz_line,
+                               size_t siz_slice,
+                               int starti,
+                               int counti,
+                               int increi,
+                               int startj,
+                               int countj,
+                               int increj,
+                               int startk,
+                               int countk,
+                               int increk)
+{
+  size_t iptr_snap=0;
+  size_t i,j,k,iptr,iptr_j,iptr_k;
+  float lam,mu,E1,E2,E3,E0;
+
+  for (int n3=0; n3<countk; n3++)
+  {
+    k = startk + n3 * increk;
+    iptr_k = k * siz_slice;
+    for (int n2=0; n2<countj; n2++)
+    {
+      j = startj + n2 * increj;
+      iptr_j = j * siz_line + iptr_k;
+
+      for (int n1=0; n1<counti; n1++)
+      {
+        i = starti + n1 * increi;
+        iptr = i + iptr_j;
+
+        lam = lam3d[iptr];
+        mu  =  mu3d[iptr];
+
+        E1 = (lam + mu) / (mu * ( 3.0 * lam + 2.0 * mu));
+        E2 = - lam / ( 2.0 * mu * (3.0 * lam + 2.0 * mu));
+        E3 = 1.0 / mu;
+
+        E0 = E2 * (Txx[iptr] + Tyy[iptr] + Tzz[iptr]);
+
+        Exx[iptr_snap] = E0 - (E2 - E1) * Txx[iptr];
+        Eyy[iptr_snap] = E0 - (E2 - E1) * Tyy[iptr];
+        Ezz[iptr_snap] = E0 - (E2 - E1) * Tzz[iptr];
+        Eyz[iptr_snap] = 0.5 * E3 * Tyz[iptr];
+        Exz[iptr_snap] = 0.5 * E3 * Txz[iptr];
+        Exy[iptr_snap] = 0.5 * E3 * Txy[iptr];
+
+        iptr_snap++;
+      } // i
+    } //j
+  } //k
+
+  return 0;
+}
+
+

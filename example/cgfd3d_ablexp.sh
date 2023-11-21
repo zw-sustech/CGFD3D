@@ -16,7 +16,7 @@ EXEC_WAVE=${EXE_DIR}/main_curv_col_el_3d
 echo "EXEC_WAVE=$EXEC_WAVE"
 
 #-- output and conf
-PROJDIR=~/work/cgfd3d/sac_nc
+PROJDIR=~/work/cgfd3d/eij
 EVTNM=codetest
 echo "PROJDIR=${PROJDIR}"
 echo "EVTNM=${EVTNM}"
@@ -271,7 +271,7 @@ cat << ieof > $PAR_FILE
       "time_index_incre" : 1,
       "save_velocity" : 1,
       "save_stress"   : 1,
-      "save_strain"   : 0,
+      "save_strain"   : 1,
       "save_coord"    : 1
     },
     {
@@ -283,7 +283,7 @@ cat << ieof > $PAR_FILE
       "time_index_incre" : 1,
       "save_velocity" : 1,
       "save_stress"   : 1,
-      "save_strain"   : 0,
+      "save_strain"   : 1,
       "save_coord"    : 1
     }
   ],

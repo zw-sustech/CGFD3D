@@ -775,21 +775,21 @@ io_snap_nc_put(iosnap_t *iosnap,
       if (is_run_out_stress==1 && snap_out_E==1)
       {
         // convert to strain
-        io_snap_stress_to_strain_eliso(md->lambda,md->mu,
-              w4d + wav->Txx_pos,
-              w4d + wav->Tyy_pos,
-              w4d + wav->Tzz_pos,
-              w4d + wav->Tyz_pos,
-              w4d + wav->Txz_pos,
-              w4d + wav->Txy_pos,
-              buff + wav->Txx_pos,
-              buff + wav->Tyy_pos,
-              buff + wav->Tzz_pos,
-              buff + wav->Tyz_pos,
-              buff + wav->Txz_pos,
-              buff + wav->Txy_pos,
-              siz_line,siz_slice,snap_i1,snap_ni,snap_di,snap_j1,snap_nj,
-              snap_dj,snap_k1,snap_nk,snap_dk);
+        md_stress2strain_snap_pack(md,
+                                   w4d + wav->Txx_pos,
+                                   w4d + wav->Tyy_pos,
+                                   w4d + wav->Tzz_pos,
+                                   w4d + wav->Tyz_pos,
+                                   w4d + wav->Txz_pos,
+                                   w4d + wav->Txy_pos,
+                                   buff + wav->Txx_pos,
+                                   buff + wav->Tyy_pos,
+                                   buff + wav->Tzz_pos,
+                                   buff + wav->Tyz_pos,
+                                   buff + wav->Txz_pos,
+                                   buff + wav->Txy_pos,
+                                   siz_line,siz_slice,snap_i1,snap_ni,snap_di,snap_j1,snap_nj,
+                                   snap_dj,snap_k1,snap_nk,snap_dk);
         // export
         nc_put_vara_float(iosnap_nc->ncid[n],iosnap_nc->varid_E[n*CONST_NDIM_2+0],
               startp,countp,buff+wav->Txx_pos);
@@ -1472,8 +1472,8 @@ io_recv_nc_put(iorecv_t *iorecv,
     return(ierr);
   }
 
-  fprintf(stdout,"--- it=%d,it_to_this=%d,nt_this_out=%d,it0_to_start=%d\n", 
-                      it,iorecv->it_to_this, iorecv->nt_this_out,iorecv->it0_to_start); fflush(stdout);
+  //fprintf(stdout,"--- it=%d,it_to_this=%d,nt_this_out=%d,it0_to_start=%d\n", 
+  //                    it,iorecv->it_to_this, iorecv->nt_this_out,iorecv->it0_to_start); fflush(stdout);
 
   // write vars
   size_t startp[] = { 0, iorecv->it0_to_start};
@@ -1836,7 +1836,7 @@ io_line_nc_create(ioline_t *ioline,
     {
       sprintf(ou_file, "%s/%s.nc", output_dir, this_line->name);
 
-      fprintf(stdout,"--- line para nc ou_file : %s\n", ou_file); fflush(stdout);
+      //fprintf(stdout,"--- line para nc ou_file : %s\n", ou_file); fflush(stdout);
 
       if (ierr=nc_create_par(ou_file, NC_CLOBBER | NC_NETCDF4, 
                         comm, MPI_INFO_NULL, &ncid)) M_NCRET(ierr);
@@ -1848,7 +1848,7 @@ io_line_nc_create(ioline_t *ioline,
     {
       sprintf(ou_file, "%s/%s_%s.nc", output_dir, this_line->name, fname_mpi);
 
-      fprintf(stdout,"--- line nc ou_file : %s\n", ou_file); fflush(stdout);
+      //fprintf(stdout,"--- line nc ou_file : %s\n", ou_file); fflush(stdout);
 
       ierr = nc_create(ou_file, NC_CLOBBER | NC_64BIT_OFFSET, &ncid);
       if (ierr != NC_NOERR){
@@ -2015,8 +2015,8 @@ io_line_nc_put(ioline_t *ioline,
     return(ierr);
   }
 
-  fprintf(stdout,"--- line: it=%d,it_to_this=%d,nt_this_out=%d,it0_to_start=%d\n", 
-                      it,ioline->it_to_this, ioline->nt_this_out,ioline->it0_to_start); fflush(stdout);
+  //fprintf(stdout,"--- line: it=%d,it_to_this=%d,nt_this_out=%d,it0_to_start=%d\n", 
+  //                    it,ioline->it_to_this, ioline->nt_this_out,ioline->it0_to_start); fflush(stdout);
 
   for (int n=0; n < ioline->num_of_lines_total; n++)
   {

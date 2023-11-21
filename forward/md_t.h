@@ -135,4 +135,57 @@ int
 md_stress2strain_trace_el_iso(float *tij, // time fastest, then cmp
                               int nt, float lam, float mu);
 
+int
+md_stress2strain_snap_pack(md_t *md,
+                           float *restrict Txx,
+                           float *restrict Tyy,
+                           float *restrict Tzz,
+                           float *restrict Tyz,
+                           float *restrict Txz,
+                           float *restrict Txy,
+                           float *restrict Exx,
+                           float *restrict Eyy,
+                           float *restrict Ezz,
+                           float *restrict Eyz,
+                           float *restrict Exz,
+                           float *restrict Exy,
+                           size_t siz_line,
+                           size_t siz_slice,
+                           int starti,
+                           int counti,
+                           int increi,
+                           int startj,
+                           int countj,
+                           int increj,
+                           int startk,
+                           int countk,
+                           int increk);
+
+int
+md_stress2strain_snap_pack_eliso(float *restrict lam3d,
+                               float *restrict mu3d,
+                               float *restrict Txx,
+                               float *restrict Tyy,
+                               float *restrict Tzz,
+                               float *restrict Tyz,
+                               float *restrict Txz,
+                               float *restrict Txy,
+                               float *restrict Exx,
+                               float *restrict Eyy,
+                               float *restrict Ezz,
+                               float *restrict Eyz,
+                               float *restrict Exz,
+                               float *restrict Exy,
+                               size_t siz_line,
+                               size_t siz_slice,
+                               int starti,
+                               int counti,
+                               int increi,
+                               int startj,
+                               int countj,
+                               int increj,
+                               int startk,
+                               int countk,
+                               int increk);
+
 #endif
