@@ -126,4 +126,13 @@ md_visco_LS_mat_inv(float matrix[][VISCO_LS_MAXSIZE], float inverse[][VISCO_LS_M
 
 int
 md_gen_test_vis_iso(md_t *md);
+
+int
+md_stress2strain_trace(float *tij, // time fastest, then cmp
+                       int nt, md_t *md, size_t iptr);
+
+int
+md_stress2strain_trace_el_iso(float *tij, // time fastest, then cmp
+                              int nt, float lam, float mu);
+
 #endif

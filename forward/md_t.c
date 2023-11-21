@@ -1022,4 +1022,107 @@ md_gen_test_vis_iso(md_t *md)
   return ierr;
 }
 
+// stress 2 strain for single trace, the input is also output
 
+int
+md_stress2strain_trace(float *tij, // time fastest, then cmp
+                       int nt, md_t *md, size_t iptr)
+{
+  int ierr = 0;
+
+  if (md->medium_type == CONST_MEDIUM_ELASTIC_ISO)
+  {
+    float lam = md->lambda[iptr];
+    float mu  = md->mu    [iptr];
+
+    md_stress2strain_trace_el_iso(tij, nt, lam, mu);
+
+  } else {
+
+    fprintf(stdout, "--- warning: stress2strain for medium_type=%d has not been implemented\n",
+           md->medium_type); fflush(stdout);
+    // temp set to 0 with unsafe memset
+    memset(tij, 0, nt * CONST_NDIM_2 * sizeof(float));
+  }
+
+  return ierr;
+}
+
+int
+md_stress2strain_trace_el_iso(float *tij, // time fastest, then cmp
+                              int nt, float lam, float mu)
+{
+  int ierr = 0;
+
+  // use fake evt_x etc. since did not implement gather evt_x by mpi
+  float evt_x = 0.0;
+  float evt_y = 0.0;
+  float evt_z = 0.0;
+  float evt_d = 0.0;
+
+  // cmp seq hard-coded, need to revise in the future
+  float *Txx = tij + 0 * nt;
+  float *Tyy = tij + 1 * nt;
+  float *Tzz = tij + 2 * nt;
+  float *Tyz = tij + 3 * nt;
+  float *Txz = tij + 4 * nt;
+  float *Txy = tij + 5 * nt;
+
+  float E1, E2, E3;
+
+  if (mu < 1e-16) {
+    // need to check and revise
+    E1 = 0.0;
+    E2 = 1.0 / lam;
+    E3 = 0.0;
+  } else {
+    E1 = (lam + mu) / (mu * ( 3.0 * lam + 2.0 * mu));
+    E2 = - lam / ( 2.0 * mu * (3.0 * lam + 2.0 * mu));
+    E3 = 1.0 / mu;
+  }
+
+  // conver to strain per time step
+  for (int it = 0; it < nt; it++)
+  {
+    float E0 = E2 * (Txx[it] + Tyy[it] + Tzz[it]);
+
+    Txx[it] = E0 - (E2 - E1) * Txx[it];
+    Tyy[it] = E0 - (E2 - E1) * Tyy[it];
+    Tzz[it] = E0 - (E2 - E1) * Tzz[it];
+    Tyz[it] = 0.5 * E3 * Tyz[it];
+    Txz[it] = 0.5 * E3 * Txz[it];
+    Txy[it] = 0.5 * E3 * Txy[it];
+  }
+
+  return ierr;
+}
+
+int
+md_stress2strain_trace_el_vti(float *tij, int nt,
+                        float *restrict c11, float *restrict c13,
+                        float *restrict c33, float *restrict c55,
+                        float *restrict c66)
+{
+  //not implement
+
+  return 0;
+}
+
+int
+md_stress2strain_trace_el_aniso(float *tij, int nt,
+                        float *restrict c11d, float *restrict c12d,
+                        float *restrict c13d, float *restrict c14d,
+                        float *restrict c15d, float *restrict c16d,
+                        float *restrict c22d, float *restrict c23d,
+                        float *restrict c24d, float *restrict c25d,
+                        float *restrict c26d, float *restrict c33d,
+                        float *restrict c34d, float *restrict c35d,
+                        float *restrict c36d, float *restrict c44d,
+                        float *restrict c45d, float *restrict c46d,
+                        float *restrict c55d, float *restrict c56d,
+                        float *restrict c66d)
+{
+  //not implement
+
+  return 0;
+}

@@ -822,6 +822,7 @@ par_read_from_str(const char *str, par_t *par)
   //-- receiver
 
   // default
+  par->station_save_by_sac = 0;
   par->recv_save_velocity = 1;
   par->recv_save_stress   = 0;
   par->recv_save_strain   = 0;
@@ -848,6 +849,9 @@ par_read_from_str(const char *str, par_t *par)
     //-- station in file name
     if (subitem = cJSON_GetObjectItem(item, "station_file")) {
       sprintf(par->in_station_file, "%s", subitem->valuestring);
+    }
+    if (subitem = cJSON_GetObjectItem(item, "station_save_by_sac")) {
+        par->station_save_by_sac = subitem->valueint;
     }
 
     //-- receiver line

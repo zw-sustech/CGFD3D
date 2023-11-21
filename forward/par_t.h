@@ -211,7 +211,9 @@ typedef struct{
   int  recv_save_stress;
   int  recv_save_strain;
 
+  // station
   char in_station_file[PAR_MAX_STRLEN];
+  int  station_save_by_sac;
   // line
   int number_of_receiver_line;
   int *receiver_line_index_start;

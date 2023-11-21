@@ -734,6 +734,7 @@ int main(int argc, char** argv)
   // receiver: need to do
   io_recv_read_locate(gdcurv, iorecv, nt_total, 
                       par->recv_nt_per_out,
+                      par->station_save_by_sac,
                       par->recv_save_velocity,
                       par->recv_save_stress,
                       par->recv_save_strain,
@@ -870,30 +871,9 @@ int main(int argc, char** argv)
 //-- save station and line seismo to sac
 //-------------------------------------------------------------------------------
 
-  //io_recv_output_sac(iorecv,dt,wav->ncmp,wav->visco_type,wav->cmp_name,
-  //                    src->evtnm,blk->output_dir,err_message);
-
-  //if(md->medium_type == CONST_MEDIUM_ELASTIC_ISO || md->medium_type == CONST_MEDIUM_VISCOELASTIC_ISO) {
-  //  io_recv_output_sac_el_iso_strain(iorecv,md->lambda,md->mu,dt,
-  //                    src->evtnm,blk->output_dir,err_message);
-  //}
-  //if(md->medium_type == CONST_MEDIUM_ELASTIC_VTI) {
-  //  io_recv_output_sac_el_vti_strain(iorecv,md->c11,md->c13,
-  //                    md->c33,md->c55,md->c66,dt,
-  //                    src->evtnm,blk->output_dir,err_message);
-  //}
-  //if(md->medium_type == CONST_MEDIUM_ELASTIC_ANISO) {
-  //  io_recv_output_sac_el_aniso_strain(iorecv,
-  //                   md->c11,md->c12,md->c13,md->c14,md->c15,md->c16,
-  //                           md->c22,md->c23,md->c24,md->c25,md->c26,
-  //                           md->c33,md->c34,md->c35,md->c36,
-  //                                   md->c44,md->c45,md->c46,
-  //                                   md->c55,md->c56,
-  //                                           md->c66,
-  //                   dt,src->evtnm,blk->output_dir,err_message);
-  //}
-
-  //io_line_output_sac(ioline,dt,wav->cmp_name,src->evtnm,blk->output_dir);
+  if (iorecv->file_type_sac == 1) {
+    io_recv_output_sac(iorecv,md,dt,wav->cmp_name,src->evtnm,blk->output_dir,err_message);
+  }
 
 //-------------------------------------------------------------------------------
 //-- postprocess

@@ -1029,6 +1029,7 @@ io_recv_read_locate(gd_t     *gd,
                     iorecv_t *iorecv,
                     int       nt_total,
                     int       nt_per_out,
+                    int       file_type_sac,
                     int       save_velocity,
                     int       save_stress,
                     int       save_strain,
@@ -1038,7 +1039,7 @@ io_recv_read_locate(gd_t     *gd,
                     int       verbose)
 {
 
-  int file_type_sac = 0; // for test purpose, hard coded to output nc now
+  //int file_type_sac = 0; // for test purpose, hard coded to output nc now
 
   // keep par
   iorecv->file_type_sac = file_type_sac;
@@ -1459,6 +1460,7 @@ io_recv_keep(iorecv_t *iorecv, float *restrict w4d,
 //
 int
 io_recv_nc_put(iorecv_t *iorecv,
+               md_t     *md,
                int it,
                int is_parallel_netcdf)
 {
@@ -1506,17 +1508,18 @@ io_recv_nc_put(iorecv_t *iorecv,
       }
     }
 
-    //if (iorecv->save_strain == 1)
-    //{
-    //  float *tij = this_recv->tij;
-    //  io_stress2strain(tij,md,i,j,k,nt);
-    //  if (ierr=nc_put_vara_float(ncid,iorecv->varid_exx,startp,countp,tij           )) M_NCRET(ierr);
-    //  if (ierr=nc_put_vara_float(ncid,iorecv->varid_eyy,startp,countp,tij+siz_1cmp  )) M_NCRET(ierr);
-    //  if (ierr=nc_put_vara_float(ncid,iorecv->varid_ezz,startp,countp,tij+siz_1cmp*2)) M_NCRET(ierr);
-    //  if (ierr=nc_put_vara_float(ncid,iorecv->varid_eyz,startp,countp,tij+siz_1cmp*3)) M_NCRET(ierr);
-    //  if (ierr=nc_put_vara_float(ncid,iorecv->varid_exz,startp,countp,tij+siz_1cmp*4)) M_NCRET(ierr);
-    //  if (ierr=nc_put_vara_float(ncid,iorecv->varid_exy,startp,countp,tij+siz_1cmp*5)) M_NCRET(ierr);
-    //}
+    if (iorecv->save_strain == 1)
+    {
+      // convert stress to strain
+      int iptr = this_recv->indx1d[0];
+      float *tij = this_recv->tij;
+
+      md_stress2strain_trace(tij, iorecv->nt_per_out, md, iptr);
+
+      for (int i=0; i < CONST_NDIM_2; i++) {
+        if (ierr=nc_put_vara_float(ncid,iorecv->varid_eij[i],startp,countp,tij+siz_1cmp*i)) M_NCRET(ierr);
+      }
+    }
   }
 
   return(ierr);
@@ -1536,9 +1539,8 @@ io_recv_nc_close(iorecv_t *iorecv, int is_parallel_netcdf)
 
 int
 io_recv_output_sac(iorecv_t *iorecv,
+                   md_t     *md,
                    float dt,
-                   int num_of_vars,
-                   int visco_type,
                    char **cmp_name,
                    char *evtnm,
                    char *output_dir,
@@ -1555,157 +1557,84 @@ io_recv_output_sac(iorecv_t *iorecv,
   {
     iorecv_one_t *this_recv = iorecv->recvone + ir;
     
-    if (visco_type == CONST_VISCO_GMB)
-        num_of_vars = 9; // not output J for attenuation
-
     //fprintf(stdout,"=== Debug: num_of_vars=%d\n",num_of_vars);fflush(stdout);
-    for (int icmp=0; icmp < num_of_vars; icmp++)
+    if (iorecv->save_velocity == 1) 
     {
-      //fprintf(stdout,"=== Debug: icmp=%d\n",icmp);fflush(stdout);
+      for (int icmp=0; icmp < CONST_NDIM; icmp++)
+      {
+        //fprintf(stdout,"=== Debug: icmp=%d\n",icmp);fflush(stdout);
 
-      float *this_trace = this_recv->seismo + icmp * iorecv->max_nt;
+        float *this_trace = this_recv->vi + icmp * iorecv->max_nt;
 
-      sprintf(ou_file,"%s/%s.%s.%s.sac", output_dir, evtnm,
-                      this_recv->name, cmp_name[icmp]);
+        sprintf(ou_file,"%s/%s.%s.%s.sac", output_dir, evtnm, this_recv->name, cmp_name[icmp]);
 
-      //fprintf(stdout,"=== Debug: icmp=%d,ou_file=%s\n",icmp,ou_file);fflush(stdout);
+        //fprintf(stdout,"=== Debug: icmp=%d,ou_file=%s\n",icmp,ou_file);fflush(stdout);
 
-      sacExport1C1R(ou_file,
-            this_trace,
-            evt_x, evt_y, evt_z, evt_d,
-            this_recv->x, this_recv->y, this_recv->z,
-            dt, dt, iorecv->max_nt, err_message);
-    }
-  }
-
-  return 0;
-}
-
-// calculate and output strain cmp for elastic medium
-//   do not find a better file to hold this func
-//   temporarily put here
-
-int
-io_recv_output_sac_el_iso_strain(iorecv_t *iorecv,
-                     float *restrict lam3d,
-                     float *restrict mu3d,
-                     float dt,
-                     char *evtnm,
-                     char *output_dir,
-                     char *err_message)
-{
-  // use fake evt_x etc. since did not implement gather evt_x by mpi
-  float evt_x = 0.0;
-  float evt_y = 0.0;
-  float evt_z = 0.0;
-  float evt_d = 0.0;
-  char ou_file[CONST_MAX_STRLEN];
-
-  for (int ir=0; ir < iorecv->nr_here; ir++)
-  {
-    iorecv_one_t *this_recv = iorecv->recvone + ir;
-    int iptr = this_recv->indx1d[0];
-
-    float lam = lam3d[iptr];
-    float mu  =  mu3d[iptr];
-
-    // cmp seq hard-coded, need to revise in the future
-    float *Txx = this_recv->seismo + 3 * iorecv->max_nt;
-    float *Tyy = this_recv->seismo + 4 * iorecv->max_nt;
-    float *Tzz = this_recv->seismo + 5 * iorecv->max_nt;
-    float *Tyz = this_recv->seismo + 6 * iorecv->max_nt;
-    float *Txz = this_recv->seismo + 7 * iorecv->max_nt;
-    float *Txy = this_recv->seismo + 8 * iorecv->max_nt;
-
-    float E1 = (lam + mu) / (mu * ( 3.0 * lam + 2.0 * mu));
-    float E2 = - lam / ( 2.0 * mu * (3.0 * lam + 2.0 * mu));
-    float E3 = 1.0 / mu;
-
-    // conver to strain per time step
-    for (int it = 0; it < iorecv->max_nt; it++)
-    {
-      float E0 = E2 * (Txx[it] + Tyy[it] + Tzz[it]);
-
-      Txx[it] = E0 - (E2 - E1) * Txx[it];
-      Tyy[it] = E0 - (E2 - E1) * Tyy[it];
-      Tzz[it] = E0 - (E2 - E1) * Tzz[it];
-      Tyz[it] = 0.5 * E3 * Tyz[it];
-      Txz[it] = 0.5 * E3 * Txz[it];
-      Txy[it] = 0.5 * E3 * Txy[it];
+        sacExport1C1R(ou_file, this_trace,
+                      evt_x, evt_y, evt_z, evt_d,
+                      this_recv->x, this_recv->y, this_recv->z,
+                      dt, dt, iorecv->max_nt, err_message);
+      }
     }
 
-    // output to sca file
-    sprintf(ou_file,"%s/%s.%s.%s.sac", output_dir, evtnm, this_recv->name, "Exx");
-    sacExport1C1R(ou_file,Txx,evt_x, evt_y, evt_z, evt_d,
-          this_recv->x, this_recv->y, this_recv->z,
-          dt, dt, iorecv->max_nt, err_message);
+    // save stress
+    if (iorecv->save_stress == 1) 
+    {
+      for (int icmp=0; icmp < CONST_NDIM_2; icmp++)
+      {
+        float *this_trace = this_recv->tij + icmp * iorecv->max_nt;
 
-    sprintf(ou_file,"%s/%s.%s.%s.sac", output_dir, evtnm, this_recv->name, "Eyy");
-    sacExport1C1R(ou_file,Tyy,evt_x, evt_y, evt_z, evt_d,
-          this_recv->x, this_recv->y, this_recv->z,
-          dt, dt, iorecv->max_nt, err_message);
+        sprintf(ou_file,"%s/%s.%s.%s.sac", output_dir, evtnm, this_recv->name, cmp_name[icmp+CONST_NDIM]);
 
-    sprintf(ou_file,"%s/%s.%s.%s.sac", output_dir, evtnm, this_recv->name, "Ezz");
-    sacExport1C1R(ou_file,Tzz,evt_x, evt_y, evt_z, evt_d,
-          this_recv->x, this_recv->y, this_recv->z,
-          dt, dt, iorecv->max_nt, err_message);
+        sacExport1C1R(ou_file, this_trace,
+                      evt_x, evt_y, evt_z, evt_d,
+                      this_recv->x, this_recv->y, this_recv->z,
+                      dt, dt, iorecv->max_nt, err_message);
+      }
+    }
 
-    sprintf(ou_file,"%s/%s.%s.%s.sac", output_dir, evtnm, this_recv->name, "Eyz");
-    sacExport1C1R(ou_file,Tyz,evt_x, evt_y, evt_z, evt_d,
-          this_recv->x, this_recv->y, this_recv->z,
-          dt, dt, iorecv->max_nt, err_message);
+    // save strain
+    if (iorecv->save_strain == 1) 
+    {
+      // convert stress to strain
+      int iptr = this_recv->indx1d[0];
+      int max_nt = iorecv->max_nt;
 
-    sprintf(ou_file,"%s/%s.%s.%s.sac", output_dir, evtnm, this_recv->name, "Exz");
-    sacExport1C1R(ou_file,Txz,evt_x, evt_y, evt_z, evt_d,
-          this_recv->x, this_recv->y, this_recv->z,
-          dt, dt, iorecv->max_nt, err_message);
+      md_stress2strain_trace(this_recv->tij, max_nt, md, iptr);
 
-    sprintf(ou_file,"%s/%s.%s.%s.sac", output_dir, evtnm, this_recv->name, "Exy");
-    sacExport1C1R(ou_file,Txy,evt_x, evt_y, evt_z, evt_d,
-          this_recv->x, this_recv->y, this_recv->z,
-          dt, dt, iorecv->max_nt, err_message);
+      // output to sca file
+      sprintf(ou_file,"%s/%s.%s.%s.sac", output_dir, evtnm, this_recv->name, "Exx");
+      sacExport1C1R(ou_file, this_recv->tij+0*max_nt,
+                    evt_x, evt_y, evt_z, evt_d, this_recv->x, this_recv->y, this_recv->z,
+                    dt, dt, iorecv->max_nt, err_message);
+
+      sprintf(ou_file,"%s/%s.%s.%s.sac", output_dir, evtnm, this_recv->name, "Eyy");
+      sacExport1C1R(ou_file, this_recv->tij+1*max_nt,
+                    evt_x, evt_y, evt_z, evt_d, this_recv->x, this_recv->y, this_recv->z,
+                    dt, dt, iorecv->max_nt, err_message);
+
+      sprintf(ou_file,"%s/%s.%s.%s.sac", output_dir, evtnm, this_recv->name, "Ezz");
+      sacExport1C1R(ou_file, this_recv->tij+2*max_nt,
+                    evt_x, evt_y, evt_z, evt_d, this_recv->x, this_recv->y, this_recv->z,
+                    dt, dt, iorecv->max_nt, err_message);
+
+      sprintf(ou_file,"%s/%s.%s.%s.sac", output_dir, evtnm, this_recv->name, "Eyz");
+      sacExport1C1R(ou_file, this_recv->tij+3*max_nt,
+                    evt_x, evt_y, evt_z, evt_d, this_recv->x, this_recv->y, this_recv->z,
+                    dt, dt, iorecv->max_nt, err_message);
+
+      sprintf(ou_file,"%s/%s.%s.%s.sac", output_dir, evtnm, this_recv->name, "Exz");
+      sacExport1C1R(ou_file, this_recv->tij+4*max_nt,
+                    evt_x, evt_y, evt_z, evt_d, this_recv->x, this_recv->y, this_recv->z,
+                    dt, dt, iorecv->max_nt, err_message);
+
+      sprintf(ou_file,"%s/%s.%s.%s.sac", output_dir, evtnm, this_recv->name, "Exy");
+      sacExport1C1R(ou_file, this_recv->tij+5*max_nt,
+                    evt_x, evt_y, evt_z, evt_d, this_recv->x, this_recv->y, this_recv->z,
+                    dt, dt, iorecv->max_nt, err_message);
+
+    } // if stain
   } // loop ir
-
-  return 0;
-}
-
-int
-io_recv_output_sac_el_vti_strain(iorecv_t *iorecv,
-                        float *restrict c11, float *restrict c13,
-                        float *restrict c33, float *restrict c55,
-                        float *restrict c66,
-                        float dt,
-                        char *evtnm,
-                        char *output_dir,
-                        char *err_message)
-{
-  //not implement
-
-
-
-  return 0;
-}
-int
-io_recv_output_sac_el_aniso_strain(iorecv_t *iorecv,
-                        float *restrict c11d, float *restrict c12d,
-                        float *restrict c13d, float *restrict c14d,
-                        float *restrict c15d, float *restrict c16d,
-                        float *restrict c22d, float *restrict c23d,
-                        float *restrict c24d, float *restrict c25d,
-                        float *restrict c26d, float *restrict c33d,
-                        float *restrict c34d, float *restrict c35d,
-                        float *restrict c36d, float *restrict c44d,
-                        float *restrict c45d, float *restrict c46d,
-                        float *restrict c55d, float *restrict c56d,
-                        float *restrict c66d,
-                        float dt,
-                        char *evtnm,
-                        char *output_dir,
-                        char *err_message)
-{
-  //not implement
-
-
 
   return 0;
 }
@@ -2156,47 +2085,6 @@ io_line_nc_close(ioline_t *ioline, int is_parallel_netcdf)
 
   return(ierr);
 }
-
-//int
-//io_line_output_sac(ioline_t *ioline,
-//      float dt, char **cmp_name, char *evtnm, char *output_dir)
-//{
-//  // use fake evt_x etc. since did not implement gather evt_x by mpi
-//  float evt_x = 0.0;
-//  float evt_y = 0.0;
-//  float evt_z = 0.0;
-//  float evt_d = 0.0;
-//  char ou_file[CONST_MAX_STRLEN];
-//  char err_message[CONST_MAX_STRLEN];
-//  
-//  for (int n=0; n < ioline->num_of_lines; n++)
-//  {
-//    int   *this_line_iptr   = ioline->recv_iptr[n];
-//    float *this_line_seismo = ioline->recv_seismo[n];
-//
-//    for (int ir=0; ir < ioline->line_nr[n]; ir++)
-//    {
-//      float *this_seismo = this_line_seismo + ir * ioline->max_nt * ioline->ncmp;
-//
-//      for (int icmp=0; icmp < ioline->ncmp; icmp++)
-//      {
-//        float *this_trace = this_seismo + icmp * ioline->max_nt;
-//
-//        sprintf(ou_file,"%s/%s.%s.no%d.%s.sac", output_dir,evtnm,
-//                  ioline->line_name[n],ioline->recv_seq[n][ir],
-//                  cmp_name[icmp]);
-//
-//        sacExport1C1R(ou_file,
-//              this_trace,
-//              evt_x, evt_y, evt_z, evt_d,
-//              ioline->recv_x[n][ir],
-//              ioline->recv_y[n][ir],
-//              ioline->recv_z[n][ir],
-//              dt, dt, ioline->max_nt, err_message);
-//      } // icmp
-//    } // ir
-//  } // line
-//}
 
 /*******************************************************************************
  * PG output

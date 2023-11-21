@@ -16,7 +16,7 @@ EXEC_WAVE=${EXE_DIR}/main_curv_col_el_3d
 echo "EXEC_WAVE=$EXEC_WAVE"
 
 #-- output and conf
-PROJDIR=~/work/cgfd3d/line2
+PROJDIR=~/work/cgfd3d/sac_nc
 EVTNM=codetest
 echo "PROJDIR=${PROJDIR}"
 echo "EVTNM=${EVTNM}"
@@ -235,22 +235,15 @@ cat << ieof > $PAR_FILE
 
   "#in_ddsource_file" : "${CUR_DIR}/prep_source/event_3moment_srcdd.nc",
 
-  "receiver_station" : {
-      "in_file"       : "$PROJDIR/test.station",
-      "save_velocity" : 1,
-      "save_stress"   : 1,
-      "save_strain"   : 0,
-      "time_step_per_save" : 10
-  },
-
-  "!-- line type coded to save velocity and stress" : "--!",
+  "!-- station or line output" : "--!",
   "receiver" : {
       "save_velocity" : 1,
       "save_stress"   : 1,
-      "save_strain"   : 0,
+      "save_strain"   : 1,
       "time_step_per_save" : 10,
 
-      "station_file"       : "$PROJDIR/test.station",
+      "station_file"        : "$PROJDIR/test.station",
+      "station_save_by_sac" : 0,
 
       "receiver_line" : [
         {
