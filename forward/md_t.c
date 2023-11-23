@@ -536,6 +536,26 @@ md_gen_test_el_iso(md_t *md)
     }
   }
 
+  // top 20 layers are made water
+  for (size_t k=0; k<20; k++)
+  {
+    for (size_t j=0; j<ny; j++)
+    {
+      for (size_t i=0; i<nx; i++)
+      {
+        size_t iptr = i + j * siz_line + k * siz_slice;
+        float Vp=2000.0;
+        float Vs=0.0;
+        float rho=1000.0;
+        float mu = Vs*Vs*rho;
+        float lam = Vp*Vp*rho - 2.0*mu;
+        lam3d[iptr] = lam;
+         mu3d[iptr] = mu;
+        rho3d[iptr] = rho;
+      }
+    }
+  }
+
   return ierr;
 }
 
@@ -1072,28 +1092,42 @@ md_stress2strain_trace_el_iso(float *tij, // time fastest, then cmp
 
   float E1, E2, E3;
 
+  // in water
   if (mu < 1e-16) {
-    // need to check and revise
-    E1 = 0.0;
-    E2 = 1.0 / lam;
-    E3 = 0.0;
-  } else {
+    E1 = 1.0 / (3.0 * lam);
+
+    // conver to strain per time step
+    for (int it = 0; it < nt; it++)
+    {
+      float P = -(Txx[it] + Tyy[it] + Tzz[it]) / 3.0;
+
+      Txx[it] = - P * E1 * Txx[it];
+      Tyy[it] = - P * E1 * Tyy[it];
+      Tzz[it] = - P * E1 * Tzz[it];
+      Tyz[it] = 0.0;
+      Txz[it] = 0.0;
+      Txy[it] = 0.0;
+    }
+  }
+  // in solid
+  else
+  {
     E1 = (lam + mu) / (mu * ( 3.0 * lam + 2.0 * mu));
     E2 = - lam / ( 2.0 * mu * (3.0 * lam + 2.0 * mu));
     E3 = 1.0 / mu;
-  }
 
-  // conver to strain per time step
-  for (int it = 0; it < nt; it++)
-  {
-    float E0 = E2 * (Txx[it] + Tyy[it] + Tzz[it]);
+    // conver to strain per time step
+    for (int it = 0; it < nt; it++)
+    {
+      float E0 = E2 * (Txx[it] + Tyy[it] + Tzz[it]);
 
-    Txx[it] = E0 - (E2 - E1) * Txx[it];
-    Tyy[it] = E0 - (E2 - E1) * Tyy[it];
-    Tzz[it] = E0 - (E2 - E1) * Tzz[it];
-    Tyz[it] = 0.5 * E3 * Tyz[it];
-    Txz[it] = 0.5 * E3 * Txz[it];
-    Txy[it] = 0.5 * E3 * Txy[it];
+      Txx[it] = E0 - (E2 - E1) * Txx[it];
+      Tyy[it] = E0 - (E2 - E1) * Tyy[it];
+      Tzz[it] = E0 - (E2 - E1) * Tzz[it];
+      Tyz[it] = 0.5 * E3 * Tyz[it];
+      Txz[it] = 0.5 * E3 * Txz[it];
+      Txy[it] = 0.5 * E3 * Txy[it];
+    }
   }
 
   return ierr;
@@ -1204,7 +1238,7 @@ md_stress2strain_snap_pack_eliso(float *restrict lam3d,
 {
   size_t iptr_snap=0;
   size_t i,j,k,iptr,iptr_j,iptr_k;
-  float lam,mu,E1,E2,E3,E0;
+  float lam,mu,E1,E2,E3,E0,P;
 
   for (int n3=0; n3<countk; n3++)
   {
@@ -1223,18 +1257,32 @@ md_stress2strain_snap_pack_eliso(float *restrict lam3d,
         lam = lam3d[iptr];
         mu  =  mu3d[iptr];
 
-        E1 = (lam + mu) / (mu * ( 3.0 * lam + 2.0 * mu));
-        E2 = - lam / ( 2.0 * mu * (3.0 * lam + 2.0 * mu));
-        E3 = 1.0 / mu;
+        if (mu < 1e-6)
+        {
+          E1 = 1.0 / (3.0 * lam);
+          P = - (Txx[iptr] + Tyy[iptr] + Tzz[iptr]) / 3.0;
+          Exx[iptr_snap] = - P * E1 * Txx[iptr];
+          Eyy[iptr_snap] = - P * E1 * Tyy[iptr];
+          Ezz[iptr_snap] = - P * E1 * Tzz[iptr];
+          Eyz[iptr_snap] = 0.0;
+          Exz[iptr_snap] = 0.0;
+          Exy[iptr_snap] = 0.0;
+        } 
+        else
+        {
+          E1 = (lam + mu) / (mu * ( 3.0 * lam + 2.0 * mu));
+          E2 = - lam / ( 2.0 * mu * (3.0 * lam + 2.0 * mu));
+          E3 = 1.0 / mu;
 
-        E0 = E2 * (Txx[iptr] + Tyy[iptr] + Tzz[iptr]);
+          E0 = E2 * (Txx[iptr] + Tyy[iptr] + Tzz[iptr]);
 
-        Exx[iptr_snap] = E0 - (E2 - E1) * Txx[iptr];
-        Eyy[iptr_snap] = E0 - (E2 - E1) * Tyy[iptr];
-        Ezz[iptr_snap] = E0 - (E2 - E1) * Tzz[iptr];
-        Eyz[iptr_snap] = 0.5 * E3 * Tyz[iptr];
-        Exz[iptr_snap] = 0.5 * E3 * Txz[iptr];
-        Exy[iptr_snap] = 0.5 * E3 * Txy[iptr];
+          Exx[iptr_snap] = E0 - (E2 - E1) * Txx[iptr];
+          Eyy[iptr_snap] = E0 - (E2 - E1) * Tyy[iptr];
+          Ezz[iptr_snap] = E0 - (E2 - E1) * Tzz[iptr];
+          Eyz[iptr_snap] = 0.5 * E3 * Tyz[iptr];
+          Exz[iptr_snap] = 0.5 * E3 * Txz[iptr];
+          Exy[iptr_snap] = 0.5 * E3 * Txy[iptr];
+        }
 
         iptr_snap++;
       } // i
