@@ -1,8 +1,32 @@
+/***********************************************************************
+ *
+ * Authors: Luqian Jiang <jianglq@mail.ustc.edu.cn>
+ *          Wei Zhang <zhangwei@sustech.edu.cn>
+ *
+ * Copyright (c) 2021 zwlab
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 3 of the License, or
+ * (at your option) any later version. 
+ * 
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the IMPLIED WARRANTY OF
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU General Public License for more details. 
+ * 
+ * You should have received a copy of the GNU General Public License along 
+ * with this program. If not, see <https://www.gnu.org/licenses/>.
+ *
+ ***************************************************************************/
+
+
 #ifndef _MEDIA_UTILITY_
 #define _MEDIA_UTILITY_
 
 #include "media_geometry3d.hpp"
 #include <map>
+#include <set>
 #include <cmath>
 // for equivalent medium parametrization
 #define NG 8
@@ -329,6 +353,11 @@ float BilinearInterpolation(
     float xq,
     float yq );
 
+Point3 PlaneBilinearIntersectSegment(
+  float x0, float y0, float x1, float y1,
+  float z0, float z1, float z2, float z3,
+  const Point3 &P0, const Point3 &P1, bool &isInter);
+
 float TrilinearInterpolation(
     std::vector<float> &x, 
     std::vector<float> &y, 
@@ -357,8 +386,12 @@ public:
     Matrix(const Matrix<T> &mat); // copy
     ~Matrix();
     Matrix<T> operator*(const Matrix &mat);
+    Matrix<T> operator/(T f);
+    Matrix<T> operator+(const Matrix &mat);
+    Matrix<T> operator-(const Matrix &mat);
     Matrix<T> operator=(const Matrix &mat);
     Matrix<T> transpose();
+    Matrix<T> inverse3x3();
     T &operator()(int i, int j)const;
     friend std::ostream &operator<< <T>(std::ostream& out, const Matrix<T> &mat);
 };
@@ -409,6 +442,16 @@ void BondTransform(float c11, float c12, float c13, float c14, float c15, float 
                    float &c34_tti, float &c35_tti, float &c36_tti, float &c44_tti, float &c45_tti, float &c46_tti,
                    float &c55_tti, float &c56_tti, float &c66_tti);
 
+void BondTransform_CoordSystem(float c11, float c12, float c13, float c14, float c15, float c16, 
+                               float c22, float c23, float c24, float c25, float c26, float c33,
+                               float c34, float c35, float c36, float c44, float c45, float c46,
+                               float c55, float c56, float c66, 
+                               const Vector3 &a, const Vector3 &b, const Vector3 &c, 
+                               float &c11_tti, float &c12_tti, float &c13_tti, float &c14_tti, float &c15_tti, float &c16_tti, 
+                               float &c22_tti, float &c23_tti, float &c24_tti, float &c25_tti, float &c26_tti, float &c33_tti,
+                               float &c34_tti, float &c35_tti, float &c36_tti, float &c44_tti, float &c45_tti, float &c46_tti,
+                               float &c55_tti, float &c56_tti, float &c66_tti);
+
 void para2tti(std::vector<float> var, // input var
              int media_type, // return cij
              float &c11_3d,
@@ -433,5 +476,12 @@ void para2tti(std::vector<float> var, // input var
              float &c56_3d,
              float &c66_3d,
              float &rho_3d);
+
+bool FitHeightPlane(std::set<Point3> &Ps, Plane &plane);
+
+//bool FitHeightPlane4Points(Point3 &P1, Point3 &P2, Point3 &P3, Point3 &P4, Plane &plane);
+
+bool FitHeightPlane_normalized(std::set<Point3> &Ps, Plane &plane);
+bool buildCoord_fromPlane(Plane &plane, Vector3 &u, Vector3 &v, Vector3 &n); 
 
 #endif

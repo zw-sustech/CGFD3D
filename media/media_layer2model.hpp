@@ -1,3 +1,26 @@
+/***********************************************************************
+ *
+ * Authors: Luqian Jiang <jianglq@mail.ustc.edu.cn>
+ *          Wei Zhang <zhangwei@sustech.edu.cn>
+ *
+ * Copyright (c) 2021 zwlab
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 3 of the License, or
+ * (at your option) any later version. 
+ * 
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the IMPLIED WARRANTY OF
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU General Public License for more details. 
+ * 
+ * You should have received a copy of the GNU General Public License along 
+ * with this program. If not, see <https://www.gnu.org/licenses/>.
+ *
+ ***************************************************************************/
+
+
 #ifndef _MEDIA_LAYER2MODEL_
 #define _MEDIA_LAYER2MODEL_
 
@@ -417,5 +440,67 @@ void parametrization_layer_el_aniso_ari(
     float *c66,
     float *rho,
     int myid);
+
+
+void parametrization_layer_el_iso_tti(
+    size_t nx, 
+    size_t ny, 
+    size_t nz,
+    const float *Gridx, 
+    const float *Gridy, 
+    const float *Gridz,
+    int grid_type, 
+    inter_t &interfaces,
+    float *rho,
+    float *c11,
+    float *c12,
+    float *c13,
+    float *c14,
+    float *c15,
+    float *c16,
+    float *c22,
+    float *c23,
+    float *c24,
+    float *c25,
+    float *c26,
+    float *c33,
+    float *c34,
+    float *c35,
+    float *c36,
+    float *c44,
+    float *c45,
+    float *c46,
+    float *c55,
+    float *c56,
+    float *c66, 
+    int myid);
+
+bool getInterfaceIntersection(
+  int nx, int ny, float dx, float dy, 
+  float x0, float y0, const float *elevation,
+  const Point3 &v1, const Point3 &v2,
+  Point3 &interP);
+
+void getInersectList(int nx, int ny, float dx, float dy, float x0, float y0, 
+                const float *elev, Mesh3 M, int edgeState, 
+                std::set<Point3> &intersectionList);
+
+void cal_iso_tti_parametrization_val(
+    int i, int j, int k,
+    inter_t &interfaces, Point3 *SubGrid, 
+    const Vector3 &a, const Vector3 &b, const Vector3 &c, 
+    float &c11, float &c12, float &c13, float &c14, float &c15, float &c16, 
+    float &c22, float &c23, float &c24, float &c25, float &c26,
+    float &c33, float &c34, float &c35, float &c36,
+    float &c44, float &c45, float &c46,
+    float &c55, float &c56, float &c66, float &rho3d);
+
+void cal_ort_represent_val(
+    int indx_i, int indx_j, int indx_k,
+    inter_t &interfaces, Point3 *SubGrid,
+    float &c11, float &c12, float &c13, 
+    float &c22, float &c23, float &c33,
+    float &c44, float &c55, float &c66, float &rho3d);
+
 
 #endif /* __MEDID_LAYER2MODEL__ */

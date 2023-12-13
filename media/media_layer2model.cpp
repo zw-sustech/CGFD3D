@@ -10,11 +10,28 @@
  * ChangeLog: 
  *    06/2021: Created by Luqian Jiang 
  *
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 3 of the License, or
+ * (at your option) any later version. 
+ * 
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the IMPLIED WARRANTY OF
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU General Public License for more details. 
+ * 
+ * You should have received a copy of the GNU General Public License along 
+ * with this program. If not, see <https://www.gnu.org/licenses/>.
+ *
  ***************************************************************************/
+ 
 #include <iostream>
 #include <vector>
 #include <string.h>
 #include <cmath>
+#include <set>
+#include <numeric>
 #include "media_geometry3d.hpp"
 #include "media_layer2model.hpp"
 #include "media_read_file.hpp"
@@ -22,6 +39,8 @@
 
 // for reporting error, media_type int -> string
 std::map<int, std::string> md_map = create_md2str_map();
+
+extern int edgeTable[256];
 
 /*============================= for C call =================================*/
 //---- 0. one component
@@ -312,7 +331,9 @@ int media_layer2model_el_aniso(
                 c45[i] = 0.0; c46[i] = 0.0;  c56[i] = 0.0;
             }
         } else if(strcmp(equivalent_medium_method,"tti") == 0) {
-// TODO: tti equivalent medium method for iso
+            parametrization_layer_el_iso_tti(nx, ny, nz, x3d, y3d, z3d, grid_type, 
+                interfaces, rho, c11, c12, c13, c14, c15, c16, c22, c23, c24, c25, c26, 
+                c33, c34, c35, c36, c44, c45, c46, c55, c56, c66, myid);
         } else {
             fprintf(stderr, "Error: no such equivalent_medium_method: %s!\n", equivalent_medium_method);        
             fflush(stderr);
@@ -2804,3 +2825,571 @@ void parametrization_layer_el_aniso_ari(
     if (Hz != nullptr) delete [] Hz;
     if (MaterNum != nullptr) delete [] MaterNum;    
 }
+
+
+
+
+void parametrization_layer_el_iso_tti(
+    size_t nx, 
+    size_t ny, 
+    size_t nz,
+    const float *Gridx, 
+    const float *Gridy, 
+    const float *Gridz,
+    int grid_type, 
+    inter_t &interfaces,
+    float *rho,
+    float *c11,
+    float *c12,
+    float *c13,
+    float *c14,
+    float *c15,
+    float *c16,
+    float *c22,
+    float *c23,
+    float *c24,
+    float *c25,
+    float *c26,
+    float *c33,
+    float *c34,
+    float *c35,
+    float *c36,
+    float *c44,
+    float *c45,
+    float *c46,
+    float *c55,
+    float *c56,
+    float *c66,
+    int myid)  
+{
+    size_t siz_line   = nx;
+    size_t siz_slice  = ny * siz_line;
+    size_t siz_volume = nz * siz_slice;
+    size_t NI = interfaces.NI;
+
+    float slowk = 1.0/(ny-2); // for print progress
+
+    // assign the local value first.
+    parametrization_layer_el_iso_loc(nx, ny, nz, Gridx, Gridy, Gridz, grid_type, 
+                interfaces, c13, c44, rho, myid);
+    for (size_t i = 0; i < siz_volume; ++i) {
+        c11[i] = c13[i] + 2.0*c44[i]; 
+        c22[i] = c11[i]; c33[i] = c11[i]; 
+        c12[i] = c13[i]; c23[i] = c13[i];
+        c55[i] = c44[i]; c66[i] = c44[i];
+        c14[i] = 0.0; c24[i] = 0.0;  c34[i] = 0.0;  
+        c15[i] = 0.0; c25[i] = 0.0;  c35[i] = 0.0; 
+        c16[i] = 0.0; c26[i] = 0.0;  c36[i] = 0.0;
+        c45[i] = 0.0; c46[i] = 0.0;  c56[i] = 0.0;
+    }
+
+    float *Hx = nullptr, *Hy = nullptr, *Hz = nullptr; 
+    GenerateHalfGrid(nx, ny, nz, grid_type, Gridx, Gridy, Gridz, &Hx, &Hy, &Hz); 
+
+    /* mark the interface number at the half grid. */
+    int *MaterNum = new int[siz_volume];
+
+    MarkInterfaceNumber(grid_type, Hx, Hy, Hz, 
+        nx, ny, nz, MaterNum, interfaces);
+
+    int inter_nx = interfaces.NX, inter_ny = interfaces.NY;
+    float inter_dx = interfaces.DX, inter_dy = interfaces.DY;
+    float inter_x0 = interfaces.MINX, inter_y0 = interfaces.MINY;
+    size_t inter_slice = inter_nx*inter_ny;
+
+    if (myid == 0)
+        std::cout << "- TTI equivalent medium parametrization:\n\n";
+    for (size_t j = 1; j < ny-1; j++) {
+      if (myid == 0) printProgress(slowk*j);
+      
+      for (size_t k = 1; k < nz-1; k++) {
+        for (size_t i = 1; i < nx-1; i++) {
+          size_t indx =  i + j * siz_line + k * siz_slice; 
+          // check if the mesh have different values;
+          std::vector<int> v(8);
+
+          // clockwise, Consistent with the schematic diagram
+          v[0] = MaterNum[indx-1-siz_line-siz_slice];
+          v[1] = MaterNum[indx-1         -siz_slice];
+          v[2] = MaterNum[indx           -siz_slice];
+          v[3] = MaterNum[indx  -siz_line-siz_slice];
+          v[4] = MaterNum[indx-1-siz_line];
+          v[5] = MaterNum[indx-1         ];
+          v[6] = MaterNum[indx           ];
+          v[7] = MaterNum[indx  -siz_line];
+
+
+          // There is more than one medium value in the half-grid mesh, 
+          int medium_num = NumOfValues(v, NI);
+          if ( medium_num > 1) {
+
+            Mesh3 M = GenerateHalfMesh(grid_type, i, j, k, indx, 
+                    siz_line, siz_slice, siz_volume, Hx, Hy, Hz);
+
+            // There are 2 media in the cell.  
+            // One interface, tti; two or more interface, ort
+            bool is_ort = false;
+            if (medium_num > 2) {
+              is_ort = true;
+            } 
+            else  // medium_num==2
+            {  
+              int avg_number = std::accumulate(v.begin(), v.end(), 0);
+              avg_number /= 8;
+
+              // passed by which interface
+              int interface_label = -1;
+              for (auto &v_label:v) 
+                if (v_label > interface_label)
+                  interface_label = v_label;
+
+              // compute cubeState (the index into the edgeTable)
+              int cubeState = 0;
+              if (v[0] <= avg_number) cubeState |= 1;
+              if (v[1] <= avg_number) cubeState |= 2;
+              if (v[2] <= avg_number) cubeState |= 4;
+              if (v[3] <= avg_number) cubeState |= 8;
+              if (v[4] <= avg_number) cubeState |= 16;
+              if (v[5] <= avg_number) cubeState |= 32;
+              if (v[6] <= avg_number) cubeState |= 64;
+              if (v[7] <= avg_number) cubeState |= 128;
+
+              // get the intersection Points, use set to avoid duplication
+              std::set<Point3> intersectionList;
+              // the interface pass through the cell two or more times, 
+              //   can not compute the normal of the interface plane, apply ort
+              int edgeState = edgeTable[cubeState];
+              if (edgeState == 0) 
+                is_ort = true;
+
+              int listsize = 0;
+              getInersectList(inter_nx, inter_ny, inter_dx, inter_dy, inter_x0, inter_y0, 
+                interfaces.elevation+(avg_number+1)*inter_slice, M, edgeState, intersectionList );
+              listsize = intersectionList.size();
+              
+              if(listsize < 3 || listsize > 6) {
+                is_ort = true;
+              } else {  // listsize in [3,6]
+                Plane inter_plane(0.0, 0.0, 0.0, 0.0);
+                bool isfitplane= FitHeightPlane(intersectionList, inter_plane);
+                if (!isfitplane) {
+                  is_ort = true;
+                }
+
+                Vector3 a(0.0, 0.0, 0.0), b(0.0, 0.0, 0.0), c(0.0, 0.0, 0.0);
+                buildCoord_fromPlane(inter_plane, a, b, c); 
+
+                // cal TTI equivalent medium parameters
+                if (!is_ort) {
+                  Point3 *SubGrid = MeshSubdivide(M);
+                //  Vector3 d = Cross(c, b);
+                  cal_iso_tti_parametrization_val(i, j, k, interfaces, SubGrid, a, b, c,
+                    c11[indx], c12[indx], c13[indx], c14[indx], c15[indx], c16[indx], 
+                    c22[indx], c23[indx], c24[indx], c25[indx], c26[indx], 
+                    c33[indx], c34[indx], c35[indx], c36[indx], 
+                    c44[indx], c45[indx], c46[indx],
+                    c55[indx], c56[indx], c66[indx], rho[indx]);
+                  if(SubGrid != nullptr) delete []SubGrid;
+                } // tti
+
+              } // listsize
+
+            }  // medium num=2
+
+            // numerical volume averaging
+            if (is_ort) {
+              Point3 *SubGrid = MeshSubdivide(M);
+              cal_ort_represent_val(i,j,k, interfaces, SubGrid,
+                c11[indx], c12[indx], c13[indx], 
+                c22[indx], c23[indx], c33[indx],
+                c44[indx], c55[indx], c66[indx], rho[indx]);
+              if(SubGrid != nullptr) delete []SubGrid;
+            } 
+          } // medium_num > 1
+
+        }
+      }
+    }
+    if (Hx != nullptr) delete [] Hx;
+    if (Hy != nullptr) delete [] Hy;
+    if (Hz != nullptr) delete [] Hz;
+    if (MaterNum != nullptr) delete [] MaterNum;
+}
+
+//
+// calculate TTI parameterization parameters
+// for elasic isotropic
+// Jiang and Zhang, 2021, TTI equivalent medium parametrization method for the seismic 
+//    waveform modelling of heterogeneous media with coarse grids
+//
+void cal_iso_tti_parametrization_val(
+    int i, int j, int k,
+    inter_t &interfaces, Point3 *SubGrid, 
+    const Vector3 &a, const Vector3 &b, const Vector3 &c, 
+    float &c11, float &c12, float &c13, float &c14, float &c15, float &c16, 
+    float &c22, float &c23, float &c24, float &c25, float &c26,
+    float &c33, float &c34, float &c35, float &c36,
+    float &c44, float &c45, float &c46,
+    float &c55, float &c56, float &c66, float &rho3d)
+{
+  int nsg = (NG+1)*(NG+1)*(NG+1);
+
+  float ari_rho = 0.0;
+  float mu_har = 0.0, mu_ari = 0.0;
+  float lam2mu_ari = 0.0, lam_ari = 0.0;
+  float lam2mu_har = 0.0, lam_lam2mu = 0.0;
+  float lam2_lam2mu = 0.0;
+
+  for (int isg = 0; isg < nsg; isg++) {
+    std::vector<float> var(3);
+    AssignLayerMediaPara2Point(i, j, k,
+        SubGrid[isg], interfaces, ELASTIC_ISOTROPIC, var);
+
+    float vp=var[1], vs=var[2], rho=var[0];
+    float mu = vs*vs*rho;
+    float lam2mu = vp*vp*rho;
+    float lam = lam2mu - 2.0*mu;
+
+    lam2mu_har  += (1.0/lam2mu);
+    lam2mu_ari  += lam2mu;
+    lam_ari     += lam;
+    lam_lam2mu  += (lam/lam2mu);
+    lam2_lam2mu += (lam*lam/lam2mu);
+    mu_har      += (1.0/mu);
+    mu_ari      += mu;
+    ari_rho += rho;
+  }
+  rho3d = ari_rho/nsg;
+  lam2mu_har = nsg*1.0/lam2mu_har;
+  lam2mu_ari /= nsg;
+  lam_ari /= nsg;
+  lam2_lam2mu /= nsg;
+  lam_lam2mu /= nsg;
+  mu_har = nsg*1.0/mu_har;
+  mu_ari /= nsg;
+
+  float Cz = lam2mu_ari - lam2_lam2mu + lam_lam2mu*lam_lam2mu*lam2mu_har;
+  float Dz = lam_ari - lam2_lam2mu + lam_lam2mu*lam_lam2mu*lam2mu_har;
+  float Bz = lam_lam2mu * lam2mu_har;
+  float Az = lam2mu_har;
+
+  BondTransform_CoordSystem(Cz, Dz, Bz, 0.0, 0.0, 0.0, 
+                            Cz, Bz, 0.0, 0.0, 0.0, Az,
+                            0.0, 0.0, 0.0, mu_har, 0.0, 0.0,
+                            mu_har, 0.0, mu_ari, 
+                            a, b, c, 
+                            c11, c12, c13, c14, c15, c16, 
+                            c22, c23, c24, c25, c26, c33,
+                            c34, c35, c36, c44, c45, c46,
+                            c55, c56, c66);
+}
+
+bool getInterfaceIntersection(
+  int nx, int ny, float dx, float dy, 
+  float x0, float y0, const float *elevation,
+  const Point3 &v1, const Point3 &v2,
+  Point3 &interP)
+{
+  float edge_maxx = std::max(v1.x, v2.x);
+  float edge_minx = std::min(v1.x, v2.x);
+  float edge_maxy = std::max(v1.y, v2.y);
+  float edge_miny = std::min(v1.y, v2.y);
+
+  int ix_min = (edge_minx-x0)/dx;
+  int iy_min = (edge_miny-y0)/dy;
+  int ix_max = (edge_maxx-x0)/dx;
+  int iy_max = (edge_maxy-y0)/dy;
+  if (ix_max == nx-1) ix_max -= 1;
+  if (iy_max == ny-1) iy_max -= 1;
+
+  bool hasInter = false;
+  // find the intersection points Within the region
+  for (int ix = ix_min; ix <= ix_max; ix++) {
+    for (int iy = iy_min; iy <= iy_max; iy++) {
+      float x0_interp = x0+ix*dx;
+      float y0_interp = x0+iy*dy;
+      float x1_interp = x0_interp+dx;
+      float y1_interp = y0_interp+dy;
+      size_t indx = iy*nx + ix;
+
+      interP = PlaneBilinearIntersectSegment(x0_interp, y0_interp,
+              x1_interp, y1_interp, elevation[indx], elevation[indx+1],
+              elevation[indx+nx], elevation[indx+1+nx], v1, v2, hasInter);
+      if (hasInter) {
+        return true;
+      } 
+    }
+  }
+
+  return hasInter;
+}
+
+
+void getInersectList(int nx, int ny, float dx, float dy, float x0, float y0, 
+                const float *elev, Mesh3 M, int edgeState, 
+                std::set<Point3> &intersectionList)
+{
+    Point3 P;
+    if (edgeState & 1)  // edge: v[0]--v[1] 
+    {
+      bool has_inter = getInterfaceIntersection(nx, ny, dx, dy, x0, y0, elev, M.v[0], M.v[1], P);
+      if (has_inter) intersectionList.insert(P);
+    }
+    if (edgeState & 2)  // edge: v[1] -- v[2]
+    {
+      bool has_inter = getInterfaceIntersection(nx, ny, dx, dy, x0, y0, elev, M.v[1], M.v[2], P);
+      if (has_inter) intersectionList.insert(P);
+    }
+    if (edgeState & 4)  // edge: v[2] -- v[3]
+    {
+      bool has_inter = getInterfaceIntersection(nx, ny, dx, dy, x0, y0, elev, M.v[2], M.v[3], P);
+      if (has_inter) intersectionList.insert(P);
+    }
+    if (edgeState & 8)  // edge: v[0] -- v[3]
+    {
+      bool has_inter = getInterfaceIntersection(nx, ny, dx, dy, x0, y0, elev, M.v[0], M.v[3], P);
+      if (has_inter) intersectionList.insert(P);
+    }
+    if (edgeState & 16)  // edge: v[4] -- v[5]
+    {
+      bool has_inter = getInterfaceIntersection(nx, ny, dx, dy, x0, y0, elev, M.v[4], M.v[5], P);
+      if (has_inter) intersectionList.insert(P);
+    }
+
+    if (edgeState & 32)  // edge: v[5] -- v[6]
+    {
+      bool has_inter = getInterfaceIntersection(nx, ny, dx, dy, x0, y0, elev, M.v[5], M.v[6], P);
+      if (has_inter) intersectionList.insert(P);
+    }
+    if (edgeState & 64)  // edge: v[6] -- v[7]
+    {
+      bool has_inter = getInterfaceIntersection(nx, ny, dx, dy, x0, y0, elev, M.v[6], M.v[7], P);
+      if (has_inter) intersectionList.insert(P);
+    }
+    if (edgeState & 128)  // edge: v[4] -- v[7]
+    {
+      bool has_inter = getInterfaceIntersection(nx, ny, dx, dy, x0, y0, elev, M.v[4], M.v[7], P);
+      if (has_inter) intersectionList.insert(P);
+    }
+    if (edgeState & 256)  // edge: v[0] -- v[4]
+    {
+      bool has_inter = getInterfaceIntersection(nx, ny, dx, dy, x0, y0, elev, M.v[0], M.v[4], P);
+      if (has_inter) intersectionList.insert(P);
+    }
+    if (edgeState & 512)  // edge: v[1] -- v[5]
+    {
+      bool has_inter = getInterfaceIntersection(nx, ny, dx, dy, x0, y0, elev, M.v[1], M.v[5], P);
+      if (has_inter) intersectionList.insert(P);
+    }
+    if (edgeState & 1024)  // edge: v[2] -- v[6]
+    {
+      bool has_inter = getInterfaceIntersection(nx, ny, dx, dy, x0, y0, elev, M.v[2], M.v[6], P);
+      if (has_inter) intersectionList.insert(P);
+    }
+    if (edgeState & 2048)  // edge: v[3] -- v[7]
+    {
+      bool has_inter = getInterfaceIntersection(nx, ny, dx, dy, x0, y0, elev, M.v[3], M.v[7], P);
+      if (has_inter) intersectionList.insert(P);
+    }
+}
+
+
+//
+// calculate orthorhombic representation val
+//- for elasic isotropic
+//  Kristek et al., 2017, An orthorhombic representation
+//
+void cal_ort_represent_val(
+    int indx_i, int indx_j, int indx_k,
+    inter_t &interfaces, Point3 *SubGrid,
+    float &c11, float &c12, float &c13, 
+    float &c22, float &c23, float &c33,
+    float &c44, float &c55, float &c66, float &rho3d)
+{
+    int nsg = (NG+1)*(NG+1)*(NG+1);
+    float *lam = new float[nsg];
+    float *mu  = new float[nsg];
+    float *lam2mu = new float[nsg];
+
+    float ari_rho = 0.0;
+    for (int isg = 0; isg < nsg; isg++) {
+      std::vector<float> var(3);
+      AssignLayerMediaPara2Point(indx_i, indx_j, indx_k,
+          SubGrid[isg], interfaces, ELASTIC_ISOTROPIC, var);
+
+      float vp=var[1], vs=var[2], rho=var[0];
+      mu[isg]     = vs*vs*rho;
+      lam2mu[isg] = vp*vp*rho;
+      lam[isg]    = lam2mu[isg] - 2.0*mu[isg];
+      ari_rho += rho;
+    }
+    rho3d = ari_rho/nsg;
+
+    int siz_line = NG+1;
+    int siz_slice = (NG+1) * siz_line;
+
+    // calculate \Pi_x (c11) 
+    float Pi_x = 0.0;
+    for (int i = 0; i < NG+1; i++) {
+      float tmp1 = 0.0, tmp2 = 0.0, tmp3 = 0.0;
+
+      for (int j = 0; j < NG+1; j++) {
+        for (int k = 0; k < NG+1; k++) {
+          int indx = i + j * siz_line + k * siz_slice;
+          tmp1 += (lam2mu[indx]-lam[indx]*lam[indx]/lam2mu[indx]);
+          tmp2 += (lam[indx]/lam2mu[indx]);
+          tmp3 += (1.0/lam2mu[indx]);
+        }
+      }
+
+      tmp1 /= siz_slice;
+      tmp2 /= siz_slice;
+      tmp3 = (siz_slice*1.0)/tmp3;
+
+      Pi_x += (1.0 / (tmp1 + tmp2*tmp2 * tmp3));
+    }
+    c11 = (siz_line*1.0)/Pi_x; 
+
+    // calculate \Pi_y (c22)
+    float Pi_y = 0.0;
+    for (int j = 0; j <= NG; j++) {
+      float tmp1 = 0.0, tmp2 = 0.0, tmp3 = 0.0;
+      for (int i = 0; i <= NG; i++) {
+        for (int k = 0; k <= NG; k++) {
+          int indx = i + j * siz_line + k * siz_slice;
+          tmp1 += (lam2mu[indx]-lam[indx]*lam[indx]/lam2mu[indx]);
+          tmp2 += (lam[indx]/lam2mu[indx]);
+          tmp3 += (1.0/lam2mu[indx]);          
+        }
+      }
+      tmp1 /= siz_slice;
+      tmp2 /= siz_slice;
+      tmp3 = (siz_slice*1.0)/tmp3;
+
+      Pi_y += (1.0 / (tmp1 + tmp2*tmp2 * tmp3));      
+    }
+    c22 = (siz_line*1.0)/Pi_y;
+
+    // calculate \Pi_z (c33)
+    float Pi_z = 0.0;
+    for (int k = 0; k <= NG; k++) {
+      float tmp1 = 0.0, tmp2 = 0.0, tmp3 = 0.0;
+      for (int i = 0; i <= NG; i++) {
+        for (int j = 0; j <= NG; j++) {
+          int indx = i + j * siz_line + k * siz_slice;
+          tmp1 += (lam2mu[indx]-lam[indx]*lam[indx]/lam2mu[indx]);
+          tmp2 += (lam[indx]/lam2mu[indx]);
+          tmp3 += (1.0/lam2mu[indx]);          
+        }
+      }
+      tmp1 /= siz_slice;
+      tmp2 /= siz_slice;
+      tmp3 = (siz_slice*1.0)/tmp3;
+
+      Pi_z += (1.0 / (tmp1 + tmp2*tmp2 * tmp3));      
+    }
+    c33 = (siz_line*1.0)/Pi_z;
+
+    // \lambda_{xy}, c12;  c66
+    float Lxy1 = 0.0, Lxy2 = 0.0;
+    float muxy = 0.0;
+    for (int i = 0; i <= NG; i++) {
+      for (int j = 0; j <= NG; j++) {
+
+        float tmp1 = 0.0, tmp2 = 0.0, tmp3 = 0.0;
+        float mu_ = 0.0, M = 0.0;
+        for (int k = 0; k <= NG; k++) {
+          int indx = i + j * siz_line + k * siz_slice;
+          tmp1 += (lam2mu[indx] - lam[indx]*lam[indx]/lam2mu[indx]);
+          tmp2 += (lam[indx]/lam2mu[indx]);
+          tmp3 += (lam[indx] - lam[indx]*lam[indx]/lam2mu[indx]);
+          M   += (1.0/lam2mu[indx]);
+          mu_ += mu[indx]; 
+        }
+        tmp1 /= siz_line; 
+        tmp2 /= siz_line;
+        tmp3 /= siz_line;
+        M = (siz_line * 1.0)/M;
+        mu_ /= siz_line;
+
+        muxy += (1.0/mu_);
+        Lxy1 += (1.0/ (tmp1 + tmp2*tmp2*M));
+        Lxy2 += ((tmp3+tmp2*tmp2*M) / (tmp1+tmp2*tmp2*M));
+      }
+    }
+    Lxy1 = (1.0*siz_slice)/Lxy1;
+    Lxy2 /= siz_slice;
+    c12 = Lxy1 * Lxy2;
+    c66 = (1.0*siz_slice)/muxy;
+
+    // \lambda_{xz}, c13;  c55
+    float Lxz1 = 0.0, Lxz2 = 0.0;
+    float muxz = 0.0;
+    for (int i = 0; i <= NG; i++) {
+      for (int k = 0; k <= NG; k++) {
+
+        float tmp1 = 0.0, tmp2 = 0.0, tmp3 = 0.0;
+        float mu_ = 0.0, M = 0.0;
+        for (int j = 0; j <= NG; j++) {
+          int indx = i + j * siz_line + k * siz_slice;
+
+          tmp1 += (lam2mu[indx] - lam[indx]*lam[indx]/lam2mu[indx]);
+          tmp2 += (lam[indx]/lam2mu[indx]);
+          tmp3 += (lam[indx] - lam[indx]*lam[indx]/lam2mu[indx]);
+          M   += (1.0/lam2mu[indx]);
+          mu_ += mu[indx]; 
+        }
+        tmp1 /= siz_line; 
+        tmp2 /= siz_line;
+        tmp3 /= siz_line;
+        M = (siz_line * 1.0)/M;
+        mu_ /= siz_line;
+
+        muxz += (1.0/mu_);
+        Lxz1 += (1.0/ (tmp1 + tmp2*tmp2*M));
+        Lxz2 += ((tmp3+tmp2*tmp2*M) / (tmp1+tmp2*tmp2*M));
+      }
+    }
+    Lxz1 = (1.0*siz_slice)/Lxz1;
+    Lxz2 /= siz_slice;
+    c12 = Lxz1 * Lxz2;
+    c55 = (1.0*siz_slice)/muxz;
+
+    // \lambda_{yz}, c23;  c44
+    float Lyz1 = 0.0, Lyz2 = 0.0;
+    float muyz = 0.0;
+    for (int k = 0; k <= NG; k++) {
+      for (int j = 0; j <= NG; j++) {
+
+        float tmp1 = 0.0, tmp2 = 0.0, tmp3 = 0.0;
+        float mu_ = 0.0, M = 0.0;
+        for (int i = 0; i <= NG; i++) {
+          int indx = i + j * siz_line + k * siz_slice;
+          tmp1 += (lam2mu[indx] - lam[indx]*lam[indx]/lam2mu[indx]);
+          tmp2 += (lam[indx]/lam2mu[indx]);
+          tmp3 += (lam[indx] - lam[indx]*lam[indx]/lam2mu[indx]);
+          M   += (1.0/lam2mu[indx]);
+          mu_ += mu[indx]; 
+        }
+        tmp1 /= siz_line; 
+        tmp2 /= siz_line;
+        tmp3 /= siz_line;
+        M = (siz_line * 1.0)/M;
+        mu_ /= siz_line;
+
+        muyz += (1.0/mu_);
+        Lyz1 += (1.0/ (tmp1 + tmp2*tmp2*M));
+        Lyz2 += ((tmp3+tmp2*tmp2*M) / (tmp1+tmp2*tmp2*M));
+      }
+    }
+    Lyz1 = (1.0*siz_slice)/Lyz1;
+    Lyz2 /= siz_slice;
+    c12 = Lyz1 * Lyz2;
+    c44 = (1.0*siz_slice)/muyz;
+
+
+    if (lam    != nullptr) delete[] lam; 
+    if (mu     != nullptr) delete[] mu;
+    if (lam2mu != nullptr) delete[] lam2mu;  
+}
+
