@@ -968,8 +968,6 @@ void BondTransform_CoordSystem(float c11, float c12, float c13, float c14, float
     Matrix<float> C0(6,6,C0_tmp);
     Matrix<float> C(6,6);
     C = R * C0 * R.transpose();
-std::cout << C0 << std::endl;
-std::cout << C << std::endl;
 
     c11_tti = C(0,0); c12_tti = C(0,1); c13_tti = C(0,2); c14_tti = C(0,3); c15_tti = C(0,4); c16_tti = C(0,5);
     c22_tti = C(1,1); c23_tti = C(1,2); c24_tti = C(1,3); c25_tti = C(1,4); c26_tti = C(1,5);

@@ -147,14 +147,14 @@ float Plane::DotNormal(const Plane &P, const Vector3 &V)
 }
 
 
-/*
-bool PointInTri(Point3 P, Point3 P0, Point3 P1, Point3 P2) {
+bool isPointInTri(const Point3 &P, const Point3 &P0, const Point3 &P1, const Point3 &P2) {
 	float area1 = Area2(P, P0, P1);
 	float area2 = Area2(P, P1, P2);
 	float area3 = Area2(P, P2, P0);
 	return dcmp(area1+area2+area3 - Area2(P0, P1, P2)) == 0;
 }
 
+/*
 float Volume6(Point3 A, Point3 B, Point3 C, Point3 D) {
 	return Dot(D-A, Cross(B-A, C-A));
 }
@@ -166,6 +166,10 @@ float Volume6(Point3 A, Point3 B, Point3 C, Point3 D) {
  */
 bool isPointInPolyhedron(const Point3 &p, const std::vector<Face> &fs) {
 	for (Face const &f:fs) {
+    // if the point on the triangle, return true
+    if (isPointInTri(p, f.v[0], f.v[1], f.v[2])) {
+      return true;
+    }
 		Vector3 p2f = f.v[0]-p;
 		Vector3 A = f.normal();
 		float sign = Dot(p2f, f.normal());

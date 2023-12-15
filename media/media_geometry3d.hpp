@@ -66,7 +66,7 @@ Point3 LinePlaneIntersection(
     const Vector3 &n);
 Vector3 Cross(const Vector3 &A, const Vector3 &B);
 float Area2 (const Point3 &A, const Point3 &B, const Point3 &C);
-//bool PointInTri(conPoint3 P, Point3 P0, Point3 P1, Point3 P2);
+bool isPointInTri(const Point3 &P, const Point3 &P0, const Point3 &P1, const Point3 &P2);
 //float Volume6(Point3 A, Point3 B, Point3 C, Point3 D);
 
 // A standard 3D plane, a*x + b*y + c*z + d = 0
