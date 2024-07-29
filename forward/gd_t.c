@@ -10,7 +10,6 @@
 #include <string.h>
 
 #include "netcdf.h"
-#include "netcdf_par.h"
 
 #include "fdlib_mem.h"
 #include "fdlib_math.h"
@@ -20,14 +19,6 @@
 
 // used in read grid file
 #define M_gd_INDEX( i, j, k, ni, nj ) ( ( i ) + ( j ) * ( ni ) + ( k ) * ( ni ) * ( nj ) )
-
-#ifndef M_NCRET
-#define M_NCRET(ierr) {fprintf(stderr,"gd nc error: %s\n", nc_strerror(ierr)); exit(1);}
-#endif
-
-#ifndef M_NCERR
-#define M_NCERR {fprintf(stderr,"gd nc error\n"); exit(1);}
-#endif
 
 void 
 gd_curv_init(gd_t *gdcurv)
@@ -667,15 +658,12 @@ gd_cart_init_set(gd_t *gdcart,
 //
 // input/output
 //
-int
+void
 gd_curv_coord_export(
   gd_t *gdcurv,
-  int is_parallel_netcdf,
-  MPI_Comm comm, 
   char *fname_coords,
   char *output_dir)
 {
-  int ierr = 0;
   size_t *restrict c3d_pos   = gdcurv->cmp_pos;
   char  **restrict c3d_name  = gdcurv->cmp_name;
   int number_of_vars = gdcurv->ncmp;
@@ -694,83 +682,49 @@ gd_curv_coord_export(
 
   // construct file name
   char ou_file[CONST_MAX_STRLEN];
+  sprintf(ou_file, "%s/coord_%s.nc", output_dir, fname_coords);
   
   // read in nc
   int ncid;
   int varid[gdcurv->ncmp];
   int dimid[CONST_NDIM];
 
-  // default dim size as seperated nc
-  int dimx_siz = nx;
-  int dimy_siz = ny;
-  int dimz_siz = nz;
-  int start_i  = 0;
-  int start_j  = 0;
-  int start_k  = 0;
-
-  if (is_parallel_netcdf == 1)
-  {
-    sprintf(ou_file, "%s/coord.nc", output_dir);
-
-    if (ierr=nc_create_par(ou_file, NC_CLOBBER | NC_NETCDF4, 
-                      comm, MPI_INFO_NULL, &ncid)) M_NCRET(ierr);
-
-    // reset dimx_siz etc
-    dimx_siz = gdcurv->glob_nx;
-    dimy_siz = gdcurv->glob_ny;
-    dimz_siz = gdcurv->glob_nz;
-    start_i  = gdcurv->nx1_to_glob_halo0;
-    start_j  = gdcurv->ny1_to_glob_halo0;
-    start_k  = gdcurv->nz1_to_glob_halo0;
-  }
-  else
-  {
-    sprintf(ou_file, "%s/coord_%s.nc", output_dir, fname_coords);
-
-    ierr = nc_create(ou_file, NC_CLOBBER | NC_64BIT_OFFSET, &ncid);
-    if (ierr != NC_NOERR){
-      fprintf(stderr,"gd creat coord nc error: %s\n", nc_strerror(ierr));
-      exit(-1);
-    }
+  int ierr = nc_create(ou_file, NC_CLOBBER | NC_64BIT_OFFSET, &ncid);
+  if (ierr != NC_NOERR){
+    fprintf(stderr,"creat coord nc error: %s\n", nc_strerror(ierr));
+    exit(-1);
   }
 
   // define dimension
-  ierr = nc_def_dim(ncid, "i", dimx_siz, &dimid[2]);
-  ierr = nc_def_dim(ncid, "j", dimy_siz, &dimid[1]);
-  ierr = nc_def_dim(ncid, "k", dimz_siz, &dimid[0]);
+  ierr = nc_def_dim(ncid, "i", nx, &dimid[2]);
+  ierr = nc_def_dim(ncid, "j", ny, &dimid[1]);
+  ierr = nc_def_dim(ncid, "k", nz, &dimid[0]);
 
   // define vars
   for (int ivar=0; ivar<gdcurv->ncmp; ivar++) {
-    if (ierr = nc_def_var(ncid, gdcurv->cmp_name[ivar], NC_FLOAT, CONST_NDIM, dimid, &varid[ivar]))
-        M_NCRET(ierr);
+    ierr = nc_def_var(ncid, gdcurv->cmp_name[ivar], NC_FLOAT, CONST_NDIM, dimid, &varid[ivar]);
   }
 
   // attribute: index in output snapshot, index w ghost in thread
-  if (is_parallel_netcdf == 0)
-  {
-    int l_start[] = { ni1, nj1, nk1 };
-    nc_put_att_int(ncid,NC_GLOBAL,"local_index_of_first_physical_points",
-                     NC_INT,CONST_NDIM,l_start);
+  int l_start[] = { ni1, nj1, nk1 };
+  nc_put_att_int(ncid,NC_GLOBAL,"local_index_of_first_physical_points",
+                   NC_INT,CONST_NDIM,l_start);
 
-    int g_start[] = { gni1, gnj1, gnk1 };
-    nc_put_att_int(ncid,NC_GLOBAL,"global_index_of_first_physical_points",
-                     NC_INT,CONST_NDIM,g_start);
+  int g_start[] = { gni1, gnj1, gnk1 };
+  nc_put_att_int(ncid,NC_GLOBAL,"global_index_of_first_physical_points",
+                   NC_INT,CONST_NDIM,g_start);
 
-    int l_count[] = { ni, nj, nk };
-    nc_put_att_int(ncid,NC_GLOBAL,"count_of_physical_points",
-                     NC_INT,CONST_NDIM,l_count);
-  }
+  int l_count[] = { ni, nj, nk };
+  nc_put_att_int(ncid,NC_GLOBAL,"count_of_physical_points",
+                   NC_INT,CONST_NDIM,l_count);
 
   // end def
-  if (ierr = nc_enddef(ncid)) M_NCRET(ierr);
+  ierr = nc_enddef(ncid);
 
   // add vars
-  for (int ivar=0; ivar<gdcurv->ncmp; ivar++)
-  {
+  for (int ivar=0; ivar<gdcurv->ncmp; ivar++) {
     float *ptr = gdcurv->v4d + gdcurv->cmp_pos[ivar];
-    size_t startp[] = { start_k, start_j, start_i };
-    size_t countp[] = { nz, ny, nx };
-    ierr = nc_put_vara_float(ncid, varid[ivar],startp,countp,ptr);
+    ierr = nc_put_var_float(ncid, varid[ivar],ptr);
   }
   
   // close file
@@ -780,58 +734,30 @@ gd_curv_coord_export(
     exit(-1);
   }
 
-  return ierr;
+  return;
 }
 
-int
-gd_curv_coord_import(gd_t *gdcurv,
-                     int is_parallel_netcdf,
-                     MPI_Comm comm, 
-                     char *fname_coords,
-                     char *import_dir)
+void
+gd_curv_coord_import(gd_t *gdcurv, char *fname_coords, char *import_dir)
 {
-  int ierr = 0;
-
-  int  nx = gdcurv->nx;
-  int  ny = gdcurv->ny;
-  int  nz = gdcurv->nz;
-
   // construct file name
   char in_file[CONST_MAX_STRLEN];
+  sprintf(in_file, "%s/coord_%s.nc", import_dir, fname_coords);
   
   // read in nc
   int ncid;
   int varid;
 
-  // default for seperated nc
-  int start_i  = 0;
-  int start_j  = 0;
-  int start_k  = 0;
-
-  if (is_parallel_netcdf == 1)
-  {
-    sprintf(in_file, "%s/coord.nc", import_dir);
-
-    if (ierr=nc_open_par(in_file, NC_NOWRITE | NC_NETCDF4, 
-                      comm, MPI_INFO_NULL, &ncid)) M_NCRET(ierr);
-
-    start_i  = gdcurv->nx1_to_glob_halo0;
-    start_j  = gdcurv->ny1_to_glob_halo0;
-    start_k  = gdcurv->nz1_to_glob_halo0;
-  }
-  else
-  {
-    sprintf(in_file, "%s/coord_%s.nc", import_dir, fname_coords);
-
-    if (ierr = nc_open(in_file, NC_NOWRITE, &ncid)) M_NCRET(ierr);
+  int ierr = nc_open(in_file, NC_NOWRITE, &ncid);
+  if (ierr != NC_NOERR){
+    fprintf(stderr,"open coord nc error: %s\n", nc_strerror(ierr));
+    exit(-1);
   }
 
   // read vars
   for (int ivar=0; ivar<gdcurv->ncmp; ivar++)
   {
     float *ptr = gdcurv->v4d + gdcurv->cmp_pos[ivar];
-    size_t startp[] = { start_k, start_j, start_i };
-    size_t countp[] = { nz, ny, nx };
 
     ierr = nc_inq_varid(ncid, gdcurv->cmp_name[ivar], &varid);
     if (ierr != NC_NOERR){
@@ -839,7 +765,7 @@ gd_curv_coord_import(gd_t *gdcurv,
       exit(-1);
     }
 
-    ierr = nc_get_vara_float(ncid, varid,startp,countp,ptr);
+    ierr = nc_get_var(ncid, varid, ptr);
     if (ierr != NC_NOERR){
       fprintf(stderr,"coord read nc error: %s\n", nc_strerror(ierr));
       exit(-1);
@@ -853,7 +779,7 @@ gd_curv_coord_import(gd_t *gdcurv,
     exit(-1);
   }
 
-  return ierr;
+  return;
 }
 
 void
@@ -931,15 +857,12 @@ gd_cart_coord_export(
   return;
 }
 
-int
+void
 gd_curv_metric_export(gd_t        *gdinfo,
                       gdcurv_metric_t *metric,
-                      int is_parallel_netcdf,
-                      MPI_Comm comm, 
                       char *fname_coords,
                       char *output_dir)
 {
-  int ierr = 0;
   size_t *restrict g3d_pos   = metric->cmp_pos;
   char  **restrict g3d_name  = metric->cmp_name;
   int  number_of_vars = metric->ncmp;
@@ -958,51 +881,23 @@ gd_curv_metric_export(gd_t        *gdinfo,
 
   // construct file name
   char ou_file[CONST_MAX_STRLEN];
+  sprintf(ou_file, "%s/metric_%s.nc", output_dir, fname_coords);
   
   // read in nc
   int ncid;
   int varid[number_of_vars];
   int dimid[CONST_NDIM];
 
-
-  // default dim size as seperated nc
-  int dimx_siz = nx;
-  int dimy_siz = ny;
-  int dimz_siz = nz;
-  int start_i  = 0;
-  int start_j  = 0;
-  int start_k  = 0;
-
-  if (is_parallel_netcdf == 1)
-  {
-    sprintf(ou_file, "%s/metric.nc", output_dir);
-
-    if (ierr=nc_create_par(ou_file, NC_CLOBBER | NC_NETCDF4, 
-                      comm, MPI_INFO_NULL, &ncid)) M_NCRET(ierr);
-
-    // reset dimx_siz etc
-    dimx_siz = gdinfo->glob_nx;
-    dimy_siz = gdinfo->glob_ny;
-    dimz_siz = gdinfo->glob_nz;
-    start_i  = gdinfo->nx1_to_glob_halo0;
-    start_j  = gdinfo->ny1_to_glob_halo0;
-    start_k  = gdinfo->nz1_to_glob_halo0;
-  }
-  else
-  {
-    sprintf(ou_file, "%s/metric_%s.nc", output_dir, fname_coords);
-
-    ierr = nc_create(ou_file, NC_CLOBBER | NC_64BIT_OFFSET, &ncid);
-    if (ierr != NC_NOERR){
-      fprintf(stderr,"creat metric nc error: %s\n", nc_strerror(ierr));
-      exit(-1);
-    }
+  int ierr = nc_create(ou_file, NC_CLOBBER | NC_64BIT_OFFSET, &ncid);
+  if (ierr != NC_NOERR){
+    fprintf(stderr,"creat coord nc error: %s\n", nc_strerror(ierr));
+    exit(-1);
   }
 
   // define dimension
-  ierr = nc_def_dim(ncid, "i", dimx_siz, &dimid[2]);
-  ierr = nc_def_dim(ncid, "j", dimy_siz, &dimid[1]);
-  ierr = nc_def_dim(ncid, "k", dimz_siz, &dimid[0]);
+  ierr = nc_def_dim(ncid, "i", nx, &dimid[2]);
+  ierr = nc_def_dim(ncid, "j", ny, &dimid[1]);
+  ierr = nc_def_dim(ncid, "k", nz, &dimid[0]);
 
   // define vars
   for (int ivar=0; ivar<number_of_vars; ivar++) {
@@ -1010,31 +905,25 @@ gd_curv_metric_export(gd_t        *gdinfo,
   }
 
   // attribute: index in output snapshot, index w ghost in thread
-  if (is_parallel_netcdf == 0)
-  {
-    int l_start[] = { ni1, nj1, nk1 };
-    nc_put_att_int(ncid,NC_GLOBAL,"local_index_of_first_physical_points",
-                     NC_INT,CONST_NDIM,l_start);
+  int l_start[] = { ni1, nj1, nk1 };
+  nc_put_att_int(ncid,NC_GLOBAL,"local_index_of_first_physical_points",
+                   NC_INT,CONST_NDIM,l_start);
 
-    int g_start[] = { gni1, gnj1, gnk1 };
-    nc_put_att_int(ncid,NC_GLOBAL,"global_index_of_first_physical_points",
-                     NC_INT,CONST_NDIM,g_start);
+  int g_start[] = { gni1, gnj1, gnk1 };
+  nc_put_att_int(ncid,NC_GLOBAL,"global_index_of_first_physical_points",
+                   NC_INT,CONST_NDIM,g_start);
 
-    int l_count[] = { ni, nj, nk };
-    nc_put_att_int(ncid,NC_GLOBAL,"count_of_physical_points",
-                     NC_INT,CONST_NDIM,l_count);
-  }
+  int l_count[] = { ni, nj, nk };
+  nc_put_att_int(ncid,NC_GLOBAL,"count_of_physical_points",
+                   NC_INT,CONST_NDIM,l_count);
 
   // end def
-  if (ierr = nc_enddef(ncid)) M_NCRET(ierr);
+  ierr = nc_enddef(ncid);
 
   // add vars
-  for (int ivar=0; ivar<number_of_vars; ivar++)
-  {
+  for (int ivar=0; ivar<number_of_vars; ivar++) {
     float *ptr = metric->v4d + g3d_pos[ivar];
-    size_t startp[] = { start_k, start_j, start_i };
-    size_t countp[] = { nz, ny, nx };
-    ierr = nc_put_vara_float(ncid, varid[ivar],startp,countp,ptr);
+    ierr = nc_put_var_float(ncid, varid[ivar],ptr);
   }
   
   // close file
@@ -1043,69 +932,39 @@ gd_curv_metric_export(gd_t        *gdinfo,
     fprintf(stderr,"metric export nc error: %s\n", nc_strerror(ierr));
     exit(-1);
   }
-
-  return ierr;
 }
 
-int
-gd_curv_metric_import(gd_t        *gdcurv,
-                      gdcurv_metric_t *metric,
-                      int is_parallel_netcdf,
-                      MPI_Comm comm, 
-                      char *fname_coords, char *import_dir)
+void
+gd_curv_metric_import(gdcurv_metric_t *metric, char *fname_coords, char *import_dir)
 {
-  int ierr = 0;
-
-  int  nx = gdcurv->nx;
-  int  ny = gdcurv->ny;
-  int  nz = gdcurv->nz;
-
   // construct file name
   char in_file[CONST_MAX_STRLEN];
+  sprintf(in_file, "%s/metric_%s.nc", import_dir, fname_coords);
   
   // read in nc
   int ncid;
   int varid;
 
-  // default for seperated nc
-  int start_i  = 0;
-  int start_j  = 0;
-  int start_k  = 0;
-
-  if (is_parallel_netcdf == 1)
-  {
-    sprintf(in_file, "%s/metric.nc", import_dir);
-
-    if (ierr=nc_open_par(in_file, NC_NOWRITE | NC_NETCDF4, 
-                      comm, MPI_INFO_NULL, &ncid)) M_NCRET(ierr);
-
-    start_i  = gdcurv->nx1_to_glob_halo0;
-    start_j  = gdcurv->ny1_to_glob_halo0;
-    start_k  = gdcurv->nz1_to_glob_halo0;
-  }
-  else
-  {
-    sprintf(in_file, "%s/metric_%s.nc", import_dir, fname_coords);
-
-    if (ierr = nc_open(in_file, NC_NOWRITE, &ncid)) M_NCRET(ierr);
+  int ierr = nc_open(in_file, NC_NOWRITE, &ncid);
+  if (ierr != NC_NOERR){
+    fprintf(stderr,"open coord nc error: %s\n", nc_strerror(ierr));
+    exit(-1);
   }
 
   // read vars
   for (int ivar=0; ivar<metric->ncmp; ivar++)
   {
     float *ptr = metric->v4d + metric->cmp_pos[ivar];
-    size_t startp[] = { start_k, start_j, start_i };
-    size_t countp[] = { nz, ny, nx };
 
     ierr = nc_inq_varid(ncid, metric->cmp_name[ivar], &varid);
     if (ierr != NC_NOERR){
-      fprintf(stderr,"metric nc inq error: %s\n", nc_strerror(ierr));
+      fprintf(stderr,"nc error: %s\n", nc_strerror(ierr));
       exit(-1);
     }
 
-    ierr = nc_get_vara_float(ncid, varid,startp,countp,ptr);
+    ierr = nc_get_var(ncid, varid, ptr);
     if (ierr != NC_NOERR){
-      fprintf(stderr,"metric nc get error: %s\n", nc_strerror(ierr));
+      fprintf(stderr,"nc error: %s\n", nc_strerror(ierr));
       exit(-1);
     }
   }
@@ -1113,11 +972,11 @@ gd_curv_metric_import(gd_t        *gdcurv,
   // close file
   ierr = nc_close(ncid);
   if (ierr != NC_NOERR){
-    fprintf(stderr,"metric nc close error: %s\n", nc_strerror(ierr));
+    fprintf(stderr,"nc error: %s\n", nc_strerror(ierr));
     exit(-1);
   }
 
-  return ierr;
+  return;
 }
 
 /*
@@ -2971,14 +2830,6 @@ gd_indx_set(gd_t          *const gd,
   int ny = nj + 2 * fdy_nghosts;
   int nz = nk + 2 * fdz_nghosts;
 
-  // global size for parallel netcdf
-  gd->glob_ni = number_of_total_grid_points_x;
-  gd->glob_nj = number_of_total_grid_points_y;
-  gd->glob_nk = number_of_total_grid_points_z;
-  gd->glob_nx = gd->glob_ni + 2 * fdx_nghosts;
-  gd->glob_ny = gd->glob_nj + 2 * fdy_nghosts;
-  gd->glob_nz = gd->glob_nk + 2 * fdz_nghosts;
-
   gd->ni = ni;
   gd->nj = nj;
   gd->nk = nk;
@@ -3007,11 +2858,6 @@ gd_indx_set(gd_t          *const gd,
   gd->nj2_to_glob_phys0 = gd->gnj2;
   gd->nk1_to_glob_phys0 = gd->gnk1;
   gd->nk2_to_glob_phys0 = gd->gnk2;
-
-  // ni1_to_glob_phys0 - fdx_nghosts to nx1, then + fdx_nghosts to 0 start from ghots
-  gd->nx1_to_glob_halo0 = gd->gni1;
-  gd->ny1_to_glob_halo0 = gd->gnj1;
-  gd->nz1_to_glob_halo0 = gd->gnk1;
   
   // x dimention varies first
   gd->siz_line   = nx; 

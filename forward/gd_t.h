@@ -41,13 +41,6 @@ typedef struct {
   int nk1;
   int nk2;
 
-  int glob_ni; // total points without ghost
-  int glob_nj;
-  int glob_nk;
-  int glob_nx; // total points include ghost
-  int glob_ny;
-  int glob_nz;
-
   int npoint_ghosts;
   int fdx_nghosts;
   int fdy_nghosts;
@@ -63,10 +56,6 @@ typedef struct {
   int ni2_to_glob_phys0;
   int nj2_to_glob_phys0;
   int nk2_to_glob_phys0;
-  // include ghosts
-  int nx1_to_glob_halo0;
-  int ny1_to_glob_halo0;
-  int nz1_to_glob_halo0;
 
   int n1, n2, n3, n4;
   int ncmp;
@@ -213,25 +202,15 @@ gd_curv_gen_cart(
   float dy, float y0,
   float dz, float z0);
 
-int
-gd_curv_metric_import(gd_t        *gdcurv,
-                      gdcurv_metric_t *metric,
-                      int is_parallel_netcdf,
-                      MPI_Comm comm, 
-                      char *fname_coords, char *import_dir);
+void
+gd_curv_metric_import(gdcurv_metric_t *metric, char *fname_coords, char *import_dir);
 
-int
-gd_curv_coord_import(gd_t *gdcurv,
-                     int is_parallel_netcdf,
-                     MPI_Comm comm, 
-                     char *fname_coords,
-                     char *import_dir);
+void
+gd_curv_coord_import(gd_t *gdcurv, char *fname_coords, char *import_dir);
 
-int
+void
 gd_curv_coord_export(
   gd_t *gdcurv,
-  int is_parallel_netcdf,
-  MPI_Comm comm, 
   char *fname_coords,
   char *output_dir);
 
@@ -241,11 +220,9 @@ gd_cart_coord_export(
   char *fname_coords,
   char *output_dir);
 
-int
+void
 gd_curv_metric_export(gd_t        *gdinfo,
                       gdcurv_metric_t *metric,
-                      int is_parallel_netcdf,
-                      MPI_Comm comm, 
                       char *fname_coords,
                       char *output_dir);
 

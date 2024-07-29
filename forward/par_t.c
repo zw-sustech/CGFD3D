@@ -370,69 +370,55 @@ par_read_from_str(const char *str, par_t *par)
 
   // default output grid
 
-  int num_in_grid_ways = 0; //- the value should be 1 after input
-
-  // import grid
-  if (item = cJSON_GetObjectItem(root, "grid_import_from_previous_run"))
-  {
-     par->grid_generation_itype = PAR_GRID_IMPORT;
-     sprintf(par->grid_import_dir, "%s", item->valuestring);
-     num_in_grid_ways += 1;
+  par->grid_generation_itype = PAR_GRID_IMPORT;
+  if (item = cJSON_GetObjectItem(root, "grid_generation_method")) {
+    // import grid
+    if (subitem = cJSON_GetObjectItem(item, "import")) {
+       par->grid_generation_itype = PAR_GRID_IMPORT;
+       sprintf(par->grid_import_dir, "%s", subitem->valuestring);
+    }
+    // generate cartesian grid
+    if (subitem = cJSON_GetObjectItem(item, "cartesian")) {
+       par->grid_generation_itype = PAR_GRID_CARTESIAN;
+       if (thirditem = cJSON_GetObjectItem(subitem, "origin")) {
+         for (int i = 0; i < CONST_NDIM; i++) {
+           par->cartesian_grid_origin[i] = cJSON_GetArrayItem(thirditem, i)->valuedouble;
+         }
+       }
+       if (thirditem = cJSON_GetObjectItem(subitem, "inteval")) {
+         for (int i = 0; i < CONST_NDIM; i++) {
+           par->cartesian_grid_stepsize[i] = cJSON_GetArrayItem(thirditem, i)->valuedouble;
+         }
+       }
+    }
+    // layer interp
+    if (subitem = cJSON_GetObjectItem(item, "layer_interp")) {
+       par->grid_generation_itype = PAR_GRID_LAYER_INTERP;
+       if (thirditem = cJSON_GetObjectItem(subitem, "in_grid_layer_file")) {
+          sprintf(par->in_grid_layer_file, "%s", thirditem->valuestring);
+       }
+       if (thirditem = cJSON_GetObjectItem(subitem, "refine_factor")) {
+         for (int i = 0; i < CONST_NDIM; i++) {
+           par->grid_layer_resample_factor[i] = cJSON_GetArrayItem(thirditem, i)->valueint;
+         }
+       }
+       if (thirditem = cJSON_GetObjectItem(subitem, "horizontal_start_index")) {
+         for (int i = 0; i < CONST_NDIM-1; i++) {
+           par->grid_layer_start[i] = cJSON_GetArrayItem(thirditem, i)->valueint;
+         }
+       }
+       if (thirditem = cJSON_GetObjectItem(subitem, "vertical_last_to_top")) {
+         par->grid_layer_start[CONST_NDIM-1] = thirditem->valueint;
+       }
+    }
   }
 
-  // generate cartesian grid
-  if (subitem = cJSON_GetObjectItem(root, "grid_generate_by_cartesian"))
-  {
-     par->grid_generation_itype = PAR_GRID_CARTESIAN;
-     if (thirditem = cJSON_GetObjectItem(subitem, "origin")) {
-       for (int i = 0; i < CONST_NDIM; i++) {
-         par->cartesian_grid_origin[i] = cJSON_GetArrayItem(thirditem, i)->valuedouble;
-       }
-     }
-     if (thirditem = cJSON_GetObjectItem(subitem, "inteval")) {
-       for (int i = 0; i < CONST_NDIM; i++) {
-         par->cartesian_grid_stepsize[i] = cJSON_GetArrayItem(thirditem, i)->valuedouble;
-       }
-     }
-     num_in_grid_ways += 1;
+  par->is_export_grid = 1;
+  if (item = cJSON_GetObjectItem(root, "is_export_grid")) {
+     par->is_export_grid = item->valueint;
   }
-
-  // layer interp
-  if (subitem = cJSON_GetObjectItem(root, "grid_generate_by_gdlay"))
-  {
-     par->grid_generation_itype = PAR_GRID_LAYER_INTERP;
-     if (thirditem = cJSON_GetObjectItem(subitem, "file_name")) {
-        sprintf(par->in_grid_layer_file, "%s", thirditem->valuestring);
-     }
-     if (thirditem = cJSON_GetObjectItem(subitem, "refine_factor")) {
-       for (int i = 0; i < CONST_NDIM; i++) {
-         par->grid_layer_resample_factor[i] = cJSON_GetArrayItem(thirditem, i)->valueint;
-       }
-     }
-     if (thirditem = cJSON_GetObjectItem(subitem, "horizontal_start_index")) {
-       for (int i = 0; i < CONST_NDIM-1; i++) {
-         par->grid_layer_start[i] = cJSON_GetArrayItem(thirditem, i)->valueint;
-       }
-     }
-     if (thirditem = cJSON_GetObjectItem(subitem, "vertical_last_to_top")) {
-       par->grid_layer_start[CONST_NDIM-1] = thirditem->valueint;
-     }
-     num_in_grid_ways += 1;
-  }
-
-  // check if only one grid method is set
-  if (num_in_grid_ways != 1) {
-     fprintf(stderr,"ERROR: num_in_grid_ways=%d, no grid or more than one grid were set\n", 
-             num_in_grid_ways); fflush(stderr);
-     MPI_Abort(MPI_COMM_WORLD,9);
-  }
-
-
-  // not export grid if no grid_export_to_dir set
-  par->is_export_grid = 0;
-  if (item = cJSON_GetObjectItem(root, "grid_export_to_dir")) {
-     par->is_export_grid = 1;
-     sprintf(par->grid_export_dir,"%s",item->valuestring);
+  if (item = cJSON_GetObjectItem(root, "grid_export_dir")) {
+      sprintf(par->grid_export_dir,"%s",item->valuestring);
   }
 
   //
@@ -440,311 +426,327 @@ par_read_from_str(const char *str, par_t *par)
   //
 
   par->metric_method_itype = PAR_METRIC_CALCULATE;
-  if (item = cJSON_GetObjectItem(root, "metric_import_from_previous_run")) {
+  if (item = cJSON_GetObjectItem(root, "metric_calculation_method")) {
+    if (subitem = cJSON_GetObjectItem(item, "import")) {
         par->metric_method_itype = PAR_METRIC_IMPORT;
-        sprintf(par->metric_import_dir, "%s", item->valuestring);
+        sprintf(par->metric_import_dir, "%s", subitem->valuestring);
+    }
+    if (subitem = cJSON_GetObjectItem(item, "calculate")) {
+        par->metric_method_itype = PAR_METRIC_CALCULATE;
+    }
   }
 
-  par->is_export_metric = 0;
-  if (item = cJSON_GetObjectItem(root, "metric_export_to_dir")) {
-     par->is_export_metric = 1;
-     sprintf(par->metric_export_dir, "%s", item->valuestring);
+  par->is_export_metric = 1;
+  if (item = cJSON_GetObjectItem(root, "is_export_metric")) {
+     par->is_export_metric = item->valueint;
   }
 
   //
   //-- medium
   //
 
-  // medium is iso, vti or aniso; elastic or viscoelastic
-  if (item = cJSON_GetObjectItem(root, "medium_type"))
+  par->media_input_itype = PAR_MEDIA_IMPORT;
+  if (item = cJSON_GetObjectItem(root, "medium"))
   {
-      sprintf(par->media_type, "%s", item->valuestring);
-      if (strcmp(par->media_type, "elastic_iso")==0) {
-        par->media_itype = CONST_MEDIUM_ELASTIC_ISO;
-      } else if (strcmp(par->media_type, "elastic_vti")==0) {
-        par->media_itype = CONST_MEDIUM_ELASTIC_VTI;
-      } else if (strcmp(par->media_type, "elastic_aniso")==0) {
-        par->media_itype = CONST_MEDIUM_ELASTIC_ANISO;
-      } else if (strcmp(par->media_type, "acoustic_iso")==0) {
-        par->media_itype = CONST_MEDIUM_ACOUSTIC_ISO;
-      } else if (strcmp(par->media_type, "viscoelastic_iso")==0) {
-        par->media_itype = CONST_MEDIUM_VISCOELASTIC_ISO;
-      } else {
-        fprintf(stderr,"ERROR: media_type=%s is unknown\n",par->media_type);
-        MPI_Abort(MPI_COMM_WORLD,9);
-      }
-  }
+    // medium is iso, vti or aniso
+    if (subitem = cJSON_GetObjectItem(item, "type")) {
+        sprintf(par->media_type, "%s", subitem->valuestring);
+        if (strcmp(par->media_type, "elastic_iso")==0) {
+          par->media_itype = CONST_MEDIUM_ELASTIC_ISO;
+        } else if (strcmp(par->media_type, "elastic_vti")==0) {
+          par->media_itype = CONST_MEDIUM_ELASTIC_VTI;
+        } else if (strcmp(par->media_type, "elastic_aniso")==0) {
+          par->media_itype = CONST_MEDIUM_ELASTIC_ANISO;
+        } else if (strcmp(par->media_type, "acoustic_iso")==0) {
+          par->media_itype = CONST_MEDIUM_ACOUSTIC_ISO;
+        } else if (strcmp(par->media_type, "viscoelastic_iso")==0) {
+          par->media_itype = CONST_MEDIUM_VISCOELASTIC_ISO;
+        } else {
+          fprintf(stderr,"ERROR: media_type=%s is unknown\n",par->media_type);
+          MPI_Abort(MPI_COMM_WORLD,9);
+        }
+    }
 
-  // input way
-  int num_medium_input_way = 0;
-  // input by import
-  if (item = cJSON_GetObjectItem(root, "medium_import_from_previous_run"))
-  {
+    // input way
+    if (subitem = cJSON_GetObjectItem(item, "input_way")) 
+    {
+        sprintf(par->media_input_way, "%s", subitem->valuestring);
+    }
+
+    // if input by code
+    if (strcmp(par->media_input_way,"code") == 0)
+    {
+      par->media_input_itype = PAR_MEDIA_CODE;
+      if (subitem = cJSON_GetObjectItem(item, "code")) 
+      {
+        // implement read func name later
+      }
+    }
+
+    // if input by import
+    if (strcmp(par->media_input_way,"import") == 0)
+    {
       par->media_input_itype = PAR_MEDIA_IMPORT;
-      sprintf(par->media_import_dir, "%s", item->valuestring);
-      num_medium_input_way++;
-  }
-
-  // if create in code
-  if (item = cJSON_GetObjectItem(root, "medium_create_in_code"))
-  {
-    par->media_input_itype = PAR_MEDIA_CODE;
-    sprintf(par->media_code_fun_name, "%s", item->valuestring);
-    num_medium_input_way++;
-  }
-
-  // if input by layer file
-  if (item = cJSON_GetObjectItem(root, "medium_read_from_mdlay"))
-  {
-    par->media_input_itype = PAR_MEDIA_3LAY;
-    sprintf(par->media_input_file, "%s", item->valuestring);
-    num_medium_input_way++;
-  }
-
-  // if input by grid file
-  if (item = cJSON_GetObjectItem(root, "medium_read_from_mdgrd"))
-  {
-    par->media_input_itype = PAR_MEDIA_3GRD;
-    sprintf(par->media_input_file, "%s", item->valuestring);
-    num_medium_input_way++;
-  }
-
-  // if input by bin file
-  if (item = cJSON_GetObjectItem(root, "medium_read_from_binfile"))
-  {
-    par->media_input_itype = PAR_MEDIA_3BIN;
-    // size
-    if (thirditem = cJSON_GetObjectItem(item, "size")) {
-      for (int i = 0; i < CONST_NDIM; i++) {
-        par->bin_size[i] = cJSON_GetArrayItem(thirditem, i)->valueint;
-      }
-    }
-    // spacing
-    if (thirditem = cJSON_GetObjectItem(item, "spacing")) {
-      for (int i = 0; i < CONST_NDIM; i++) {
-        par->bin_spacing[i] = cJSON_GetArrayItem(thirditem, i)->valuedouble;
-      }
-    }
-    // origin
-    if (thirditem = cJSON_GetObjectItem(item, "origin")) {
-      for (int i = 0; i < CONST_NDIM; i++) {
-        par->bin_origin[i] = cJSON_GetArrayItem(thirditem, i)->valuedouble;
-      }
-    }
-    // dim1
-    if (thirditem = cJSON_GetObjectItem(item, "dim1"))
-    {
-      sprintf(par->bin_dim1_name, "%s", thirditem->valuestring);
-      if (strcmp(par->bin_dim1_name,"x")==0) {
-        par->bin_order[0] = 0;
-      } else if (strcmp(par->bin_dim1_name,"y")==0) {
-        par->bin_order[0] = 1;
-      } else if (strcmp(par->bin_dim1_name,"z")==0) {
-        par->bin_order[0] = 2;
-      }
-    }
-    // dim2
-    if (thirditem = cJSON_GetObjectItem(item, "dim2"))
-    {
-      sprintf(par->bin_dim2_name, "%s", thirditem->valuestring);
-      if (strcmp(par->bin_dim2_name,"x")==0) {
-        par->bin_order[1] = 0;
-      } else if (strcmp(par->bin_dim2_name,"y")==0) {
-        par->bin_order[1] = 1;
-      } else if (strcmp(par->bin_dim2_name,"z")==0) {
-        par->bin_order[1] = 2;
-      }
-    }
-    // dim3
-    if (thirditem = cJSON_GetObjectItem(item, "dim3"))
-    {
-      sprintf(par->bin_dim3_name, "%s", thirditem->valuestring);
-      if (strcmp(par->bin_dim3_name,"x")==0) {
-        par->bin_order[2] = 0;
-      } else if (strcmp(par->bin_dim3_name,"y")==0) {
-        par->bin_order[2] = 1;
-      } else if (strcmp(par->bin_dim3_name,"z")==0) {
-        par->bin_order[2] = 2;
+      if (subitem = cJSON_GetObjectItem(item, "import")) 
+      { 
+          sprintf(par->media_import_dir, "%s", subitem->valuestring);
       }
     }
 
-    // rho file
-    if (thirditem = cJSON_GetObjectItem(item, "rho"))
+    // if input by layer file
+    if (strcmp(par->media_input_way,"infile_layer") == 0)
     {
-      sprintf(par->bin_file_rho, "%s", thirditem->valuestring);
-    }
-    // Vp file
-    if (thirditem = cJSON_GetObjectItem(item, "Vp"))
-    {
-      sprintf(par->bin_file_vp, "%s", thirditem->valuestring);
-    }
-    // Vs file
-    if (thirditem = cJSON_GetObjectItem(item, "Vs"))
-    {
-      sprintf(par->bin_file_vs, "%s", thirditem->valuestring);
-    }
-    // epsilon file
-    if (thirditem = cJSON_GetObjectItem(item, "epsilon"))
-    {
-      sprintf(par->bin_file_epsilon, "%s", thirditem->valuestring);
-    }
-    // delta file
-    if (thirditem = cJSON_GetObjectItem(item, "delta"))
-    {
-      sprintf(par->bin_file_delta, "%s", thirditem->valuestring);
-    }
-    // gamma file
-    if (thirditem = cJSON_GetObjectItem(item, "gamma"))
-    {
-      sprintf(par->bin_file_gamma, "%s", thirditem->valuestring);
-    }
-    // c11 file
-    if (thirditem = cJSON_GetObjectItem(item, "c11"))
-    {
-      sprintf(par->bin_file_c11, "%s", thirditem->valuestring);
-    }
-    // c12 file
-    if (thirditem = cJSON_GetObjectItem(item, "c12"))
-    {
-      sprintf(par->bin_file_c12, "%s", thirditem->valuestring);
-    }
-    // c13 file
-    if (thirditem = cJSON_GetObjectItem(item, "c13"))
-    {
-      sprintf(par->bin_file_c13, "%s", thirditem->valuestring);
-    }
-    // c14 file
-    if (thirditem = cJSON_GetObjectItem(item, "c14"))
-    {
-      sprintf(par->bin_file_c14, "%s", thirditem->valuestring);
-    }
-    // c15 file
-    if (thirditem = cJSON_GetObjectItem(item, "c15"))
-    {
-      sprintf(par->bin_file_c15, "%s", thirditem->valuestring);
-    }
-    // c16 file
-    if (thirditem = cJSON_GetObjectItem(item, "c16"))
-    {
-      sprintf(par->bin_file_c16, "%s", thirditem->valuestring);
-    }
-    // c22 file
-    if (thirditem = cJSON_GetObjectItem(item, "c22"))
-    {
-      sprintf(par->bin_file_c22, "%s", thirditem->valuestring);
-    }
-    // c23 file
-    if (thirditem = cJSON_GetObjectItem(item, "c23"))
-    {
-      sprintf(par->bin_file_c23, "%s", thirditem->valuestring);
-    }
-    // c24 file
-    if (thirditem = cJSON_GetObjectItem(item, "c24"))
-    {
-      sprintf(par->bin_file_c24, "%s", thirditem->valuestring);
-    }
-    // c25 file
-    if (thirditem = cJSON_GetObjectItem(item, "c25"))
-    {
-      sprintf(par->bin_file_c25, "%s", thirditem->valuestring);
-    }
-    // c26 file
-    if (thirditem = cJSON_GetObjectItem(item, "c26"))
-    {
-      sprintf(par->bin_file_c26, "%s", thirditem->valuestring);
-    }
-    // c33 file
-    if (thirditem = cJSON_GetObjectItem(item, "c33"))
-    {
-      sprintf(par->bin_file_c33, "%s", thirditem->valuestring);
-    }
-    // c34 file
-    if (thirditem = cJSON_GetObjectItem(item, "c34"))
-    {
-      sprintf(par->bin_file_c34, "%s", thirditem->valuestring);
-    }
-    // c35 file
-    if (thirditem = cJSON_GetObjectItem(item, "c35"))
-    {
-      sprintf(par->bin_file_c35, "%s", thirditem->valuestring);
-    }
-    // c36 file
-    if (thirditem = cJSON_GetObjectItem(item, "c36"))
-    {
-      sprintf(par->bin_file_c36, "%s", thirditem->valuestring);
-    }
-    // c44 file
-    if (thirditem = cJSON_GetObjectItem(item, "c44"))
-    {
-      sprintf(par->bin_file_c44, "%s", thirditem->valuestring);
-    }
-    // c45 file
-    if (thirditem = cJSON_GetObjectItem(item, "c45"))
-    {
-      sprintf(par->bin_file_c45, "%s", thirditem->valuestring);
-    }
-    // c46 file
-    if (thirditem = cJSON_GetObjectItem(item, "c46"))
-    {
-      sprintf(par->bin_file_c46, "%s", thirditem->valuestring);
-    }
-    // c55 file
-    if (thirditem = cJSON_GetObjectItem(item, "c55"))
-    {
-      sprintf(par->bin_file_c55, "%s", thirditem->valuestring);
-    }
-    // c56 file
-    if (thirditem = cJSON_GetObjectItem(item, "c56"))
-    {
-      sprintf(par->bin_file_c56, "%s", thirditem->valuestring);
-    }
-    // c66 file
-    if (thirditem = cJSON_GetObjectItem(item, "c66"))
-    {
-      sprintf(par->bin_file_c66, "%s", thirditem->valuestring);
-    }
-    // Qp file
-    if (thirditem = cJSON_GetObjectItem(item, "Qp"))
-    {
-      sprintf(par->bin_file_Qp, "%s", thirditem->valuestring);
-    }
-    // Qs file
-    if (thirditem = cJSON_GetObjectItem(item, "Qs"))
-    {
-      sprintf(par->bin_file_Qs, "%s", thirditem->valuestring);
-    }
-    // need to add other model parameters
-    num_medium_input_way++;
-  } // if binfile
-
-  if (strcmp(par->media_type, "viscoelastic_iso")==0) 
-  {
-    if (par->media_input_itype == PAR_MEDIA_3LAY || par->media_input_itype == PAR_MEDIA_3GRD || par->media_input_itype == PAR_MEDIA_3BIN){
-      if (subitem = cJSON_GetObjectItem(item, "Qp")){
-        sprintf(par->Qp_input_file, "%s", subitem->valuestring);
-      }
-      if (subitem = cJSON_GetObjectItem(item, "Qs")){
-        sprintf(par->Qs_input_file, "%s", subitem->valuestring);
+      par->media_input_itype = PAR_MEDIA_3LAY;
+      if (subitem = cJSON_GetObjectItem(item, "infile_layer")) 
+      {
+          sprintf(par->media_input_file, "%s", subitem->valuestring);
       }
     }
-  }
 
-  // equivalent method
-  if (subitem = cJSON_GetObjectItem(root, "medium_equivalent_method")) {
+    // if input by grid file
+    if (strcmp(par->media_input_way,"infile_grid") == 0)
+    {
+      par->media_input_itype = PAR_MEDIA_3GRD;
+      if (subitem = cJSON_GetObjectItem(item, "infile_grid"))
+      {
+        sprintf(par->media_input_file, "%s", subitem->valuestring);
+      }
+    }
+
+    // if input by bin file
+    if (strcmp(par->media_input_way,"binfile") == 0)
+    {
+      par->media_input_itype = PAR_MEDIA_3BIN;
+      if (subitem = cJSON_GetObjectItem(item, "binfile"))
+      {
+        // size
+        if (thirditem = cJSON_GetObjectItem(subitem, "size")) {
+          for (int i = 0; i < CONST_NDIM; i++) {
+            par->bin_size[i] = cJSON_GetArrayItem(thirditem, i)->valueint;
+          }
+        }
+        // spacing
+        if (thirditem = cJSON_GetObjectItem(subitem, "spacing")) {
+          for (int i = 0; i < CONST_NDIM; i++) {
+            par->bin_spacing[i] = cJSON_GetArrayItem(thirditem, i)->valuedouble;
+          }
+        }
+        // origin
+        if (thirditem = cJSON_GetObjectItem(subitem, "origin")) {
+          for (int i = 0; i < CONST_NDIM; i++) {
+            par->bin_origin[i] = cJSON_GetArrayItem(thirditem, i)->valuedouble;
+          }
+        }
+        // dim1
+        if (thirditem = cJSON_GetObjectItem(subitem, "dim1"))
+        {
+          sprintf(par->bin_dim1_name, "%s", thirditem->valuestring);
+          if (strcmp(par->bin_dim1_name,"x")==0) {
+            par->bin_order[0] = 0;
+          } else if (strcmp(par->bin_dim1_name,"y")==0) {
+            par->bin_order[0] = 1;
+          } else if (strcmp(par->bin_dim1_name,"z")==0) {
+            par->bin_order[0] = 2;
+          }
+        }
+        // dim2
+        if (thirditem = cJSON_GetObjectItem(subitem, "dim2"))
+        {
+          sprintf(par->bin_dim2_name, "%s", thirditem->valuestring);
+          if (strcmp(par->bin_dim2_name,"x")==0) {
+            par->bin_order[1] = 0;
+          } else if (strcmp(par->bin_dim2_name,"y")==0) {
+            par->bin_order[1] = 1;
+          } else if (strcmp(par->bin_dim2_name,"z")==0) {
+            par->bin_order[1] = 2;
+          }
+        }
+        // dim3
+        if (thirditem = cJSON_GetObjectItem(subitem, "dim3"))
+        {
+          sprintf(par->bin_dim3_name, "%s", thirditem->valuestring);
+          if (strcmp(par->bin_dim3_name,"x")==0) {
+            par->bin_order[2] = 0;
+          } else if (strcmp(par->bin_dim3_name,"y")==0) {
+            par->bin_order[2] = 1;
+          } else if (strcmp(par->bin_dim3_name,"z")==0) {
+            par->bin_order[2] = 2;
+          }
+        }
+
+        // rho file
+        if (thirditem = cJSON_GetObjectItem(subitem, "rho"))
+        {
+          sprintf(par->bin_file_rho, "%s", thirditem->valuestring);
+        }
+        // Vp file
+        if (thirditem = cJSON_GetObjectItem(subitem, "Vp"))
+        {
+          sprintf(par->bin_file_vp, "%s", thirditem->valuestring);
+        }
+        // Vs file
+        if (thirditem = cJSON_GetObjectItem(subitem, "Vs"))
+        {
+          sprintf(par->bin_file_vs, "%s", thirditem->valuestring);
+        }
+        // epsilon file
+        if (thirditem = cJSON_GetObjectItem(subitem, "epsilon"))
+        {
+          sprintf(par->bin_file_epsilon, "%s", thirditem->valuestring);
+        }
+        // delta file
+        if (thirditem = cJSON_GetObjectItem(subitem, "delta"))
+        {
+          sprintf(par->bin_file_delta, "%s", thirditem->valuestring);
+        }
+        // gamma file
+        if (thirditem = cJSON_GetObjectItem(subitem, "gamma"))
+        {
+          sprintf(par->bin_file_gamma, "%s", thirditem->valuestring);
+        }
+        // c11 file
+        if (thirditem = cJSON_GetObjectItem(subitem, "c11"))
+        {
+          sprintf(par->bin_file_c11, "%s", thirditem->valuestring);
+        }
+        // c12 file
+        if (thirditem = cJSON_GetObjectItem(subitem, "c12"))
+        {
+          sprintf(par->bin_file_c12, "%s", thirditem->valuestring);
+        }
+        // c13 file
+        if (thirditem = cJSON_GetObjectItem(subitem, "c13"))
+        {
+          sprintf(par->bin_file_c13, "%s", thirditem->valuestring);
+        }
+        // c14 file
+        if (thirditem = cJSON_GetObjectItem(subitem, "c14"))
+        {
+          sprintf(par->bin_file_c14, "%s", thirditem->valuestring);
+        }
+        // c15 file
+        if (thirditem = cJSON_GetObjectItem(subitem, "c15"))
+        {
+          sprintf(par->bin_file_c15, "%s", thirditem->valuestring);
+        }
+        // c16 file
+        if (thirditem = cJSON_GetObjectItem(subitem, "c16"))
+        {
+          sprintf(par->bin_file_c16, "%s", thirditem->valuestring);
+        }
+        // c22 file
+        if (thirditem = cJSON_GetObjectItem(subitem, "c22"))
+        {
+          sprintf(par->bin_file_c22, "%s", thirditem->valuestring);
+        }
+        // c23 file
+        if (thirditem = cJSON_GetObjectItem(subitem, "c23"))
+        {
+          sprintf(par->bin_file_c23, "%s", thirditem->valuestring);
+        }
+        // c24 file
+        if (thirditem = cJSON_GetObjectItem(subitem, "c24"))
+        {
+          sprintf(par->bin_file_c24, "%s", thirditem->valuestring);
+        }
+        // c25 file
+        if (thirditem = cJSON_GetObjectItem(subitem, "c25"))
+        {
+          sprintf(par->bin_file_c25, "%s", thirditem->valuestring);
+        }
+        // c26 file
+        if (thirditem = cJSON_GetObjectItem(subitem, "c26"))
+        {
+          sprintf(par->bin_file_c26, "%s", thirditem->valuestring);
+        }
+        // c33 file
+        if (thirditem = cJSON_GetObjectItem(subitem, "c33"))
+        {
+          sprintf(par->bin_file_c33, "%s", thirditem->valuestring);
+        }
+        // c34 file
+        if (thirditem = cJSON_GetObjectItem(subitem, "c34"))
+        {
+          sprintf(par->bin_file_c34, "%s", thirditem->valuestring);
+        }
+        // c35 file
+        if (thirditem = cJSON_GetObjectItem(subitem, "c35"))
+        {
+          sprintf(par->bin_file_c35, "%s", thirditem->valuestring);
+        }
+        // c36 file
+        if (thirditem = cJSON_GetObjectItem(subitem, "c36"))
+        {
+          sprintf(par->bin_file_c36, "%s", thirditem->valuestring);
+        }
+        // c44 file
+        if (thirditem = cJSON_GetObjectItem(subitem, "c44"))
+        {
+          sprintf(par->bin_file_c44, "%s", thirditem->valuestring);
+        }
+        // c45 file
+        if (thirditem = cJSON_GetObjectItem(subitem, "c45"))
+        {
+          sprintf(par->bin_file_c45, "%s", thirditem->valuestring);
+        }
+        // c46 file
+        if (thirditem = cJSON_GetObjectItem(subitem, "c46"))
+        {
+          sprintf(par->bin_file_c46, "%s", thirditem->valuestring);
+        }
+        // c55 file
+        if (thirditem = cJSON_GetObjectItem(subitem, "c55"))
+        {
+          sprintf(par->bin_file_c55, "%s", thirditem->valuestring);
+        }
+        // c56 file
+        if (thirditem = cJSON_GetObjectItem(subitem, "c56"))
+        {
+          sprintf(par->bin_file_c56, "%s", thirditem->valuestring);
+        }
+        // c66 file
+        if (thirditem = cJSON_GetObjectItem(subitem, "c66"))
+        {
+          sprintf(par->bin_file_c66, "%s", thirditem->valuestring);
+        }
+        // Qp file
+        if (thirditem = cJSON_GetObjectItem(subitem, "Qp"))
+        {
+          sprintf(par->bin_file_Qp, "%s", thirditem->valuestring);
+        }
+        // Qs file
+        if (thirditem = cJSON_GetObjectItem(subitem, "Qs"))
+        {
+          sprintf(par->bin_file_Qs, "%s", thirditem->valuestring);
+        }
+        // need to add other model parameters
+
+      } // find binfile
+    } // if binfile
+
+    if (strcmp(par->media_type, "viscoelastic_iso")==0) 
+    {
+      if (par->media_input_itype == PAR_MEDIA_3LAY || par->media_input_itype == PAR_MEDIA_3GRD || par->media_input_itype == PAR_MEDIA_3BIN){
+        if (subitem = cJSON_GetObjectItem(item, "Qp")){
+          sprintf(par->Qp_input_file, "%s", subitem->valuestring);
+        }
+        if (subitem = cJSON_GetObjectItem(item, "Qs")){
+          sprintf(par->Qs_input_file, "%s", subitem->valuestring);
+        }
+      }
+    }
+
+    if (subitem = cJSON_GetObjectItem(item, "equivalent_medium_method")) {
         sprintf(par->equivalent_medium_method, "%s", subitem->valuestring);
+    }
   }
 
-  par->is_export_media = 0;
-  if (item = cJSON_GetObjectItem(root, "media_export_to_dir")) {
-     par->is_export_media = 1;
-     sprintf(par->media_export_dir,"%s",item->valuestring);
+  par->is_export_media = 1;
+  if (item = cJSON_GetObjectItem(root, "is_export_media")) {
+     par->is_export_media = item->valueint;
   }
-
-  // check if only one grid method is set
-  if (num_medium_input_way != 1) {
-     fprintf(stderr,"ERROR: num_medium_input_way=%d, no medium or more than one medium were set\n", 
-             num_medium_input_way); fflush(stderr);
-     MPI_Abort(MPI_COMM_WORLD,9);
+  if (item = cJSON_GetObjectItem(root, "media_export_dir")) {
+      sprintf(par->media_export_dir,"%s",item->valuestring);
   }
 
   //
@@ -792,10 +794,12 @@ par_read_from_str(const char *str, par_t *par)
       sprintf(par->source_input_file, "%s", item->valuestring);
   }
 
-  par->is_export_source = 0;
-  if (item = cJSON_GetObjectItem(root, "source_export_to_dir")) {
-     par->is_export_source = 1;
-     sprintf(par->source_export_dir,"%s",item->valuestring);
+  par->is_export_source = 1;
+  if (item = cJSON_GetObjectItem(root, "is_export_source")) {
+     par->is_export_source = item->valueint;
+  }
+  if (item = cJSON_GetObjectItem(root, "source_export_dir")) {
+      sprintf(par->source_export_dir,"%s",item->valuestring);
   }
 
   // input source file
@@ -820,89 +824,58 @@ par_read_from_str(const char *str, par_t *par)
   }
 
   //-- receiver
-
-  // default
-  par->station_save_by_sac = 0;
-  par->recv_save_velocity = 1;
-  par->recv_save_stress   = 0;
-  par->recv_save_strain   = 0;
-  par->recv_nt_per_out    = -1; // all nt
-  par->number_of_receiver_line = 0;
-
-  if (item = cJSON_GetObjectItem(root, "receiver"))
-  {
-    // flags
-    if (subitem = cJSON_GetObjectItem(item, "save_velocity")) {
-        par->recv_save_velocity = subitem->valueint;
-    }
-    if (subitem = cJSON_GetObjectItem(item, "save_stress")) {
-        par->recv_save_stress = subitem->valueint;
-    }
-    if (subitem = cJSON_GetObjectItem(item, "save_strain")) {
-        par->recv_save_strain = subitem->valueint;
-    }
-    // nt_per_out
-    if (subitem = cJSON_GetObjectItem(item, "time_step_per_save")) {
-        par->recv_nt_per_out = subitem->valueint;
-    }
-
-    //-- station in file name
-    if (subitem = cJSON_GetObjectItem(item, "station_file")) {
-      sprintf(par->in_station_file, "%s", subitem->valuestring);
-    }
-    if (subitem = cJSON_GetObjectItem(item, "station_save_by_sac")) {
-        par->station_save_by_sac = subitem->valueint;
-    }
-
-    //-- receiver line
-    if (subitem = cJSON_GetObjectItem(item, "receiver_line"))
-    {
-      par->number_of_receiver_line = cJSON_GetArraySize(subitem);
-      par->receiver_line_index_start  = (int *)malloc(par->number_of_receiver_line*sizeof(int)*CONST_NDIM);
-      par->receiver_line_index_incre  = (int *)malloc(par->number_of_receiver_line*sizeof(int)*CONST_NDIM);
-      par->receiver_line_count  = (int *)malloc(par->number_of_receiver_line*sizeof(int));
-      //par->receiver_line_time_interval  = (int *)malloc(par->number_of_receiver_line*sizeof(int));
-      par->receiver_line_name = (char **)malloc(par->number_of_receiver_line*sizeof(char*));
-      for (int n=0; n<par->number_of_receiver_line; n++) {
-        par->receiver_line_name[n] = (char *)malloc(PAR_MAX_STRLEN*sizeof(char));
-      }
-      // each line
-      for (int i=0; i < cJSON_GetArraySize(subitem) ; i++)
-      {
-        lineitem = cJSON_GetArrayItem(subitem, i);
-
-        if (thirditem = cJSON_GetObjectItem(lineitem, "name"))
-        {
-          sprintf(par->receiver_line_name[i],"%s",thirditem->valuestring);
-        }
-
-        if (thirditem = cJSON_GetObjectItem(lineitem, "grid_index_start"))
-        {
-          for (int j = 0; j < CONST_NDIM; j++) {
-            par->receiver_line_index_start[i*CONST_NDIM+j] = cJSON_GetArrayItem(thirditem, j)->valueint;
-          }
-        }
-
-        if (thirditem = cJSON_GetObjectItem(lineitem, "grid_index_incre"))
-        {
-          for (int j = 0; j < CONST_NDIM; j++) {
-            par->receiver_line_index_incre[i*CONST_NDIM+j] = cJSON_GetArrayItem(thirditem, j)->valueint;
-          }
-        }
-
-        if (thirditem = cJSON_GetObjectItem(lineitem, "grid_index_count"))
-        {
-           par->receiver_line_count[i] = thirditem->valueint;
-        }
-
-        //if (thirditem = cJSON_GetObjectItem(lineitem, "t_index_interval"))
-        //{
-        //   par->receiver_line_tinterval[i] = cJSON_GetArrayItem(thirditem, j)->valueint;
-        //}
-      }
-    }
+  if (item = cJSON_GetObjectItem(root, "in_station_file")) {
+    sprintf(par->in_station_file, "%s", item->valuestring);
   }
 
+  //-- receiver line
+  par->number_of_receiver_line = 0;
+  if (item = cJSON_GetObjectItem(root, "receiver_line"))
+  {
+    par->number_of_receiver_line = cJSON_GetArraySize(item);
+    par->receiver_line_index_start  = (int *)malloc(par->number_of_receiver_line*sizeof(int)*CONST_NDIM);
+    par->receiver_line_index_incre  = (int *)malloc(par->number_of_receiver_line*sizeof(int)*CONST_NDIM);
+    par->receiver_line_count  = (int *)malloc(par->number_of_receiver_line*sizeof(int));
+    //par->receiver_line_time_interval  = (int *)malloc(par->number_of_receiver_line*sizeof(int));
+    par->receiver_line_name = (char **)malloc(par->number_of_receiver_line*sizeof(char*));
+    for (int n=0; n<par->number_of_receiver_line; n++) {
+      par->receiver_line_name[n] = (char *)malloc(PAR_MAX_STRLEN*sizeof(char));
+    }
+    // each line
+    for (int i=0; i < cJSON_GetArraySize(item) ; i++)
+    {
+      lineitem = cJSON_GetArrayItem(item, i);
+
+      if (subitem = cJSON_GetObjectItem(lineitem, "name"))
+      {
+        sprintf(par->receiver_line_name[i],"%s",subitem->valuestring);
+      }
+
+      if (subitem = cJSON_GetObjectItem(lineitem, "grid_index_start"))
+      {
+        for (int j = 0; j < CONST_NDIM; j++) {
+          par->receiver_line_index_start[i*CONST_NDIM+j] = cJSON_GetArrayItem(subitem, j)->valueint;
+        }
+      }
+
+      if (subitem = cJSON_GetObjectItem(lineitem, "grid_index_incre"))
+      {
+        for (int j = 0; j < CONST_NDIM; j++) {
+          par->receiver_line_index_incre[i*CONST_NDIM+j] = cJSON_GetArrayItem(subitem, j)->valueint;
+        }
+      }
+
+      if (subitem = cJSON_GetObjectItem(lineitem, "grid_index_count"))
+      {
+         par->receiver_line_count[i] = subitem->valueint;
+      }
+
+      //if (subitem = cJSON_GetObjectItem(lineitem, "t_index_interval"))
+      //{
+      //   par->receiver_line_tinterval[i] = cJSON_GetArrayItem(subitem, j)->valueint;
+      //}
+    }
+  }
 
   // slice
   // default
@@ -959,7 +932,6 @@ par_read_from_str(const char *str, par_t *par)
     par->snapshot_save_velocity = (int *)malloc(par->number_of_snapshot*sizeof(int));
     par->snapshot_save_stress  = (int *)malloc(par->number_of_snapshot*sizeof(int));
     par->snapshot_save_strain = (int *)malloc(par->number_of_snapshot*sizeof(int));
-    par->snapshot_save_coord  = (int *)malloc(par->number_of_snapshot*sizeof(int));
     // name of snapshot
     par->snapshot_name = (char **)malloc(par->number_of_snapshot*sizeof(char*));
     for (int n=0; n<par->number_of_snapshot; n++) {
@@ -1012,17 +984,7 @@ par_read_from_str(const char *str, par_t *par)
       if (subitem = cJSON_GetObjectItem(snapitem, "save_strain")) {
         par->snapshot_save_strain[i] = subitem->valueint;
       }
-      if (subitem = cJSON_GetObjectItem(snapitem, "save_coord")) {
-        par->snapshot_save_coord[i] = subitem->valueint;
-      }
     }
-  }
-
-  // if parallel netcdf
-  par->is_parallel_netcdf = 0;
-  if (item = cJSON_GetObjectItem(root, "parallel_netcdf"))
-  {
-      par->is_parallel_netcdf = item->valueint;
   }
 
   //-- misc

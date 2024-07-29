@@ -1,10 +1,10 @@
 #******************************************************************************#
 #*                                                                            *#
-#*                                   CGFD3D                                   *#
-#*                         ==========================                         *#
+#*                                CGFD3D-elastic                              *#
+#*                           =========================                        *#
 #*                                                                            *#
-#*                  Curvilinear-Grid Finite-Difference 3D Code                *#
-#*              for Seismic Wave Modeling with Surface Topography             *#
+#*             Curvilinear-Grid Finite-Difference Elastic Wave Modeling       *#
+#*                   in 3D Complex Media with Surface Topography              *#
 #*                                                                            *#
 #*                                                                            *#
 #*     A signed non-commercial agreement is required to use this program.     *#
@@ -17,7 +17,7 @@
 #*   ZHANG Wei      (zhangwei@sustech.edu.cn)                                 *#
 #*   CHEN Xiaofei   (chenxf@sustech.edu.cn)                                   *#
 #* Contributors:                                                              *#
-#*   Luqian Jiang, Hualin Li, Yuanhang Huo, Xu He,  Nan Zang, et al.          *#
+#*   Luqian Jiang, Yuanhang Huo, Wenliang Sun, Hualin Li, Nan Zang            *#
 #*                                                                            *#
 #* Revision History:                                                          *#
 #*   2005           original version implemented using Fortran90              *#
@@ -62,7 +62,7 @@
   
   1) create a run_make script based on run_make.mars or .server,
      set compiler env according to your system 
-  2) type run_make.xxx to compile the code, executables will be created under ./
+  2) type run_make to compile the code, executables will be created under ./
   3) use 
      example/cgfd3d_ablexp.sh
      example/cgfd3d_cfspml.sh
@@ -71,15 +71,19 @@
 
 4 Availability and use of the program package
 
+  Upon request from the authors.
+  Contact the authors to get the latest version. 
+
   If you use this code for your own research, please cite:
 
-  @article{Zhang2006,
+  @article{Zhang2006a,
   author={W. Zhang and X.f. Chen},
   year=2006,
   title={Traction image method for irregular free surface boundaries in finite
          difference seismic wave simulation},
-  journal={Geophysical Journal International},
-  volume=167, pages={337-353}}
+  journal={Geophys. J. Int.},
+  volume=167,
+  pages={337-353}}
 
   @article{Zhang2010,
   author={W. Zhang and Y. Shen},
@@ -87,20 +91,18 @@
   title={Unsplit complex frequency-shifted PML implementation using auxiliary
        differential equations for seismic wave modeling},
   journal={Geophysics},
-  volume={75}, number={4}, pages={T141-T154}}
+  volume={75},
+  number={4},
+  pages={T141-T154}}
 
   @article{Zhang_Zhang_Chen_2012,
   author={Zhang, Wei and Zhang, Zhenguo and Chen, Xiaofei},
   title={Three-dimensional elastic wave numerical modelling in the presence of
       surface topography by a collocated-grid finite-difference method on curvilinear grids},
   journal={Geophysical Journal International},
-  year={2012}, volume={190}, number={1}, pages={358–378}}
-
-  @article{Jiang_Zhang_2021,
-  author={Jiang, Luqian and Zhang, Wei},
-  title={TTI equivalent medium parametrization method for the seismic waveform modelling
-         of heterogeneous media with coarse grids},
-  journal={Geophysical Journal International},
-  year={2021}, volume={227},  number={3}, pages={2016–2043} }
+  year={2012},
+  volume={190},
+  number={1},
+  pages={358–378}}
 
 # vim:ft=conf:ts=4:sw=4:nu:et:ai:

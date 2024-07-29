@@ -104,6 +104,7 @@ int main(int argc, char** argv)
   bdry_t          *bdry          = blk->bdry;
   iorecv_t        *iorecv        = blk->iorecv;
   ioline_t        *ioline        = blk->ioline;
+  ioslice_t       *ioslice       = blk->ioslice;
   iosnap_t        *iosnap        = blk->iosnap;
 
   // set up fd_t
@@ -134,7 +135,6 @@ int main(int argc, char** argv)
   blk_set_output(blk, mympi,
                  par->output_dir,
                  par->grid_export_dir,
-                 par->metric_export_dir,
                  par->media_export_dir,
                  verbose);
 
@@ -172,10 +172,7 @@ int main(int argc, char** argv)
     case PAR_GRID_IMPORT :
 
         if (myid==0) fprintf(stdout,"import grid vars ...\n"); 
-        gd_curv_coord_import(gdcurv,
-                             par->is_parallel_netcdf,
-                             comm,
-                             blk->output_fname_part, par->grid_import_dir);
+        gd_curv_coord_import(gdcurv, blk->output_fname_part, par->grid_import_dir);
 
         break;
 
@@ -212,8 +209,6 @@ int main(int argc, char** argv)
   {
     if (myid==0) fprintf(stdout,"export coord to file ...\n"); 
     gd_curv_coord_export(gdcurv,
-                         par->is_parallel_netcdf,
-                         comm,
                          blk->output_fname_part,
                          blk->grid_export_dir);
   } else {
@@ -243,12 +238,7 @@ int main(int argc, char** argv)
     case PAR_METRIC_IMPORT :
 
         if (myid==0) fprintf(stdout,"import metric file ...\n"); 
-        gd_curv_metric_import(gdcurv,
-                              gdcurv_metric,
-                              par->is_parallel_netcdf,
-                              comm,
-                              blk->output_fname_part,
-                              par->grid_import_dir);
+        gd_curv_metric_import(gdcurv_metric, blk->output_fname_part, par->grid_import_dir);
 
         break;
   }
@@ -259,10 +249,8 @@ int main(int argc, char** argv)
   {
     if (myid==0) fprintf(stdout,"export metric to file ...\n"); 
     gd_curv_metric_export(gdcurv,gdcurv_metric,
-                          par->is_parallel_netcdf,
-                          comm,
                           blk->output_fname_part,
-                          blk->metric_export_dir);
+                          blk->grid_export_dir);
   } else {
     if (myid==0) fprintf(stdout,"do not export metric\n"); 
   }
@@ -319,10 +307,7 @@ int main(int argc, char** argv)
     case PAR_MEDIA_IMPORT : {
 
         if (myid==0) fprintf(stdout,"import discrete medium file ...\n"); 
-        md_import(gdcurv, md,
-                  par->is_parallel_netcdf,
-                  comm,
-                  blk->output_fname_part, par->media_import_dir);
+        md_import(md, blk->output_fname_part, par->media_import_dir);
 
         break;
     }
@@ -601,8 +586,6 @@ int main(int argc, char** argv)
     if (myid==0) fprintf(stdout,"export discrete medium to file ...\n"); 
 
     md_export(gdcurv, md,
-              par->is_parallel_netcdf,
-              comm,
               blk->output_fname_part,
               blk->media_export_dir);
   } else {
@@ -732,27 +715,30 @@ int main(int argc, char** argv)
   if (myid==0 && verbose>0) fprintf(stdout,"setup output info ...\n"); 
 
   // receiver: need to do
-  io_recv_read_locate(gdcurv, iorecv, nt_total, 
-                      par->recv_nt_per_out,
-                      par->station_save_by_sac,
-                      par->recv_save_velocity,
-                      par->recv_save_stress,
-                      par->recv_save_strain,
-                      par->in_station_file,
+  io_recv_read_locate(gdcurv, iorecv,
+                      nt_total, wav->ncmp, par->in_station_file,
                       comm, myid, verbose);
 
   // line
-  io_line_locate(gdcurv, ioline, nt_total,
-                 par->recv_nt_per_out,
-                 par->recv_save_velocity,
-                 par->recv_save_stress,
-                 par->recv_save_strain,
+  io_line_locate(gdcurv, ioline,
+                 wav->ncmp,
+                 nt_total,
                  par->number_of_receiver_line,
                  par->receiver_line_index_start,
                  par->receiver_line_index_incre,
                  par->receiver_line_count,
                  par->receiver_line_name);
   
+  // slice
+  io_slice_locate(gdcurv, ioslice,
+                  par->number_of_slice_x,
+                  par->number_of_slice_y,
+                  par->number_of_slice_z,
+                  par->slice_x_index,
+                  par->slice_y_index,
+                  par->slice_z_index,
+                  blk->output_fname_part,
+                  blk->output_dir);
   
   // snapshot
   io_snapshot_locate(gdcurv, iosnap,
@@ -766,7 +752,7 @@ int main(int argc, char** argv)
                      par->snapshot_save_velocity,
                      par->snapshot_save_stress,
                      par->snapshot_save_strain,
-                     par->snapshot_save_coord,
+                     blk->output_fname_part,
                      blk->output_dir);
 
 //-------------------------------------------------------------------------------
@@ -836,6 +822,8 @@ int main(int argc, char** argv)
 
   gd_print(gdcurv,verbose);
 
+  ioslice_print(ioslice);
+
   iosnap_print(iosnap);
 
 //-------------------------------------------------------------------------------
@@ -852,11 +840,10 @@ int main(int argc, char** argv)
   drv_rk_curv_col_allstep(fd,gdcurv,gdcurv_metric,md,
                             src,bdry,
                             wav, mympi,
-                            iorecv,ioline,iosnap,
+                            iorecv,ioline,ioslice,iosnap,
                             dt,nt_total,t0,
                             blk->output_fname_part,
                             blk->output_dir,
-                            par->is_parallel_netcdf,
                             par->check_nan_every_nummber_of_steps,
                             par->output_all,
                             verbose);
@@ -871,9 +858,30 @@ int main(int argc, char** argv)
 //-- save station and line seismo to sac
 //-------------------------------------------------------------------------------
 
-  if (iorecv->file_type_sac == 1) {
-    io_recv_output_sac(iorecv,md,dt,wav->cmp_name,src->evtnm,blk->output_dir,err_message);
+  io_recv_output_sac(iorecv,dt,wav->ncmp,wav->visco_type,wav->cmp_name,
+                      src->evtnm,blk->output_dir,err_message);
+
+  if(md->medium_type == CONST_MEDIUM_ELASTIC_ISO || md->medium_type == CONST_MEDIUM_VISCOELASTIC_ISO) {
+    io_recv_output_sac_el_iso_strain(iorecv,md->lambda,md->mu,dt,
+                      src->evtnm,blk->output_dir,err_message);
   }
+  if(md->medium_type == CONST_MEDIUM_ELASTIC_VTI) {
+    io_recv_output_sac_el_vti_strain(iorecv,md->c11,md->c13,
+                      md->c33,md->c55,md->c66,dt,
+                      src->evtnm,blk->output_dir,err_message);
+  }
+  if(md->medium_type == CONST_MEDIUM_ELASTIC_ANISO) {
+    io_recv_output_sac_el_aniso_strain(iorecv,
+                     md->c11,md->c12,md->c13,md->c14,md->c15,md->c16,
+                             md->c22,md->c23,md->c24,md->c25,md->c26,
+                             md->c33,md->c34,md->c35,md->c36,
+                                     md->c44,md->c45,md->c46,
+                                     md->c55,md->c56,
+                                             md->c66,
+                     dt,src->evtnm,blk->output_dir,err_message);
+  }
+
+  io_line_output_sac(ioline,dt,wav->cmp_name,src->evtnm,blk->output_dir);
 
 //-------------------------------------------------------------------------------
 //-- postprocess
