@@ -5,8 +5,8 @@
 date
 
 #-- system related dir, from module env or manually set
-MPIDIR=/share/apps/gnu-4.8.5/mpich-3.3
-#MPIDIR=$MPI_ROOT
+#MPIDIR=/share/apps/gnu-4.8.5/mpich-3.3
+MPIDIR=$MPI_ROOT
 
 #-- program related dir
 CUR_DIR=`pwd`
@@ -16,16 +16,16 @@ EXEC_WAVE=${EXE_DIR}/main_curv_col_el_3d
 echo "EXEC_WAVE=$EXEC_WAVE"
 
 #-- output and conf
-PROJDIR=~/work/cgfd3d-wave-el/ablexp20c
-#PROJDIR=~/work/cgfd3d-wave-el/ablexp1test
+PROJDIR=~/work/cgfd3d/eij
 EVTNM=codetest
 echo "PROJDIR=${PROJDIR}"
 echo "EVTNM=${EVTNM}"
 
 PAR_FILE=${PROJDIR}/test.json
-GRID_DIR=${PROJDIR}/output
-MEDIA_DIR=${PROJDIR}/output
-SOURCE_DIR=${PROJDIR}/output
+GRID_DIR=${PROJDIR}/fd_grid
+METRIC_DIR=${PROJDIR}/fd_grid
+MEDIA_DIR=${PROJDIR}/fd_medium
+SOURCE_DIR=${PROJDIR}/fd_src
 OUTPUT_DIR=${PROJDIR}/output
 
 #RUN_SCRIPT_FILE=${PROJDIR}/runscript.sh
@@ -36,7 +36,9 @@ echo "RUN_SCRIPT_FILE=${RUN_SCRIPT_FILE}"
 mkdir -p $PROJDIR
 mkdir -p $OUTPUT_DIR
 mkdir -p $GRID_DIR
+mkdir -p $METRIC_DIR
 mkdir -p $MEDIA_DIR
+mkdir -p $SOURCE_DIR
 
 #-- tmp dir should be in local, here is for test
 TMP_DIR=${PROJDIR}/scratch
@@ -47,7 +49,7 @@ mkdir -p ${TMP_DIR}
 #----------------------------------------------------------------------
 
 #-- total x grid points
-NX=300
+NX=200
 #-- total y grid points
 NY=300
 #-- total z grid points
@@ -109,9 +111,13 @@ create_station_file()
 {
 cat << ieof > $PROJDIR/test.station
 # number of station
-1
+5
 # name is_physical_coord is_3dim_depth  x y z
 r1  1  1  1000 1000 0
+r2  1  1  2000 2000 0
+r3  1  1  3000 3000 0
+r4  1  1  4000 4000 0
+r5  1  1  5000 5000 0
 ieof
 
 echo "+ created $PROJDIR/test.station"
@@ -135,7 +141,7 @@ cat << ieof > $PAR_FILE
   "#size_of_time_step" : 0.008,
   "#size_of_time_step" : 0.020,
   "#number_of_time_steps" : 500,
-  "time_window_length" : 6,
+  "time_window_length" : 5,
   "check_stability" : 1,
 
   "boundary_x_left" : {
@@ -172,33 +178,32 @@ cat << ieof > $PAR_FILE
       "free" : "timg"
       },
 
-  "grid_generation_method" : {
-      "#import" : "$GRID_DIR",
-      "cartesian" : {
-        "origin"  : [0.0, 0.0, -5900.0 ],
-        "inteval" : [ 100.0, 100.0, 100.0 ]
+
+  "#==": "set one and only one grid input method from following three ways",
+  "#grid_import_from_previous_run" : "$GRID_DIR",
+  "grid_generate_by_cartesian" : {
+      "origin"  : [0.0, 0.0, -5900.0 ],
+      "inteval" : [ 100.0, 100.0, 100.0 ]
       },
-      "#layer_interp" : {
-        "in_grid_layer_file" : "${CUR_DIR}/prep_grid/tangshan_area_topo.gdlay",
+  "#grid_generate_by_gdlay" : {
+        "file_name" : "${CUR_DIR}/prep_grid/tangshan_area_topo.gdlay",
         "refine_factor" : [ 1, 1, 1 ],
         "horizontal_start_index" : [ 3, 3 ],
         "vertical_last_to_top" : 0
-      }
   },
-  "is_export_grid" : 1,
-  "grid_export_dir"   : "$GRID_DIR",
+  "grid_export_to_dir"   : "$GRID_DIR",
 
-  "metric_calculation_method" : {
-      "#import" : "$GRID_DIR",
-      "calculate" : 1
-  },
-  "is_export_metric" : 1,
 
-  "medium" : {
-      "type" : "elastic_iso",
-      "input_way" : "code",
-      "#input_way" : "binfile",
-      "binfile" : {
+  "#metric_import_from_previous_run" : "$METRIC_DIR",
+  "metric_export_to_dir"   : "$METRIC_DIR",
+
+
+  "medium_type" : "elastic_iso",
+
+  "#==": "set one and only one medium input method from following five ways",
+  "#medium_import_from_previous_run" : "$MEDIA_DIR",
+  "medium_create_in_code" : "func_name_here",
+  "#medium_read_from_binfile" : {
         "size"    : [1101, 1447, 1252],
         "spacing" : [-10, 10, 10],
         "origin"  : [0.0,0.0,0.0],
@@ -209,15 +214,12 @@ cat << ieof > $PAR_FILE
         "Vs" : "${CUR_DIR}/prep_medium/seam_Vs.bin",
         "rho" : "${CUR_DIR}/prep_medium/seam_rho.bin"
       },
-      "code" : "func_name_here",
-      "#import" : "$MEDIA_DIR",
-      "#infile_layer" : "${CUR_DIR}/prep_medium/basin_el_iso.md3lay",
-      "#infile_grid" : "${CUR_DIR}/prep_medium/topolay_el_iso.md3grd",
-      "equivalent_medium_method" : "loc",
-      "#equivalent_medium_method" : "har"
-  },
-  "is_export_media" : 1,
-  "media_export_dir"  : "$MEDIA_DIR",
+  "#medium_read_from_mdlay" : "${CUR_DIR}/prep_medium/basin_el_iso.md3lay",
+  "#medium_read_from_mdgrd" : "${CUR_DIR}/prep_medium/basin_el_iso.md3grd",
+
+  "medium_equivalent_method" : "loc",
+  "#medium_equivalent_method" : "har",
+  "media_export_to_dir"  : "$MEDIA_DIR",
 
   "#visco_config" : {
       "type" : "gmb",
@@ -229,40 +231,39 @@ cat << ieof > $PAR_FILE
   },
 
   "in_source_file" : "$PROJDIR/test.src",
-  "is_export_source" : 1,
-  "source_export_dir"  : "$SOURCE_DIR",
+  "source_export_to_dir"  : "$SOURCE_DIR",
 
   "#in_ddsource_file" : "${CUR_DIR}/prep_source/event_3moment_srcdd.nc",
 
-  "output_dir" : "$OUTPUT_DIR",
-  "tmp_dir"    : "$TMP_DIR",
+  "!-- station or line output" : "--!",
+  "receiver" : {
+      "save_velocity" : 1,
+      "save_stress"   : 1,
+      "save_strain"   : 1,
+      "time_step_per_save" : 10,
 
-  "in_station_file" : "$PROJDIR/test.station",
+      "station_file"        : "$PROJDIR/test.station",
+      "station_save_by_sac" : 0,
 
-  "#receiver_line" : [
-    {
-      "name" : "line_x_1",
-      "grid_index_start"    : [  0, 49, 59 ],
-      "grid_index_incre"    : [  1,  0,  0 ],
-      "grid_index_count"    : 20
-    },
-    {
-      "name" : "line_y_1",
-      "grid_index_start"    : [ 19, 49, 59 ],
-      "grid_index_incre"    : [  0,  1,  0 ],
-      "grid_index_count"    : 20
-    } 
-  ],
-
-  "slice" : {
-      "x_index" : [ 90, 149 ],
-      "y_index" : [ 90, 149 ],
-      "z_index" : [ 30, 59 ]
+      "receiver_line" : [
+        {
+          "name" : "line_x_1",
+          "grid_index_start"    : [  0, 49, 59 ],
+          "grid_index_incre"    : [  10,  0,  0 ],
+          "grid_index_count"    : 20
+        },
+        {
+          "name" : "line_y_1",
+          "grid_index_start"    : [ 19, 0, 59 ],
+          "grid_index_incre"    : [  0, 10,  0 ],
+          "grid_index_count"    : 30
+        } 
+      ]
   },
 
   "snapshot" : [
     {
-      "name" : "volume_vel",
+      "name" : "snap_surf",
       "grid_index_start" : [ 0, 0, $(( NZ - 1 )) ],
       "grid_index_count" : [ $NX, $NY, 1 ],
       "grid_index_incre" : [  1, 1, 1 ],
@@ -270,10 +271,27 @@ cat << ieof > $PAR_FILE
       "time_index_incre" : 1,
       "save_velocity" : 1,
       "save_stress"   : 1,
-      "save_strain"   : 0
+      "save_strain"   : 1,
+      "save_coord"    : 1
+    },
+    {
+      "name" : "snap_vol",
+      "grid_index_start" : [ 0, 0, 0 ],
+      "grid_index_count" : [ $NX, $NY, $NZ ],
+      "grid_index_incre" : [  1, 1, 1 ],
+      "time_index_start" : 0,
+      "time_index_incre" : 1,
+      "save_velocity" : 1,
+      "save_stress"   : 1,
+      "save_strain"   : 1,
+      "save_coord"    : 1
     }
   ],
 
+  "output_dir" : "$OUTPUT_DIR",
+  "tmp_dir"    : "$TMP_DIR",
+
+  "parallel_netcdf" : 1,
   "check_nan_every_nummber_of_steps" : 0,
   "output_all" : 0 
 }
@@ -393,9 +411,9 @@ create_source_file;
 create_station_file;
 
 #-- run with lsf
-#echo "sumbit to lsf ..."
-#create_script_lsf;
-#bsub < ${RUN_SCRIPT_FILE}
+echo "sumbit to lsf ..."
+create_script_lsf;
+bsub < ${RUN_SCRIPT_FILE}
 
 #-- run with pbs
 #echo "sumbit to pbs ..."
@@ -403,9 +421,9 @@ create_station_file;
 #qsub ${RUN_SCRIPT_FILE}
 
 #-- directly run
-echo "start run script ..."
-create_script_run;
-${RUN_SCRIPT_FILE}
+#echo "start run script ..."
+#create_script_run;
+#${RUN_SCRIPT_FILE}
 
 date
 

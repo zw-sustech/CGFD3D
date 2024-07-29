@@ -33,7 +33,6 @@ blk_init(blk_t *blk,
   blk->bdry          = (bdry_t     *)malloc(sizeof(bdry_t ));
   blk->iorecv        = (iorecv_t   *)malloc(sizeof(iorecv_t ));
   blk->ioline        = (ioline_t   *)malloc(sizeof(ioline_t ));
-  blk->ioslice       = (ioslice_t  *)malloc(sizeof(ioslice_t ));
   blk->iosnap        = (iosnap_t   *)malloc(sizeof(iosnap_t ));
 
   sprintf(blk->name, "%s", "single");
@@ -47,6 +46,7 @@ blk_set_output(blk_t *blk,
                mympi_t *mympi,
                char *output_dir,
                char *grid_export_dir,
+               char *metric_export_dir,
                char *media_export_dir,
                const int verbose)
 {
@@ -59,6 +59,7 @@ blk_set_output(blk_t *blk,
   // output
   sprintf(blk->output_dir, "%s", output_dir);
   sprintf(blk->grid_export_dir, "%s", grid_export_dir);
+  sprintf(blk->metric_export_dir, "%s", metric_export_dir);
   sprintf(blk->media_export_dir, "%s", media_export_dir);
 
   return 0;

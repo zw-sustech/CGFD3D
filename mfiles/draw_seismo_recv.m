@@ -9,14 +9,14 @@ clc;
 addmypath;
 % -------------------------- parameters input -------------------------- %
 % file and path name
-parfnm='../project/test.json';
-output_dir='../project/output';
+parfnm = '/share/home/zhangw/work/cgfd3d/sac2/test.json'
+output_dir='/share/home/zhangw/work/cgfd3d/sac2/output'
 
 % which variable to plot
-varnm='Exx';
+varnm='Vx';
 % which station to plot (start from index '1')
 startid=1;
-endid = 6;
+endid = 5;
 
 % figure control parameters
 flag_print=1;
@@ -25,8 +25,10 @@ flag_print=1;
 
 % read parameter file
 par=loadjson(parfnm);
+in_source_file  = par.in_source_file
+in_station_file = par.receiver.station_file
 
-fileID = fopen(par.in_source_file);
+fileID = fopen(in_source_file);
 recvprefix = fgetl(fileID);
 while(recvprefix(1) == "#")
     recvprefix = fgetl(fileID);
@@ -38,7 +40,7 @@ fclose(fileID);
 
 
 
-fileID = fopen(par.in_station_file);
+fileID = fopen(in_station_file);
 %first line is number recv or station
 %must read to skip
 for i=1:startid
@@ -50,7 +52,7 @@ end
 % load data
 for irec=startid:1:endid
     recvinfo = fgetl(fileID);
-    while(recvinfo(1) == "#")
+    while(recvinfo(1) == '#')
         recvinfo = fgetl(fileID);
     end
     recvinfo = strsplit(recvinfo);

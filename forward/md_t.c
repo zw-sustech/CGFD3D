@@ -8,11 +8,20 @@
 #include <stdlib.h>
 
 #include "netcdf.h"
+#include "netcdf_par.h"
 
 #include "constants.h"
 #include "fdlib_mem.h"
 #include "md_t.h"
 #include "par_t.h"
+
+#ifndef M_NCRET
+#define M_NCRET(ierr) {fprintf(stderr,"md nc error: %s\n", nc_strerror(ierr)); exit(1);}
+#endif
+
+#ifndef M_NCERR
+#define M_NCERR {fprintf(stderr,"md nc error\n"); exit(1);}
+#endif
 
 int
 md_init(gd_t *gdinfo, md_t *md, int media_type, int visco_type, int nmaxwell)
@@ -268,42 +277,69 @@ md_init(gd_t *gdinfo, md_t *md, int media_type, int visco_type, int nmaxwell)
 //
 
 int
-md_import(md_t *md, char *fname_coords, char *in_dir)
+md_import(gd_t *gd,
+          md_t *md,
+          int is_parallel_netcdf,
+          MPI_Comm comm, 
+          char *fname_coords, char *in_dir)
 {
   int ierr = 0;
 
+  int  nx = gd->nx;
+  int  ny = gd->ny;
+  int  nz = gd->nz;
+
+  // construct file name
   char in_file[CONST_MAX_STRLEN];
   
   int ncid, varid;
-  
-  // construct file name
-  sprintf(in_file, "%s/media_%s.nc", in_dir, fname_coords);
-  
-  // read in nc
-  ierr = nc_open(in_file, NC_NOWRITE, &ncid);
-  if (ierr != NC_NOERR){
-    fprintf(stderr,"nc error: %s\n", nc_strerror(ierr));
-    exit(-1);
+
+  // default for seperated nc
+  int start_i  = 0;
+  int start_j  = 0;
+  int start_k  = 0;
+
+  if (is_parallel_netcdf == 1)
+  {
+    sprintf(in_file, "%s/media.nc", in_dir);
+
+    if (ierr=nc_open_par(in_file, NC_NOWRITE | NC_NETCDF4, 
+                      comm, MPI_INFO_NULL, &ncid)) M_NCRET(ierr);
+
+    start_i  = gd->nx1_to_glob_halo0;
+    start_j  = gd->ny1_to_glob_halo0;
+    start_k  = gd->nz1_to_glob_halo0;
+  }
+  else
+  {
+    sprintf(in_file, "%s/media_%s.nc", in_dir, fname_coords);
+
+    if (ierr = nc_open(in_file, NC_NOWRITE, &ncid)) M_NCRET(ierr);
   }
   
-  for (int icmp=0; icmp < md->ncmp; icmp++) {
-      ierr = nc_inq_varid(ncid, md->cmp_name[icmp], &varid);
-      if (ierr != NC_NOERR){
-        fprintf(stderr,"nc error: %s\n", nc_strerror(ierr));
-        exit(-1);
-      }
+  for (int icmp=0; icmp < md->ncmp; icmp++)
+  {
+    float *ptr = md->v4d + md->cmp_pos[icmp];
+    size_t startp[] = { start_k, start_j, start_i };
+    size_t countp[] = { nz, ny, nx };
+
+    ierr = nc_inq_varid(ncid, md->cmp_name[icmp], &varid);
+    if (ierr != NC_NOERR){
+      fprintf(stderr,"md nc inq error: %s\n", nc_strerror(ierr));
+      exit(-1);
+    }
   
-      ierr = nc_get_var_float(ncid,varid,md->v4d + md->cmp_pos[icmp]);
-      if (ierr != NC_NOERR){
-        fprintf(stderr,"nc error: %s\n", nc_strerror(ierr));
-        exit(-1);
-      }
+    ierr = nc_get_vara_float(ncid, varid,startp,countp,ptr);
+    if (ierr != NC_NOERR){
+      fprintf(stderr,"md nc get var error: %s\n", nc_strerror(ierr));
+      exit(-1);
+    }
   }
   
   // close file
   ierr = nc_close(ncid);
   if (ierr != NC_NOERR){
-    fprintf(stderr,"nc error: %s\n", nc_strerror(ierr));
+    fprintf(stderr,"md nc close error: %s\n", nc_strerror(ierr));
     exit(-1);
   }
 
@@ -312,9 +348,11 @@ md_import(md_t *md, char *fname_coords, char *in_dir)
 
 int
 md_export(gd_t  *gdinfo,
-                 md_t *md,
-                 char *fname_coords,
-                 char *output_dir)
+          md_t *md,
+          int is_parallel_netcdf,
+          MPI_Comm comm, 
+          char *fname_coords,
+          char *output_dir)
 {
   int ierr = 0;
 
@@ -339,23 +377,50 @@ md_export(gd_t  *gdinfo,
 
   // construct file name
   char ou_file[CONST_MAX_STRLEN];
-  sprintf(ou_file, "%s/media_%s.nc", output_dir, fname_coords);
+
+  // default dim size as seperated nc
+  int dimx_siz = nx;
+  int dimy_siz = ny;
+  int dimz_siz = nz;
+  int start_i  = 0;
+  int start_j  = 0;
+  int start_k  = 0;
   
   // read in nc
   int ncid;
   int varid[number_of_vars];
   int dimid[CONST_NDIM];
 
-  ierr = nc_create(ou_file, NC_CLOBBER, &ncid);
-  if (ierr != NC_NOERR){
-    fprintf(stderr,"creat coord nc error: %s\n", nc_strerror(ierr));
-    exit(-1);
+  if (is_parallel_netcdf == 1)
+  {
+    sprintf(ou_file, "%s/media.nc", output_dir);
+
+    if (ierr=nc_create_par(ou_file, NC_CLOBBER | NC_NETCDF4, 
+                      comm, MPI_INFO_NULL, &ncid)) M_NCRET(ierr);
+
+    // reset dimx_siz etc
+    dimx_siz = gdinfo->glob_nx;
+    dimy_siz = gdinfo->glob_ny;
+    dimz_siz = gdinfo->glob_nz;
+    start_i  = gdinfo->nx1_to_glob_halo0;
+    start_j  = gdinfo->ny1_to_glob_halo0;
+    start_k  = gdinfo->nz1_to_glob_halo0;
+  }
+  else
+  {
+    sprintf(ou_file, "%s/media_%s.nc", output_dir, fname_coords);
+
+    ierr = nc_create(ou_file, NC_CLOBBER, &ncid);
+    if (ierr != NC_NOERR){
+      fprintf(stderr,"creat coord nc error: %s\n", nc_strerror(ierr));
+      exit(-1);
+    }
   }
 
   // define dimension
-  ierr = nc_def_dim(ncid, "i", nx, &dimid[2]);
-  ierr = nc_def_dim(ncid, "j", ny, &dimid[1]);
-  ierr = nc_def_dim(ncid, "k", nz, &dimid[0]);
+  ierr = nc_def_dim(ncid, "i", dimx_siz, &dimid[2]);
+  ierr = nc_def_dim(ncid, "j", dimy_siz, &dimid[1]);
+  ierr = nc_def_dim(ncid, "k", dimz_siz, &dimid[0]);
 
   // define vars
   for (int ivar=0; ivar<number_of_vars; ivar++) {
@@ -363,25 +428,31 @@ md_export(gd_t  *gdinfo,
   }
 
   // attribute: index in output snapshot, index w ghost in thread
-  int l_start[] = { ni1, nj1, nk1 };
-  nc_put_att_int(ncid,NC_GLOBAL,"local_index_of_first_physical_points",
-                   NC_INT,CONST_NDIM,l_start);
+  if (is_parallel_netcdf == 0)
+  {
+    int l_start[] = { ni1, nj1, nk1 };
+    nc_put_att_int(ncid,NC_GLOBAL,"local_index_of_first_physical_points",
+                     NC_INT,CONST_NDIM,l_start);
 
-  int g_start[] = { gni1, gnj1, gnk1 };
-  nc_put_att_int(ncid,NC_GLOBAL,"global_index_of_first_physical_points",
-                   NC_INT,CONST_NDIM,g_start);
+    int g_start[] = { gni1, gnj1, gnk1 };
+    nc_put_att_int(ncid,NC_GLOBAL,"global_index_of_first_physical_points",
+                     NC_INT,CONST_NDIM,g_start);
 
-  int l_count[] = { ni, nj, nk };
-  nc_put_att_int(ncid,NC_GLOBAL,"count_of_physical_points",
-                   NC_INT,CONST_NDIM,l_count);
+    int l_count[] = { ni, nj, nk };
+    nc_put_att_int(ncid,NC_GLOBAL,"count_of_physical_points",
+                     NC_INT,CONST_NDIM,l_count);
+  }
 
   // end def
   ierr = nc_enddef(ncid);
 
   // add vars
-  for (int ivar=0; ivar<number_of_vars; ivar++) {
+  for (int ivar=0; ivar<number_of_vars; ivar++)
+  {
     float *ptr = md->v4d + m3d_pos[ivar];
-    ierr = nc_put_var_float(ncid, varid[ivar],ptr);
+    size_t startp[] = { start_k, start_j, start_i };
+    size_t countp[] = { nz, ny, nx };
+    ierr = nc_put_vara_float(ncid, varid[ivar],startp,countp,ptr);
   }
   
   // close file
@@ -456,6 +527,26 @@ md_gen_test_el_iso(md_t *md)
         float Vp=3000.0;
         float Vs=2000.0;
         float rho=1500.0;
+        float mu = Vs*Vs*rho;
+        float lam = Vp*Vp*rho - 2.0*mu;
+        lam3d[iptr] = lam;
+         mu3d[iptr] = mu;
+        rho3d[iptr] = rho;
+      }
+    }
+  }
+
+  // top 20 layers are made water
+  for (size_t k=0; k<20; k++)
+  {
+    for (size_t j=0; j<ny; j++)
+    {
+      for (size_t i=0; i<nx; i++)
+      {
+        size_t iptr = i + j * siz_line + k * siz_slice;
+        float Vp=2000.0;
+        float Vs=0.0;
+        float rho=1000.0;
         float mu = Vs*Vs*rho;
         float lam = Vp*Vp*rho - 2.0*mu;
         lam3d[iptr] = lam;
@@ -949,6 +1040,256 @@ md_gen_test_vis_iso(md_t *md)
   }
 
   return ierr;
+}
+
+/*******************************************************************************
+ * stress 2 strain for single trace, the input is also output
+ *******************************************************************************/
+
+int
+md_stress2strain_trace(float *tij, // time fastest, then cmp
+                       int nt, md_t *md, size_t iptr)
+{
+  int ierr = 0;
+
+  if (md->medium_type == CONST_MEDIUM_ELASTIC_ISO)
+  {
+    float lam = md->lambda[iptr];
+    float mu  = md->mu    [iptr];
+
+    md_stress2strain_trace_el_iso(tij, nt, lam, mu);
+
+  } else {
+
+    fprintf(stdout, "--- warning: stress2strain for medium_type=%d has not been implemented\n",
+           md->medium_type); fflush(stdout);
+    // temp set to 0 with unsafe memset
+    memset(tij, 0, nt * CONST_NDIM_2 * sizeof(float));
+  }
+
+  return ierr;
+}
+
+int
+md_stress2strain_trace_el_iso(float *tij, // time fastest, then cmp
+                              int nt, float lam, float mu)
+{
+  int ierr = 0;
+
+  // use fake evt_x etc. since did not implement gather evt_x by mpi
+  float evt_x = 0.0;
+  float evt_y = 0.0;
+  float evt_z = 0.0;
+  float evt_d = 0.0;
+
+  // cmp seq hard-coded, need to revise in the future
+  float *Txx = tij + 0 * nt;
+  float *Tyy = tij + 1 * nt;
+  float *Tzz = tij + 2 * nt;
+  float *Tyz = tij + 3 * nt;
+  float *Txz = tij + 4 * nt;
+  float *Txy = tij + 5 * nt;
+
+  float E1, E2, E3;
+
+  // in water
+  if (mu < 1e-16) {
+    E1 = 1.0 / (3.0 * lam);
+
+    // conver to strain per time step
+    for (int it = 0; it < nt; it++)
+    {
+      float P = -(Txx[it] + Tyy[it] + Tzz[it]) / 3.0;
+
+      Txx[it] = - P * E1 * Txx[it];
+      Tyy[it] = - P * E1 * Tyy[it];
+      Tzz[it] = - P * E1 * Tzz[it];
+      Tyz[it] = 0.0;
+      Txz[it] = 0.0;
+      Txy[it] = 0.0;
+    }
+  }
+  // in solid
+  else
+  {
+    E1 = (lam + mu) / (mu * ( 3.0 * lam + 2.0 * mu));
+    E2 = - lam / ( 2.0 * mu * (3.0 * lam + 2.0 * mu));
+    E3 = 1.0 / mu;
+
+    // conver to strain per time step
+    for (int it = 0; it < nt; it++)
+    {
+      float E0 = E2 * (Txx[it] + Tyy[it] + Tzz[it]);
+
+      Txx[it] = E0 - (E2 - E1) * Txx[it];
+      Tyy[it] = E0 - (E2 - E1) * Tyy[it];
+      Tzz[it] = E0 - (E2 - E1) * Tzz[it];
+      Tyz[it] = 0.5 * E3 * Tyz[it];
+      Txz[it] = 0.5 * E3 * Txz[it];
+      Txy[it] = 0.5 * E3 * Txy[it];
+    }
+  }
+
+  return ierr;
+}
+
+int
+md_stress2strain_trace_el_vti(float *tij, int nt,
+                        float *restrict c11, float *restrict c13,
+                        float *restrict c33, float *restrict c55,
+                        float *restrict c66)
+{
+  //not implement
+
+  return 0;
+}
+
+int
+md_stress2strain_trace_el_aniso(float *tij, int nt,
+                        float *restrict c11d, float *restrict c12d,
+                        float *restrict c13d, float *restrict c14d,
+                        float *restrict c15d, float *restrict c16d,
+                        float *restrict c22d, float *restrict c23d,
+                        float *restrict c24d, float *restrict c25d,
+                        float *restrict c26d, float *restrict c33d,
+                        float *restrict c34d, float *restrict c35d,
+                        float *restrict c36d, float *restrict c44d,
+                        float *restrict c45d, float *restrict c46d,
+                        float *restrict c55d, float *restrict c56d,
+                        float *restrict c66d)
+{
+  //not implement
+
+  return 0;
+}
+
+/*******************************************************************************
+ * stress 2 strain for snapshot, pack to contineous mem
+ *******************************************************************************/
+
+int
+md_stress2strain_snap_pack(md_t *md,
+                           float *restrict Txx,
+                           float *restrict Tyy,
+                           float *restrict Tzz,
+                           float *restrict Tyz,
+                           float *restrict Txz,
+                           float *restrict Txy,
+                           float *restrict Exx,
+                           float *restrict Eyy,
+                           float *restrict Ezz,
+                           float *restrict Eyz,
+                           float *restrict Exz,
+                           float *restrict Exy,
+                           size_t siz_line,
+                           size_t siz_slice,
+                           int starti,
+                           int counti,
+                           int increi,
+                           int startj,
+                           int countj,
+                           int increj,
+                           int startk,
+                           int countk,
+                           int increk)
+{
+  int ierr = 0;
+
+  if (md->medium_type == CONST_MEDIUM_ELASTIC_ISO)
+  {
+    md_stress2strain_snap_pack_eliso(md->lambda,md->mu,Txx,Tyy,Tzz,Tyz,Txz,Txy,Exx,Eyy,Ezz,Eyz,Exz,Exy,
+          siz_line,siz_slice,starti,counti,increi, startj,countj,increj, startk,countk,increk);
+  }
+  else
+  {
+    fprintf(stdout, "--- warning: stress2strain snap for medium_type=%d has not been implemented\n",
+           md->medium_type); fflush(stdout);
+  }
+
+  return ierr;
+}
+
+int
+md_stress2strain_snap_pack_eliso(float *restrict lam3d,
+                               float *restrict mu3d,
+                               float *restrict Txx,
+                               float *restrict Tyy,
+                               float *restrict Tzz,
+                               float *restrict Tyz,
+                               float *restrict Txz,
+                               float *restrict Txy,
+                               float *restrict Exx,
+                               float *restrict Eyy,
+                               float *restrict Ezz,
+                               float *restrict Eyz,
+                               float *restrict Exz,
+                               float *restrict Exy,
+                               size_t siz_line,
+                               size_t siz_slice,
+                               int starti,
+                               int counti,
+                               int increi,
+                               int startj,
+                               int countj,
+                               int increj,
+                               int startk,
+                               int countk,
+                               int increk)
+{
+  size_t iptr_snap=0;
+  size_t i,j,k,iptr,iptr_j,iptr_k;
+  float lam,mu,E1,E2,E3,E0,P;
+
+  for (int n3=0; n3<countk; n3++)
+  {
+    k = startk + n3 * increk;
+    iptr_k = k * siz_slice;
+    for (int n2=0; n2<countj; n2++)
+    {
+      j = startj + n2 * increj;
+      iptr_j = j * siz_line + iptr_k;
+
+      for (int n1=0; n1<counti; n1++)
+      {
+        i = starti + n1 * increi;
+        iptr = i + iptr_j;
+
+        lam = lam3d[iptr];
+        mu  =  mu3d[iptr];
+
+        if (mu < 1e-6)
+        {
+          E1 = 1.0 / (3.0 * lam);
+          P = - (Txx[iptr] + Tyy[iptr] + Tzz[iptr]) / 3.0;
+          Exx[iptr_snap] = - P * E1 * Txx[iptr];
+          Eyy[iptr_snap] = - P * E1 * Tyy[iptr];
+          Ezz[iptr_snap] = - P * E1 * Tzz[iptr];
+          Eyz[iptr_snap] = 0.0;
+          Exz[iptr_snap] = 0.0;
+          Exy[iptr_snap] = 0.0;
+        } 
+        else
+        {
+          E1 = (lam + mu) / (mu * ( 3.0 * lam + 2.0 * mu));
+          E2 = - lam / ( 2.0 * mu * (3.0 * lam + 2.0 * mu));
+          E3 = 1.0 / mu;
+
+          E0 = E2 * (Txx[iptr] + Tyy[iptr] + Tzz[iptr]);
+
+          Exx[iptr_snap] = E0 - (E2 - E1) * Txx[iptr];
+          Eyy[iptr_snap] = E0 - (E2 - E1) * Tyy[iptr];
+          Ezz[iptr_snap] = E0 - (E2 - E1) * Tzz[iptr];
+          Eyz[iptr_snap] = 0.5 * E3 * Tyz[iptr];
+          Exz[iptr_snap] = 0.5 * E3 * Txz[iptr];
+          Exy[iptr_snap] = 0.5 * E3 * Txy[iptr];
+        }
+
+        iptr_snap++;
+      } // i
+    } //j
+  } //k
+
+  return 0;
 }
 
 

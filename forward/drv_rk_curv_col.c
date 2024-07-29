@@ -36,12 +36,12 @@ drv_rk_curv_col_allstep(
   mympi_t    *mympi,
   iorecv_t   *iorecv,
   ioline_t   *ioline,
-  ioslice_t  *ioslice,
   iosnap_t   *iosnap,
   // time
   float dt, int nt_total, float t0,
   char *output_fname_part,
   char *output_dir,
+  int is_parallel_netcdf,
   int qc_check_nan_num_of_step,
   const int output_all, // qc all var
   const int verbose)
@@ -80,19 +80,6 @@ drv_rk_curv_col_allstep(
   // for mpi message
   int   ipair_mpi, istage_mpi;
 
-  // create slice nc output files
-  if (myid==0 && verbose>0) fprintf(stdout,"prepare slice nc output ...\n"); 
-  ioslice_nc_t ioslice_nc;
-  io_slice_nc_create(ioslice, wav->ncmp, wav->visco_type, wav->cmp_name,
-                     gd->ni, gd->nj, gd->nk, topoid,
-                     &ioslice_nc);
-
-  // create snapshot nc output files
-  if (myid==0 && verbose>0) fprintf(stdout,"prepare snap nc output ...\n"); 
-  iosnap_nc_t  iosnap_nc;
-
-  io_snap_nc_create(iosnap, &iosnap_nc, topoid);
-
   // only x/y mpi
   int num_of_r_reqs = 4;
   int num_of_s_reqs = 4;
@@ -102,6 +89,27 @@ drv_rk_curv_col_allstep(
   w_tmp = wav->v5d + wav->siz_ilevel * 1; // intermidate value
   w_rhs = wav->v5d + wav->siz_ilevel * 2; // for rhs
   w_end = wav->v5d + wav->siz_ilevel * 3; // end level at n+1
+
+  // create recv nc
+  if (iorecv->file_type_sac == 0) {
+    if (myid==0 && verbose>0) fprintf(stdout,"prepare recv nc output ...\n"); 
+    io_recv_nc_create(iorecv,dt,is_parallel_netcdf,comm,myid,output_fname_part,output_dir);
+  }
+
+  if (myid==0 && verbose>0) fprintf(stdout,"prepare line nc output ...\n"); 
+  io_line_nc_create(ioline,dt,is_parallel_netcdf,comm,myid,output_fname_part,output_dir);
+
+  // create snapshot nc output files
+  if (myid==0 && verbose>0) fprintf(stdout,"prepare snap nc output ...\n"); 
+  iosnap_nc_t  iosnap_nc;
+
+  io_snap_nc_create(iosnap, &iosnap_nc, gd,
+                    output_fname_part,
+                    w_rhs,
+                    is_parallel_netcdf,
+                    comm, topoid);
+  // zero temp used w_rsh
+  wav_zero_edge(gd, wav, w_rhs);
 
   // set pml for rk
   if(bdry->is_enable_pml == 1)
@@ -492,13 +500,15 @@ drv_rk_curv_col_allstep(
     }
 
     //-- recv by interp
-    io_recv_keep(iorecv, w_end, it, wav->ncmp, wav->siz_icmp);
+    io_recv_keep(iorecv, w_end, it, wav->siz_icmp);
+    if (iorecv->file_type_sac == 0) {
+      io_recv_nc_put(iorecv,md,it,is_parallel_netcdf);
+    }
 
     //-- line values
-    io_line_keep(ioline, w_end, it, wav->ncmp, wav->siz_icmp);
+    io_line_keep(ioline, w_end, it, wav->siz_icmp);
+    io_line_nc_put(ioline,md,it,is_parallel_netcdf);
 
-    // write slice, use w_rhs as buff
-    io_slice_nc_put(ioslice,&ioslice_nc,gd,w_end,w_rhs,it,t_end,0,wav->ncmp-1,wav->visco_type);
 
     // snapshot
 
@@ -540,14 +550,20 @@ drv_rk_curv_col_allstep(
 
   } // time loop
 
+  // close nc
+  if (iorecv->file_type_sac == 0) {
+    io_recv_nc_close(iorecv,is_parallel_netcdf);
+  }
+
+  io_snap_nc_close(&iosnap_nc);
+  io_line_nc_close(ioline,is_parallel_netcdf);
+
   // postproc
   if (bdry->is_sides_free[CONST_NDIM-1][1] == 1)
   {
-    PG_slice_output(PG,gd,output_dir, output_fname_part,topoid);
+    PG_slice_output(PG,gd,w_rhs,is_parallel_netcdf,comm, 
+                    output_dir, output_fname_part,topoid);
   }
-  // close nc
-  io_slice_nc_close(&ioslice_nc);
-  io_snap_nc_close(&iosnap_nc);
 
   return;
 }
