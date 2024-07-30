@@ -4,25 +4,36 @@
 
 date
 
+#----------------------------------------------------------------------
 #-- system related dir, from module env or manually set
-MPIDIR=/share/apps/gnu-4.8.5/mpich-3.3
+#----------------------------------------------------------------------
+
+#- for server1
+MPIDIR=/export/apps/gnu-4.8.5/mpich-4.1rc4
+
+#- for Mars
 #MPIDIR=$MPI_ROOT
 
-#-- program related dir
+#----------------------------------------------------------------------
+#-- CGFD3D program dir
+#----------------------------------------------------------------------
+
 CUR_DIR=`pwd`
 
 EXE_DIR=`dirname ${CUR_DIR}`
 EXEC_WAVE=${EXE_DIR}/main_curv_col_el_3d
 echo "EXEC_WAVE=$EXEC_WAVE"
 
-#-- output and conf
-PROJDIR=~/work/cgfd3d-wave-el/ablexp20c
-#PROJDIR=~/work/cgfd3d-wave-el/ablexp1test
-EVTNM=codetest
+#----------------------------------------------------------------------
+#-- project dir, either absolute or relative path
+#----------------------------------------------------------------------
+
+PROJDIR=./run
+EVTNM=exlosive.ricker
 echo "PROJDIR=${PROJDIR}"
 echo "EVTNM=${EVTNM}"
 
-PAR_FILE=${PROJDIR}/test.json
+PAR_FILE=${PROJDIR}/example.json
 GRID_DIR=${PROJDIR}/output
 MEDIA_DIR=${PROJDIR}/output
 SOURCE_DIR=${PROJDIR}/output
@@ -38,7 +49,7 @@ mkdir -p $OUTPUT_DIR
 mkdir -p $GRID_DIR
 mkdir -p $MEDIA_DIR
 
-#-- tmp dir should be in local, here is for test
+#-- tmp dir should be in local, here is for example run
 TMP_DIR=${PROJDIR}/scratch
 mkdir -p ${TMP_DIR}
 
@@ -65,7 +76,7 @@ NPROCS=$(( NPROCS_X*NPROCS_Y ))
 
 create_source_file()
 {
-cat << ieof > ${PROJDIR}/test.src
+cat << ieof > ${PROJDIR}/example.src
 # name of this input source
 ${EVTNM}
 # number of source
@@ -98,7 +109,7 @@ ${EVTNM}
 1.0e16  1.0e16  1.0e16 0 0 0 
 ieof
 
-echo "+ created $PROJDIR/test.src"
+echo "+ created $PROJDIR/example.src"
 }
 
 #----------------------------------------------------------------------
@@ -107,14 +118,14 @@ echo "+ created $PROJDIR/test.src"
 
 create_station_file()
 {
-cat << ieof > $PROJDIR/test.station
+cat << ieof > $PROJDIR/example.station
 # number of station
 1
 # name is_physical_coord is_3dim_depth  x y z
 r1  1  1  1000 1000 0
 ieof
 
-echo "+ created $PROJDIR/test.station"
+echo "+ created $PROJDIR/example.station"
 }
 
 #----------------------------------------------------------------------
@@ -135,9 +146,10 @@ cat << ieof > $PAR_FILE
   "#size_of_time_step" : 0.008,
   "#size_of_time_step" : 0.020,
   "#number_of_time_steps" : 500,
-  "time_window_length" : 6,
+  "time_window_length" : 15,
   "check_stability" : 1,
 
+  "#-- following for ablexp" : "",
   "boundary_x_left" : {
       "ablexp" : {
           "number_of_layers" : 20,
@@ -168,18 +180,61 @@ cat << ieof > $PAR_FILE
           "ref_vel"  : 7000.0
           }
       },
+
+  "#-- following for cfspml" : "",
+  "#boundary_x_left" : {
+      "cfspml" : {
+          "number_of_layers" : 10,
+          "alpha_max" : 3.14,
+          "beta_max" : 2.0,
+          "ref_vel"  : 7000.0
+          }
+      },
+  "#boundary_x_right" : {
+      "cfspml" : {
+          "number_of_layers" : 10,
+          "alpha_max" : 3.14,
+          "beta_max" : 2.0,
+          "ref_vel"  : 7000.0
+          }
+      },
+  "#boundary_y_front" : {
+      "cfspml" : {
+          "number_of_layers" : 10,
+          "alpha_max" : 3.14,
+          "beta_max" : 2.0,
+          "ref_vel"  : 7000.0
+          }
+      },
+  "#boundary_y_back" : {
+      "cfspml" : {
+          "number_of_layers" : 10,
+          "alpha_max" : 3.14,
+          "beta_max" : 2.0,
+          "ref_vel"  : 7000.0
+          }
+      },
+  "#boundary_z_bottom" : {
+      "cfspml" : {
+          "number_of_layers" : 10,
+          "alpha_max" : 3.14,
+          "beta_max" : 2.0,
+          "ref_vel"  : 7000.0
+          }
+      },
+
   "boundary_z_top" : {
       "free" : "timg"
       },
 
   "grid_generation_method" : {
       "#import" : "$GRID_DIR",
-      "cartesian" : {
+      "#cartesian" : {
         "origin"  : [0.0, 0.0, -5900.0 ],
         "inteval" : [ 100.0, 100.0, 100.0 ]
       },
-      "#layer_interp" : {
-        "in_grid_layer_file" : "${CUR_DIR}/prep_grid/tangshan_area_topo.gdlay",
+      "layer_interp" : {
+        "in_grid_layer_file" : "${CUR_DIR}/prep_grid/random_topo.gdlay",
         "refine_factor" : [ 1, 1, 1 ],
         "horizontal_start_index" : [ 3, 3 ],
         "vertical_last_to_top" : 0
@@ -196,8 +251,8 @@ cat << ieof > $PAR_FILE
 
   "medium" : {
       "type" : "elastic_iso",
-      "input_way" : "code",
-      "#input_way" : "binfile",
+      "#--- input_way choice" : "code import infile_layer infile_grid binfile",
+      "input_way" : "infile_layer",
       "binfile" : {
         "size"    : [1101, 1447, 1252],
         "spacing" : [-10, 10, 10],
@@ -211,10 +266,10 @@ cat << ieof > $PAR_FILE
       },
       "code" : "func_name_here",
       "#import" : "$MEDIA_DIR",
-      "#infile_layer" : "${CUR_DIR}/prep_medium/basin_el_iso.md3lay",
+      "infile_layer" : "${CUR_DIR}/prep_medium/basin_el_iso.md3lay",
       "#infile_grid" : "${CUR_DIR}/prep_medium/topolay_el_iso.md3grd",
-      "equivalent_medium_method" : "loc",
-      "#equivalent_medium_method" : "har"
+      "equivalent_medium_method" : "har",
+      "#-- equivalent_medium_method choice" : "loc har ari tti"
   },
   "is_export_media" : 1,
   "media_export_dir"  : "$MEDIA_DIR",
@@ -228,7 +283,7 @@ cat << ieof > $PAR_FILE
       "refer_freq" : 1.0
   },
 
-  "in_source_file" : "$PROJDIR/test.src",
+  "in_source_file" : "$PROJDIR/example.src",
   "is_export_source" : 1,
   "source_export_dir"  : "$SOURCE_DIR",
 
@@ -237,9 +292,9 @@ cat << ieof > $PAR_FILE
   "output_dir" : "$OUTPUT_DIR",
   "tmp_dir"    : "$TMP_DIR",
 
-  "in_station_file" : "$PROJDIR/test.station",
+  "in_station_file" : "$PROJDIR/example.station",
 
-  "#receiver_line" : [
+  "receiver_line" : [
     {
       "name" : "line_x_1",
       "grid_index_start"    : [  0, 49, 59 ],
@@ -261,6 +316,42 @@ cat << ieof > $PAR_FILE
   },
 
   "snapshot" : [
+    {
+      "name" : "snap_z",
+      "grid_index_start" : [ 0, 0, $(( NZ - 1 )) ],
+      "grid_index_count" : [ $NX, $NY, 1 ],
+      "grid_index_incre" : [  1, 1, 1 ],
+      "time_index_start" : 0,
+      "time_index_incre" : 1,
+      "save_velocity" : 1,
+      "save_stress"   : 0,
+      "save_strain"   : 0
+    },
+    {
+      "name" : "snap_x",
+      "grid_index_start" : [80, 0, 0 ],
+      "grid_index_count" : [ 1, $NY,  $NZ ],
+      "grid_index_incre" : [  1, 1, 1 ],
+      "time_index_start" : 0,
+      "time_index_incre" : 1,
+      "save_velocity" : 1,
+      "save_stress"   : 0,
+      "save_strain"   : 0
+    },
+    {
+      "name" : "snap_y",
+      "grid_index_start" : [ 0, 49, 0 ],
+      "grid_index_count" : [ $NX, 1, $NZ ],
+      "grid_index_incre" : [  1, 1, 1 ],
+      "time_index_start" : 0,
+      "time_index_incre" : 1,
+      "save_velocity" : 1,
+      "save_stress"   : 0,
+      "save_strain"   : 0
+    }
+  ],
+
+  "#snapshot" : [
     {
       "name" : "volume_vel",
       "grid_index_start" : [ 0, 0, $(( NZ - 1 )) ],
