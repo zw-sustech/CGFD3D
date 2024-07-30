@@ -3,6 +3,9 @@
 clear all;
 close all;
 
+flag_figure = 1;
+flag_light  = 1;
+
 %------------------------------------------------------------------------------
 %-- x and y sampling
 %------------------------------------------------------------------------------
@@ -10,8 +13,8 @@ close all;
 nghost = 3;
 nx = 126;
 ny = 106;
-dx = 100;
-dy = 100;
+dx = 300;
+dy = 300;
 x0 = 0.0 - nghost * dx;
 y0 = 0.0 - nghost * dy;
 Lx = nx * dx;
@@ -42,7 +45,7 @@ Vp_grad = [ 0.2 ,  0.0, 0.0,  0 ];
 Vp_pow  = [ 1.0 ,  1.0, 1.0,  1 ];
 
 Vs       = [ 1000, 1500, 2500, 3000 ];
-Vs_grad  = [ 0.2 ,  0.0, 0.0,  0 ];
+Vs_grad  = [ 0.0 ,  0.0, 0.0,  0 ];
 Vs_pow  = [ 1.0 ,  1.0, 1.0,  1 ];
 
 den      = [ 1000, 2000, 3000, 3500 ];
@@ -104,6 +107,10 @@ for i = 1 : nx
     if r2d <= basin_r0
       %-- (x-x0)^2 + (y-y0)^2 + (e-e0)^2 = r^2
       lay_elev(j,i,2) = - (sqrt( basin_r0^2 - r2d^2 ) + basin_e0 );
+      %-- limit depth to less than 1km
+      if lay_elev(j,i,2) < -1000
+         lay_elev(j,i,2) = -1000;
+      end
     end
 end
 end
@@ -146,7 +153,7 @@ num_circle_x = 3; %- how many circle along x
 num_circle_y = 1; %- how many circle along y
 lay_elev(:,:,3) =    cos(num_circle_x * x2d / Lx * 2*pi)  ...
                   .* cos(num_circle_y * y2d/Ly*2*pi) ...
-                  .* 5 * dx ...
+                  .* 1 * dx ...
                   - dep(3);
 
 %-- 4rd: topo
@@ -168,14 +175,53 @@ lay_elev(:,:,4) = -dep(4);
 %-- plot
 %------------------------------------------------------------------------------
 
+if flag_figure == 1
+
+%- all model
 figure;
 for ilay = 1 : num_of_layer+1
-    mesh(x2d, y2d, lay_elev(:,:,ilay));
+    surf(x2d, y2d, lay_elev(:,:,ilay));
     hold on;
-    xlabel('x','fontsize', 12);
-    ylabel('y','fontsize', 12);
-    axis image;
-    title('The build model');
+end
+  xlabel('x-axis','fontsize', 12);
+  ylabel('y-axis','fontsize', 12);
+  zlabel('z-axis','fontsize', 12);
+  %axis image;
+  caxis([-11e3,1e3]);
+  axis tight;
+  shading flat
+  daspect([1,1,1]);
+  title('md3lay velocity model');
+  print(gcf,'-dpng','basin_el_iso_m3lay.png');
+
+%- each interface
+  for ilay = 1 : num_of_layer + 1
+    figure
+    surf(x2d, y2d, lay_elev(:,:,ilay));
+    %pcolor(x2d, y2d, lay_elev(:,:,ilay));
+    xlabel('y-axis');
+    ylabel('x-axis');
+    zlabel('z-axis');
+    shading flat
+    colorbar
+    axis tight
+    %camlight
+    %daspect([8,10,110e3*8/5]);
+    zlim([-11e3,1e3]);
+    caxis([-11e3,1e3]);
+    daspect([1,1,1]);
+
+    if flag_light
+        view(-40,35);
+        set(gca,'box','off');
+        camlight(0,10,'local');
+        lighting phong;
+    end
+
+    title(['medium interface ',num2str(ilay),'th']);
+    print(gcf,'-dpng',['md3lay_int',num2str(ilay),'.png']);
+  end
+
 end
 
 %%%% 
