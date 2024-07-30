@@ -11,8 +11,8 @@ clear all;
 
 %-- should 6 more than FD points due to ghosts points
 nghost = 3;
-nx = 126;
-ny = 106;
+nx = 326;
+ny = 306;
 x0 = 0.0;
 y0 = 0.0;
 dx = 100.0;
