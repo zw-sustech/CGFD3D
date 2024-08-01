@@ -27,8 +27,8 @@
 
 1 Introduction
 
-  This program simulates elastic wave propagation in 3D complex media with
-  surface topography by using collocated-grid finite difference schemes.
+  This program simulates elastic/visco-elastic wave propagation in 3D complex
+  media with surface topography using curvilinear-grid finite difference schemes.
   We use body-fitted grid to conform the grid surface with free surface
   topography, spatial collocated-grid FD scheme, 4th-order Runge-Kutta
   time marching to to update the stress-velocity wave equations.
