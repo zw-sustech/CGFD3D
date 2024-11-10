@@ -145,8 +145,7 @@ src_glob_ishere(int si, int sj, int sk, int half_ext, gd_t *gd)
  */
 
 int
-src_read_locate_file(
-                     gd_t     *gd,
+src_read_locate_file(gd_t     *gd,
                      src_t    *src,
                      float    *restrict mu3d,
                      char     *in_src_file,
@@ -161,29 +160,9 @@ src_read_locate_file(
 {
   int ierr = 0;
 
-  // get grid info from gdinfo
-  int   ni1 = gd->ni1;
-  int   ni2 = gd->ni2;
-  int   nj1 = gd->nj1;
-  int   nj2 = gd->nj2;
-  int   nk1 = gd->nk1;
-  int   nk2 = gd->nk2;
-  int   nx  = gd->nx ;
-  int   ny  = gd->ny ;
-  int   nz  = gd->nz ;
-  int   npoint_ghosts = gd->npoint_ghosts;
-  size_t siz_line = gd->siz_iy;
-  size_t siz_slice= gd->siz_iz;
-
-  // get total elem of exted src region for a single point
-  //    int max_ext = 7 * 7 * 7;
-  int len_ext = 2*npoint_half_ext+1;
-  int max_ext = len_ext * len_ext * len_ext;
-
   // local
   FILE *fp =NULL;
   char str[500];
-  //char *in_source_name = (char *) malloc(sizeof(char)*500);
 
   // numbe of source, could be force and/or moment
   int in_num_source;
@@ -192,7 +171,7 @@ src_read_locate_file(
   // if above value is 1, the 3rd coord is coord (0) or depth (1)
   int in_3coord_meaning;
   // stf is specified by wavelet name (0) or values (1)
-  int in_stf_given;
+  int in_stf_by_value;
   float in_stf_length=0.0;
   float in_stf_dt=0.0;
   int   in_stf_nt=1;
@@ -207,51 +186,28 @@ src_read_locate_file(
     fflush(stderr); exit(1);
   }
 
-  // event name
-  if (!io_get_nextline(fp, str,500)) {
-    sprintf(src->evtnm,"%s",str);
-  }
-  // number of source
-  if (!io_get_nextline(fp, str,500)) {
-    sscanf(str,"%d",&in_num_source);
-  }
-  if (in_num_source <= 0) {
-    fprintf(stderr,"ERROR: in_num_source=%d <=0\n", in_num_source);
-    fflush(stderr); exit(1);
-  }
-
-  // source time function is given by wavelet name or values
-  if (!io_get_nextline(fp, str,500)) {
-    sscanf(str,"%d",&in_stf_given);
-    if (in_stf_given == 0) { // by name
-      sscanf(str,"%d %f",&in_stf_given, &in_stf_length);
-    } else if (in_stf_given == 1) { // by value
-      sscanf(str,"%d %f %d",&in_stf_given, &in_stf_dt, &in_stf_nt);
-    } else {
-      fprintf(stderr, "ERROR: in_stf_given=%d invalid (either 0 or 1)\n", in_stf_given);
-      fflush(stderr); exit(1);
-    }
-  }
-
-  // force and/or moment, and moment by tensor or angle + muDa
-  if (!io_get_nextline(fp, str,500)) {
-    sscanf(str,"%d %d",&in_cmp_type, &in_mechanism_type);
-  }
-
-  // meaning of location and the 3rd input if location is given by coord
-  if (!io_get_nextline(fp, str,500)) {
-    sscanf(str,"%d %d",&is_location_coord, &in_3coord_meaning);
-  }
+  // get meta info
+  src_read_meta_src(fp,src->evtnm, &in_num_source, 
+                   &in_stf_by_value, &in_stf_length, &in_stf_dt, &in_stf_nt,
+                   &in_cmp_type,  &in_mechanism_type,
+                   &is_location_coord, &in_3coord_meaning);
 
   //
-  // loop each source to get locate and index
+  // read in locations of all sources
+  //
+
+  float *all_x = fdlib_mem_calloc_1d_float(in_num_source,0.0,"all_x");
+  float *all_y = fdlib_mem_calloc_1d_float(in_num_source,0.0,"all_y");
+  float *all_z = fdlib_mem_calloc_1d_float(in_num_source,0.0,"all_z");
+
+  src_read_loc_all_src(fp, in_num_source, all_x, all_y, all_z);
+
+  //
+  // loop each source to locate it to computational grid
   //
 
   int num_of_src_here = 0;
-
-  float sx, sy, sz;
-  int   si,sj,sk;
-  int   si_glob,sj_glob,sk_glob;
+  int si_glob,sj_glob,sk_glob;
   float sx_inc, sy_inc, sz_inc;
 
   float **all_inc    = fdlib_mem_calloc_2l_float(in_num_source,CONST_NDIM,0.0,"all_inc");
@@ -262,73 +218,64 @@ src_read_locate_file(
   // read coords and determine if in this thread
   for (int is=0; is<in_num_source; is++)
   {
-    // read in and get src global index
-    if (!io_get_nextline(fp, str,500))
+    float sx = all_x[is];
+    float sy = all_y[is];
+    float sz = all_z[is];
+
+    if (is_location_coord == 1) // physical coord
     {
-      // read in as float value
-      sscanf(str,"%f %f %f", &sx, &sy, &sz);
-
-      if (is_location_coord == 1) // physical coord
+      // convert to global index
+      //    todo: check if out of computational region
+      if (gd->type == GD_TYPE_CURV)
       {
-        // convert to global index
-        //    todo: check if out of computational region
-        if (gd->type == GD_TYPE_CURV)
-        {
-          // if sz is depth, convert to axis when it is in this thread
-          if (in_3coord_meaning == 1) {
-            gd_curv_depth_to_axis(gd,sx,sy,&sz,comm,myid);
-          }
-          gd_curv_coord_to_glob_indx(gd,sx,sy,sz,comm,myid,
-                                 &si_glob,&sj_glob,&sk_glob,&sx_inc,&sy_inc,&sz_inc);
-        }
-        else if (gd->type == GD_TYPE_CART)
-        {
-          // if sz is depth, convert to axis
-          if (in_3coord_meaning == 1) {
-            sz = gd->z1d[gd->nk2] - sz;
-          }
-          gd_cart_coord_to_glob_indx(gd,sx,sy,sz,comm,myid,
-                                 &si_glob,&sj_glob,&sk_glob,&sx_inc,&sy_inc,&sz_inc);
-        }
-        // keep index to avoid duplicat run
-        all_index[is][0] = si_glob;
-        all_index[is][1] = sj_glob;
-        all_index[is][2] = sk_glob;
-        all_inc  [is][0] = sx_inc;
-        all_inc  [is][1] = sy_inc;
-        all_inc  [is][2] = sz_inc;
-
-        //-- to notice user the progress using screen output for large input
-        if (myid == 0 && (is % 1000 ==0) && verbose>99) {
-          fprintf(stdout,"-- loc %d-th src index, finish %2.0f%%\n",
-                      is, (float)(is+1)/in_num_source*100.0);
-          fflush(stdout);
-        }
-      }
-      else // computational coordinate or grid index
-      {
-        // if sz is relative to surface, convert to normal index
+        // if sz is depth, convert to axis when it is in this thread
         if (in_3coord_meaning == 1) {
-          sz = gd->gnk2 - sz;
+          gd_curv_depth_to_axis(gd,sx,sy,&sz,comm,myid);
         }
+        gd_curv_coord_to_glob_indx(gd,sx,sy,sz,comm,myid,
+                               &si_glob,&sj_glob,&sk_glob,&sx_inc,&sy_inc,&sz_inc);
+      }
+      else if (gd->type == GD_TYPE_CART)
+      {
+        // if sz is depth, convert to axis
+        if (in_3coord_meaning == 1) {
+          sz = gd->z1d[gd->nk2] - sz;
+        }
+        gd_cart_coord_to_glob_indx(gd,sx,sy,sz,comm,myid,
+                               &si_glob,&sj_glob,&sk_glob,&sx_inc,&sy_inc,&sz_inc);
+      }
 
-        // nearest integer index
-        si_glob = (int) (sx + 0.5);
-        sj_glob = (int) (sy + 0.5);
-        sk_glob = (int) (sz + 0.5);
-        // relative shift
-        sx_inc = sx - si_glob;
-        sy_inc = sy - sj_glob;
-        sz_inc = sz - sk_glob;
-
-        all_index[is][0] = si_glob;
-        all_index[is][1] = sj_glob;
-        all_index[is][2] = sk_glob;
-        all_inc  [is][0] = sx_inc;
-        all_inc  [is][1] = sy_inc;
-        all_inc  [is][2] = sz_inc;
+      //-- to notice user the progress using screen output for large input
+      if (myid == 0 && (is % 1000 ==0) && verbose>99) {
+        fprintf(stdout,"-- loc %d-th src index, finish %2.0f%%\n",
+                    is, (float)(is+1)/in_num_source*100.0);
+        fflush(stdout);
       }
     }
+    else // computational coordinate or grid index
+    {
+      // if sz is relative to surface, convert to normal index
+      if (in_3coord_meaning == 1) {
+        sz = gd->gnk2 - sz;
+      }
+
+      // nearest integer index
+      si_glob = (int) (sx + 0.5);
+      sj_glob = (int) (sy + 0.5);
+      sk_glob = (int) (sz + 0.5);
+      // relative shift
+      sx_inc = sx - si_glob;
+      sy_inc = sy - sj_glob;
+      sz_inc = sz - sk_glob;
+    }
+
+    // keep index to avoid duplicat run
+    all_index[is][0] = si_glob;
+    all_index[is][1] = sj_glob;
+    all_index[is][2] = sk_glob;
+    all_inc  [is][0] = sx_inc;
+    all_inc  [is][1] = sy_inc;
+    all_inc  [is][2] = sz_inc;
 
     // check if in this thread using index
     if (src_glob_ext_ishere(si_glob,sj_glob,sk_glob,npoint_half_ext,gd)==1)
@@ -388,13 +335,15 @@ src_read_locate_file(
 
   // get number of sample for src_t
   int max_nt = 0;
-  if (in_stf_given == 0) { // by name
+  if (in_stf_by_value == 0) { // by name
     max_nt = (int) (in_stf_length / dt + 0.5);
   } else { // by value
     max_nt = (int) (((in_stf_nt-1)*in_stf_dt / dt)+ 0.5) + 1; 
   }
 
   // alloc src_t
+  int len_ext = 2*npoint_half_ext+1;
+  int max_ext = len_ext * len_ext * len_ext;
   src_init(src,force_actived,moment_actived,num_of_src_here,max_nt,max_stage,max_ext);
 
   //
@@ -404,8 +353,6 @@ src_read_locate_file(
   float wavelet_tstart;
   char  wavelet_name[50]; // assume max size of name is <= 50
   float wavelet_coefs[10]; // assume max number of coef <= 10
-  int  it_begin;
-  int  it_end;
 
   float fx,fy,fz;
   float mxx,myy,mzz,myz,mxz,mxy;
@@ -424,258 +371,41 @@ src_read_locate_file(
   float M0 = 0.0;
   for (int is=0; is<in_num_source; is++)
   {
-    // read stf and cmp of each source
-    if (in_stf_given == 0) // wavelet name
+    if (all_in_thread[is] == 1) // n this thread
     {
-      // read in stf
-      if (!io_get_nextline(fp, str,500))
+      // read in stf and mech
+      if (in_stf_by_value == 1) // stf by value
       {
-        if (all_in_thread[is] == 1) // in in this thread
-        {
-          // read up to 10 coefs, may be less than 10
-          sscanf(str,"%f %s %f %f %f %f %f %f %f %f %f %f",
-                  &wavelet_tstart, wavelet_name, wavelet_coefs+0,
-                  wavelet_coefs+1, wavelet_coefs+2, wavelet_coefs+3,
-                  wavelet_coefs+4, wavelet_coefs+5, wavelet_coefs+6,
-                  wavelet_coefs+7, wavelet_coefs+8, wavelet_coefs+9);
-          //fprintf(stdout,"-- wavelet_tstart=%g, wavelet_name=%s\n",
-          //                    wavelet_tstart, wavelet_name);
-          //fprintf(stdout,"---- coef[0]=%g, coef[1]=%g, coef[3]=%g\n",
-          //                    wavelet_coefs[0],wavelet_coefs[1],wavelet_coefs[2]);
-          //fflush(stdout);
-        }
-      }
-      // read in cmp
-      if (!io_get_nextline(fp, str,500))
-      {
-        if (all_in_thread[is] == 1) // in in this thread
-        {
-          if (in_cmp_type == 1) { // force
-            sscanf(str,"%f %f %f",&fx,&fy,&fz);
-          } else if (in_cmp_type == 2) { // moment
-            sscanf(str,"%f %f %f %f %f %f",&mxx,&myy,&mzz,&myz,&mxz,&mxy);
-          } else { // force + moment
-            sscanf(str,"%f %f %f %f %f %f %f %f %f",
-                             &fx,&fy,&fz,&mxx,&myy,&mzz,&myz,&mxz,&mxy);
-          }
+        src_read_one_mech_value(fp,gd,mu3d,in_stf_nt,in_stf_dt,
+                               in_cmp_type,moment_actived,in_mechanism_type,
+                               all_index[is],all_in_thread_without_ghost[is],
+                               &wavelet_tstart,f1,f2,f3,m11,m22,m33,m23,m13,m12,&M0);
 
-          // convert uDA input into moment tensor
-          if (moment_actived==1 && in_mechanism_type ==1)
-          {
-            si = gd_indx_glphy2lcext_i(all_index[is][0], gd);
-            sj = gd_indx_glphy2lcext_j(all_index[is][1], gd);
-            sk = gd_indx_glphy2lcext_k(all_index[is][2], gd);
-            size_t iptr = si + sj * siz_line + sk * siz_slice;
-            // mu < 0 means to use internal model mu value
-            float mu =  myz;
-            if (mu < 0.0) { mu =  mu3d[iptr]; }
-            if(all_in_thread_without_ghost[is] == 1)
-            {
-              //mxz is D, mxy[it] is A,
-              M0 += mu*mxz*mxy;
-            }
-            src_muDA_to_moment(mxx,myy,mzz,mu,mxz,mxy,
-                      &mxx,&myy,&mzz,&myz,&mxz,&mxy);
-          }
-        }
-      }
-    }
-    else // by values
-    {
-      // read t0
-      if (!io_get_nextline(fp, str,500)) {
-        sscanf(str,"%f",&wavelet_tstart);
+      } else { // stf by name
+        src_read_one_stf_name(fp, &wavelet_tstart, wavelet_name, wavelet_coefs);
+        src_read_one_mech_name(fp,gd,mu3d,in_cmp_type,moment_actived,in_mechanism_type,
+                               all_index[is],all_in_thread_without_ghost[is],
+                                &fx,&fy,&fz,&mxx,&myy,&mzz,&myz,&mxz,&mxy,&M0);
       }
 
-      // read cmp in number of in_stf_nt no matter in_thread or not
-      for (int it=0; it<in_stf_nt; it++)
-      {
-        if (!io_get_nextline(fp, str,500))
-        {
-          if (all_in_thread[is] == 1) // in in this thread
-          {
-            if (in_cmp_type == 1) { // force
-              sscanf(str,"%f %f %f",f1+it,f2+it,f3+it);
-            } else if (in_cmp_type == 2) { // moment
-              sscanf(str,"%f %f %f %f %f %f",m11+it,m22+it,m33+it,m23+it,m13+it,m12+it);
-            } else { // force + moment
-              sscanf(str,"%f %f %f %f %f %f %f %f %f",
-                  f1+it,f2+it,f3+it,m11+it,m22+it,m33+it,m23+it,m13+it,m12+it);
-            }
+      // put into src_t
+      src_put_into_struct(src,gd,t0,dt,max_stage,rk_stage_time,npoint_half_ext,
+                          is_local,in_stf_by_value,in_stf_nt,in_stf_dt,t_in,max_nt,
+                          wavelet_tstart,wavelet_name,wavelet_coefs,
+                          force_actived, moment_actived,
+                          all_index[is],all_inc[is],
+                          fx,fy,fz,mxx,myy,mzz,myz,mxz,mxy,
+                          f1,f2,f3,m11,m22,m33,m23,m13,m12);
 
-            // convert uDA input into moment tensor
-            if (moment_actived==1 && in_mechanism_type ==1)
-            {
-              si = gd_indx_glphy2lcext_i(all_index[is][0], gd);
-              sj = gd_indx_glphy2lcext_j(all_index[is][1], gd);
-              sk = gd_indx_glphy2lcext_k(all_index[is][2], gd);
-              size_t iptr = si + sj * siz_line + sk * siz_slice;
-
-              // mu < 0 means to use internal model mu value
-              float mu =  m23[it];
-              if (mu < 0.0) { mu =  mu3d[iptr]; }
-              if(all_in_thread_without_ghost[is] == 1)
-              {
-                //m13[it] is v, m12[it] is A,
-                M0 += mu*m13[it]*in_stf_dt*m12[it];
-              }
-              src_muDA_to_moment(m11[it],m22[it],m33[it],mu,m13[it],m12[it],
-                                 m11+it ,m22+it ,m33+it ,m23+it ,m13+it ,m12+it);
-            }
-          } // in this thread
-        } // get next line
-      } // it
-    } // read in stf for one is
-
-    // push into src_t if in this thread
-    if (all_in_thread[is] == 1)
-    {
-      // convert global index to local index
-      si = gd_indx_glphy2lcext_i(all_index[is][0], gd);
-      sj = gd_indx_glphy2lcext_j(all_index[is][1], gd);
-      sk = gd_indx_glphy2lcext_k(all_index[is][2], gd);
-  
-      // keep into src_t
-      src->si[is_local] = si;
-      src->sj[is_local] = sj;
-      src->sk[is_local] = sk;
-
-      // for extended points and coefs
-      sx_inc = all_inc[is][0];
-      sy_inc = all_inc[is][1];
-      sz_inc = all_inc[is][2];
-      float wid_gauss = npoint_half_ext / 2.0;
-      float *this_ext_coef = src->ext_coef + is_local * max_ext;
-
-      src_cal_norm_delt3d(this_ext_coef, sx_inc, sy_inc, sz_inc,
-                          wid_gauss, wid_gauss, wid_gauss, npoint_half_ext);
-
-        size_t iptr_ext = 0;
-        for (int k=sk-npoint_half_ext; k<=sk+npoint_half_ext; k++)
-        {
-          for (int j=sj-npoint_half_ext; j<=sj+npoint_half_ext; j++)
-          {
-            for (int i=si-npoint_half_ext; i<=si+npoint_half_ext; i++)
-            {
-              if (gd_lindx_is_inner(i,j,k,gd)==1)
-              {
-                // Note index need match coef
-                int iptr_grid = i + j * siz_line + k * siz_slice;
-                int iptr_coef =  (i-(si-npoint_half_ext))
-                                + len_ext * (j-(sj-npoint_half_ext)) 
-                                + len_ext * len_ext *(k-(sk-npoint_half_ext));
-                src->ext_indx[iptr_ext + is_local * max_ext] = iptr_grid;
-                src->ext_coef[iptr_ext + is_local * max_ext] = this_ext_coef[iptr_coef];
-                iptr_ext++;
-              }
-            }
-          }
-        }
-        // only count index inside phys region for this thread
-        src->ext_num[is_local] = iptr_ext;
-
-      //
-      // wavelet
-      //
-
-      // time step, considering t0
-      it_begin = (int) ( (wavelet_tstart - t0) / dt);
-      it_end   = it_begin + max_nt - 1;
-
-      src->it_begin[is_local] = it_begin;
-      src->it_end  [is_local] = it_end  ;
-
-      // setp input t vector for interp 
-      for(int it=0; it<in_stf_nt; it++)
-      {
-        t_in[it] = wavelet_tstart + it*in_stf_dt;
-      }
-
-      for (int it=it_begin; it<=it_end; it++)
-      {
-        int it_to_it1 = (it - it_begin);
-        int iptr_it = is_local * max_nt * max_stage + it_to_it1 * max_stage;
-        // need to explain purpose
-        float t_shift = wavelet_tstart - (it_begin * dt + t0);
-
-        for (int istage=0; istage<max_stage; istage++)
-        {
-          int iptr = iptr_it + istage;
-
-          // cal stf for given wavelet name
-          if (in_stf_given==0)
-          {
-            // time relative to start time of this source, considering diff from int conversion
-            float t = it_to_it1 * dt + rk_stage_time[istage] * dt - t_shift;
-
-            float stf_val = src_cal_wavelet(t,dt,wavelet_name,wavelet_coefs);
-            if (force_actived==1) {
-              src->Fx[iptr]  = stf_val * fx;
-              src->Fy[iptr]  = stf_val * fy;
-              src->Fz[iptr]  = stf_val * fz;
-            }
-            if (moment_actived==1) {
-              src->Mxx[iptr] = stf_val * mxx;
-              src->Myy[iptr] = stf_val * myy;
-              src->Mzz[iptr] = stf_val * mzz;
-              src->Myz[iptr] = stf_val * myz;
-              src->Mxz[iptr] = stf_val * mxz;
-              src->Mxy[iptr] = stf_val * mxy;
-            }
-          }
-          // interp for input values
-          else
-          {
-            // time relative to start time of this source, considering diff from int conversion
-            float t = it * dt + rk_stage_time[istage] * dt - t_shift;
-
-            // interp1d order
-            int order = 3;     
-
-            if (force_actived==1)
-            {
-              fx = LagInterp_Piecewise_1d(t_in, f1, in_stf_nt, order,
-                      wavelet_tstart, in_stf_dt, t);
-              fy = LagInterp_Piecewise_1d(t_in, f2, in_stf_nt, order,
-                      wavelet_tstart, in_stf_dt, t);
-              fz = LagInterp_Piecewise_1d(t_in, f3, in_stf_nt, order,
-                      wavelet_tstart, in_stf_dt, t);
-
-              src->Fx[iptr]  = fx;
-              src->Fy[iptr]  = fy;
-              src->Fz[iptr]  = fz;
-            }
-
-            if (moment_actived==1)
-            {
-              mxx = LagInterp_Piecewise_1d(t_in, m11, in_stf_nt, order,
-                      wavelet_tstart, in_stf_dt, t);
-              myy = LagInterp_Piecewise_1d(t_in, m22, in_stf_nt, order,
-                      wavelet_tstart, in_stf_dt, t);
-              mzz = LagInterp_Piecewise_1d(t_in, m33, in_stf_nt, order,
-                      wavelet_tstart, in_stf_dt, t);
-              myz = LagInterp_Piecewise_1d(t_in, m23, in_stf_nt, order,
-                      wavelet_tstart, in_stf_dt, t);
-              mxz = LagInterp_Piecewise_1d(t_in, m13, in_stf_nt, order,
-                      wavelet_tstart, in_stf_dt, t);
-              mxy = LagInterp_Piecewise_1d(t_in, m12, in_stf_nt, order,
-                      wavelet_tstart, in_stf_dt, t);
-              src->Mxx[iptr] = mxx;
-              src->Myy[iptr] = myy;
-              src->Mzz[iptr] = mzz;
-              src->Myz[iptr] = myz;
-              src->Mxz[iptr] = mxz;
-              src->Mxy[iptr] = mxy;
-            }
-          }
-        } // istage
-      } // it
-      
       // local is increase
       is_local += 1;
-
-    } // if in_thread
+    }
+    else // not here
+    {
+      src_skip_one_stfmech_src(fp, in_stf_by_value, in_stf_nt);
+    }
   } // is
+
   if (in_cmp_type == 2 && in_mechanism_type ==1)
   {
     float sendbuf = M0;
@@ -684,10 +414,10 @@ src_read_locate_file(
     fprintf(stdout,"Mw is %f\n",Mw);
   }
 
-  // close file and free local pointer
-
+  // close file 
   fclose(fp); 
 
+  // free local pointer, incomplete
   free(f1);
   free(f2);
   free(f3);
@@ -702,6 +432,444 @@ src_read_locate_file(
 
   fdlib_mem_free_2l_float(all_inc, in_num_source, "free_all_inc");
   fdlib_mem_free_2l_int  (all_index, in_num_source, "free_all_index");
+
+  return ierr;
+}
+
+/*
+ * read source location from .src file
+ */
+
+int
+src_read_meta_src(FILE *fp, char *evtnm, int *ns, 
+                 int *is_stf_given, float *stf_length, float *stf_dt, int *stf_nt,
+                 int *cmp_type, int *mechanism_type, int *coord_type, int *z_type)
+{
+  int ierr = 0;
+  char str[500];
+
+  // event name
+  if (!io_get_nextline(fp, str,500)) {
+    sprintf(evtnm,"%s",str);
+  }
+  // number of source
+  if (!io_get_nextline(fp, str,500)) {
+    sscanf(str,"%d",ns);
+  }
+  if (*ns <= 0) {
+    fprintf(stderr,"ERROR: in_num_source=%d <=0\n", *ns);
+    fflush(stderr); exit(1);
+  }
+
+  // source time function is given by wavelet name or values
+  if (!io_get_nextline(fp, str,500))
+  {
+    int dummy;
+    sscanf(str,"%d",is_stf_given);
+    if (*is_stf_given == 0) { // by name
+      sscanf(str,"%d %f",&dummy, stf_length);
+    } else if (*is_stf_given == 1) { // by value
+      sscanf(str,"%d %f %d",&dummy, stf_dt, stf_nt);
+    } else {
+      fprintf(stderr, "ERROR: is_stf_given=%d invalid (either 0 or 1)\n", *is_stf_given);
+      fflush(stderr); exit(1);
+    }
+  }
+
+  // force and/or moment, and moment by tensor or angle + muDa
+  if (!io_get_nextline(fp, str,500)) {
+    sscanf(str,"%d %d", cmp_type, mechanism_type);
+  }
+
+  // meaning of location and the 3rd input if location is given by coord
+  if (!io_get_nextline(fp, str,500)) {
+    sscanf(str,"%d %d", coord_type, z_type);
+  }
+
+  return ierr;
+}
+
+int
+src_read_loc_all_src(FILE *fp, int num_source, float *sx_all, float *sy_all, float *sz_all)
+{
+  int ierr = 0;
+  char str[500];
+
+  // read coords and determine if in this thread
+  for (int is=0; is<num_source; is++)
+  {
+    // read in and get src global index
+    if (!io_get_nextline(fp, str,500))
+    {
+      // read in as float value
+      sscanf(str,"%f %f %f", sx_all+is, sy_all+is, sz_all+is);
+    }
+  }
+
+  return ierr;
+}
+
+int
+src_skip_one_stfmech_src(FILE *fp, int is_stf_by_value, int in_stf_nt)
+{
+  int ierr = 0;
+  char str[500];
+
+  // 
+  if (is_stf_by_value == 0) // wavelet name
+  {
+    // skip stf
+    io_get_nextline(fp, str,500);
+    // skip mech
+    io_get_nextline(fp, str,500);
+  }
+  else // by values
+  {
+    // skip t0
+    io_get_nextline(fp, str,500);
+
+    // skip stf values
+    for (int it=0; it<in_stf_nt; it++)
+    {
+      io_get_nextline(fp, str,500);
+    }
+  }
+
+  return ierr;
+}
+
+int
+src_read_one_stf_name(FILE *fp, float *tstart, char *wavelet_name, float *wavelet_coefs)
+{
+  int ierr = 0;
+  char str[500];
+
+  // read in and get src global index
+  if (!io_get_nextline(fp, str,500))
+  {
+    // read up to 10 coefs, may be less than 10
+    sscanf(str,"%f %s %f %f %f %f %f %f %f %f %f %f",
+            tstart, wavelet_name, wavelet_coefs+0,
+            wavelet_coefs+1, wavelet_coefs+2, wavelet_coefs+3,
+            wavelet_coefs+4, wavelet_coefs+5, wavelet_coefs+6,
+            wavelet_coefs+7, wavelet_coefs+8, wavelet_coefs+9);
+    //fprintf(stdout,"-- wavelet_tstart=%g, wavelet_name=%s\n",
+    //                    *tstart, wavelet_name);
+    //fprintf(stdout,"---- coef[0]=%g, coef[1]=%g, coef[3]=%g\n",
+    //                    wavelet_coefs[0],wavelet_coefs[1],wavelet_coefs[2]);
+    //fflush(stdout);
+  }
+
+  return ierr;
+}
+
+int
+src_read_one_mech_name(FILE *fp, gd_t *gd, float *mu3d, 
+                        int in_cmp_type, int moment_actived, int in_mechanism_type,
+                        int *evt_index, int in_this_thread,
+                        float *evt_fx, float *evt_fy, float *evt_fz,
+                        float *evt_mxx, float *evt_myy, float *evt_mzz,
+                        float *evt_myz, float *evt_mxz, float *evt_mxy, float *evt_M0)
+{
+  int ierr = 0;
+  char str[500];
+
+  // get grid info from gdinfo
+  size_t siz_line = gd->siz_iy;
+  size_t siz_slice= gd->siz_iz;
+
+  // read in mech cmp
+  if (io_get_nextline(fp, str,500))
+  {
+    // error handle
+  }
+
+  // convert to cmp
+  if (in_cmp_type == 1) { // force
+    sscanf(str,"%f %f %f",evt_fx,evt_fy,evt_fz);
+  } else if (in_cmp_type == 2) { // moment
+    sscanf(str,"%f %f %f %f %f %f",evt_mxx,evt_myy,evt_mzz,evt_myz,evt_mxz,evt_mxy);
+  } else { // force + moment
+    sscanf(str,"%f %f %f %f %f %f %f %f %f", evt_fx,evt_fy,evt_fz,
+                  evt_mxx,evt_myy,evt_mzz,evt_myz,evt_mxz,evt_mxy);
+  }
+
+  // convert uDA into moment tensor if in_mechanism_type 1
+  if (moment_actived==1 && in_mechanism_type ==1) // use uDA input
+  {
+    float stk = *evt_mxx;
+    float dip = *evt_myy;
+    float rak = *evt_mzz;
+    float mu  = *evt_myz;
+    float D   = *evt_mxz;
+    float A   = *evt_mxy;
+
+    int si = gd_indx_glphy2lcext_i(evt_index[0], gd);
+    int sj = gd_indx_glphy2lcext_j(evt_index[1], gd);
+    int sk = gd_indx_glphy2lcext_k(evt_index[2], gd);
+    size_t iptr = si + sj * siz_line + sk * siz_slice;
+
+    // mu < 0 means to use internal model mu value
+    if (mu < 0.0) {
+      mu =  mu3d[iptr];
+    }
+
+    src_muDA_to_moment(stk,dip,rak,mu,D,A,
+              evt_mxx,evt_myy,evt_mzz,evt_myz,evt_mxz,evt_mxy);
+
+    if(in_this_thread == 1)
+    {
+      *evt_M0 += mu*D*A;
+    }
+  }
+
+  return ierr;
+}
+
+int
+src_read_one_mech_value(FILE *fp, gd_t *gd, float *mu3d, int in_stf_nt, float in_stf_dt,
+                        int in_cmp_type, int moment_actived, int in_mechanism_type,
+                        int *evt_index,  int in_this_thread,
+                        float *tstart, float *f1, float *f2, float *f3,
+                        float *m11, float *m22, float *m33, float *m23, float *m13, float *m12, 
+                        float *evt_M0)
+{
+  int ierr = 0;
+  char str[500];
+
+  // get grid info from gdinfo
+  size_t siz_line = gd->siz_iy;
+  size_t siz_slice= gd->siz_iz;
+
+  // read in t0
+  if (io_get_nextline(fp, str,500))
+  {
+    // error handle
+  }
+  sscanf(str,"%f", tstart);
+
+  // read cmp in number of in_stf_nt 
+  for (int it=0; it<in_stf_nt; it++)
+  {
+    if (io_get_nextline(fp, str,500))
+    {
+      // error handle
+    }
+
+    // read in mech values
+    if (in_cmp_type == 1) { // force
+      sscanf(str,"%f %f %f",f1+it,f2+it,f3+it);
+    } else if (in_cmp_type == 2) { // moment
+      sscanf(str,"%f %f %f %f %f %f",m11+it,m22+it,m33+it,m23+it,m13+it,m12+it);
+    } else { // force + moment
+      sscanf(str,"%f %f %f %f %f %f %f %f %f",
+          f1+it,f2+it,f3+it,m11+it,m22+it,m33+it,m23+it,m13+it,m12+it);
+    }
+
+    // convert uDA into moment tensor
+    if (moment_actived==1 && in_mechanism_type ==1)
+    {
+      float stk = m11[it];
+      float dip = m22[it];
+      float rak = m33[it];
+      float mu  = m23[it];
+      float D   = m13[it];
+      float A   = m12[it];
+
+      int si = gd_indx_glphy2lcext_i(evt_index[0], gd);
+      int sj = gd_indx_glphy2lcext_j(evt_index[1], gd);
+      int sk = gd_indx_glphy2lcext_k(evt_index[2], gd);
+      size_t iptr = si + sj * siz_line + sk * siz_slice;
+
+      // mu < 0 means to use internal model mu value
+      if (mu < 0.0) {
+        mu =  mu3d[iptr];
+      }
+
+      src_muDA_to_moment(stk,dip,rak,mu,D,A,
+                         m11+it ,m22+it ,m33+it ,m23+it ,m13+it ,m12+it);
+
+      if(in_this_thread == 1)
+      {
+        *evt_M0 += mu*D*A*in_stf_dt;
+      }
+
+    }
+  } // it loop
+
+
+  return ierr;
+}
+
+int
+src_put_into_struct(src_t *src, gd_t *gd,
+                    float     t0,
+                    float     dt,
+                    int max_stage,
+                    float *rk_stage_time,
+                    int npoint_half_ext, 
+                    int is_local, 
+                    int in_stf_by_value,
+                    int in_stf_nt, float in_stf_dt, float *t_in, int max_nt,
+                    float wavelet_tstart, char *wavelet_name, float *wavelet_coefs,
+                    int force_actived, int moment_actived,
+                    int *evt_index, float *evt_inc, 
+                    float fx, float fy, float fz,
+                    float mxx, float myy, float mzz, float myz, float mxz, float mxy,
+                    float *f1, float *f2, float *f3, 
+                    float *m11, float *m22, float *m33, float *m23, float *m13, float *m12)
+{
+  int ierr = 0;
+
+  // get grid info from gdinfo
+  size_t siz_line = gd->siz_iy;
+  size_t siz_slice= gd->siz_iz;
+
+  // get total elem of exted src region for a single point
+  //    int max_ext = 7 * 7 * 7;
+  int len_ext = 2*npoint_half_ext+1;
+  int max_ext = len_ext * len_ext * len_ext;
+
+  // convert global index to local index
+  int si = gd_indx_glphy2lcext_i(evt_index[0], gd);
+  int sj = gd_indx_glphy2lcext_j(evt_index[1], gd);
+  int sk = gd_indx_glphy2lcext_k(evt_index[2], gd);
+  
+  // keep into src_t
+  src->si[is_local] = si;
+  src->sj[is_local] = sj;
+  src->sk[is_local] = sk;
+
+  // for extended points and coefs
+  float sx_inc = evt_inc[0];
+  float sy_inc = evt_inc[1];
+  float sz_inc = evt_inc[2];
+  float wid_gauss = npoint_half_ext / 2.0;
+  float *this_ext_coef = src->ext_coef + is_local * max_ext;
+
+  src_cal_norm_delt3d(this_ext_coef, sx_inc, sy_inc, sz_inc,
+                      wid_gauss, wid_gauss, wid_gauss, npoint_half_ext);
+
+  size_t iptr_ext = 0;
+  for (int k=sk-npoint_half_ext; k<=sk+npoint_half_ext; k++)
+  {
+    for (int j=sj-npoint_half_ext; j<=sj+npoint_half_ext; j++)
+    {
+      for (int i=si-npoint_half_ext; i<=si+npoint_half_ext; i++)
+      {
+        if (gd_lindx_is_inner(i,j,k,gd)==1)
+        {
+          // Note index need match coef
+          int iptr_grid = i + j * siz_line + k * siz_slice;
+          int iptr_coef =  (i-(si-npoint_half_ext))
+                          + len_ext * (j-(sj-npoint_half_ext)) 
+                          + len_ext * len_ext *(k-(sk-npoint_half_ext));
+          src->ext_indx[iptr_ext + is_local * max_ext] = iptr_grid;
+          src->ext_coef[iptr_ext + is_local * max_ext] = this_ext_coef[iptr_coef];
+          iptr_ext++;
+        }
+      }
+    }
+  }
+  // only count index inside phys region for this thread
+  src->ext_num[is_local] = iptr_ext;
+
+  //
+  // wavelet
+  //
+
+  // time step, considering t0
+  int it_begin = (int) ( (wavelet_tstart - t0) / dt);
+  int it_end   = it_begin + max_nt - 1;
+
+  src->it_begin[is_local] = it_begin;
+  src->it_end  [is_local] = it_end  ;
+
+  // setp input t vector for interp, varies with wavelet_tstart 
+  for(int it=0; it<in_stf_nt; it++)
+  {
+    t_in[it] = wavelet_tstart + it*in_stf_dt;
+  }
+
+  for (int it=it_begin; it<=it_end; it++)
+  {
+    int it_to_it1 = (it - it_begin);
+    int iptr_it = is_local * max_nt * max_stage + it_to_it1 * max_stage;
+    // need to explain purpose
+    float t_shift = wavelet_tstart - (it_begin * dt + t0);
+
+    for (int istage=0; istage<max_stage; istage++)
+    {
+      int iptr = iptr_it + istage;
+
+      // cal stf for given wavelet name
+      if (in_stf_by_value==0)
+      {
+        // time relative to start time of this source, considering diff from int conversion
+        float t = it_to_it1 * dt + rk_stage_time[istage] * dt - t_shift;
+
+        float stf_val = src_cal_wavelet(t,dt,wavelet_name,wavelet_coefs);
+        if (force_actived==1) {
+          src->Fx[iptr]  = stf_val * fx;
+          src->Fy[iptr]  = stf_val * fy;
+          src->Fz[iptr]  = stf_val * fz;
+        }
+        if (moment_actived==1) {
+          src->Mxx[iptr] = stf_val * mxx;
+          src->Myy[iptr] = stf_val * myy;
+          src->Mzz[iptr] = stf_val * mzz;
+          src->Myz[iptr] = stf_val * myz;
+          src->Mxz[iptr] = stf_val * mxz;
+          src->Mxy[iptr] = stf_val * mxy;
+        }
+      }
+      // interp for input values
+      else
+      {
+        // time relative to start time of this source, considering diff from int conversion
+        float t = it * dt + rk_stage_time[istage] * dt - t_shift;
+
+        // interp1d order
+        int order = 3;     
+
+        if (force_actived==1)
+        {
+          fx = LagInterp_Piecewise_1d(t_in, f1, in_stf_nt, order,
+                  wavelet_tstart, in_stf_dt, t);
+          fy = LagInterp_Piecewise_1d(t_in, f2, in_stf_nt, order,
+                  wavelet_tstart, in_stf_dt, t);
+          fz = LagInterp_Piecewise_1d(t_in, f3, in_stf_nt, order,
+                  wavelet_tstart, in_stf_dt, t);
+
+          src->Fx[iptr]  = fx;
+          src->Fy[iptr]  = fy;
+          src->Fz[iptr]  = fz;
+        }
+
+        if (moment_actived==1)
+        {
+          mxx = LagInterp_Piecewise_1d(t_in, m11, in_stf_nt, order,
+                  wavelet_tstart, in_stf_dt, t);
+          myy = LagInterp_Piecewise_1d(t_in, m22, in_stf_nt, order,
+                  wavelet_tstart, in_stf_dt, t);
+          mzz = LagInterp_Piecewise_1d(t_in, m33, in_stf_nt, order,
+                  wavelet_tstart, in_stf_dt, t);
+          myz = LagInterp_Piecewise_1d(t_in, m23, in_stf_nt, order,
+                  wavelet_tstart, in_stf_dt, t);
+          mxz = LagInterp_Piecewise_1d(t_in, m13, in_stf_nt, order,
+                  wavelet_tstart, in_stf_dt, t);
+          mxy = LagInterp_Piecewise_1d(t_in, m12, in_stf_nt, order,
+                  wavelet_tstart, in_stf_dt, t);
+          src->Mxx[iptr] = mxx;
+          src->Myy[iptr] = myy;
+          src->Mzz[iptr] = mzz;
+          src->Myz[iptr] = myz;
+          src->Mxz[iptr] = mxz;
+          src->Mxy[iptr] = mxy;
+        }
+      }
+    } // istage
+  } // it
 
   return ierr;
 }

@@ -162,6 +162,55 @@ src_dd_read2local(
                      int*      topoid,
                      int       verbose);
 
+
+int
+src_read_meta_src(FILE *fp, char *evtnm, int *ns, 
+                 int *is_stf_given, float *stf_length, float *stf_dt, int *stf_nt,
+                 int *cmp_type, int *mechanism_type, int *coord_type, int *z_type);
+
+int
+src_read_loc_all_src(FILE *fp, int num_source, float *sx_all, float *sy_all, float *sz_all);
+
+int
+src_skip_one_stfmech_src(FILE *fp, int is_stf_by_value, int in_stf_nt);
+
+int
+src_read_one_stf_name(FILE *fp, float *tstart, char *wavelet_name, float *wavelet_coefs);
+
+int
+src_read_one_mech_name(FILE *fp, gd_t *gd, float *mu3d, 
+                        int in_cmp_type, int moment_actived, int in_mechanism_type,
+                        int *evt_index, int in_this_thread,
+                        float *evt_fx, float *evt_fy, float *evt_fz,
+                        float *evt_mxx, float *evt_myy, float *evt_mzz,
+                        float *evt_myz, float *evt_mxz, float *evt_mxy, float *evt_M0);
+
+int
+src_read_one_mech_value(FILE *fp, gd_t *gd, float *mu3d, int in_stf_nt, float in_stf_dt,
+                        int in_cmp_type, int moment_actived, int in_mechanism_type,
+                        int *evt_index,  int in_this_thread,
+                        float *tstart, float *f1, float *f2, float *f3,
+                        float *m11, float *m22, float *m33, float *m23, float *m13, float *m12, 
+                        float *evt_M0);
+
+int
+src_put_into_struct(src_t *src, gd_t *gd,
+                    float     t0,
+                    float     dt,
+                    int max_stage,
+                    float *rk_stage_time,
+                    int npoint_half_ext, 
+                    int is_local, 
+                    int in_stf_by_value,
+                    int in_stf_nt, float in_stf_dt, float *t_in, int max_nt,
+                    float wavelet_tstart, char *wavelet_name, float *wavelet_coefs,
+                    int force_actived, int moment_actived,
+                    int *evt_index, float *evt_inc, 
+                    float fx, float fy, float fz,
+                    float mxx, float myy, float mzz, float myz, float mxz, float mxy,
+                    float *f1, float *f2, float *f3, 
+                    float *m11, float *m22, float *m33, float *m23, float *m13, float *m12);
+
 int
 src_dd_free(src_t *src);
 
