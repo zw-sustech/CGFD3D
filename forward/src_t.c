@@ -218,55 +218,15 @@ src_read_locate_file(gd_t     *gd,
   // read coords and determine if in this thread
   for (int is=0; is<in_num_source; is++)
   {
-    float sx = all_x[is];
-    float sy = all_y[is];
-    float sz = all_z[is];
+    src_inputloc_to_indxinc(gd,comm,myid,is_location_coord,in_3coord_meaning,
+            all_x[is],all_y[is],all_z[is],
+            &si_glob,&sj_glob,&sk_glob,&sx_inc,&sy_inc,&sz_inc);
 
-    if (is_location_coord == 1) // physical coord
-    {
-      // convert to global index
-      //    todo: check if out of computational region
-      if (gd->type == GD_TYPE_CURV)
-      {
-        // if sz is depth, convert to axis when it is in this thread
-        if (in_3coord_meaning == 1) {
-          gd_curv_depth_to_axis(gd,sx,sy,&sz,comm,myid);
-        }
-        gd_curv_coord_to_glob_indx(gd,sx,sy,sz,comm,myid,
-                               &si_glob,&sj_glob,&sk_glob,&sx_inc,&sy_inc,&sz_inc);
-      }
-      else if (gd->type == GD_TYPE_CART)
-      {
-        // if sz is depth, convert to axis
-        if (in_3coord_meaning == 1) {
-          sz = gd->z1d[gd->nk2] - sz;
-        }
-        gd_cart_coord_to_glob_indx(gd,sx,sy,sz,comm,myid,
-                               &si_glob,&sj_glob,&sk_glob,&sx_inc,&sy_inc,&sz_inc);
-      }
-
-      //-- to notice user the progress using screen output for large input
-      if (myid == 0 && (is % 1000 ==0) && verbose>99) {
-        fprintf(stdout,"-- loc %d-th src index, finish %2.0f%%\n",
-                    is, (float)(is+1)/in_num_source*100.0);
-        fflush(stdout);
-      }
-    }
-    else // computational coordinate or grid index
-    {
-      // if sz is relative to surface, convert to normal index
-      if (in_3coord_meaning == 1) {
-        sz = gd->gnk2 - sz;
-      }
-
-      // nearest integer index
-      si_glob = (int) (sx + 0.5);
-      sj_glob = (int) (sy + 0.5);
-      sk_glob = (int) (sz + 0.5);
-      // relative shift
-      sx_inc = sx - si_glob;
-      sy_inc = sy - sj_glob;
-      sz_inc = sz - sk_glob;
+    //-- to notice user the progress using screen output for large input
+    if (myid == 0 && (is % 1000 ==0) && verbose>99) {
+      fprintf(stdout,"-- loc %d-th src index, finish %2.0f%%\n",
+                  is, (float)(is+1)/in_num_source*100.0);
+      fflush(stdout);
     }
 
     // keep index to avoid duplicat run
@@ -505,6 +465,68 @@ src_read_loc_all_src(FILE *fp, int num_source, float *sx_all, float *sy_all, flo
       sscanf(str,"%f %f %f", sx_all+is, sy_all+is, sz_all+is);
     }
   }
+
+  return ierr;
+}
+
+int
+src_inputloc_to_indxinc(gd_t *gd, MPI_Comm  comm, int myid,
+                        int is_location_coord, int in_3coord_meaning,
+                        float sx, float sy, float sz,
+                        int *ou_si_glob, int *ou_sj_glob, int *ou_sk_glob,
+                        float *ou_sx_inc,  float *ou_sy_inc,  float *ou_sz_inc)
+{
+  int ierr = 0;
+
+  int si_glob, sj_glob, sk_glob;
+  float sx_inc, sy_inc, sz_inc;
+
+  if (is_location_coord == 1) // physical coord
+  {
+    // convert to global index
+    //    todo: check if out of computational region
+    if (gd->type == GD_TYPE_CURV)
+    {
+      // if sz is depth, convert to axis when it is in this thread
+      if (in_3coord_meaning == 1) {
+        gd_curv_depth_to_axis(gd,sx,sy,&sz,comm,myid);
+      }
+      gd_curv_coord_to_glob_indx(gd,sx,sy,sz,comm,myid,
+                             &si_glob,&sj_glob,&sk_glob,&sx_inc,&sy_inc,&sz_inc);
+    }
+    else if (gd->type == GD_TYPE_CART)
+    {
+      // if sz is depth, convert to axis
+      if (in_3coord_meaning == 1) {
+        sz = gd->z1d[gd->nk2] - sz;
+      }
+      gd_cart_coord_to_glob_indx(gd,sx,sy,sz,comm,myid,
+                             &si_glob,&sj_glob,&sk_glob,&sx_inc,&sy_inc,&sz_inc);
+    }
+  }
+  else // computational coordinate or grid index
+  {
+    // if sz is relative to surface, convert to normal index
+    if (in_3coord_meaning == 1) {
+      sz = gd->gnk2 - sz;
+    }
+
+    // nearest integer index
+    si_glob = (int) (sx + 0.5);
+    sj_glob = (int) (sy + 0.5);
+    sk_glob = (int) (sz + 0.5);
+    // relative shift
+    sx_inc = sx - si_glob;
+    sy_inc = sy - sj_glob;
+    sz_inc = sz - sk_glob;
+  }
+
+  *ou_si_glob = si_glob;
+  *ou_sj_glob = sj_glob;
+  *ou_sk_glob = sk_glob;
+  *ou_sx_inc  = sx_inc;
+  *ou_sy_inc  = sy_inc;
+  *ou_sz_inc  = sz_inc;
 
   return ierr;
 }

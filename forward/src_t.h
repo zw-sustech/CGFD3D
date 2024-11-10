@@ -172,6 +172,13 @@ int
 src_read_loc_all_src(FILE *fp, int num_source, float *sx_all, float *sy_all, float *sz_all);
 
 int
+src_inputloc_to_indxinc(gd_t *gd, MPI_Comm  comm, int myid,
+                        int is_location_coord, int in_3coord_meaning,
+                        float sx, float sy, float sz,
+                        int *ou_si_glob, int *ou_sj_glob, int *ou_sk_glob,
+                        float *ou_sx_inc,  float *ou_sy_inc,  float *ou_sz_inc);
+
+int
 src_skip_one_stfmech_src(FILE *fp, int is_stf_by_value, int in_stf_nt);
 
 int
