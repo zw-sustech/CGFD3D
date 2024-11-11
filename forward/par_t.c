@@ -818,6 +818,21 @@ par_read_from_str(const char *str, par_t *par)
     par->source_dd_nt_per_read = item->valueint;
   }
 
+  //-- source spatial ext type
+  par->source_spatial_ext_itype = CONST_SRC_SPATIAL_GAUSSIAN; // default
+  if (item = cJSON_GetObjectItem(root, "source_spatial_distribution_type")) {
+      sprintf(par->source_spatial_ext_type,"%s",item->valuestring);
+      if (strcmp(par->source_spatial_ext_type, "point") == 0) {
+        par->source_spatial_ext_itype = CONST_SRC_SPATIAL_POINT;
+      } else if (strcmp(par->source_spatial_ext_type, "gauss") == 0) {
+        par->source_spatial_ext_itype = CONST_SRC_SPATIAL_GAUSSIAN;
+      } else {
+          fprintf(stderr,"ERROR: source_spatial_distribution_type=%s is unknown\n",
+                  par->source_spatial_ext_type);
+          MPI_Abort(MPI_COMM_WORLD,9);
+      }
+  }
+
   //-- output dir
   if (item = cJSON_GetObjectItem(root, "output_dir")) {
       sprintf(par->output_dir,"%s",item->valuestring);

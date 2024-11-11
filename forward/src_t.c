@@ -24,26 +24,35 @@
 
 int
 src_init(src_t *src, int force_actived, int moment_actived,
-         int num_of_src, int max_nt, int max_stage, int max_ext)
+         int num_of_src, int max_nt, int max_stage,
+         int itype_spatial_ext, int ext_half_npoint)
 {
   // set default value
   src->total_number = num_of_src;
   src->max_nt    = max_nt;
   src->max_stage = max_stage;
-  src->max_ext   = max_ext;
+
+  // smo
+  int len_ext            = 2*ext_half_npoint+1;
+  src->itype_spatial_ext = itype_spatial_ext;
+  src->ext_half_npoint   = ext_half_npoint;
+  src->ext_length_npoint = len_ext;
+  src->ext_size_npoint   = len_ext * len_ext * len_ext;
+  src->ext_func_coef     = ext_half_npoint / 2.0; // set inside
 
   src->force_actived   = force_actived;
   src->moment_actived   = moment_actived;
 
   // allocate var
-  src->si = (int *)malloc(num_of_src*sizeof(int));
-  src->sj = (int *)malloc(num_of_src*sizeof(int));
-  src->sk = (int *)malloc(num_of_src*sizeof(int));
+  src->si     = (int   *)malloc(num_of_src*sizeof(int));
+  src->sj     = (int   *)malloc(num_of_src*sizeof(int));
+  src->sk     = (int   *)malloc(num_of_src*sizeof(int));
+  src->si_inc = (float *)malloc(num_of_src*sizeof(float));
+  src->sj_inc = (float *)malloc(num_of_src*sizeof(float));
+  src->sk_inc = (float *)malloc(num_of_src*sizeof(float));
+
   src->it_begin = (int *)malloc(num_of_src*sizeof(int));
   src->it_end   = (int *)malloc(num_of_src*sizeof(int));
-  src->ext_num  = (int *)malloc(num_of_src*sizeof(int));
-  src->ext_indx = (int *)malloc(num_of_src*max_ext * sizeof(int  ));
-  src->ext_coef = (float *)malloc(num_of_src*max_ext * sizeof(float));
 
   src->Fx = NULL;
   src->Fy = NULL;
@@ -153,7 +162,8 @@ src_read_locate_file(gd_t     *gd,
                      float     dt,
                      int       max_stage,
                      float    *rk_stage_time,
-                     int       npoint_half_ext,
+                     int       itype_spatial_ext,
+                     int       ext_half_npoint,
                      MPI_Comm  comm,
                      int       myid,
                      int       verbose)
@@ -238,12 +248,12 @@ src_read_locate_file(gd_t     *gd,
     all_inc  [is][2] = sz_inc;
 
     // check if in this thread using index
-    if (src_glob_ext_ishere(si_glob,sj_glob,sk_glob,npoint_half_ext,gd)==1)
+    if (src_glob_ext_ishere(si_glob,sj_glob,sk_glob,ext_half_npoint,gd)==1)
     {
       all_in_thread[is] = 1;
       num_of_src_here += 1;
     }
-    if (src_glob_ishere(si_glob,sj_glob,sk_glob,npoint_half_ext,gd)==1)
+    if (src_glob_ishere(si_glob,sj_glob,sk_glob,ext_half_npoint,gd)==1)
     {
       all_in_thread_without_ghost[is] = 1;
     }
@@ -302,9 +312,8 @@ src_read_locate_file(gd_t     *gd,
   }
 
   // alloc src_t
-  int len_ext = 2*npoint_half_ext+1;
-  int max_ext = len_ext * len_ext * len_ext;
-  src_init(src,force_actived,moment_actived,num_of_src_here,max_nt,max_stage,max_ext);
+  src_init(src,force_actived,moment_actived,num_of_src_here,max_nt,max_stage,
+           itype_spatial_ext,ext_half_npoint);
 
   //
   // loop all source and only keep those in this thread
@@ -349,7 +358,7 @@ src_read_locate_file(gd_t     *gd,
       }
 
       // put into src_t
-      src_put_into_struct(src,gd,t0,dt,max_stage,rk_stage_time,npoint_half_ext,
+      src_put_into_struct(src,gd,t0,dt,max_stage,rk_stage_time,
                           is_local,in_stf_by_value,in_stf_nt,in_stf_dt,t_in,max_nt,
                           wavelet_tstart,wavelet_name,wavelet_coefs,
                           force_actived, moment_actived,
@@ -729,7 +738,6 @@ src_put_into_struct(src_t *src, gd_t *gd,
                     float     dt,
                     int max_stage,
                     float *rk_stage_time,
-                    int npoint_half_ext, 
                     int is_local, 
                     int in_stf_by_value,
                     int in_stf_nt, float in_stf_dt, float *t_in, int max_nt,
@@ -747,54 +755,18 @@ src_put_into_struct(src_t *src, gd_t *gd,
   size_t siz_line = gd->siz_iy;
   size_t siz_slice= gd->siz_iz;
 
-  // get total elem of exted src region for a single point
-  //    int max_ext = 7 * 7 * 7;
-  int len_ext = 2*npoint_half_ext+1;
-  int max_ext = len_ext * len_ext * len_ext;
-
   // convert global index to local index
   int si = gd_indx_glphy2lcext_i(evt_index[0], gd);
   int sj = gd_indx_glphy2lcext_j(evt_index[1], gd);
   int sk = gd_indx_glphy2lcext_k(evt_index[2], gd);
   
   // keep into src_t
-  src->si[is_local] = si;
-  src->sj[is_local] = sj;
-  src->sk[is_local] = sk;
-
-  // for extended points and coefs
-  float sx_inc = evt_inc[0];
-  float sy_inc = evt_inc[1];
-  float sz_inc = evt_inc[2];
-  float wid_gauss = npoint_half_ext / 2.0;
-  float *this_ext_coef = src->ext_coef + is_local * max_ext;
-
-  src_cal_norm_delt3d(this_ext_coef, sx_inc, sy_inc, sz_inc,
-                      wid_gauss, wid_gauss, wid_gauss, npoint_half_ext);
-
-  size_t iptr_ext = 0;
-  for (int k=sk-npoint_half_ext; k<=sk+npoint_half_ext; k++)
-  {
-    for (int j=sj-npoint_half_ext; j<=sj+npoint_half_ext; j++)
-    {
-      for (int i=si-npoint_half_ext; i<=si+npoint_half_ext; i++)
-      {
-        if (gd_lindx_is_inner(i,j,k,gd)==1)
-        {
-          // Note index need match coef
-          int iptr_grid = i + j * siz_line + k * siz_slice;
-          int iptr_coef =  (i-(si-npoint_half_ext))
-                          + len_ext * (j-(sj-npoint_half_ext)) 
-                          + len_ext * len_ext *(k-(sk-npoint_half_ext));
-          src->ext_indx[iptr_ext + is_local * max_ext] = iptr_grid;
-          src->ext_coef[iptr_ext + is_local * max_ext] = this_ext_coef[iptr_coef];
-          iptr_ext++;
-        }
-      }
-    }
-  }
-  // only count index inside phys region for this thread
-  src->ext_num[is_local] = iptr_ext;
+  src->si    [is_local] = si;
+  src->sj    [is_local] = sj;
+  src->sk    [is_local] = sk;
+  src->si_inc[is_local] = evt_inc[0];
+  src->sj_inc[is_local] = evt_inc[1];
+  src->sk_inc[is_local] = evt_inc[2];
 
   //
   // wavelet
@@ -1805,6 +1777,50 @@ src_cal_norm_delt3d(float *delt, float x0, float y0, float z0,
   }
 } 
 
+// z2 is the free surface, normalization only considering physical points
+void
+src_cal_norm_delt3d_z2fre(float *delt, float x0, float y0, float z0,
+                    float rx0, float ry0, float rz0, int LenDelt, int LenDeltZ2)
+{
+  int iptr = 0;
+  for(int k=-LenDelt; k<=LenDelt; k++) {
+    for(int j=-LenDelt; j<=LenDelt; j++) {
+      for(int i=-LenDelt; i<=LenDelt; i++) {
+        float D1 = fun_gauss(i-x0, rx0 ,0.0);           
+        float D2 = fun_gauss(j-y0, ry0 ,0.0);          
+        float D3 = fun_gauss(k-z0, rz0 ,0.0);          
+        delt[iptr] = D1 * D2 * D3;
+        iptr++;
+      }
+    }               
+  }
+
+  // norm
+  float SUM = 0.0 ;
+  iptr = 0; // k uninvolved accumulation only at last
+  for(int k=-LenDelt; k<=LenDeltZ2; k++)
+  {
+    for(int j=-LenDelt; j<=LenDelt; j++)
+    {
+      for(int i=-LenDelt; i<=LenDelt; i++)
+      {
+        SUM += delt[iptr];
+        iptr++;
+      }
+    }
+  }
+  if( SUM < 1e-20 )
+  {
+    fprintf(stderr, "cal_norm_delt_z2free is zero\n");
+    exit(1);
+  }
+
+  int siz_1d = 2 * LenDelt + 1;
+  for (int iptr=0; iptr< siz_1d*siz_1d*siz_1d; iptr++) {
+    delt[iptr] /= SUM;
+  }
+} 
+
 /*
  * wavelet functions
  */
@@ -2078,16 +2094,17 @@ src_print(src_t *src, int verbose)
   fprintf(stdout,"-- total_number=%d\n", src->total_number);
   fprintf(stdout,"-- force_actived=%d, moment_actived=%d\n",
           src->force_actived, src->moment_actived);
-  fprintf(stdout,"-- max_nt=%d,max_stage=%d,max_ext=%d\n",
-          src->max_nt,src->max_stage,src->max_ext);
+  fprintf(stdout,"-- max_nt=%d,max_stage=%d\n",
+          src->max_nt,src->max_stage);
+  fprintf(stdout,"-- itype_spatial_ext=%d\n", src->itype_spatial_ext);
   
   // only print for large verbose
   if (verbose > 99)
   {
     for (int is=0; is<src->total_number; is++)
     {
-      fprintf(stdout,"--- is=%d, si=%d,sj=%d,sk=%d,ext_num=%d,it_begin=%d,it_end=%d\n",
-            is,src->si[is],src->sj[is],src->sk[is],src->ext_num[is],
+      fprintf(stdout,"--- is=%d, si=%d,sj=%d,sk=%d,it_begin=%d,it_end=%d\n",
+            is,src->si[is],src->sj[is],src->sk[is],
             src->it_begin[is],src->it_end[is]);
       // should not print time series for normal usage
       if (verbose > 999)

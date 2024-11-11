@@ -211,7 +211,7 @@ sv_curv_col_el_aniso_onestage(
   {
     sv_curv_col_el_rhs_src(hVx,hVy,hVz,hTxx,hTyy,hTzz,hTxz,hTyz,hTxy,
                                     jac3d, slw3d, 
-                                    src,
+                                    gdinfo,src,
                                     myid, verbose);
   }
 

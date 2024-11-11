@@ -31,7 +31,8 @@ sv_curv_col_el_rhs_src(
     float *restrict hTxx, float *restrict hTyy, float *restrict hTzz,
     float *restrict hTxz, float *restrict hTyz, float *restrict hTxy,
     float *restrict jac3d, float *restrict slw3d,
-    src_t *src, // short nation for reference member
+    gd_t  *gd, // 
+    src_t *src, // 
     const int myid, const int verbose);
 
 int

@@ -303,16 +303,30 @@ sv_curv_col_el_rhs_src(
     float *restrict hTxx, float *restrict hTyy, float *restrict hTzz,
     float *restrict hTxz, float *restrict hTyz, float *restrict hTxy,
     float *restrict jac3d, float *restrict slw3d,
-    src_t *src, // short nation for reference member
+    gd_t  *gd, // for mu3d and smo index
+    src_t *src, // 
     const int myid, const int verbose)
 {
   int ierr = 0;
 
-  // local var
-  int si,sj,sk, iptr;
 
-  // for easy coding and efficiency
-  int max_ext = src->max_ext;
+  int    nk2       = gd->nk2;
+  size_t siz_line  = gd->siz_iy;
+  size_t siz_slice = gd->siz_iz;
+
+  // local var
+  int si,sj,sk;
+  float si_inc,sj_inc,sk_inc;
+  size_t iptr;
+
+  // for spatial smo
+  int npoint_half_ext   = src->ext_half_npoint;
+  float ext_func_coef   = src->ext_func_coef;
+
+  float ext_coefs[src->ext_size_npoint]; // variable length arrays
+  int npoint_z2ext_below_free;
+  int iptr_ext;
+  float coef;
 
   // get fi / mij
   float fx, fy, fz;
@@ -329,8 +343,6 @@ sv_curv_col_el_rhs_src(
 
     if (it >= it_start && it <= it_end)
     {
-      int   *ptr_ext_indx = src->ext_indx + is * max_ext;
-      float *ptr_ext_coef = src->ext_coef + is * max_ext;
       int it_to_it_start = it - it_start;
       int iptr_cur_stage =   is * src->max_nt * src->max_stage // skip other src
                            + it_to_it_start * src->max_stage // skip other time step
@@ -348,22 +360,27 @@ sv_curv_col_el_rhs_src(
         Myz = src->Myz[iptr_cur_stage];
         Mxy = src->Mxy[iptr_cur_stage];
       }
-      
-      // for extend points
-      for (int i_ext=0; i_ext < src->ext_num[is]; i_ext++)
+
+      // get source local index;
+      si     = src->si[is];
+      sj     = src->sj[is];
+      sk     = src->sk[is];
+
+      // for spatial extend
+      // no spatial ext
+      if (src->itype_spatial_ext == CONST_SRC_SPATIAL_POINT)
       {
-        int   iptr = ptr_ext_indx[i_ext];
-        float coef = ptr_ext_coef[i_ext];
+        iptr = si + sj * siz_line + sk * siz_slice;
 
         if (src->force_actived == 1) {
-          float V = coef * slw3d[iptr] / jac3d[iptr];
+          float V = slw3d[iptr] / jac3d[iptr];
           hVx[iptr] += fx * V;
           hVy[iptr] += fy * V;
           hVz[iptr] += fz * V;
         }
 
         if (src->moment_actived == 1) {
-          float rjac = coef / jac3d[iptr];
+          float rjac = 1.0 / jac3d[iptr];
           hTxx[iptr] -= Mxx * rjac;
           hTyy[iptr] -= Myy * rjac;
           hTzz[iptr] -= Mzz * rjac;
@@ -371,9 +388,68 @@ sv_curv_col_el_rhs_src(
           hTyz[iptr] -= Myz * rjac;
           hTxy[iptr] -= Mxy * rjac;
         }
-      } // i_ext
+      }
+      // with spatial smoothing
+      else
+      {
+        si_inc = src->si_inc[is];
+        sj_inc = src->sj_inc[is];
+        sk_inc = src->sk_inc[is];
 
-    } // it
+        // spatial dist
+        if (sk + npoint_half_ext < nk2) {
+          npoint_z2ext_below_free = npoint_half_ext;
+        } else {
+          npoint_z2ext_below_free = nk2 - sk;
+        }
+        src_cal_norm_delt3d_z2fre(ext_coefs, si_inc, sj_inc, sk_inc,
+                            ext_func_coef, ext_func_coef, ext_func_coef,
+                            npoint_half_ext, npoint_z2ext_below_free);
+
+        // future: get start end index first to avoid if inside loop
+        // int i1_ext = si-npoint_half_ext > ni1 ? si-npoint_half_ext : ni1;
+
+        iptr_ext = 0; // to get coef from vector ext_coefs
+        for (int k_ext=-npoint_half_ext; k_ext<=npoint_z2ext_below_free; k_ext++)
+        {
+          int k = sk + k_ext;
+          for (int j_ext=-npoint_half_ext; j_ext<=npoint_half_ext; j_ext++)
+          {
+            int j = sj + j_ext;
+            for (int i_ext=-npoint_half_ext; i_ext<=npoint_half_ext; i_ext++)
+            {
+              int i = si + i_ext;
+
+              // in this thread after ext
+              if (gd_lindx_is_inner(i,j,k,gd)==1)
+              {
+                iptr = i + j * siz_line + k * siz_slice;
+                coef = ext_coefs[iptr_ext];
+
+                if (src->force_actived == 1) {
+                  float V = coef * slw3d[iptr] / jac3d[iptr];
+                  hVx[iptr] += fx * V;
+                  hVy[iptr] += fy * V;
+                  hVz[iptr] += fz * V;
+                }
+
+                if (src->moment_actived == 1) {
+                  float rjac = coef / jac3d[iptr];
+                  hTxx[iptr] -= Mxx * rjac;
+                  hTyy[iptr] -= Myy * rjac;
+                  hTzz[iptr] -= Mzz * rjac;
+                  hTxz[iptr] -= Mxz * rjac;
+                  hTyz[iptr] -= Myz * rjac;
+                  hTxy[iptr] -= Mxy * rjac;
+                }
+              }
+              
+              iptr_ext += 1;
+            } // i_ext
+          }
+        } // k_ext
+      } // if point or smooth
+    } // if it valid
   } // is
 
   return ierr;

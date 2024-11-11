@@ -19,7 +19,6 @@ typedef struct {
   int total_number;
   int max_nt; // max nt of stf and mrf per src
   int max_stage; // max number of rk stages
-  int max_ext; // max extened points
 
   // for getting value in calculation
   int it;
@@ -32,11 +31,18 @@ typedef struct {
   int *si; // local i index 
   int *sj; // local j index 
   int *sk; // local k index 
+  float *si_inc;
+  float *sj_inc;
+  float *sk_inc;
   int *it_begin; // start t index
   int *it_end;   // end   t index
-  int   *ext_num; // valid extend points for this src
-  int   *ext_indx; // max_ext * total_number
-  float *ext_coef;
+
+  // spatial extention
+  int itype_spatial_ext; // num type, 1:point, 2:gaussian, 3:xx, see constants.h
+  int ext_half_npoint;   // maximum half points no matter spatial functions
+  int ext_func_coef; // func coef, e.g., wid_gauss
+  int ext_length_npoint;
+  int ext_size_npoint;
 
   // force and/or moment
   int force_actived;
@@ -138,7 +144,8 @@ src_read_locate_file(
                      float     dt,
                      int       max_stage,
                      float    *rk_stage_time,
-                     int       npoint_half_ext,
+                     int       itype_spatial_ext,
+                     int       ext_half_npoint,
                      MPI_Comm  comm,
                      int       myid,
                      int       verbose);
@@ -206,7 +213,6 @@ src_put_into_struct(src_t *src, gd_t *gd,
                     float     dt,
                     int max_stage,
                     float *rk_stage_time,
-                    int npoint_half_ext, 
                     int is_local, 
                     int in_stf_by_value,
                     int in_stf_nt, float in_stf_dt, float *t_in, int max_nt,
@@ -316,6 +322,9 @@ src_set_time(src_t *src, int it, int istage);
 void
 src_cal_norm_delt3d(float *delt, float x0, float y0, float z0,
                     float rx0, float ry0, float rz0, int LenDelt);
+void
+src_cal_norm_delt3d_z2fre(float *delt, float x0, float y0, float z0,
+                    float rx0, float ry0, float rz0, int LenDelt, int LenDeltZ2);
 
 int
 src_print(src_t *src, int verbose);

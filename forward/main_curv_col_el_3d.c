@@ -675,6 +675,7 @@ int main(int argc, char** argv)
                        par->source_input_file,
                        t0, dt,
                        fd->num_rk_stages, fd->rk_rhs_time,
+                       par->source_spatial_ext_itype,
                        fd->fdx_max_half_len,
                        comm, myid,
                        verbose);
@@ -691,8 +692,8 @@ int main(int argc, char** argv)
                     verbose);
 
   // print basic info for QC
-  //fprintf(stdout,"src info at topoid=%d,%d\n", mympi->topoid[0],mympi->topoid[1]); 
-  //src_print(src, verbose);
+  fprintf(stdout,"src info at topoid=%d,%d\n", mympi->topoid[0],mympi->topoid[1]); 
+  src_print(src, verbose);
   
   /*
   if (par->is_export_source==1)

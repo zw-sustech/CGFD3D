@@ -28,7 +28,7 @@ echo "EXEC_WAVE=$EXEC_WAVE"
 #-- project dir, either absolute or relative path
 #----------------------------------------------------------------------
 
-PROJDIR=./run
+PROJDIR=./run_gauss_dep1pt
 EVTNM=exlosive.ricker
 echo "PROJDIR=${PROJDIR}"
 echo "EVTNM=${EVTNM}"
@@ -101,7 +101,8 @@ ${EVTNM}
 0 1
 # location of each source
 #   sx sy sz
-80.2 49.3 5.5
+80.2 49.3 1.0
+#80.2 49.3 5.5
 #80 49 50
 #8020 4930 -950
 # stf and cmp
@@ -229,11 +230,11 @@ cat << ieof > $PAR_FILE
 
   "grid_generation_method" : {
       "#import" : "$GRID_DIR",
-      "#cartesian" : {
+      "cartesian" : {
         "origin"  : [0.0, 0.0, -5900.0 ],
         "inteval" : [ 100.0, 100.0, 100.0 ]
       },
-      "layer_interp" : {
+      "#layer_interp" : {
         "in_grid_layer_file" : "${CUR_DIR}/prep_grid/random_topo.gdlay",
         "refine_factor" : [ 1, 1, 1 ],
         "horizontal_start_index" : [ 3, 3 ],
@@ -252,7 +253,7 @@ cat << ieof > $PAR_FILE
   "medium" : {
       "type" : "elastic_iso",
       "#--- input_way choice" : "code import infile_layer infile_grid binfile",
-      "input_way" : "infile_layer",
+      "input_way" : "code",
       "binfile" : {
         "size"    : [1101, 1447, 1252],
         "spacing" : [-10, 10, 10],
@@ -288,6 +289,9 @@ cat << ieof > $PAR_FILE
   "source_export_dir"  : "$SOURCE_DIR",
 
   "#in_ddsource_file" : "${CUR_DIR}/prep_source/event_3moment_srcdd.nc",
+
+  "#source_spatial_distribution_type" : "point",
+  "source_spatial_distribution_type" : "gauss",
 
   "output_dir" : "$OUTPUT_DIR",
   "tmp_dir"    : "$TMP_DIR",
