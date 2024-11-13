@@ -28,8 +28,8 @@ echo "EXEC_WAVE=$EXEC_WAVE"
 #-- project dir, either absolute or relative path
 #----------------------------------------------------------------------
 
-PROJDIR=./run_gauss_dep1pt
-EVTNM=exlosive.ricker
+PROJDIR=./run_surf_force
+EVTNM=fz.ricker
 echo "PROJDIR=${PROJDIR}"
 echo "EVTNM=${EVTNM}"
 
@@ -94,20 +94,21 @@ ${EVTNM}
 #  2nd value: mechanism format for moment source:
 #       0 : 6 moment components, 
 #       1 : 3 angles, mu, slip rate or D, A (mu <0 means to use internal mu value)
-2 0
+1 0
 # flag for location
 #   1st value: 0 computational coordiate, 1 physical coordinate
 #   2nd value: third coordinate is 0 axis or 1 depth 
 0 1
 # location of each source
 #   sx sy sz
-80.2 49.3 1.0
+80 49 0
 #80.2 49.3 5.5
 #80 49 50
 #8020 4930 -950
 # stf and cmp
 0.0 ricker 2.0 0.5   # t0  stf_name  ricker_fc ricker_t0
-1.0e16  1.0e16  1.0e16 0 0 0 
+0.0  0.0  1.0e16
+#1.0e16  1.0e16  1.0e16 0 0 0 
 ieof
 
 echo "+ created $PROJDIR/example.src"
@@ -123,7 +124,7 @@ cat << ieof > $PROJDIR/example.station
 # number of station
 1
 # name is_physical_coord is_3dim_depth  x y z
-r1  1  1  1000 1000 0
+r1  0  1  160 140 15
 ieof
 
 echo "+ created $PROJDIR/example.station"

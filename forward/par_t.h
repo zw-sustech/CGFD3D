@@ -199,6 +199,8 @@ typedef struct{
   int is_export_source;
   char source_export_dir[PAR_MAX_STRLEN];
 
+  int source_surface_force_strict;
+
   char source_spatial_ext_type[PAR_MAX_STRLEN];
   int source_spatial_ext_itype;
 

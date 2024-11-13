@@ -98,9 +98,15 @@ bdry_free_set(gd_t    *gd,
                                       0.0,
                                       "bdry_free_set");
 
+  float *matF2Vz = (float *)fdlib_mem_calloc_1d_float(
+                                      siz_slice * CONST_NDIM * CONST_NDIM,
+                                      0.0,
+                                      "bdry_free_set");
+
   bdryfree->matVx2Vz2 = matVx2Vz;
   bdryfree->matVy2Vz2 = matVy2Vz;
   bdryfree->matD      = matD;
+  bdryfree->matF2Vz2  = matF2Vz;
 
   return ierr;
 }

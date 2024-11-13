@@ -71,6 +71,13 @@ sv_curv_col_el_iso_onestage(
   float *restrict  mu3d = md->mu;
   float *restrict slw3d = md->rho;
 
+  float *restrict TxSrc = src->TxSrc;
+  float *restrict TySrc = src->TySrc;
+  float *restrict TzSrc = src->TzSrc;
+  float *restrict VxSrc = src->VxSrc;
+  float *restrict VySrc = src->VySrc;
+  float *restrict VzSrc = src->VzSrc;
+
   // grid size
   int ni1 = gdinfo->ni1;
   int ni2 = gdinfo->ni2;
@@ -91,6 +98,7 @@ sv_curv_col_el_iso_onestage(
 
   float *matVx2Vz = bdry->matVx2Vz2;
   float *matVy2Vz = bdry->matVy2Vz2;
+  float *matF2Vz  = bdry->matF2Vz2;
 
   // local fd op
   int              fdx_inn_len;
@@ -137,6 +145,7 @@ sv_curv_col_el_iso_onestage(
     sv_curv_col_el_rhs_timg_z2(Txx,Tyy,Tzz,Txz,Tyz,Txy,hVx,hVy,hVz,
                                         xi_x, xi_y, xi_z, et_x, et_y, et_z, zt_x, zt_y, zt_z,
                                         jac3d, slw3d,
+                                        TxSrc,TySrc,TzSrc,
                                         ni1,ni2,nj1,nj2,nk1,nk2,siz_line,siz_slice,
                                         fdx_inn_len, fdx_inn_indx, fdx_inn_coef,
                                         fdy_inn_len, fdy_inn_indx, fdy_inn_coef,
@@ -147,7 +156,8 @@ sv_curv_col_el_iso_onestage(
     sv_curv_col_el_iso_rhs_vlow_z2(Vx,Vy,Vz,hTxx,hTyy,hTzz,hTxz,hTyz,hTxy,
                                         xi_x, xi_y, xi_z, et_x, et_y, et_z, zt_x, zt_y, zt_z,
                                         lam3d, mu3d, slw3d,
-                                        matVx2Vz,matVy2Vz,
+                                        matVx2Vz,matVy2Vz,matF2Vz,
+                                        VxSrc,VySrc,VzSrc,
                                         ni1,ni2,nj1,nj2,nk1,nk2,siz_line,siz_slice,
                                         fdx_inn_len, fdx_inn_indx, fdx_inn_coef,
                                         fdy_inn_len, fdy_inn_indx, fdy_inn_coef,
@@ -447,7 +457,8 @@ sv_curv_col_el_iso_rhs_vlow_z2(
     float *restrict et_x, float *restrict et_y, float *restrict et_z,
     float *restrict zt_x, float *restrict zt_y, float *restrict zt_z,
     float *restrict lam3d, float *restrict mu3d, float *restrict slw3d,
-    float *restrict matVx2Vz, float *restrict matVy2Vz,
+    float *restrict matVx2Vz, float *restrict matVy2Vz,float *restrict matF2Vz, 
+    float *restrict VxSrc, float *restrict VySrc,float *restrict VzSrc, 
     int ni1, int ni2, int nj1, int nj2, int nk1, int nk2,
     size_t siz_line, size_t siz_slice,
     int fdx_len, int *restrict fdx_indx, float *restrict fdx_coef,
@@ -546,7 +557,8 @@ sv_curv_col_el_iso_rhs_vlow_z2(
 
         if (k==nk2) // at surface, convert
         {
-          size_t ij = (i + j * siz_line)*9;
+          size_t ij   = (i + j * siz_line)*9;
+          size_t ij2d = (i + j * siz_line);
           DzVx = matVx2Vz[ij+3*0+0] * DxVx
                + matVx2Vz[ij+3*0+1] * DxVy
                + matVx2Vz[ij+3*0+2] * DxVz
@@ -567,6 +579,17 @@ sv_curv_col_el_iso_rhs_vlow_z2(
                + matVy2Vz[ij+3*2+0] * DyVx
                + matVy2Vz[ij+3*2+1] * DyVy
                + matVy2Vz[ij+3*2+2] * DyVz;
+
+          // surface source
+          DzVx += matF2Vz[ij+3*0+0] * VxSrc[ij2d]
+                + matF2Vz[ij+3*0+1] * VySrc[ij2d]
+                + matF2Vz[ij+3*0+2] * VzSrc[ij2d];
+          DzVy += matF2Vz[ij+3*1+0] * VxSrc[ij2d]
+                + matF2Vz[ij+3*1+1] * VySrc[ij2d]
+                + matF2Vz[ij+3*1+2] * VzSrc[ij2d];
+          DzVz += matF2Vz[ij+3*2+0] * VxSrc[ij2d]
+                + matF2Vz[ij+3*2+1] * VySrc[ij2d]
+                + matF2Vz[ij+3*2+2] * VzSrc[ij2d];
         }
         else // lower than surface, lower order
         {
@@ -1270,6 +1293,7 @@ sv_curv_col_el_iso_dvh2dvz(gd_t        *gdinfo,
 
   float *matVx2Vz = bdryfree->matVx2Vz2;
   float *matVy2Vz = bdryfree->matVy2Vz2;
+  float *matF2Vz  = bdryfree->matF2Vz2;
   
   float A[3][3], B[3][3], C[3][3];
   float AB[3][3], AC[3][3];
@@ -1341,6 +1365,8 @@ sv_curv_col_el_iso_dvh2dvz(gd_t        *gdinfo,
         for(int jcol = 0; jcol < 3; jcol++){
           matVx2Vz[ij + irow*3 + jcol] = AB[irow][jcol];
           matVy2Vz[ij + irow*3 + jcol] = AC[irow][jcol];
+          // for surface force
+          matF2Vz[ij + irow*3 + jcol] = A[irow][jcol];
         }
     }
   }

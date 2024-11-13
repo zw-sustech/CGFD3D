@@ -12,11 +12,15 @@
   ((icmp) * (nt) * (num_stage) + (it) * (num_stage) + (istage))
 
 /*************************************************
- * structure
+ * source structure
+ *  currently, 2 different source types:
+ *      body and dd (plane or large volume)
+ *  in future, dd may be combined into body
  *************************************************/
 
-typedef struct {
-  int total_number;
+typedef struct
+{
+  int total_number; // initial design, now only for body source
   int max_nt; // max nt of stf and mrf per src
   int max_stage; // max number of rk stages
 
@@ -36,6 +40,11 @@ typedef struct {
   float *sk_inc;
   int *it_begin; // start t index
   int *it_end;   // end   t index
+
+  // if surface force source specially treated
+  int is_surface_force_strict;
+  int total_number_surface_force;
+  int idx_next_surface_force; // array index for src_put_into_struct
 
   // spatial extention
   int itype_spatial_ext; // num type, 1:point, 2:gaussian, 3:xx, see constants.h
@@ -60,6 +69,20 @@ typedef struct {
   float *Mxz;
   float *Myz;
   float *Mxy;
+
+  // need force stf derivative for surface force implementation, only for surface force
+  int   *force_rate_indx;
+  float *Fx_rate; // max_stage * max_nt * total_number_surface_force
+  float *Fy_rate;
+  float *Fz_rate;
+
+  // to implete surface source for single stage over all surface points
+  float *TxSrc;
+  float *TySrc;
+  float *TzSrc;
+  float *VxSrc;
+  float *VySrc;
+  float *VzSrc;
 
   /*
    * add vars for distributed and discrete (dd) sources
@@ -105,7 +128,70 @@ typedef struct {
 } src_t;
 
 /*************************************************
- * function prototype
+ * function prototype for external usage
+ *************************************************/
+
+int
+src_init(src_t *src, int force_actived, int moment_actived,
+         int num_of_src, int max_nt, int max_stage,
+         int is_surface_force_strict, int num_of_surf_force,
+         int itype_spatial_ext, int ext_half_npoint,
+         size_t siz_slice);
+
+int
+src_set_time(src_t *src, int it, int istage);
+
+int
+src_set_surface_layer_for_force(src_t *src,
+                                gd_t *gd,
+                                gdcurv_metric_t  *metric);
+int
+src_read_locate_file(
+                     gd_t     *gd,
+                     src_t    *src,
+                     float    *restrict mu3d,
+                     char     *in_src_file,
+                     float     t0,
+                     float     dt,
+                     int       max_stage,
+                     float    *rk_stage_time,
+                     int       is_surface_force_strict,
+                     int       itype_spatial_ext,
+                     int       ext_half_npoint,
+                     MPI_Comm  comm,
+                     int       myid,
+                     int       verbose);
+
+int
+src_dd_read2local(
+                     gd_t     *gd,
+                     src_t    *src,
+                     char     *in_file,
+                     char     *tmp_dir,
+                     int       dd_is_add_at_point,
+                     int       dd_nt_per_read,
+                     float     t0,
+                     float     dt,
+                     int       nt_total,
+                     int       max_stage,
+                     float    *rk_stage_time,
+                     int       npoint_half_ext,
+                     MPI_Comm  comm,
+                     int       myid,
+                     int*      topoid,
+                     int       verbose);
+
+int
+src_dd_free(src_t *src);
+
+int
+src_dd_accit_loadstf(src_t *src, int it, int myid);
+
+int
+src_print(src_t *src, int verbose);
+
+/*************************************************
+ * function prototype for internal usage
  *************************************************/
 
 int
@@ -133,41 +219,6 @@ src_coord_to_local_indx(
                         int *si, int *sj, int *sk,
                         float *sx_inc, float *sy_inc, float *sz_inc,
                         float *restrict wrk3d);
-
-int
-src_read_locate_file(
-                     gd_t     *gd,
-                     src_t    *src,
-                     float    *restrict mu3d,
-                     char     *in_src_file,
-                     float     t0,
-                     float     dt,
-                     int       max_stage,
-                     float    *rk_stage_time,
-                     int       itype_spatial_ext,
-                     int       ext_half_npoint,
-                     MPI_Comm  comm,
-                     int       myid,
-                     int       verbose);
-
-int
-src_dd_read2local(
-                     gd_t     *gd,
-                     src_t    *src,
-                     char     *in_file,
-                     char     *tmp_dir,
-                     int       dd_is_add_at_point,
-                     int       dd_nt_per_read,
-                     float     t0,
-                     float     dt,
-                     int       nt_total,
-                     int       max_stage,
-                     float    *rk_stage_time,
-                     int       npoint_half_ext,
-                     MPI_Comm  comm,
-                     int       myid,
-                     int*      topoid,
-                     int       verbose);
 
 
 int
@@ -224,14 +275,11 @@ src_put_into_struct(src_t *src, gd_t *gd,
                     float *f1, float *f2, float *f3, 
                     float *m11, float *m22, float *m33, float *m23, float *m13, float *m12);
 
-int
-src_dd_free(src_t *src);
-
-int
-src_dd_accit_loadstf(src_t *src, int it, int myid);
-
 float
 src_cal_wavelet(float t, float dt, char *wavelet_name, float *wavelet_coefs);
+
+float
+src_cal_wavelet_rate(float t, float dt, char *wavelet_name, float *wavelet_coefs);
 
 float 
 fun_ricker(float t, float fc, float t0);
@@ -316,17 +364,11 @@ src_cart2curv_sample(float sx, float sy, float sz,
                      float *sj_curv,
                      float *sk_curv);
 
-int
-src_set_time(src_t *src, int it, int istage);
-
 void
 src_cal_norm_delt3d(float *delt, float x0, float y0, float z0,
                     float rx0, float ry0, float rz0, int LenDelt);
 void
 src_cal_norm_delt3d_z2fre(float *delt, float x0, float y0, float z0,
                     float rx0, float ry0, float rz0, int LenDelt, int LenDeltZ2);
-
-int
-src_print(src_t *src, int verbose);
 
 #endif

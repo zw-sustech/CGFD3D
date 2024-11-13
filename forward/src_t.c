@@ -25,12 +25,17 @@
 int
 src_init(src_t *src, int force_actived, int moment_actived,
          int num_of_src, int max_nt, int max_stage,
-         int itype_spatial_ext, int ext_half_npoint)
+         int is_surface_force_strict, int num_of_surf_force,
+         int itype_spatial_ext, int ext_half_npoint,
+         size_t siz_slice)
 {
-  // set default value
+  // set value
   src->total_number = num_of_src;
   src->max_nt    = max_nt;
   src->max_stage = max_stage;
+  src->is_surface_force_strict = is_surface_force_strict;
+  src->total_number_surface_force = num_of_surf_force; // >0 means is_surface_force_strict
+  src->idx_next_surface_force = 0; // for next put opertor when creating src
 
   // smo
   int len_ext            = 2*ext_half_npoint+1;
@@ -69,6 +74,46 @@ src_init(src_t *src, int force_actived, int moment_actived,
     }
   }
 
+  src->Fx_rate = NULL;
+  src->Fy_rate = NULL;
+  src->Fz_rate = NULL;
+  src->force_rate_indx = NULL;
+  if (num_of_surf_force > 0 ) {
+    src->Fx_rate = (float *)malloc(max_stage * max_nt * num_of_surf_force * sizeof(float));
+    src->Fy_rate = (float *)malloc(max_stage * max_nt * num_of_surf_force * sizeof(float));
+    src->Fz_rate = (float *)malloc(max_stage * max_nt * num_of_surf_force * sizeof(float));
+    for (int iptr=0; iptr < max_stage * max_nt * num_of_surf_force; iptr++) {
+      src->Fx_rate[iptr] = 0.0;
+      src->Fy_rate[iptr] = 0.0;
+      src->Fz_rate[iptr] = 0.0;
+    }
+
+    src->force_rate_indx = (int *)malloc(num_of_surf_force * sizeof(int));
+    for (int is=0; is < num_of_surf_force; is++) {
+      src->force_rate_indx[is] = -1; // value means index in Fx etc, thus default -1
+    }
+  }
+
+  src->TxSrc = NULL; src->TySrc = NULL; src->TzSrc = NULL;
+  src->VxSrc = NULL; src->VySrc = NULL; src->VzSrc = NULL;
+  //if (num_of_surf_force > 0 ) {
+    // in timg, TxSrc etc is used without num_of_surf_force value comparison
+    src->TxSrc = (float *)malloc(siz_slice * sizeof(float));
+    src->TySrc = (float *)malloc(siz_slice * sizeof(float));
+    src->TzSrc = (float *)malloc(siz_slice * sizeof(float));
+    src->VxSrc = (float *)malloc(siz_slice * sizeof(float));
+    src->VySrc = (float *)malloc(siz_slice * sizeof(float));
+    src->VzSrc = (float *)malloc(siz_slice * sizeof(float));
+    for (int iptr=0; iptr < siz_slice; iptr++) {
+      src->TxSrc[iptr] = 0.0;
+      src->TySrc[iptr] = 0.0;
+      src->TzSrc[iptr] = 0.0;
+      src->VxSrc[iptr] = 0.0;
+      src->VySrc[iptr] = 0.0;
+      src->VzSrc[iptr] = 0.0;
+    }
+  //}
+
   src->Mxx = NULL;
   src->Myy = NULL;
   src->Mzz = NULL;
@@ -102,6 +147,141 @@ src_set_time(src_t *src, int it, int istage)
   src->it     = it;
   src->istage = istage;
 
+  return 0;
+}
+
+int
+src_set_surface_layer_for_force(src_t *src,
+                                gd_t *gd,
+                                gdcurv_metric_t  *metric)
+{
+  // to avoid repeat 'if' for rest lines
+  if (src->total_number_surface_force <= 0 ) {
+    return 0;
+  }
+
+  float *restrict jac3d = metric->jac;
+  float *restrict TxSrc = src->TxSrc;
+  float *restrict TySrc = src->TySrc;
+  float *restrict TzSrc = src->TzSrc;
+  float *restrict VxSrc = src->VxSrc;
+  float *restrict VySrc = src->VySrc;
+  float *restrict VzSrc = src->VzSrc;
+  size_t siz_line  = gd->siz_line;
+  size_t siz_slice = gd->siz_slice;
+
+  // get cur time for source
+  int it     = src->it;
+  int istage = src->istage;
+
+  int si,sj,sk;
+  float si_inc,sj_inc,sk_inc;
+
+  // for spatial smo
+  int ext_half_npoint   = src->ext_half_npoint;
+  int ext_length_npoint = src->ext_length_npoint;
+  float ext_func_coef   = src->ext_func_coef;
+  float ext_coefs[src->ext_size_npoint]; // variable length arrays
+  int npoint_z2ext_below_free;
+
+  // reset to 0.0
+  for (int iptr=0; iptr<siz_slice; iptr++)
+  {
+      TxSrc[iptr] = 0.0;
+      TySrc[iptr] = 0.0;
+      TzSrc[iptr] = 0.0;
+      VxSrc[iptr] = 0.0;
+      VySrc[iptr] = 0.0;
+      VzSrc[iptr] = 0.0;
+  }
+
+  for (int n=0; n < src->total_number_surface_force; n++)
+  {
+    int is = src->force_rate_indx[n];
+    int it_start = src->it_begin[is];
+    int it_end   = src->it_end  [is];
+
+    if (it < it_start || it > it_end) {
+      continue; // out of this source time range, skip to next src
+    }
+
+    si = src->si[is];
+    sj = src->sj[is];
+    sk = src->sk[is];
+
+    int it_to_it_start = it - it_start;
+    int iptr_cur_stage =   is * src->max_nt * src->max_stage // skip other src
+                         + it_to_it_start * src->max_stage // skip other time step
+                         + istage;
+    int iptr_cur_stage_rate =  n * src->max_nt * src->max_stage // skip other src
+                             + it_to_it_start * src->max_stage // skip other time step
+                             + istage;
+    float fx_val  = src->Fx[iptr_cur_stage];
+    float fy_val  = src->Fy[iptr_cur_stage];
+    float fz_val  = src->Fz[iptr_cur_stage];
+    float fx_rate = src->Fx_rate[iptr_cur_stage_rate];
+    float fy_rate = src->Fy_rate[iptr_cur_stage_rate];
+    float fz_rate = src->Fz_rate[iptr_cur_stage_rate];
+
+    // without smoothing
+    if (src->itype_spatial_ext == CONST_SRC_SPATIAL_POINT)
+    {
+      size_t iptr   = si + sj * siz_line + sk * siz_slice; // index of all points
+      int     iptr2d = si + sj * siz_line;  // index of surface only slice
+
+      TxSrc[iptr2d] += fx_val;
+      TySrc[iptr2d] += fy_val;
+      TzSrc[iptr2d] += fz_val;
+
+      VxSrc[iptr2d] += fx_rate / jac3d[iptr];
+      VySrc[iptr2d] += fy_rate / jac3d[iptr];
+      VzSrc[iptr2d] += fz_rate / jac3d[iptr];
+    } 
+
+    // using smoothing
+    else
+    {
+      si_inc = src->si_inc[is];
+      sj_inc = src->sj_inc[is];
+      sk_inc = src->sk_inc[is];
+
+      // spatial dist
+      if (sk + ext_half_npoint < gd->nk2) {
+        npoint_z2ext_below_free = ext_half_npoint;
+      } else {
+        npoint_z2ext_below_free = gd->nk2 - sk;
+      }
+      src_cal_norm_delt3d_z2fre(ext_coefs, si_inc, sj_inc, sk_inc,
+                          ext_func_coef, ext_func_coef, ext_func_coef,
+                          ext_half_npoint, npoint_z2ext_below_free);
+
+      int k_ext = npoint_z2ext_below_free; // k index in ext smooth
+      int k = sk + k_ext;
+      for (int j_ext=-ext_half_npoint; j_ext<=ext_half_npoint; j_ext++)
+      {
+        int j = sj + j_ext;
+        for (int i_ext=-ext_half_npoint; i_ext<=ext_half_npoint; i_ext++)
+        {
+          int i = si + i_ext;
+
+          int iptr_ext = i_ext + j_ext * ext_length_npoint + k_ext * ext_length_npoint * ext_length_npoint;
+          float coef = ext_coefs[iptr_ext];
+
+          size_t iptr   = i + j * siz_line + k * siz_slice;
+          int    iptr2d = i + j * siz_line;  // index of surface only slice
+
+          TxSrc[iptr2d] += fx_val * coef;
+          TySrc[iptr2d] += fy_val * coef;
+          TzSrc[iptr2d] += fz_val * coef;
+
+          VxSrc[iptr2d] += fx_rate * coef / jac3d[iptr];
+          VySrc[iptr2d] += fy_rate * coef / jac3d[iptr];
+          VzSrc[iptr2d] += fz_rate * coef / jac3d[iptr];
+        } // i_ext
+      } // j_ext
+    } // if smo
+  } // loop n
+  
   return 0;
 }
 
@@ -149,6 +329,19 @@ src_glob_ishere(int si, int sj, int sk, int half_ext, gd_t *gd)
   return is_here;
 }
 
+int
+src_glob_ext_reach_free(int sk, int half_ext, gd_t *gdinfo)
+{
+  int is_here = 0;
+
+  if (sk-half_ext >= gdinfo->nk2_to_glob_phys0)
+  {
+    is_here = 1;
+  }
+
+  return is_here;
+}
+
 /*
  * read .src file and convert into internal structure
  */
@@ -162,8 +355,9 @@ src_read_locate_file(gd_t     *gd,
                      float     dt,
                      int       max_stage,
                      float    *rk_stage_time,
+                     int       is_surface_force_strict,
                      int       itype_spatial_ext,
-                     int       ext_half_npoint,
+                     int       fd_half_npoint,
                      MPI_Comm  comm,
                      int       myid,
                      int       verbose)
@@ -189,6 +383,14 @@ src_read_locate_file(gd_t     *gd,
   int in_cmp_type;
   // moment is given by tensor (0) or angle + mu D A (1)
   int in_mechanism_type;
+
+  // 0 or fd_half_npoint
+  int ext_half_npoint;
+  if (itype_spatial_ext == CONST_SRC_SPATIAL_POINT) {
+    ext_half_npoint = 0;
+  } else {
+    ext_half_npoint = fd_half_npoint;
+  }
 
   // open in_src_file
   if ((fp = fopen(in_src_file, "r"))==NULL) {
@@ -216,7 +418,8 @@ src_read_locate_file(gd_t     *gd,
   // loop each source to locate it to computational grid
   //
 
-  int num_of_src_here = 0;
+  int num_of_src_here        = 0;
+  int num_of_surf_force_here = 0;
   int si_glob,sj_glob,sk_glob;
   float sx_inc, sy_inc, sz_inc;
 
@@ -252,6 +455,11 @@ src_read_locate_file(gd_t     *gd,
     {
       all_in_thread[is] = 1;
       num_of_src_here += 1;
+      // count surf_force no matter spetial treatment or not first
+      if (src_glob_ext_reach_free(sk_glob,ext_half_npoint,gd) == 1)
+      {
+        num_of_surf_force_here += 1;
+      }
     }
     if (src_glob_ishere(si_glob,sj_glob,sk_glob,ext_half_npoint,gd)==1)
     {
@@ -268,10 +476,14 @@ src_read_locate_file(gd_t     *gd,
                     is, all_index[is][0],all_index[is][1],all_index[is][2],
                         all_inc[is][0],all_inc[is][1],all_inc[is][2]);
     }
+    fprintf(stdout,"=========\n");
+    fprintf(stdout,"total %d source are close to free surface !\n",num_of_surf_force_here);
     fflush(stdout);
   }
 
-  if (myid == 0) {
+  if (myid == 0)
+  {
+    int num_unfound = 0;
     for (int is=0; is < in_num_source; is++)
     {
       if(all_index[is][0] == -1000 || all_index[is][1] == -1000 || 
@@ -281,8 +493,11 @@ src_read_locate_file(gd_t     *gd,
           fprintf(stdout,"######### Warning ########\n");
           fprintf(stdout,"#########         ########\n");
           fprintf(stdout,"source number %d physical coordinates are outside calculation area !\n",is);
+          num_unfound += 1;
         }
     }
+    fprintf(stdout,"=========\n");
+    fprintf(stdout,"total %d source are outside calculation area !\n",num_unfound);
     fflush(stdout);
   }
   //
@@ -311,9 +526,15 @@ src_read_locate_file(gd_t     *gd,
     max_nt = (int) (((in_stf_nt-1)*in_stf_dt / dt)+ 0.5) + 1; 
   }
 
+  // reset num_of_surf_force_here if is_surface_force_strict == 0 or no force source type
+  if (is_surface_force_strict == 0 || force_actived == 0) {
+    num_of_surf_force_here = 0;
+  }
+
   // alloc src_t
   src_init(src,force_actived,moment_actived,num_of_src_here,max_nt,max_stage,
-           itype_spatial_ext,ext_half_npoint);
+           is_surface_force_strict,num_of_surf_force_here,itype_spatial_ext,ext_half_npoint,
+           gd->siz_slice);
 
   //
   // loop all source and only keep those in this thread
@@ -768,6 +989,16 @@ src_put_into_struct(src_t *src, gd_t *gd,
   src->sj_inc[is_local] = evt_inc[1];
   src->sk_inc[is_local] = evt_inc[2];
 
+  // if surface force
+  int this_source_is_a_surface_force = 0;  // use this flag to avoid repeat following comparison
+  int is_local_surf_force = src->idx_next_surface_force;
+  if (src->total_number_surface_force > 0 
+        && (src_glob_ext_reach_free(evt_index[2],src->ext_half_npoint,gd) == 1) )
+  {
+    this_source_is_a_surface_force = 1;
+    src->force_rate_indx[is_local] = is_local_surf_force;
+  }
+
   //
   // wavelet
   //
@@ -792,9 +1023,13 @@ src_put_into_struct(src_t *src, gd_t *gd,
     // need to explain purpose
     float t_shift = wavelet_tstart - (it_begin * dt + t0);
 
+    // for surface force
+    int iptr_it_surf_force = is_local_surf_force * max_nt * max_stage + it_to_it1 * max_stage;
+
     for (int istage=0; istage<max_stage; istage++)
     {
-      int iptr = iptr_it + istage;
+      int iptr            = iptr_it            + istage;
+      int iptr_surf_force = iptr_it_surf_force + istage;
 
       // cal stf for given wavelet name
       if (in_stf_by_value==0)
@@ -803,6 +1038,7 @@ src_put_into_struct(src_t *src, gd_t *gd,
         float t = it_to_it1 * dt + rk_stage_time[istage] * dt - t_shift;
 
         float stf_val = src_cal_wavelet(t,dt,wavelet_name,wavelet_coefs);
+
         if (force_actived==1) {
           src->Fx[iptr]  = stf_val * fx;
           src->Fy[iptr]  = stf_val * fy;
@@ -815,6 +1051,14 @@ src_put_into_struct(src_t *src, gd_t *gd,
           src->Myz[iptr] = stf_val * myz;
           src->Mxz[iptr] = stf_val * mxz;
           src->Mxy[iptr] = stf_val * mxy;
+        }
+        // cal rate for surface force implementation
+        if (this_source_is_a_surface_force == 1)
+        {
+          float svf_val = src_cal_wavelet_rate(t,dt,wavelet_name,wavelet_coefs);
+          src->Fx_rate[iptr_surf_force] = svf_val * fx;
+          src->Fy_rate[iptr_surf_force] = svf_val * fy;
+          src->Fz_rate[iptr_surf_force] = svf_val * fz;
         }
       }
       // interp for input values
@@ -861,9 +1105,42 @@ src_put_into_struct(src_t *src, gd_t *gd,
           src->Mxz[iptr] = mxz;
           src->Mxy[iptr] = mxy;
         }
+
+        // cal rate for surface force implementation
+        if (this_source_is_a_surface_force == 1)
+        {
+          // use center fd between -dt/2 dt/2 to approximate derivative
+          float fx2 = LagInterp_Piecewise_1d(t_in, f1, in_stf_nt, order,
+                        wavelet_tstart, in_stf_dt, t+dt/2.0);
+          float fx1 = LagInterp_Piecewise_1d(t_in, f1, in_stf_nt, order,
+                        wavelet_tstart, in_stf_dt, t-dt/2.0);
+          fx = (fx2 - fx1) / dt;
+
+          float fy2 = LagInterp_Piecewise_1d(t_in, f2, in_stf_nt, order,
+                        wavelet_tstart, in_stf_dt, t+dt/2.0);
+          float fy1 = LagInterp_Piecewise_1d(t_in, f2, in_stf_nt, order,
+                        wavelet_tstart, in_stf_dt, t-dt/2.0);
+          fy = (fy2 - fy1) / dt;
+
+          float fz2 = LagInterp_Piecewise_1d(t_in, f3, in_stf_nt, order,
+                        wavelet_tstart, in_stf_dt, t+dt/2.0);
+          float fz1 = LagInterp_Piecewise_1d(t_in, f3, in_stf_nt, order,
+                        wavelet_tstart, in_stf_dt, t-dt/2.0);
+          fz = (fz2 - fz1) / dt;
+
+          src->Fx_rate[iptr_surf_force] = fx;
+          src->Fy_rate[iptr_surf_force] = fy;
+          src->Fz_rate[iptr_surf_force] = fz;
+        }
       }
     } // istage
   } // it
+
+  // incre index for surface force
+  if (this_source_is_a_surface_force == 1)
+  {
+    src->idx_next_surface_force += 1;
+  }
 
   return ierr;
 }
@@ -1742,6 +2019,30 @@ src_cal_wavelet(float t, float dt, char *wavelet_name, float *wavelet_coefs)
 }
 
 /*
+ * get svf value at a given t for a given stf func name
+ */
+
+float
+src_cal_wavelet_rate(float t, float dt, char *wavelet_name, float *wavelet_coefs)
+{
+  float svf_val;
+
+  if (strcmp(wavelet_name, "ricker")==0) {
+    svf_val = fun_ricker_deriv(t, wavelet_coefs[0], wavelet_coefs[1]);
+  } else if (strcmp(wavelet_name, "gaussian")==0) {
+    svf_val = fun_gauss_deriv(t, wavelet_coefs[0], wavelet_coefs[1]);
+  } else if (strcmp(wavelet_name, "bell")==0) {
+    svf_val = fun_bell_deriv(t, wavelet_coefs[0]);
+  } else{
+    fprintf(stderr,"rate for wavelet_name=%s\n", wavelet_name); 
+    fprintf(stderr,"   not implemented yet\n"); 
+    fflush(stderr); exit(1);
+  }
+
+  return svf_val;
+}
+
+/*
  * 3d spatial smoothing
  */
 
@@ -2097,6 +2398,7 @@ src_print(src_t *src, int verbose)
   fprintf(stdout,"-- max_nt=%d,max_stage=%d\n",
           src->max_nt,src->max_stage);
   fprintf(stdout,"-- itype_spatial_ext=%d\n", src->itype_spatial_ext);
+  fprintf(stdout,"-- surface force is strict=%d\n", src->is_surface_force_strict);
   
   // only print for large verbose
   if (verbose > 99)

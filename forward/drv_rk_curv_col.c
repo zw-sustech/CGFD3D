@@ -226,6 +226,9 @@ drv_rk_curv_col_allstep(
       // set src_t time
       src_set_time(src, it, istage);
 
+      // set TxSrc VxSrc etc for implementing surface force source
+      src_set_surface_layer_for_force(src, gd, metric);
+
       // compute rhs
       switch (md->medium_type)
       {

@@ -18,6 +18,7 @@ sv_curv_col_el_rhs_timg_z2(
     float *restrict et_x, float *restrict et_y, float *restrict et_z,
     float *restrict zt_x, float *restrict zt_y, float *restrict zt_z,
     float *restrict jac3d, float *restrict slw3d,
+    float *restrict TxSrc, float *restrict TySrc, float *restrict TzSrc, 
     int ni1, int ni2, int nj1, int nj2, int nk1, int nk2,
     size_t siz_line, size_t siz_slice,
     int fdx_len, int *restrict fdx_indx, float *restrict fdx_coef,

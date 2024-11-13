@@ -126,6 +126,7 @@ typedef struct
   float *matVx2Vz2; // [j,i, dzVi, dxVi]
   float *matVy2Vz2;
   float *matD; // for atten
+  float *matF2Vz2; // for surface force
 
   // bottom
   float *matVx2Vz1;

@@ -675,6 +675,7 @@ int main(int argc, char** argv)
                        par->source_input_file,
                        t0, dt,
                        fd->num_rk_stages, fd->rk_rhs_time,
+                       par->source_surface_force_strict,
                        par->source_spatial_ext_itype,
                        fd->fdx_max_half_len,
                        comm, myid,

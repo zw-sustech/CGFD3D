@@ -818,6 +818,12 @@ par_read_from_str(const char *str, par_t *par)
     par->source_dd_nt_per_read = item->valueint;
   }
 
+  //-- surface force treatment
+  par->source_surface_force_strict = 1; // default strict
+  if (item = cJSON_GetObjectItem(root, "source_surface_force_is_strict")) {
+    par->source_surface_force_strict = item->valueint;
+  }
+
   //-- source spatial ext type
   par->source_spatial_ext_itype = CONST_SRC_SPATIAL_GAUSSIAN; // default
   if (item = cJSON_GetObjectItem(root, "source_spatial_distribution_type")) {

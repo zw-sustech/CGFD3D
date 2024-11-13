@@ -107,6 +107,13 @@ sv_curv_col_vis_iso_onestage(
   float **restrict Ylam = md->Ylam;
   float **restrict Ymu  = md->Ymu;
 
+  float *restrict TxSrc = src->TxSrc;
+  float *restrict TySrc = src->TySrc;
+  float *restrict TzSrc = src->TzSrc;
+  float *restrict VxSrc = src->VxSrc;
+  float *restrict VySrc = src->VySrc;
+  float *restrict VzSrc = src->VzSrc;
+
   // grid size
   int ni1 = gdinfo->ni1;
   int ni2 = gdinfo->ni2;
@@ -127,6 +134,7 @@ sv_curv_col_vis_iso_onestage(
 
   float *matVx2Vz = bdry->matVx2Vz2;
   float *matVy2Vz = bdry->matVy2Vz2;
+  float *matF2Vz  = bdry->matF2Vz2;
 
   // local fd op
   int              fdx_inn_len;
@@ -172,6 +180,7 @@ sv_curv_col_vis_iso_onestage(
     sv_curv_col_el_rhs_timg_z2(Txx,Tyy,Tzz,Txz,Tyz,Txy,hVx,hVy,hVz,
                                         xi_x, xi_y, xi_z, et_x, et_y, et_z, zt_x, zt_y, zt_z,
                                         jac3d, slw3d,
+                                        TxSrc,TySrc,TzSrc,
                                         ni1,ni2,nj1,nj2,nk1,nk2,siz_line,siz_slice,
                                         fdx_inn_len, fdx_inn_indx, fdx_inn_coef,
                                         fdy_inn_len, fdy_inn_indx, fdy_inn_coef,
@@ -181,7 +190,8 @@ sv_curv_col_vis_iso_onestage(
     sv_curv_col_el_iso_rhs_vlow_z2(Vx,Vy,Vz,hTxx,hTyy,hTzz,hTxz,hTyz,hTxy,
                                       xi_x, xi_y, xi_z, et_x, et_y,et_z, zt_x, zt_y, zt_z,
                                       lam3d, mu3d, slw3d,
-                                      matVx2Vz,matVy2Vz,
+                                      matVx2Vz,matVy2Vz,matF2Vz,
+                                      VxSrc,VySrc,VzSrc,
                                       ni1,ni2,nj1,nj2,nk1,nk2,
                                       siz_line,siz_slice,fdx_inn_len, fdx_inn_indx,
                                       fdx_inn_coef,fdy_inn_len, fdy_inn_indx,

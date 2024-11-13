@@ -36,6 +36,7 @@ sv_curv_col_el_rhs_timg_z2(
     float *restrict et_x, float *restrict et_y, float *restrict et_z,
     float *restrict zt_x, float *restrict zt_y, float *restrict zt_z,
     float *restrict jac3d, float *restrict slw3d,
+    float *restrict TxSrc, float *restrict TySrc, float *restrict TzSrc, 
     int ni1, int ni2, int nj1, int nj2, int nk1, int nk2,
     size_t siz_line, size_t siz_slice,
     int fdx_len, int *restrict fdx_indx, float *restrict fdx_coef,
@@ -101,6 +102,8 @@ sv_curv_col_el_rhs_timg_z2(
 
       for (size_t i=ni1; i<=ni2; i++)
       {
+          size_t iptr2d = i + j * siz_line;
+
           // metric
           xix = xi_x[iptr];
           xiy = xi_y[iptr];
@@ -141,19 +144,22 @@ sv_curv_col_el_rhs_timg_z2(
                                           + zt_z[iptr4vec] * Txz[iptr4vec] );
           }
 
-          // at surface -> set to 0
-          veczt[n_free] = 0.0;
+          // at surface -> set to surface traction
+          veczt[n_free] = TxSrc[iptr2d];
 
           // above surface -> mirror
           for (n=n_free+1; n<fdz_len; n++)
           {
-            int n_img = fdz_indx[n] - 2*(n-n_free);
-            //int n_img = n_free-(n-n_free);
-            iptr4vec = iptr + n_img * siz_slice;
-            veczt[n] = -jac3d[iptr4vec] * (  zt_x[iptr4vec] * Txx[iptr4vec]
-                                           + zt_y[iptr4vec] * Txy[iptr4vec]
-                                           + zt_z[iptr4vec] * Txz[iptr4vec] );
-            //veczt[n] = -veczt[n_free-(n-n_free)];
+            //- forget why to use following re-caculate approach, comment out now
+            //int n_img = fdz_indx[n] - 2*(n-n_free);
+            ////int n_img = n_free-(n-n_free);
+            //iptr4vec = iptr + n_img * siz_slice;
+            //veczt[n] = -jac3d[iptr4vec] * (  zt_x[iptr4vec] * Txx[iptr4vec]
+            //                               + zt_y[iptr4vec] * Txy[iptr4vec]
+            //                               + zt_z[iptr4vec] * Txz[iptr4vec] );
+
+            //- use calculated values below surface to mirror
+            veczt[n] = 2.0 * TxSrc[iptr2d] - veczt[n_free-(n-n_free)];
           }
 
           // deri
@@ -222,16 +228,19 @@ sv_curv_col_el_rhs_timg_z2(
                                           + zt_z[iptr4vec] * Tyz[iptr4vec] );
           }
 
-          // at surface -> set to 0
-          veczt[n_free] = 0.0;
+          // at surface -> set to Ty
+          veczt[n_free] = TySrc[iptr2d];
 
           // above surface -> mirror
           for (n=n_free+1; n<fdz_len; n++) {
-            int n_img = fdz_indx[n] - 2*(n-n_free);
-            iptr4vec = iptr + n_img * siz_slice;
-            veczt[n] = -jac3d[iptr4vec] * (  zt_x[iptr4vec] * Txy[iptr4vec]
-                                           + zt_y[iptr4vec] * Tyy[iptr4vec]
-                                           + zt_z[iptr4vec] * Tyz[iptr4vec] );
+            //int n_img = fdz_indx[n] - 2*(n-n_free);
+            //iptr4vec = iptr + n_img * siz_slice;
+            //veczt[n] = -jac3d[iptr4vec] * (  zt_x[iptr4vec] * Txy[iptr4vec]
+            //                               + zt_y[iptr4vec] * Tyy[iptr4vec]
+            //                               + zt_z[iptr4vec] * Tyz[iptr4vec] );
+
+            //- use calculated values below surface to mirror
+            veczt[n] = 2.0 * TySrc[iptr2d] - veczt[n_free-(n-n_free)];
           }
 
           // deri
@@ -267,16 +276,18 @@ sv_curv_col_el_rhs_timg_z2(
                                           + zt_z[iptr4vec] * Tzz[iptr4vec] );
           }
 
-          // at surface -> set to 0
-          veczt[n_free] = 0.0;
+          // at surface -> set to Tz
+          veczt[n_free] = TzSrc[iptr2d];
 
           // above surface -> mirror
           for (n=n_free+1; n<fdz_len; n++) {
-            int n_img = fdz_indx[n] - 2*(n-n_free);
-            iptr4vec = iptr + n_img * siz_slice;
-            veczt[n] = -jac3d[iptr4vec] * (  zt_x[iptr4vec] * Txz[iptr4vec]
-                                           + zt_y[iptr4vec] * Tyz[iptr4vec]
-                                           + zt_z[iptr4vec] * Tzz[iptr4vec] );
+            //int n_img = fdz_indx[n] - 2*(n-n_free);
+            //iptr4vec = iptr + n_img * siz_slice;
+            //veczt[n] = -jac3d[iptr4vec] * (  zt_x[iptr4vec] * Txz[iptr4vec]
+            //                               + zt_y[iptr4vec] * Tyz[iptr4vec]
+            //                               + zt_z[iptr4vec] * Tzz[iptr4vec] );
+
+            veczt[n] = 2.0 * TzSrc[iptr2d] - veczt[n_free-(n-n_free)];
           }
 
           // for hVx 
@@ -373,10 +384,13 @@ sv_curv_col_el_rhs_src(
         iptr = si + sj * siz_line + sk * siz_slice;
 
         if (src->force_actived == 1) {
-          float V = slw3d[iptr] / jac3d[iptr];
-          hVx[iptr] += fx * V;
-          hVy[iptr] += fy * V;
-          hVz[iptr] += fz * V;
+          // surface force is dealt by free surface boundary condition
+          if (src->is_surface_force_strict==0 || sk < nk2) {
+            float V = slw3d[iptr] / jac3d[iptr];
+            hVx[iptr] += fx * V;
+            hVy[iptr] += fy * V;
+            hVz[iptr] += fz * V;
+          }
         }
 
         if (src->moment_actived == 1) {
@@ -427,10 +441,13 @@ sv_curv_col_el_rhs_src(
                 coef = ext_coefs[iptr_ext];
 
                 if (src->force_actived == 1) {
-                  float V = coef * slw3d[iptr] / jac3d[iptr];
-                  hVx[iptr] += fx * V;
-                  hVy[iptr] += fy * V;
-                  hVz[iptr] += fz * V;
+                  // surface force is dealt by free surface boundary condition
+                  if (src->is_surface_force_strict==0 || k < nk2) {
+                    float V = coef * slw3d[iptr] / jac3d[iptr];
+                    hVx[iptr] += fx * V;
+                    hVy[iptr] += fy * V;
+                    hVz[iptr] += fz * V;
+                  }
                 }
 
                 if (src->moment_actived == 1) {
