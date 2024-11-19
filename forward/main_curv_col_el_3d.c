@@ -18,6 +18,7 @@
 #include "par_t.h"
 // blk_t.h contains most other headers
 #include "blk_t.h"
+#include "msg_funcs.h"
 
 #include "media_discrete_model.h"
 #include "drv_rk_curv_col.h"
@@ -74,6 +75,11 @@ int main(int argc, char** argv)
     fprintf(stdout,"par file =  %s\n", par_fname);
   }
 
+  // print msg
+  if (myid==0 && verbose>0) {
+    msg_on_start(comm,myid,processor_name,verbose);
+  }
+
   // read par
 
   par_t *par = (par_t *) malloc(sizeof(par_t));
@@ -118,6 +124,7 @@ int main(int argc, char** argv)
             par->number_of_mpiprocs_x,
             par->number_of_mpiprocs_y,
             comm,
+            processor_name,
             myid, verbose);
 
   // set gdinfo

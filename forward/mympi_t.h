@@ -15,6 +15,7 @@ typedef struct {
 
   int       myid;
   MPI_Comm  comm;
+  char     *hostname;
 
   int    topoid[2];
   //int    neighid[4];
@@ -59,6 +60,7 @@ mympi_set(mympi_t *mympi,
           int number_of_mpiprocs_x,
           int number_of_mpiprocs_y,
           MPI_Comm comm, 
+          char *hostname,
           const int myid, const int verbose);
 
 void

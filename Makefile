@@ -58,6 +58,7 @@ main_curv_col_el_3d: \
 		media_bin2model.o \
 		media_geometry3d.o \
 		media_read_file.o \
+		msg_funcs.o \
 		gd_t.o md_t.o wav_t.o \
 		bdry_t.o src_t.o io_funcs.o \
 		blk_t.o \
@@ -109,6 +110,8 @@ bdry_t.o: forward/bdry_t.c
 src_t.o: forward/src_t.c
 	${CC} -c -o $@ $(CFLAGS) $<
 io_funcs.o: forward/io_funcs.c
+	${CC} -c -o $@ $(CFLAGS) $<
+msg_funcs.o: forward/msg_funcs.c
 	${CC} -c -o $@ $(CFLAGS) $<
 blk_t.o: forward/blk_t.c
 	${CC} -c -o $@ $(CFLAGS) $<
