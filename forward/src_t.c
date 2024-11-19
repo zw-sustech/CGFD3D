@@ -996,7 +996,7 @@ src_put_into_struct(src_t *src, gd_t *gd,
         && (src_glob_ext_reach_free(evt_index[2],src->ext_half_npoint,gd) == 1) )
   {
     this_source_is_a_surface_force = 1;
-    src->force_rate_indx[is_local] = is_local_surf_force;
+    src->force_rate_indx[is_local_surf_force] = is_local;
   }
 
   //

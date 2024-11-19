@@ -49,9 +49,9 @@ typedef struct
   // spatial extention
   int itype_spatial_ext; // num type, 1:point, 2:gaussian, 3:xx, see constants.h
   int ext_half_npoint;   // maximum half points no matter spatial functions
-  int ext_func_coef; // func coef, e.g., wid_gauss
   int ext_length_npoint;
   int ext_size_npoint;
+  float ext_func_coef; // func coef, e.g., wid_gauss
 
   // force and/or moment
   int force_actived;
