@@ -334,7 +334,7 @@ src_glob_ext_reach_free(int sk, int half_ext, gd_t *gdinfo)
 {
   int is_here = 0;
 
-  if (sk-half_ext >= gdinfo->nk2_to_glob_phys0)
+  if (sk+half_ext >= gdinfo->nk2_to_glob_phys0)
   {
     is_here = 1;
   }
