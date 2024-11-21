@@ -442,12 +442,18 @@ sv_curv_col_el_rhs_src(
 
                 if (src->force_actived == 1) {
                   // surface force is dealt by free surface boundary condition
+                  //fprintf(stdout,"--- sijk=(%d,%d,%d),ijk=(%d,%d,%d),coef=%f\n",
+                  //                   si,sj,sk,i,j,k,coef);
                   if (src->is_surface_force_strict==0 || k < nk2) {
                     float V = coef * slw3d[iptr] / jac3d[iptr];
+                    //fprintf(stdout,"---- fx=%f,fy=%f,fz=%f,coef*slow/jac=%g\n",fx,fy,fz,V);
+                    //fprintf(stdout,"---- slow=%f,jac=%f,coef*slow/jac=%g\n",slw3d[iptr],jac3d[iptr],
+                    //           coef * slw3d[iptr] / jac3d[iptr]);      
                     hVx[iptr] += fx * V;
                     hVy[iptr] += fy * V;
                     hVz[iptr] += fz * V;
                   }
+                  fflush(stdout);
                 }
 
                 if (src->moment_actived == 1) {

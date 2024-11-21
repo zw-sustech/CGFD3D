@@ -20,7 +20,7 @@ msg_on_start(MPI_Comm  comm,
              const int verbose)
 {
   char *msg=
-"CGFD3D_MPI, last update: 2024/11/20.\n"
+"CGFD3D_MPI, last update: 2024/11/21\n"
 "Major features:\n"
 "+ Surface force source\n"
 "+ elastic wave simulation\n"
