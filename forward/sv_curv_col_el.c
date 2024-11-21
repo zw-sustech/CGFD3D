@@ -335,7 +335,7 @@ sv_curv_col_el_rhs_src(
   float ext_func_coef   = src->ext_func_coef;
 
   float ext_coefs[src->ext_size_npoint]; // variable length arrays
-  int npoint_z2ext_below_free;
+  int k2_ext_below_surface;
   int iptr_ext;
   float coef;
 
@@ -412,19 +412,19 @@ sv_curv_col_el_rhs_src(
 
         // spatial dist
         if (sk + npoint_half_ext < nk2) {
-          npoint_z2ext_below_free = npoint_half_ext;
+          k2_ext_below_surface = npoint_half_ext;
         } else {
-          npoint_z2ext_below_free = nk2 - sk;
+          k2_ext_below_surface = nk2 - sk;
         }
         src_cal_norm_delt3d_z2fre(ext_coefs, si_inc, sj_inc, sk_inc,
                             ext_func_coef, ext_func_coef, ext_func_coef,
-                            npoint_half_ext, npoint_z2ext_below_free);
+                            npoint_half_ext, k2_ext_below_surface);
 
         // future: get start end index first to avoid if inside loop
         // int i1_ext = si-npoint_half_ext > ni1 ? si-npoint_half_ext : ni1;
 
         iptr_ext = 0; // to get coef from vector ext_coefs
-        for (int k_ext=-npoint_half_ext; k_ext<=npoint_z2ext_below_free; k_ext++)
+        for (int k_ext=-npoint_half_ext; k_ext<=k2_ext_below_surface; k_ext++)
         {
           int k = sk + k_ext;
           for (int j_ext=-npoint_half_ext; j_ext<=npoint_half_ext; j_ext++)
