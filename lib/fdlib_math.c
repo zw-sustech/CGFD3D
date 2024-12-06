@@ -1,3 +1,5 @@
+#include <stdio.h>
+#include <stdlib.h>
 #include <math.h>
 
 #include "fdlib_math.h"
@@ -225,3 +227,115 @@ fdlib_math_rdinterp_2d(float x, float z,
 
   return val;
 }
+
+
+/*
+ * Input: Three vertices
+ *
+ *    ↑ +z    
+ *    |       
+ *            
+ *            2
+ *            |\
+ *            | \
+ *            0--1
+ *
+ * The quadrilateral must be convex!
+ * (anti-clockwise + Judge whether the v->p is on the left side of the edge)
+*/
+int fdlib_math_isPoint2InTri(float px, float py, const float *vx, const float *vy) 
+{
+
+     for (int i = 0; i < 3; i++) {
+        // vector: edge
+        float vecte_x = i==2?(vx[0]-vx[2]):(vx[i+1]-vx[i]);
+        float vecte_y = i==2?(vy[0]-vy[2]):(vy[i+1]-vy[i]);
+        // vector: vertex to point
+        float vectp_x = px - vx[i];
+        float vectp_y = py - vy[i];
+
+        float sign = vecte_x*vectp_y - vecte_y*vectp_x;
+        sign /= (sqrt(vecte_x*vecte_x + vecte_y*vecte_y));
+        // normalization
+        
+        if (sign < 0)
+            return 0;
+    }
+    return 1;
+
+}
+
+
+/*
+ * Input: vertx, verty are the FOUR vertexes of the quadrilateral
+ *
+ *    ↑ +z    
+ *    |       
+ *            2----3 
+ *            |    |
+ *            |    | 
+ *            0----1
+ *
+ * The quadrilateral must be convex!
+ *
+ *  if return 0, the point is outside the quadrilateral
+ *  	        1, the point is inside the tringle defined by vertices 0->1->3
+ *	          2, the point is inside the tringle defined by vertices 3->2->0 
+ */
+int
+fdlib_math_Point2InWhichTri(float px, float py, const float *vertx, const float *verty)
+{
+    float vx[5], vy[5]; // for colockwise
+    vx[0] = vertx[0]; vy[0] = verty[0];
+    vx[1] = vertx[1]; vy[1] = verty[1];
+    vx[2] = vertx[3]; vy[2] = verty[3];
+    vx[3] = vertx[2]; vy[3] = verty[2];
+    vx[4] = vertx[0]; vy[4] = verty[0];
+  
+    int flag = 0;
+  
+    if (fdlib_math_isPoint2InTri( px, py, &vx[2], &vy[2]) == 1) {
+        flag = 2;  
+    } else if (fdlib_math_isPoint2InTri(px, py, vx, vy) == 1) {
+        flag = 1;
+    }
+
+    return flag;
+}
+
+// compute z coord form the Triangle
+float
+fdlib_math_computeZfromTri(float x, float y, 
+													 float x1, float y1, float z1,
+													 float x2, float y2, float z2,
+													 float x3, float y3, float z3)
+{
+		// Compute two edge vectors of the triangle
+    float v1x = x2 - x1;
+    float v1y = y2 - y1;
+    float v1z = z2 - z1;
+
+    float v2x = x3 - x1;
+    float v2y = y3 - y1;
+    float v2z = z3 - z1;
+
+    // Compute the normal vector of the plane (a, b, c)
+    float a = v1y * v2z - v1z * v2y;
+    float b = v1z * v2x - v1x * v2z;
+    float c = v1x * v2y - v1y * v2x;
+
+    // Compute the constant d in the plane equation
+    float d = -(a * x1 + b * y1 + c * z1);
+
+    // Check if the plane is parallel to the z-axis
+    if (c == 0) {
+       fprintf(stderr, "Error: The plane is parallel to the z-axis; z cannot be determined.\n");
+    }
+
+    // Calculate z using the plane equation
+    float z = -(a * x + b * y + d) / c;
+    return z;
+
+}
+													 
+													 

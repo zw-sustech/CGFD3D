@@ -2130,7 +2130,7 @@ gd_curv_coord_to_local_indx(
               }
 
               // is in this cell
-              if (isPointInHexahedron_strict(sx,sy,sz,points_x,points_y,points_z) == true)
+              if (isPointInHexahedron(sx,sy,sz,points_x,points_y,points_z) == true)
               {
                 is_here = 1;
 
@@ -2248,7 +2248,7 @@ gd_curv_depth_to_axis(gd_t *gd,
                 }
               }
 
-              // interp z if in this cell
+              /* interp z if in this cell
               if (fdlib_math_isPoint2InQuad(sx,sy,points_x,points_y) == 1)
               {
                 float ztopo = fdlib_math_rdinterp_2d(sx,sy,4,points_x,points_y,points_z);
@@ -2257,6 +2257,33 @@ gd_curv_depth_to_axis(gd_t *gd,
 
                 return ierr;
               }
+              */
+              
+              // compute z_topo by the triangular patches
+              int idTri = fdlib_math_Point2InWhichTri(sx,sy,points_x,points_y);
+              if ( idTri == 1)
+              {
+                float ztopo = fdlib_math_computeZfromTri(sx,sy,
+                                      points_x[0], points_y[0], points_z[0],
+                                      points_x[1], points_y[1], points_z[1],
+                                      points_x[3], points_y[3], points_z[3]);
+                
+                *sz = ztopo - (*sz);
+
+                return ierr;
+              } 
+              else if (idTri == 2) 
+              {
+                 float ztopo = fdlib_math_computeZfromTri(sx,sy,
+                                      points_x[3], points_y[3], points_z[3],
+                                      points_x[2], points_y[2], points_z[2],
+                                      points_x[0], points_y[0], points_z[0]);
+                
+                *sz = ztopo - (*sz);
+
+                return ierr;
+              }
+              
               
             } // i
           } // j

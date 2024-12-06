@@ -31,4 +31,19 @@ fdlib_math_rdinterp_2d(float x, float z,
                   float *points_x, // x coord 
                   float *points_z, // z coord
                   float *points_v);
+                  
+int 
+fdlib_math_isPoint2InTri(float px, float py, const float *vx, const float *vy);                  
+ 
+int
+fdlib_math_Point2InWhichTri(float px, float py, const float *vertx, const float *verty);      
+
+
+float
+fdlib_math_computeZfromTri(float x, float y, 
+													 float x1, float y1, float z1,
+													 float x2, float y2, float z2,
+													 float x3, float y3, float z3);
+
+
 #endif
