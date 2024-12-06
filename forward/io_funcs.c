@@ -358,6 +358,15 @@ io_recv_read_locate(
 
       sprintf(this_recv->name, "%s", recvone[ir].name);
 
+      // Check nk_bdry for the interpolation points to avoid using the wavefiled from ghost points. 
+      // Since the point (i_local, j_local, k_local) has already determined to be inside the cell
+      //   using geometric methods, the only situation of out_of_bound is k_local = nk2.
+      // In this case, 2D interp at the surface (nk2) by modyfing the interpolation basis.
+      // Same treatment to directions i and j. 
+      rx_inc = i_local == gd->ni2 ? 0.0:rx_inc;
+      ry_inc = j_local == gd->nj2 ? 0.0:ry_inc;
+      rz_inc = k_local == gd->nk2 ? 0.0:rz_inc;
+
       // get coord
       this_recv->x = rx;
       this_recv->y = ry;
@@ -378,9 +387,10 @@ io_recv_read_locate(
       this_recv->indx1d[5] = i_local+1 + j_local     * gd->siz_iy + (k_local+1) * gd->siz_iz;
       this_recv->indx1d[6] = i_local   + (j_local+1) * gd->siz_iy + (k_local+1) * gd->siz_iz;
       this_recv->indx1d[7] = i_local+1 + (j_local+1) * gd->siz_iy + (k_local+1) * gd->siz_iz;
-
-      //fprintf(stdout,"== ir_this=%d,name=%s,i=%d,j=%d,k=%d\n",
-      //      nr_this,sta_name[nr_this],i_local,j_local,k_local); fflush(stdout);
+    
+      // QC
+      //fprintf(stdout,"== ir=%d,ir_this=%d,i=%d,j=%d,k=%d, di=%g, dj=%g, dk=%g \n",
+      //      ir,nr_this,i_local,j_local,k_local, rx_inc, ry_inc, rz_inc); 
 
       nr_this += 1;
     }
