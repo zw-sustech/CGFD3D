@@ -129,8 +129,6 @@ extern "C" {
 #endif
 bool isPointInHexahedron(float px, float py, float pz,
                          float *vx, float *vy, float *vz);
-bool isPointInHexahedron_strict(float px, float py, float pz,
-                               float *vx, float *vy, float *vz);
 #ifdef __cplusplus
 }
 #endif /* extern C */

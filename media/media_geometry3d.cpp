@@ -175,56 +175,11 @@ bool isPointInPolyhedron(const Point3 &p, const std::vector<Face> &fs) {
 		float sign = Dot(p2f, f.normal());
 		sign /= Length(p2f); // normalization, for stability
 
-		constexpr float bound = -1e-15;
-		if(sign < 0.0) return false;
+		constexpr float bound = -1.0e-6;
+		if(sign <= bound) return false;
 	}
 	return true;
 }
-
-/*
- * Input: vx, vy, vz are the EIGHT vertexes of the hexahedron 
- *
- *    ↑ +z       4----6
- *    |         /|   /|
- *             / 0--/-2
- *            5----7 /
- *            |/   |/
- *            1----3
- *
- *
- */
-bool isPointInHexahedron(float px, float py, float pz,
-                         float *vx, float *vy, float *vz) 
-{
-
-	Point3 P(px, py, pz); 
-
-	/* 
-	 * Just for cgfd3D, in which the grid mesh maybe not a hexahedron,
-	 */
-	std::vector<Face> hexa{
-		Face{ {Point3{vx[0], vy[0], vz[0]}, Point3{vx[4], vy[4], vz[4]}, Point3{vx[6], vy[6], vz[6]}} }, 
-//		Face{ {Point3{vx[6], vy[6], vz[6]}, Point3{vx[2], vy[2], vz[2]}, Point3{vx[0], vy[0], vz[0]}} }, // back
-
-		Face{ {Point3{vx[7], vy[7], vz[7]}, Point3{vx[5], vy[5], vz[5]}, Point3{vx[1], vy[1], vz[1]}} },
-//		Face{ {Point3{vx[1], vy[1], vz[1]}, Point3{vx[3], vy[3], vz[3]}, Point3{vx[7], vy[7], vz[7]}} }, // front
-
-		Face{ {Point3{vx[5], vy[5], vz[5]}, Point3{vx[4], vy[4], vz[4]}, Point3{vx[0], vy[0], vz[0]}} }, 
-//		Face{ {Point3{vx[0], vy[0], vz[0]}, Point3{vx[1], vy[1], vz[1]}, Point3{vx[5], vy[5], vz[5]}} }, // left
-
-		Face{ {Point3{vx[2], vy[2], vz[2]}, Point3{vx[6], vy[6], vz[6]}, Point3{vx[7], vy[7], vz[7]}} }, 
-//		Face{ {Point3{vx[7], vy[7], vz[7]}, Point3{vx[3], vy[3], vz[3]}, Point3{vx[2], vy[2], vz[2]}} }, // right
-
-		Face{ {Point3{vx[4], vy[4], vz[4]}, Point3{vx[5], vy[5], vz[5]}, Point3{vx[7], vy[7], vz[7]}} }, 
-//		Face{ {Point3{vx[7], vy[7], vz[7]}, Point3{vx[6], vy[6], vz[6]}, Point3{vx[4], vy[4], vz[4]}} }, // top
-
-//		Face{ {Point3{vx[0], vy[0], vz[0]}, Point3{vx[2], vy[2], vz[2]}, Point3{vx[3], vy[3], vz[3]}} }, 
-		Face{ {Point3{vx[3], vy[3], vz[3]}, Point3{vx[1], vy[1], vz[1]}, Point3{vx[0], vy[0], vz[0]}} }, // bottom
-	};
-
-    return isPointInPolyhedron(P, hexa);
-}
-
 
 /*
  * Input: vx, vy, vz are the EIGHT vertices of the hexahedron 
@@ -237,11 +192,11 @@ bool isPointInHexahedron(float px, float py, float pz,
  *            1----3
  *
  *
- * A more strict function, 
- *  if isPointInHexahedron cannot find the cell, use it. 
+ * for CGFD3D
+ *
  */
-bool isPointInHexahedron_strict(float px, float py, float pz,
-                               float *vx, float *vy, float *vz) 
+bool isPointInHexahedron(float px, float py, float pz,
+                         float *vx, float *vy, float *vz) 
 {
 
   Point3 P(px, py, pz); 
@@ -283,6 +238,7 @@ bool isPointInHexahedron_strict(float px, float py, float pz,
   };
 
 
+  // cut twice
   // 4, 5, 6, 0
   tetrahs[5] = {
     Face{{v4, v5, v6}}, Face{{v4, v6, v0}}, Face{{v4, v0, v5}}, Face{{v6, v5, v0}}
