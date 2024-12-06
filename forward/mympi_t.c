@@ -17,6 +17,7 @@ mympi_set(mympi_t *mympi,
           int number_of_mpiprocs_x,
           int number_of_mpiprocs_y,
           MPI_Comm comm, 
+          char *hostname,
           const int myid, const int verbose)
 {
   int ierr = 0;
@@ -26,6 +27,7 @@ mympi_set(mympi_t *mympi,
 
   mympi->myid = myid;
   mympi->comm = comm;
+  mympi->hostname = hostname;
 
   // mpi topo, only consider 2d topo
   int pdims[2]   = {number_of_mpiprocs_x, number_of_mpiprocs_y};
@@ -53,6 +55,10 @@ mympi_print(mympi_t *mympi)
   fprintf(stdout, "\n-------------------------------------------------------\n");
   fprintf(stdout, "print mympi info:\n");
   fprintf(stdout, "-------------------------------------------------------\n\n");
+
+  fprintf(stdout,"myid=%d,topoid=[%d,%d] at host %s\n",
+                  mympi->myid,mympi->topoid[0],mympi->topoid[1],mympi->hostname); 
+  fflush(stdout);
 
   //fprintf(stdout, "-------------------------------------------------------\n");
   //fprintf(stdout, "--> media info.\n");

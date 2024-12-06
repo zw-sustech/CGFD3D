@@ -182,7 +182,11 @@ src_set_surface_layer_for_force(src_t *src,
   int ext_length_npoint = src->ext_length_npoint;
   float ext_func_coef   = src->ext_func_coef;
   float ext_coefs[src->ext_size_npoint]; // variable length arrays
-  int npoint_z2ext_below_free;
+  //float ext_coefs[343]; // variable length arrays
+  int k_ext_at_surface;
+
+  //fprintf(stdout,"--- ext half=%d, length=%d, size=%d\n",
+  //                    ext_half_npoint,ext_length_npoint,src->ext_size_npoint);
 
   // reset to 0.0
   for (int iptr=0; iptr<siz_slice; iptr++)
@@ -201,6 +205,8 @@ src_set_surface_layer_for_force(src_t *src,
     int it_start = src->it_begin[is];
     int it_end   = src->it_end  [is];
 
+    //fprintf(stdout,"--- n=%d,is=%d,it_start=%d,it_end=%d\n",n,is,it_start,it_end);
+
     if (it < it_start || it > it_end) {
       continue; // out of this source time range, skip to next src
     }
@@ -208,6 +214,7 @@ src_set_surface_layer_for_force(src_t *src,
     si = src->si[is];
     sj = src->sj[is];
     sk = src->sk[is];
+    //fprintf(stdout,"--- sijk=(%d,%d,%d)\n",si,sj,sk);
 
     int it_to_it_start = it - it_start;
     int iptr_cur_stage =   is * src->max_nt * src->max_stage // skip other src
@@ -244,19 +251,30 @@ src_set_surface_layer_for_force(src_t *src,
       si_inc = src->si_inc[is];
       sj_inc = src->sj_inc[is];
       sk_inc = src->sk_inc[is];
+      //fprintf(stdout,"--- sijk_inc=(%g,%g,%g)\n",si_inc,sj_inc,sk_inc);
 
       // spatial dist
       if (sk + ext_half_npoint < gd->nk2) {
-        npoint_z2ext_below_free = ext_half_npoint;
-      } else {
-        npoint_z2ext_below_free = gd->nk2 - sk;
+        fprintf(stderr,"=== error: ext src not reach surface, should not go into func set surface force\n");
+        fprintf(stderr,"----- error: sk=%d,ext_half_npoint=%d,nk2=%d\n",sk,ext_half_npoint,gd->nk2);
+        fflush(stderr);
       }
+
+      k_ext_at_surface = gd->nk2 - sk;
+      //fprintf(stdout,"--- k_ext_at_surface=%d\n",k_ext_at_surface);
+
       src_cal_norm_delt3d_z2fre(ext_coefs, si_inc, sj_inc, sk_inc,
                           ext_func_coef, ext_func_coef, ext_func_coef,
-                          ext_half_npoint, npoint_z2ext_below_free);
+                          ext_half_npoint, k_ext_at_surface);
+      //src_cal_norm_delt3d(ext_coefs, si_inc, sj_inc, sk_inc,
+      //                    ext_func_coef, ext_func_coef, ext_func_coef,
+      //                    ext_half_npoint);
 
-      int k_ext = npoint_z2ext_below_free; // k index in ext smooth
+      int k_ext = k_ext_at_surface; // k index in ext smooth
       int k = sk + k_ext;
+
+      // attention: ijk_ext starts from negagive value, but iptr_ext should start from 0
+      int iptr_ext = (k_ext + ext_half_npoint) * ext_length_npoint * ext_length_npoint;
       for (int j_ext=-ext_half_npoint; j_ext<=ext_half_npoint; j_ext++)
       {
         int j = sj + j_ext;
@@ -264,7 +282,6 @@ src_set_surface_layer_for_force(src_t *src,
         {
           int i = si + i_ext;
 
-          int iptr_ext = i_ext + j_ext * ext_length_npoint + k_ext * ext_length_npoint * ext_length_npoint;
           float coef = ext_coefs[iptr_ext];
 
           size_t iptr   = i + j * siz_line + k * siz_slice;
@@ -277,8 +294,19 @@ src_set_surface_layer_for_force(src_t *src,
           VxSrc[iptr2d] += fx_rate * coef / jac3d[iptr];
           VySrc[iptr2d] += fy_rate * coef / jac3d[iptr];
           VzSrc[iptr2d] += fz_rate * coef / jac3d[iptr];
+
+          //fprintf(stdout,"--- ijk=(%d,%d,%d),ijk_ext=(%d,%d,%d)\n",i,j,k,i_ext,j_ext,k_ext);
+          //fprintf(stdout,"--- iptr=%ld,iptr2d=%d,iptr_ext=%d\n",iptr,iptr2d,iptr_ext);
+          //fprintf(stdout,"--- fxyz_val=(%g,%g,%g),fxyz_rate=(%g,%g,%g),coef=%g,jac=%g\n",
+          //                   fx_val,fy_val,fz_val,fx_rate,fy_rate,fz_rate,coef,jac3d[iptr]);
+          //fprintf(stdout,"--- TxyzSrc=(%g,%g,%g),VxyzSrc=(%g,%g,%g)\n",
+          //                   TxSrc[iptr2d], TySrc[iptr2d], TzSrc[iptr2d],
+          //                   VxSrc[iptr2d], VySrc[iptr2d], VzSrc[iptr2d]);
+
+          iptr_ext += 1;
         } // i_ext
       } // j_ext
+      //fflush(stdout);
     } // if smo
   } // loop n
   
@@ -334,7 +362,7 @@ src_glob_ext_reach_free(int sk, int half_ext, gd_t *gdinfo)
 {
   int is_here = 0;
 
-  if (sk-half_ext >= gdinfo->nk2_to_glob_phys0)
+  if (sk+half_ext >= gdinfo->nk2_to_glob_phys0)
   {
     is_here = 1;
   }
@@ -996,7 +1024,7 @@ src_put_into_struct(src_t *src, gd_t *gd,
         && (src_glob_ext_reach_free(evt_index[2],src->ext_half_npoint,gd) == 1) )
   {
     this_source_is_a_surface_force = 1;
-    src->force_rate_indx[is_local] = is_local_surf_force;
+    src->force_rate_indx[is_local_surf_force] = is_local;
   }
 
   //
